@@ -26,6 +26,14 @@ GP.ui = (function () {
       ? 'シーズン終了'
       : (left === 0 ? '★ 今週レース！' : '第' + (g.nextRace + 1) + '戦まで あと' + left + '週');
     $('tNext').className = left === 0 ? 'race-imminent' : '';
+    const tk = g.tickets || 0;
+    $('tTicket').textContent = tk;
+    $('tTicketBox').style.display = tk ? '' : 'none';
+    $('tTicketBox').classList.toggle('has', tk > 0);
+    const dm = S.diffOf(g);
+    const md = $('tMode');
+    md.textContent = dm.icon + dm.name;
+    md.style.background = dm.color;
     const sc = GP.base.scale(g);
     const el = $('tRank');
     if (el && el.textContent !== sc.rank) {

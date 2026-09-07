@@ -236,6 +236,7 @@ GP.race = (function () {
   function applyResult(g, res) {
     const notes = [];
     const sp = res.special;
+    const diff = S.diffOf(g);
     let prize = 0, fanDelta = 0;
 
     res.classified.forEach(e => {
@@ -254,7 +255,7 @@ GP.race = (function () {
       S.reactToResult(e.driver, e.pos, e.dnf);
       if (e.isPlayer) {
         if (!sp) g.points += pts;
-        const base = 800 + pts * 470 + (e.dnf ? 0 : Math.max(0, 1300 - e.pos * 50));
+        const base = (800 + pts * 470 + (e.dnf ? 0 : Math.max(0, 1300 - e.pos * 50))) * diff.prize;
         prize += sp ? base * sp.prize : base;
         let gain = 12 + Math.max(0, 22 - e.pos) + (e.dnf ? 0 : 8);
         if (sp) gain = Math.round(gain * sp.lapMul) + (sp.exp || 0);
@@ -277,7 +278,7 @@ GP.race = (function () {
     // スポンサー収入（特別戦は選手権外なので基本給のみ）
     let sponsorIncome = 0;
     g.sponsors.forEach(s2 => {
-      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * (sp ? 0.4 : 1);
+      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * (sp ? 0.4 : 1) * diff.sponsor;
       if (!sp && best && !best.dnf && best.pos <= s2.need) {
         sponsorIncome += s2.bonus;
         notes.push('📣 ' + s2.name + ' の目標達成ボーナス！ +' + Math.round(s2.bonus) + '万');
@@ -287,6 +288,22 @@ GP.race = (function () {
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
+
+    // 入賞できない状態が続いたら、開発チケットが届く（選手権のみ）
+    if (!sp) {
+      const scored = res.classified.some(e => e.isPlayer && !e.dnf && e.points > 0);
+      if (scored) {
+        g.dryStreak = 0;
+      } else {
+        g.dryStreak = (g.dryStreak || 0) + 1;
+        if (g.dryStreak >= diff.ticket) {
+          g.dryStreak = 0;
+          g.tickets = (g.tickets || 0) + 1;
+          notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回無料で行える）');
+          res.gotTicket = true;
+        }
+      }
+    }
 
     // 初優勝フラグ
     if (!sp && best && best.pos === 1 && !g.flags.firstWin) {

@@ -26,6 +26,8 @@ window.GP = window.GP || {};
     }
     // 研究ポイントの自然増
     g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
+    // 下部組織の若手が育つ
+    S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
     const drift = d => { d.form = S.clamp(d.form + (100 - d.form) * 0.14 + S.rnd(-4.5, 5), 62, 122); };
     g.drivers.forEach(d => { drift(d); levelCheck(d); });
@@ -128,8 +130,20 @@ window.GP = window.GP || {};
     rp: Math.round(26 + g.carGen * 24)
   });
 
+  let useTicket = false;
+
   function cmdDevelop() {
-    let body = '<div class="sub">装着中パーツの改良</div><div class="pick">';
+    const tk = g.tickets || 0;
+    if (!tk) useTicket = false;
+    let body = '';
+    if (tk) {
+      body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
+        '<span class="tk-ic">🎫</span>' +
+        '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+        '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
+        '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
+    }
+    body += '<div class="sub">装着中パーツの改良</div><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -139,32 +153,44 @@ window.GP = window.GP || {};
       }
       const cost = improveCost(p), cap = S.partCap(g, p);
       const capped = p.power >= cap;
-      const ok = g.funds >= cost && g.rp >= c.rp;
+      const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
       body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
         '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
         (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
-        '<span class="pb-cost">💰' + money(cost) + '<br>🔬' + c.rp + '</span></button>';
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
       '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
       '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
-      const ok = g.funds >= dc.money && g.rp >= dc.rp;
+      const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
       body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(c.names[Math.min(c.names.length - 1, g.carGen)]) + ' を設計</b>' +
         '<small>' + c.name + '／' + D.CAR_GENS[g.carGen].name + '世代</small></span>' +
-        '<span class="pb-cost">💰' + money(dc.money) + '<br>🔬' + dc.rp + '</span></button>';
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
     });
     body += '</div>';
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    const tg = $('tkToggle');
+    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
     bindPick(k => {
       const [kind, key] = k.split(':');
       if (kind === 'imp') doImprove(key); else doDesign(key);
     });
+  }
+
+  /* チケットを1枚消費する。使わない場合は false を返す */
+  function spendTicket() {
+    if (!useTicket || !(g.tickets > 0)) return false;
+    g.tickets--;
+    useTicket = false;
+    GP.sound.play('coin');
+    U.log(g, '🎫 開発チケットを1枚使った。（残り ' + g.tickets + ' 枚）');
+    return true;
   }
 
   function doImprove(key) {
@@ -172,8 +198,11 @@ window.GP = window.GP || {};
     const p = g.equipped[key];
     if (!p) return;
     const cost = improveCost(p), cap = S.partCap(g, p);
-    if (g.funds < cost || g.rp < c.rp) return;
-    g.funds -= cost; g.rp -= c.rp;
+    const free = spendTicket();
+    if (!free) {
+      if (g.funds < cost || g.rp < c.rp) return;
+      g.funds -= cost; g.rp -= c.rp;
+    }
 
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
@@ -202,9 +231,12 @@ window.GP = window.GP || {};
   function doDesign(key) {
     const c = D.PART_CATS.find(x => x.key === key);
     const dc = designCost();
-    if (g.funds < dc.money || g.rp < dc.rp) return;
     if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。「マシン」で合成・破棄しましょう。', 'warn'); return; }
-    g.funds -= dc.money; g.rp -= dc.rp;
+    const free = spendTicket();
+    if (!free) {
+      if (g.funds < dc.money || g.rp < dc.rp) return;
+      g.funds -= dc.money; g.rp -= dc.rp;
+    }
 
     const rarity = S.rollRarity(g);
     const part = S.makePart(key, g.carGen, rarity);
@@ -680,10 +712,27 @@ window.GP = window.GP || {};
   /* =======================================================
      フリーメニュー：人事
      ======================================================= */
-  let staffMarket = null, driverMarket = null;
+  let staffMarket = null, driverMarket = null, youthMarket = null;
   function refreshMarkets(force) {
     if (force || !staffMarket) staffMarket = [0, 1, 2].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key));
     if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
+    if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
+  }
+
+  const youthFee = d => Math.round(600 + S.driverRating(d) * 26 + d.pot * 900);
+
+  /* 若手1人の表示 */
+  function youthRow(d, actions) {
+    const pt = S.potOf(d);
+    return '<div class="pickbtn done youthrow">' +
+      '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+      '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
+      S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' + Math.round(S.driverRating(d)) +
+      '<br>才能 <em style="color:' + pt.color + '">' + U.stars(d.pot) + ' ' + pt.name + '</em>' +
+      '　' + S.persOf(d).icon + S.persOf(d).name +
+      '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) +
+      ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
+      '</small></span><span class="pb-cost">' + actions + '</span></div>';
   }
   function cmdStaff() {
     refreshMarkets(false);
@@ -706,6 +755,31 @@ window.GP = window.GP || {};
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
         '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
+    });
+    body += '</div>';
+
+    // ---- 下部組織 ----
+    const slots = S.youthSlots(g);
+    body += '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
+      '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
+      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
+    if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
+    (g.youth || []).forEach(d => {
+      const canUp = g.drivers.length < 2;
+      body += youthRow(d,
+        '<button class="mini" data-promote="' + d.id + '"' + (canUp ? '' : ' disabled') + '>昇格</button>' +
+        '<button class="mini danger" data-release="' + d.id + '">放出</button>');
+    });
+    body += '</div><div class="sub">若手スカウト</div><div class="pick">';
+    youthMarket.forEach((d, i) => {
+      const fee = youthFee(d);
+      const full = (g.youth || []).length >= slots;
+      body += '<button class="pickbtn" data-k="ym:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
+        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
+        S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' + Math.round(S.driverRating(d)) +
+        '<br>才能 <em style="color:' + S.potOf(d).color + '">' + U.stars(d.pot) + ' ' + S.potOf(d).name + '</em>' +
+        '</small></span><span class="pb-cost">💰' + money(fee) + '</span></button>';
     });
     body += '</div><div class="sub">スタッフ市場</div><div class="pick">';
     staffMarket.forEach((s, i) => {
@@ -731,6 +805,15 @@ window.GP = window.GP || {};
         driverMarket.splice(+idx, 1);
         U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
         U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
+      } else if (kind === 'ym') {
+        const d = youthMarket[+idx], fee = youthFee(d);
+        if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
+        g.funds -= fee;
+        g.youth = (g.youth || []).concat([d]);
+        youthMarket.splice(+idx, 1);
+        GP.sound.play('confirm');
+        U.log(g, '🎓 若手の ' + d.name + '（' + S.potOf(d).name + '）を獲得した！', 'good');
+        U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
       } else {
         const s = staffMarket[+idx], fee = s.salary * 8;
         if (g.funds < fee) return;
@@ -740,6 +823,25 @@ window.GP = window.GP || {};
         U.toast('👥 ' + s.name + ' が加入！', 'good');
       }
       S.save(g); render(); cmdStaff();
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-promote]'), b => {
+      b.onclick = () => {
+        const d = S.promoteYouth(g, b.dataset.promote);
+        if (!d) return;
+        GP.sound.play('levelup');
+        U.log(g, '🎉 ' + d.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
+        U.toast('🎉 ' + d.name + ' が昇格！', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-release]'), b => {
+      b.onclick = () => {
+        const d = (g.youth || []).find(x => x.id === b.dataset.release);
+        if (!d) return;
+        g.youth = g.youth.filter(x => x.id !== b.dataset.release);
+        U.log(g, '👋 若手の ' + d.name + ' を放出した。');
+        S.save(g); render(); cmdStaff();
+      };
     });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-fired]'), b => {
       b.onclick = () => {
@@ -955,6 +1057,11 @@ window.GP = window.GP || {};
       g.drivers = g.drivers.filter(x => x.id !== d.id);
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
     });
+    // 若手の加齢と、育ちきった選手のお知らせ
+    (g.youth || []).forEach(d => {
+      d.age++;
+      if (d.age >= 24) U.log(g, '🎓 ' + d.name + ' は育成年齢の上限が近い。昇格させるか決断のとき。', 'warn');
+    });
     // スタッフの成長
     const grown = S.growStaff(g);
     if (grown.length) U.log(g, '📈 スタッフが成長した：' + grown.join('、'), 'good');
@@ -1083,11 +1190,16 @@ window.GP = window.GP || {};
       '<label class="fld">チーム名<input id="inTeam" maxlength="12" value="ニューカマーGP"></label>' +
       '<div class="fld">チームカラー<div class="colors">' +
       colors.map((c, i) => '<button class="colorbtn' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') +
-      '</div></div></div>';
+      '</div></div>' +
+      '<div class="fld">難易度<div class="diffs">' +
+      D.DIFFICULTIES.map(d => '<button class="diffbtn' + (d.key === 'normal' ? ' on' : '') + '" data-m="' + d.key + '"' +
+        ' style="--dc:' + d.color + '"><b>' + d.icon + ' ' + d.name + '</b><small>' + esc(d.short) + '</small></button>').join('') +
+      '</div><p class="desc" id="diffDesc"></p></div></div>';
     const btns = [{ label: '🏁 チームを立ち上げる', cls: 'primary', fn: () => {
       const name = ($('inTeam').value || '').trim() || 'ニューカマーGP';
       const c = $('modalBody').querySelector('.colorbtn.on').dataset.c;
-      g = S.newGame(name, c);
+      const m = $('modalBody').querySelector('.diffbtn.on').dataset.m;
+      g = S.newGame(name, c, m);
       U.log(g, '🚩 ' + name + ' が発足！ 目指すは世界の頂点！', 'good');
       U.closeModal(); document.body.classList.remove('preboot'); S.save(g); render();
       U.toast('チーム「' + name + '」発足！', 'good');
@@ -1103,6 +1215,18 @@ window.GP = window.GP || {};
         b.classList.add('on');
       };
     });
+    const showDiff = key => {
+      const d = D.DIFFICULTIES.find(x => x.key === key);
+      $('diffDesc').textContent = d ? d.desc : '';
+    };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.diffbtn'), b => {
+      b.onclick = () => {
+        Array.prototype.forEach.call(b.parentElement.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        showDiff(b.dataset.m);
+      };
+    });
+    showDiff('normal');
   }
 
   /* ---------- Service Worker（オフライン対応）----------

@@ -185,7 +185,51 @@ GP.data = (function () {
     { key: 'tunnel',  name: '風洞',         icon: '💨', desc: 'エアロ／サスの開発が伸びる',   base: 2200 },
     { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速する',   base: 2000 },
     { key: 'market',  name: 'マーケティング室', icon: '📣', desc: 'スポンサー収入が増える',   base: 1600 },
-    { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピット作業とマシン信頼性が上がる', base: 1900 }
+    { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピット作業とマシン信頼性が上がる', base: 1900 },
+    { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
+  ];
+
+  /* ---------- 難易度 ----------
+     数値はすべて実際の計算に掛かる倍率。ticket は
+     「何戦入賞できなければ開発チケットが1枚もらえるか」        */
+  const DIFFICULTIES = [
+    {
+      key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
+      short: '大口スポンサーの後ろ盾つき',
+      desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
+            'ライバルも控えめで、開発チケットも早めに届きます。',
+      rivalPower: 0.88, rivalGrow: 0.82, funds: 1.45, prize: 1.15, sponsor: 1.15,
+      ticket: 3, oilSponsor: true
+    },
+    {
+      key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
+      short: '標準のバランス',
+      desc: '弱小チームから這い上がる、基本の難易度です。',
+      rivalPower: 1.00, rivalGrow: 1.00, funds: 1.00, prize: 1.00, sponsor: 1.00,
+      ticket: 4, oilSponsor: false
+    },
+    {
+      key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
+      short: '周りが速い',
+      desc: 'ライバルが強く、しかも毎年ぐんぐん伸びます。' +
+            '資金も賞金も渋いので、一手一手が重くなります。',
+      rivalPower: 1.12, rivalGrow: 1.20, funds: 0.82, prize: 0.88, sponsor: 0.88,
+      ticket: 5, oilSponsor: false
+    }
+  ];
+
+  /* イージー専用の大口スポンサー */
+  const OIL_SPONSOR = {
+    name: 'アル・ナジュム石油', icon: '🛢️', per: 2400, bonus: 6000, need: 6, fans: 0
+  };
+
+  /* ---------- 才能（成長のしやすさ）---------- */
+  const POTENTIAL = [
+    { n: 1, name: '平凡',   color: '#a89878', growth: 0.72 },
+    { n: 2, name: '有望',   color: '#4ea63f', growth: 0.92 },
+    { n: 3, name: '逸材',   color: '#3a7ad9', growth: 1.15 },
+    { n: 4, name: '天才肌', color: '#b06fd0', growth: 1.45 },
+    { n: 5, name: '大器',   color: '#f0a020', growth: 1.85 }
   ];
 
   /* ---------- 国籍 ---------- */
@@ -344,6 +388,6 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { TRACKS, THEMES, TRACK_THEME, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+  return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            NATIONS, PERSONALITIES, QUOTES, SPECIALS, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

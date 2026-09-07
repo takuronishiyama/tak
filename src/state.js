@@ -6,7 +6,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v2';
+  const SAVE_KEY = 'gp_monogatari_save_v3';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -88,6 +88,24 @@ GP.state = (function () {
     return 1;
   }
 
+  /* 才能の抽選。若手ほど当たり外れが大きい */
+  function rollPotential(youth) {
+    const r = Math.random();
+    if (youth) {
+      if (r < 0.34) return 1;
+      if (r < 0.64) return 2;
+      if (r < 0.86) return 3;
+      if (r < 0.97) return 4;
+      return 5;
+    }
+    if (r < 0.42) return 1;
+    if (r < 0.76) return 2;
+    if (r < 0.93) return 3;
+    if (r < 0.99) return 4;
+    return 5;
+  }
+  const potOf = d => D.POTENTIAL[(d.pot || 2) - 1] || D.POTENTIAL[1];
+
   /* ---------- 名前生成（同じ姓が並ばないようにする）---------- */
   let takenLast = new Set();
   const surnameOf = n => String(n).split('・').slice(1).join('・') || n;
@@ -117,6 +135,7 @@ GP.state = (function () {
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
       nation: opts.nation || rint(0, D.NATIONS.length - 1),
+      pot: opts.pot || rollPotential(opts.youth),
       pers: opts.pers || pick(D.PERSONALITIES).key,
       face: rint(0, 999999),          // 顔の見た目を決める種
       skills: opts.skills || rollSkills(level)
@@ -233,17 +252,20 @@ GP.state = (function () {
   /* ---------- 週あたりの固定費 ---------- */
   function weeklyCost(g) {
     const staff = g.staff.reduce((a, s) => a + s.salary, 0);
-    const drv = g.drivers.reduce((a, d) => a + d.salary, 0);
+    const drv = g.drivers.reduce((a, d) => a + d.salary, 0)
+              + (g.youth || []).reduce((a, d) => a + d.salary, 0);
     const fac = D.FACILITIES.reduce((a, f) => a + g.facilities[f.key] * 12, 0);
     return Math.round(staff + drv + fac + 150);
   }
 
   /* ---------- ライバルチーム生成 ---------- */
-  function makeRivals(season, keepNames) {
+  function makeRivals(season, keepNames, diff) {
     resetNames(keepNames);
+    const dp = diff ? diff.rivalPower : 1;
+    const dg = diff ? diff.rivalGrow : 1;
     return D.RIVALS.map((r, i) => {
-      const lv = (3 + season * 2.1) * r.power;
-      const base = 18 * r.power + season * 10 * r.power + rnd(-4, 4);
+      const lv = (3 + season * 2.1 * dg) * r.power * dp;
+      const base = (18 * r.power + season * 10 * r.power * dg) * dp + rnd(-4, 4);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
@@ -267,14 +289,21 @@ GP.state = (function () {
   const SEASON_WEEKS = D.TRACKS.length * (PREP_WEEKS + 1);
 
   /* ---------- 新規ゲーム ---------- */
-  function newGame(teamName, color) {
+  const diffOf = g2 => D.DIFFICULTIES.find(x => x.key === (g2 && g2.mode)) || D.DIFFICULTIES[1];
+
+  function newGame(teamName, color, mode) {
+    const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 2,
+      version: 3,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
       week: 1,
-      funds: 17000,
+      mode: diff.key,
+      funds: Math.round(17000 * diff.funds),
+      tickets: 0,           // 開発チケット
+      dryStreak: 0,         // 入賞できていないレース数
+      youth: [],            // 下部組織の若手
       fans: 500,
       rp: 20,                       // 研究ポイント
       nextRace: 0,                  // 次のレースのindex
@@ -304,8 +333,12 @@ GP.state = (function () {
 
     g.staff = [makeStaff('engineer'), makeStaff('mechanic'), makeStaff('designer')];
     g.sponsors = [Object.assign({}, D.SPONSORS[0])];
+    // イージーは産油国の大口スポンサーが最初から付く
+    if (diff.oilSponsor) g.sponsors.push(Object.assign({}, D.OIL_SPONSOR));
 
-    g.rivals = makeRivals(1, g.drivers.map(d => d.name));
+    g.rivals = makeRivals(1, g.drivers.map(d => d.name), diff);
+    // 最初から若手を1人抱えている
+    g.youth = [makeYouth(1)];
     return g;
   }
 
@@ -317,6 +350,56 @@ GP.state = (function () {
       type: type, name: pick(D.FIRST) + '・' + pick(D.LAST),
       skill: skill, salary: Math.round(t.salary * (0.6 + skill / 30))
     };
+  }
+
+  /* =======================================================
+     下部組織（ユースアカデミー）
+     ======================================================= */
+  function makeYouth(level) {
+    const d = makeDriver(Math.max(0.3, level * 0.55), {
+      age: rint(16, 20), youth: true
+    });
+    d.isYouth = true;
+    d.trained = 0;                       // 育成を受けた週数
+    d.salary = Math.round(d.salary * 0.35);
+    return d;
+  }
+
+  /* 抱えられる若手の人数 */
+  function youthSlots(g2) {
+    return 1 + Math.floor(((g2.facilities && g2.facilities.youth) || 1) / 2);
+  }
+
+  /* 毎週の成長。才能とアカデミーのレベルで伸びが変わる */
+  function growYouth(g2) {
+    const lv = (g2.facilities && g2.facilities.youth) || 1;
+    const trainer = staffBonus(g2, 'trainer');
+    const grown = [];
+    (g2.youth || []).forEach(d => {
+      // 若いうちほど伸びる。24歳を過ぎるとほとんど伸びなくなる
+      const ageMul = d.age <= 21 ? 1 : d.age <= 23 ? 0.55 : 0.12;
+      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul;
+      ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
+        d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * (1 - d[k] / 300), 1, 199);
+      });
+      d.trained++;
+      d.exp += Math.round(3 * rate);
+      d.salary = Math.round(((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18) * 0.35);
+      grown.push(d);
+    });
+    return grown;
+  }
+
+  /* トップチームへ昇格 */
+  function promoteYouth(g2, id) {
+    const d = (g2.youth || []).find(x => x.id === id);
+    if (!d || g2.drivers.length >= 2) return null;
+    g2.youth = g2.youth.filter(x => x.id !== id);
+    d.isYouth = false;
+    d.team = g2.team;
+    d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
+    g2.drivers.push(d);
+    return d;
   }
 
   /* ---------- スタッフの成長（シーズン明け）---------- */
@@ -390,7 +473,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 2) ? g : null;
+      return (g && g.version === 3) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -398,6 +481,7 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
+    diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

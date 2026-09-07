@@ -114,6 +114,31 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .desc{font-size:12px;color:#6b503a;margin:6px 0;line-height:1.6}
 .lead{font-size:13px;margin-bottom:10px;line-height:1.7}
 
+/* ---------- 難易度・チケット ---------- */
+.tb-team .mode{font-size:10px;color:#fff;border:2px solid var(--ink);border-radius:5px;
+               padding:0 6px;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.3)}
+.stat.ticket.has{background:linear-gradient(#fff4c0,#ffe88a);animation:tkpulse 1.4s ease-in-out infinite}
+@keyframes tkpulse{0%,100%{box-shadow:0 2px 0 rgba(74,47,26,.35)}50%{box-shadow:0 2px 0 rgba(74,47,26,.35),0 0 8px 2px rgba(255,201,60,.8)}}
+.diffs{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.diffbtn{flex:1;min-width:96px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 8px;text-align:left;line-height:1.3}
+.diffbtn b{font-size:13px}
+.diffbtn small{font-size:9px;opacity:.75}
+.diffbtn.on{background:var(--dc);color:#fff;transform:translateY(3px);box-shadow:0 0 0 var(--ink);
+            text-shadow:1px 1px 0 rgba(0,0,0,.35)}
+.diffbtn.on small{opacity:.95}
+.ticketbar{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;
+           background:#fffdf3;border:3px dashed var(--ink2);border-radius:8px;padding:6px 8px;margin-bottom:10px}
+.ticketbar.on{background:linear-gradient(#fff4c0,#ffe88a);border-style:solid;border-color:var(--ink)}
+.tk-ic{font-size:20px}
+.tk-body{flex:1;display:flex;flex-direction:column;line-height:1.3;font-size:12px}
+.tk-body small{font-size:10px;opacity:.75}
+.tk-sw{font-size:11px;font-weight:bold;background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px}
+.ticketbar.on .tk-sw{background:var(--red);color:#fff}
+.pb-cost b.free{color:#2e8b30;font-size:12px}
+.youthrow em{font-style:normal;font-weight:bold}
+
 /* ---------- チーム本拠地 ---------- */
 .baseinfo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
           background:var(--ink);color:#ffeec4;border-radius:8px;padding:5px 10px;margin-bottom:8px;font-size:11px}

@@ -8,15 +8,16 @@ window.GP = window.GP || {};
 GP.base = (function () {
   'use strict';
 
-  const W = 520, H = 340;
+  const W = 600, H = 340;
 
   /* 建物の区画。x,y は左下（正面）を基準にする */
   const PLOTS = [
-    { key: 'pit',     x: 20,  y: 238, label: 'ピット設備' },
-    { key: 'factory', x: 126, y: 246, label: 'ファクトリー' },
-    { key: 'tunnel',  x: 214, y: 238, label: '風洞' },
-    { key: 'sim',     x: 326, y: 246, label: 'シミュレーター' },
-    { key: 'market',  x: 414, y: 234, label: 'マーケ室' }
+    { key: 'pit',     x: 12,  y: 238, label: 'ピット設備' },
+    { key: 'factory', x: 98,  y: 246, label: 'ファクトリー' },
+    { key: 'tunnel',  x: 186, y: 238, label: '風洞' },
+    { key: 'sim',     x: 298, y: 246, label: 'シミュレーター' },
+    { key: 'youth',   x: 386, y: 240, label: 'ユース' },
+    { key: 'market',  x: 466, y: 234, label: 'マーケ室' }
   ];
 
   let hitBoxes = [];
@@ -134,7 +135,7 @@ GP.base = (function () {
 
   function drawPit(g, p, lv, color) {
     const s = tierOf(lv);
-    const bays = Math.min(4, 1 + Math.floor(lv / 3));
+    const bays = Math.min(3, 1 + Math.floor(lv / 4));
     const bw = 22, w = bays * bw + 8;
     box(g, p.x, p.y, w, s.h * 0.72, '#c8c2b4', color);
     for (let i = 0; i < bays; i++) {
@@ -147,7 +148,35 @@ GP.base = (function () {
     return { x: p.x - 2, y: p.y - s.h * 0.72 - 2, w: w + 4, h: s.h * 0.72 + 4 };
   }
 
-  const DRAW = { factory: drawFactory, tunnel: drawTunnel, sim: drawSim, market: drawMarket, pit: drawPit };
+  function drawYouth(g, p, lv, color) {
+    const s = tierOf(lv);
+    const w = s.w * 0.82, h = s.h * 0.9;
+    box(g, p.x, p.y, w, h, '#e0d0a8', color);
+    windows(g, p.x, p.y, w, h, 3, Math.min(3, 1 + Math.floor(lv / 4)), true);
+    // 時計塔（レベルで伸びる）
+    const th = 8 + lv * 1.8;
+    g.fillStyle = '#3a2413'; g.fillRect(p.x + w / 2 - 7, p.y - h - th - 2, 14, th + 2);
+    g.fillStyle = '#d8c8a0'; g.fillRect(p.x + w / 2 - 6, p.y - h - th, 12, th);
+    g.fillStyle = color; g.fillRect(p.x + w / 2 - 7, p.y - h - th - 4, 14, 4);
+    g.fillStyle = '#fff8e3';
+    g.beginPath(); g.arc(p.x + w / 2, p.y - h - th * 0.55, 4, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#3a2413'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(p.x + w / 2, p.y - h - th * 0.55);
+    g.lineTo(p.x + w / 2 + 2, p.y - h - th * 0.55 - 2); g.stroke();
+    // 練習用カート（在籍する若手のぶん）
+    const karts = Math.min(4, 1 + Math.floor(lv / 3));
+    for (let i = 0; i < karts; i++) {
+      const kx = p.x + 2 + i * 12, ky = p.y + 14;
+      g.fillStyle = '#3a2413'; g.fillRect(kx - 1, ky - 1, 10, 7);
+      g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020'][i % 4];
+      g.fillRect(kx, ky, 8, 5);
+      g.fillStyle = '#1a1a1a'; g.fillRect(kx, ky + 4, 2, 2); g.fillRect(kx + 6, ky + 4, 2, 2);
+    }
+    return { x: p.x - 2, y: p.y - h - th - 6, w: w + 4, h: h + th + 8 };
+  }
+
+  const DRAW = { factory: drawFactory, tunnel: drawTunnel, sim: drawSim,
+                 market: drawMarket, pit: drawPit, youth: drawYouth };
 
   /* ---------- 賑わい（ファン数・タイトル）---------- */
   function drawCrowd(g, fans, titles, color, rnd) {
