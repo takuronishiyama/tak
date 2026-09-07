@@ -41,6 +41,12 @@ GP.ui = (function () {
       '<div class="pad">' +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
+      '<div class="seclegend">' +
+      '<span><i style="background:' + SECTOR_COLORS[0] + '"></i>S1</span>' +
+      '<span><i style="background:' + SECTOR_COLORS[1] + '"></i>S2</span>' +
+      '<span><i style="background:' + SECTOR_COLORS[2] + '"></i>S3</span>' +
+      (t.landmarks ? '<em>◯ ' + t.landmarks.map(esc).join(' ／ ') + '</em>' : '') +
+      '</div>' +
       '<p class="desc">' + esc(t.desc) + '</p>' +
       '<div class="req">求められる性能：' +
       reqBar('最高速', t.weight.speed) + reqBar('コーナー', t.weight.corner) + reqBar('加速', t.weight.accel) +
@@ -242,19 +248,48 @@ GP.ui = (function () {
     });
   }
   /* ---------- ミニコース図 ---------- */
+  const SECTOR_COLORS = ['#f0a020', '#4ea63f', '#3a7ad9'];
+
   function drawMini(track) {
     const el = $('trackMini');
     if (!el || !track) return;
-    const w = 260, h = 108, pad = 12;
-    const pts = GP.raceview.smoothPath(track.path, w, h, pad);
-    let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
-    for (let i = 1; i < pts.length; i++) d += 'L' + pts[i][0].toFixed(1) + ' ' + pts[i][1].toFixed(1);
-    d += 'Z';
+    const w = 260, h = 108, pad = 14;
+    const poly = GP.geom.buildPoly(track.path, w, h, pad);
+    const geo = GP.geom.analyze(track);
+    const pts = poly.pts, n = poly.n;
+    const seg = (from, to) => {
+      let d = '', k = from, steps = 0;
+      const span = (to - from + n) % n;
+      while (steps <= span) {
+        const p = pts[k % n];
+        d += (steps ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+        k++; steps++;
+      }
+      return d;
+    };
+    let outline = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+    for (let i = 1; i < n; i++) outline += 'L' + pts[i][0].toFixed(1) + ' ' + pts[i][1].toFixed(1);
+    outline += 'Z';
+
+    // セクターごとに色分けし、どこで速さが要るのか一目で分かるようにする
+    let secPaths = '';
+    (geo.sectors || []).forEach((sc, i) => {
+      secPaths += '<path d="' + seg(sc.from, sc.to) + '" fill="none" stroke="' + SECTOR_COLORS[i] +
+        '" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>';
+    });
+    // 名物コーナーの位置
+    let marks = '';
+    (geo.corners || []).slice().sort((a, b) => b.peak - a.peak)
+      .slice(0, (track.landmarks || []).length).forEach(cn => {
+        const mid = pts[Math.round(cn.from + ((cn.to - cn.from + n) % n) / 2) % n];
+        marks += '<circle cx="' + mid[0].toFixed(1) + '" cy="' + mid[1].toFixed(1) +
+          '" r="3.2" fill="#fff" stroke="#4a2f1a" stroke-width="1.6"/>';
+      });
     const start = pts[0];
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="xMidYMid meet">' +
-      '<path d="' + d + '" fill="none" stroke="#4a2f1a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>' +
-      '<path d="' + d + '" fill="none" stroke="#f6efd8" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>' +
-      '<circle cx="' + start[0].toFixed(1) + '" cy="' + start[1].toFixed(1) + '" r="4" fill="#e04a3f" stroke="#4a2f1a" stroke-width="2"/></svg>';
+      '<path d="' + outline + '" fill="none" stroke="#4a2f1a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>' +
+      secPaths + marks +
+      '<circle cx="' + start[0].toFixed(1) + '" cy="' + start[1].toFixed(1) + '" r="4.5" fill="#e04a3f" stroke="#4a2f1a" stroke-width="2"/></svg>';
   }
 
   /* ---------- 特別戦の招待カード ---------- */

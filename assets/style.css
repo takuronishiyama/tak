@@ -121,6 +121,10 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- 次戦カード ---------- */
 .track-mini{background:#8fd06a;border:2px solid var(--ink);border-radius:6px;margin-bottom:8px}
 .tinfo{display:flex;gap:12px;font-size:12px;margin-bottom:4px}
+.seclegend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;margin:4px 0}
+.seclegend span{display:flex;align-items:center;gap:3px}
+.seclegend i{width:12px;height:5px;border:1px solid var(--ink);border-radius:2px;display:inline-block}
+.seclegend em{font-style:normal;opacity:.75}
 .req{margin-top:8px}
 .reqrow{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0}
 .reqrow span{width:52px}
@@ -393,6 +397,20 @@ body.preboot .topbar{visibility:hidden}
 .rv-chip{width:8px;height:8px;border:1px solid var(--ink);border-radius:2px;flex-shrink:0}
 .rv-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rv-gap{font-size:9px;opacity:.75}
+.rv-sectors{background:#241a12;border:3px solid var(--ink);border-radius:8px;padding:3px 5px;
+            display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.sc-row{display:flex;align-items:center;gap:4px;font-size:11px;color:#ffeec4;
+        font-variant-numeric:tabular-nums}
+.sc-row.best{border-top:1px dashed rgba(255,238,196,.3);padding-top:2px;opacity:.9}
+.sc-nm{flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;
+       text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.sc-nm i{width:8px;height:8px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
+.sc-t{width:56px;text-align:right;color:#e8dcc0}
+.sc-t.green{color:#6cf06c;font-weight:bold}
+.sc-t.purple{color:#d88cff;font-weight:bold}
+.sc-t.old{opacity:.42;font-weight:normal}
+.sc-lap{width:74px;text-align:right;color:#fff;font-weight:bold}
+
 .rv-loglist{height:74px;overflow-y:auto;background:#2b1c0e;border:3px solid var(--ink);
             border-radius:8px;padding:4px 6px;display:flex;flex-direction:column;gap:2px}
 .rv-ev{font-size:11px;color:#ffe9a8;line-height:1.4}
@@ -448,6 +466,8 @@ body.preboot .topbar{visibility:hidden}
   .rv-body{flex-direction:column;align-items:center}
   #raceCanvas{width:100%;height:auto}
   .rv-side{width:100%;min-height:110px;max-height:130px}
+  .sc-t{width:48px;font-size:10px}
+  .sc-lap{width:60px;font-size:10px}
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }
 @media (max-width:520px){

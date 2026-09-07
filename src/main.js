@@ -943,9 +943,14 @@ window.GP = window.GP || {};
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
-    $('rvSpeed1').onclick = () => RV.setSpeed(2);
-    $('rvSpeed2').onclick = () => RV.setSpeed(5);
-    $('rvSpeed3').onclick = () => RV.setSpeed(12);
+    // 数値は「レース全体を何秒で再生するか」
+    const speeds = { rvSpeed1: 95, rvSpeed2: 40, rvSpeed3: 13 };
+    Object.keys(speeds).forEach(id => {
+      $(id).onclick = () => {
+        RV.setSpeed(speeds[id]);
+        Object.keys(speeds).forEach(o => $(o).classList.toggle('primary', o === id));
+      };
+    });
     $('rvSkip').onclick = () => RV.skip();
   }
 

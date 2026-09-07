@@ -7,7 +7,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
-  let vt = 0, speed = 4, running = false, onEnd = null, lastTs = 0;
+  let vt = 0, speed = 40, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
   let shownEvents = 0;
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -103,6 +103,9 @@ GP.raceview = (function () {
     g.fillStyle = wet && !th.night ? shade(th.dot, -0.22) : th.dot;
     for (let y = 0; y < c.height; y += 8) for (let x = (y % 16 ? 0 : 4); x < c.width; x += 16) g.fillRect(x, y, 4, 4);
 
+    // コースの外に景色を置く
+    drawScenery(g, GP.data.TRACK_THEME[res.track.name] || 'grass', c.width, c.height);
+
     // ランオフ／コース
     strokeOn(g, 30, th.edge);
     strokeOn(g, 22, wet ? shade(th.road, -0.18) : th.road);
@@ -186,6 +189,36 @@ GP.raceview = (function () {
       g.restore();
     }
 
+    // セクター標識
+    (res.geo.sectors || []).forEach((sc, si) => {
+      const nm = normalAt(sc.from % poly.n);
+      const col = ['#f0a020', '#4ea63f', '#3a7ad9'][si];
+      g.save();
+      g.translate(nm.x, nm.y); g.rotate(Math.atan2(nm.dy, nm.dx));
+      g.fillStyle = col; g.fillRect(-1.5, -13, 3, 26);
+      g.fillStyle = '#fffdf3'; g.strokeStyle = '#4a2f1a'; g.lineWidth = 1;
+      g.fillRect(-6, -21, 12, 8); g.strokeRect(-6, -21, 12, 8);
+      g.fillStyle = col; g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
+      g.fillText('S' + (si + 1), 0, -15);
+      g.restore();
+    });
+
+    // 名物コーナーの表示（曲率の急なコーナーから順に名前を割り当てる）
+    const marks = (res.geo.corners || []).slice().sort((a, b) => b.peak - a.peak)
+      .slice(0, (res.track.landmarks || []).length);
+    marks.forEach((cn, mi) => {
+      const nm = normalAt(Math.round((cn.from + ((cn.to - cn.from + poly.n) % poly.n) / 2)) % poly.n);
+      const label = res.track.landmarks[mi];
+      const cxm = nm.x + nm.nx * 26, cym = nm.y + nm.ny * 26;
+      if (cxm < 4 || cym < 4 || cxm > c.width - 4 || cym > c.height - 4) return;
+      g.font = 'bold 8px sans-serif'; g.textAlign = 'center';
+      const w2 = g.measureText(label).width + 8;
+      g.fillStyle = 'rgba(74,47,26,.82)';
+      g.fillRect(cxm - w2 / 2, cym - 6, w2, 11);
+      g.fillStyle = '#ffeec4';
+      g.fillText(label, cxm, cym + 2);
+    });
+
     // スタート／フィニッシュライン
     const sf = normalAt(0);
     g.save();
@@ -197,6 +230,104 @@ GP.raceview = (function () {
     g.restore();
 
     return c;
+  }
+
+  /* ---------- コース外の景色 ---------- */
+  function seeded(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return function () { h = (h * 1103515245 + 12345) >>> 0; return h / 4294967296; };
+  }
+
+  function distToTrack(x, y) {
+    let m = Infinity;
+    for (let i = 0; i < poly.n; i += 2) {
+      const dx = poly.pts[i][0] - x, dy = poly.pts[i][1] - y;
+      const d = dx * dx + dy * dy;
+      if (d < m) m = d;
+    }
+    return Math.sqrt(m);
+  }
+
+  function drawScenery(g, theme, W, H) {
+    const rnd = seeded(res.track.name);
+    const pit = pitSpan();
+    // 観客席（メインストレートの、ピットと反対側）
+    if (pit) {
+      for (let k = 2; k < pit.len - 2; k += 9) {
+        const nm = normalAt((pit.from + k) % poly.n);
+        const sx = nm.x - nm.nx * pit.side * 30, sy = nm.y - nm.ny * pit.side * 30;
+        if (sx < 8 || sy < 8 || sx > W - 8 || sy > H - 8) continue;
+        g.save();
+        g.translate(sx, sy); g.rotate(Math.atan2(nm.dy, nm.dx));
+        g.fillStyle = '#b8b2a4'; g.fillRect(-5, -8, 10, 16);
+        g.fillStyle = '#8f8a7e'; g.fillRect(-5, -8, 10, 2);
+        for (let r = -6; r < 7; r += 3) {          // 観客のドット
+          g.fillStyle = ['#e04a3f', '#3a7ad9', '#f0a020', '#4ea63f'][(r + 6) % 4];
+          g.fillRect(-3, r, 2, 2); g.fillRect(1, r, 2, 2);
+        }
+        g.restore();
+      }
+    }
+    // 木・建物・岩など
+    for (let i = 0; i < poly.n; i += 11) {
+      for (const side of [1, -1]) {
+        if (rnd() > 0.62) continue;
+        const nm = normalAt(i);
+        const d = 38 + rnd() * 34;
+        const x = nm.x + nm.nx * side * d, y = nm.y + nm.ny * side * d;
+        if (x < 10 || y < 10 || x > W - 10 || y > H - 10) continue;
+        if (distToTrack(x, y) < 30) continue;
+        drawProp(g, theme, x, y, rnd);
+      }
+    }
+  }
+
+  function drawProp(g, theme, x, y, rnd) {
+    x = Math.round(x); y = Math.round(y);
+    const box = (bx, by, bw, bh, fill, line) => {
+      g.fillStyle = line; g.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+      g.fillStyle = fill; g.fillRect(bx, by, bw, bh);
+    };
+    if (theme === 'street') {
+      const w = 14 + Math.round(rnd() * 12), h = 16 + Math.round(rnd() * 18);
+      box(x - w / 2, y - h, w, h, ['#8e94a0', '#7c828e', '#9aa0ac'][Math.floor(rnd() * 3)], '#4a4f58');
+      g.fillStyle = 'rgba(255,240,180,.6)';
+      for (let a = 3; a < w - 3; a += 5) for (let b = 4; b < h - 3; b += 6) g.fillRect(x - w / 2 + a, y - h + b, 3, 3);
+      g.fillStyle = '#5c626c'; g.fillRect(x - w / 2, y - h, w, 3);
+    } else if (theme === 'neon') {
+      const w = 12 + Math.round(rnd() * 12), h = 20 + Math.round(rnd() * 22);
+      box(x - w / 2, y - h, w, h, '#2a3050', '#151a2e');
+      const nc = ['#ff4fa0', '#4fd8ff', '#ffe14f', '#8cff6a'][Math.floor(rnd() * 4)];
+      g.fillStyle = nc;
+      g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
+      g.fillRect(x - w / 2 + 2, y - h + 9, Math.max(3, w - 8), 3);
+      g.fillStyle = 'rgba(255,255,255,.25)';
+      for (let b = 16; b < h - 3; b += 6) g.fillRect(x - w / 2 + 3, y - h + b, w - 6, 2);
+    } else if (theme === 'desert') {
+      if (rnd() < 0.5) {                       // ヤシの木
+        g.fillStyle = '#5a4426'; g.fillRect(x - 2, y - 18, 4, 18);
+        g.fillStyle = '#8a6a3a'; g.fillRect(x - 1, y - 18, 2, 18);
+        g.fillStyle = '#2f6b38';
+        g.fillRect(x - 11, y - 21, 9, 3); g.fillRect(x + 2, y - 21, 9, 3);
+        g.fillRect(x - 8, y - 24, 6, 3);  g.fillRect(x + 2, y - 24, 6, 3);
+        g.fillStyle = '#3f8a4a'; g.fillRect(x - 3, y - 23, 6, 3);
+      } else {                                  // 岩
+        box(x - 7, y - 9, 14, 9, '#a08860', '#6e5a3c');
+        g.fillStyle = '#c0a880'; g.fillRect(x - 5, y - 8, 6, 3);
+      }
+    } else {                                    // 木（芝・森・高原）
+      const dark = theme === 'forest';
+      g.fillStyle = '#4a3218'; g.fillRect(x - 2, y - 7, 4, 7);
+      g.fillStyle = '#6a4a2a'; g.fillRect(x - 1, y - 7, 2, 7);
+      const c1 = dark ? '#245a28' : '#317031', c2 = dark ? '#3d8340' : '#54a84e';
+      g.fillStyle = '#1c4420';
+      g.fillRect(x - 9, y - 17, 18, 11); g.fillRect(x - 6, y - 21, 12, 5);
+      g.fillStyle = c1;
+      g.fillRect(x - 8, y - 16, 16, 9); g.fillRect(x - 5, y - 20, 10, 4);
+      g.fillStyle = c2;
+      g.fillRect(x - 6, y - 15, 7, 4); g.fillRect(x - 3, y - 19, 5, 3);
+    }
   }
 
   /* ピットレーンを敷く区間。最長ストレートの内側に収め、外向きの法線を選ぶ */
@@ -316,9 +447,15 @@ GP.raceview = (function () {
     if (!running) return;
     const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
     lastTs = ts;
-    vt += dt * speed * (res.laps * res.track.base / 22);
-    const end = Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1]));
-    if (vt >= end) { vt = end; running = false; draw(vt); flushEvents(true); finish(); return; }
+    if (lights < 1) {
+      lights = Math.min(1, lights + dt / 2.4);
+      draw(0); drawLights(lights); updateHud();
+      raf = requestAnimationFrame(tick);
+      return;
+    }
+    // speed は「レース全体を何秒で見せるか」。実時間に対する倍率をそこから出す
+    vt += dt * (duration / speed);
+    if (vt >= duration) { vt = duration; running = false; draw(vt); updateHud(); flushEvents(true); finish(); return; }
     draw(vt);
     updateHud();
     raf = requestAnimationFrame(tick);
@@ -344,6 +481,8 @@ GP.raceview = (function () {
         '<span class="rv-gap">' + gap + '</span></div>';
     });
     box.innerHTML = html;
+    advanceSectors(vt);
+    renderSectors();
     flushEvents(false);
   }
 
@@ -362,6 +501,91 @@ GP.raceview = (function () {
     }
   }
 
+  /* =========================================================
+     区間タイム
+     各車の各セクター完了時刻を並べておき、再生の進行に合わせて
+     セッション最速（紫）と自己ベスト（緑）を更新していく
+     ========================================================= */
+  let secTimeline = [], secPtr = 0, liveBest = [Infinity, Infinity, Infinity], liveCar = {};
+
+  function buildSectorTimeline() {
+    secTimeline = []; secPtr = 0;
+    liveBest = [Infinity, Infinity, Infinity]; liveCar = {};
+    res.entries.forEach(e => {
+      liveCar[e.id] = { best: [Infinity, Infinity, Infinity], cur: [null, null, null],
+                        at: [0, 0, 0], lastLap: null, lap: 0 };
+      const laps = e.dnf && e.dnfLap > 0 ? e.dnfLap - 1 : e.sectors.length;
+      for (let l = 0; l < laps; l++) {
+        const sec = e.sectors[l];
+        if (!sec) continue;
+        const lapStart = l === 0 ? 0 : e.cum[l - 1];
+        let acc = lapStart;
+        for (let k = 0; k < 3; k++) {
+          acc += sec[k];
+          secTimeline.push({ t: acc, id: e.id, lap: l + 1, k: k, v: sec[k], lapTime: k === 2 ? e.lapTimes[l] : 0 });
+        }
+      }
+    });
+    secTimeline.sort((a, b) => a.t - b.t);
+  }
+
+  function advanceSectors(t) {
+    while (secPtr < secTimeline.length && secTimeline[secPtr].t <= t) {
+      const s = secTimeline[secPtr++];
+      const c = liveCar[s.id];
+      if (!c) continue;
+      // 前周のタイムは消さずに残し、今周のぶんだけ上書きしていく
+      c.cur[s.k] = s.v;
+      c.at[s.k] = s.lap;
+      c.lap = s.lap;
+      // 1周目はスタート進行ぶんで大きくブレるのでベスト判定から外す
+      if (s.lap > 1) {
+        if (s.v < c.best[s.k]) c.best[s.k] = s.v;
+        if (s.v < liveBest[s.k]) liveBest[s.k] = s.v;
+      }
+      if (s.k === 2) c.lastLap = s.lapTime;
+    }
+  }
+
+  function fmtSec(v) {
+    if (v == null) return '--.---';
+    return v.toFixed(3);
+  }
+  function fmtLap(v) {
+    if (v == null) return '--:--.---';
+    const m = Math.floor(v / 60), r = v - m * 60;
+    return m + ':' + (r < 10 ? '0' : '') + r.toFixed(3);
+  }
+
+  function renderSectors() {
+    const box = document.getElementById('rvSectors');
+    if (!box) return;
+    const mine = res.entries.filter(e => e.isPlayer);
+    let h = '';
+    mine.forEach(e => {
+      const c = liveCar[e.id];
+      h += '<div class="sc-row"><span class="sc-nm">' +
+        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>';
+      for (let k = 0; k < 3; k++) {
+        const v = c.cur[k];
+        let cls = '';
+        if (v != null && liveBest[k] !== Infinity) {
+          if (v <= liveBest[k] + 1e-9) cls = ' purple';
+          else if (c.best[k] !== Infinity && v <= c.best[k] + 1e-9) cls = ' green';
+        }
+        // 今周に出したタイムかどうかで濃さを変える
+        if (v != null && c.at[k] !== c.lap) cls += ' old';
+        h += '<span class="sc-t' + cls + '">' + fmtSec(v) + '</span>';
+      }
+      h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
+    });
+    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span>' +
+      [0, 1, 2].map(k => '<span class="sc-t purple">' +
+        (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
+      '<span class="sc-lap"></span></div>';
+    box.innerHTML = h;
+  }
+
   function finish() { if (onEnd) { const f = onEnd; onEnd = null; f(); } }
 
   /* ---------- 公開API ---------- */
@@ -370,21 +594,51 @@ GP.raceview = (function () {
     ctx.imageSmoothingEnabled = false;
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, cv.width, cv.height, 34);
-    // マシンの3性能から、コース上の速度の出方を1台ずつ作る
-    res.entries.forEach(e => {
-      e._prof = GP.geom.speedProfile(res.track, e.stats || { speed: 1, corner: 1, accel: 1 });
-    });
+    res.entries.forEach(e => { e._prof = e.prof; });
+    buildSectorTimeline();
     trackArt = buildTrackArt();
-    vt = 0; shownEvents = 0; running = true; lastTs = performance.now(); speed = 4;
+    duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
+    vt = 0; shownEvents = 0; running = true; lastTs = performance.now(); speed = 40; lights = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
   function skip() {
-    running = false;
+    running = false; lights = 1;
     if (raf) cancelAnimationFrame(raf);
-    vt = Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1]));
+    vt = duration;
     draw(vt); updateHud(); flushEvents(true); finish();
+  }
+
+  /* ---------- スタートシグナル ---------- */
+  function drawLights(p) {
+    const w = cv.width;
+    const cxl = w / 2, cy = 46;
+    const on = Math.min(5, Math.floor(p * 6.2));      // 5つ順に点灯
+    const out = p > 0.86;                              // 一斉消灯＝スタート
+    ctx.fillStyle = 'rgba(20,12,6,.82)';
+    ctx.fillRect(cxl - 72, cy - 20, 144, 40);
+    ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 3;
+    ctx.strokeRect(cxl - 72, cy - 20, 144, 40);
+    for (let i = 0; i < 5; i++) {
+      const x = cxl - 56 + i * 28;
+      ctx.fillStyle = '#241a12';
+      ctx.fillRect(x - 10, cy - 12, 20, 24);
+      const lit = !out && i < on;
+      ctx.fillStyle = lit ? '#ff2a1a' : '#3a2a22';
+      ctx.beginPath(); ctx.arc(x, cy, 7, 0, Math.PI * 2); ctx.fill();
+      if (lit) {
+        ctx.fillStyle = 'rgba(255,80,50,.35)';
+        ctx.beginPath(); ctx.arc(x, cy, 11, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (out) {
+      ctx.fillStyle = '#fff34d';
+      ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeText('GO!', cxl, cy + 46);
+      ctx.fillText('GO!', cxl, cy + 46);
+    }
   }
   function stop() { running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; }
 

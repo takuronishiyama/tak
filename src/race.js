@@ -28,16 +28,19 @@ GP.race = (function () {
         if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
         const perf = t.car * 0.60 + drv * 0.40;
 
+        const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
           num: list.length + 1,
-          stats: t.stats,
+          stats: stats,
+          // このマシンがコース上でどう速度を出すか。区間タイムの配分もここから来る
+          prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
           rel: t.rel,
           tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
-          lapTimes: [], cum: [], pits: [],
+          lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
         });
@@ -87,6 +90,8 @@ GP.race = (function () {
     const grid = qualify(entries, track, weather);
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const events = [];
+    const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
+    const bestSectorBy = [null, null, null];
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
@@ -141,9 +146,11 @@ GP.race = (function () {
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
         // ピットイン
+        let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
           const loss = e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
           t += loss;
+          pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
           if (e.isPlayer) events.push({ lap, type: 'pit', car: e, text: e.driver.name + ' ピットイン！ (' + loss.toFixed(1) + '秒)' });
@@ -153,6 +160,17 @@ GP.race = (function () {
         const prev = lap === 1 ? 0 : e.cum[lap - 2];
         e.cum[lap - 1] = prev + t;
         if (lap > 1 && t < e.fastest) e.fastest = t;
+
+        // 区間タイム：走行ぶんはマシンの速度プロファイルの配分で割り、
+        // ピットでの停止時間は最終セクターにまとめて足す
+        const sh = e.prof.share;
+        const drive = t - pitAdd;
+        const sec = [drive * sh[0], drive * sh[1], drive * sh[2] + pitAdd];
+        e.sectors[lap - 1] = sec;
+        for (let k = 0; k < 3; k++) {
+          if (lap > 1 && sec[k] < e.bestSec[k]) e.bestSec[k] = sec[k];
+          if (lap > 1 && sec[k] < bestSector[k]) { bestSector[k] = sec[k]; bestSectorBy[k] = e.id; }
+        }
       });
 
       // ブロッキング（前車に詰まると遅くなる＝抜きにくいコースほど顕著）
@@ -209,6 +227,7 @@ GP.race = (function () {
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
       events, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      bestSector: bestSector, bestSectorBy: bestSectorBy,
       totalTime: laps * track.base * 1.05
     };
   }

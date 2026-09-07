@@ -10,6 +10,13 @@ GP.geom = (function () {
 
   const SUB = 14;              // 制御点あたりの分割数
   const cache = {};
+  const polyCache = {};
+
+  /* 解析用の正規化ポリライン（1000x1000）。形状だけで決まるので使い回す */
+  function polyOf(track) {
+    if (!polyCache[track.name]) polyCache[track.name] = buildPoly(track.path, 1000, 1000, 0);
+    return polyCache[track.name];
+  }
 
   /* ---------- Catmull-Rom で閉ループを滑らかに再サンプル ---------- */
   function buildPoly(path, w, h, pad) {
@@ -68,8 +75,7 @@ GP.geom = (function () {
   /* ---------- コース解析（コーナー・ストレート・DRS区間）---------- */
   function analyze(track) {
     if (cache[track.name]) return cache[track.name];
-    // 解析は形状だけで決まるので、正規化された固定サイズで一度だけ行う
-    const poly = buildPoly(track.path, 1000, 1000, 0);
+    const poly = polyOf(track);
     const k = curvature(poly);
     const N = poly.n;
 
@@ -109,9 +115,32 @@ GP.geom = (function () {
     let straightLen = 0;
     for (let j = 0; j < N; j++) if (norm[j] <= CORNER) straightLen += poly.ds[j];
 
+    // セクター境界：1/3・2/3 地点にいちばん近い「直線上の点」に置く
+    const bound = [0, 0];
+    [1 / 3, 2 / 3].forEach((frac, bi) => {
+      const target = poly.len * frac;
+      let idx = 0;
+      while (idx < N && poly.cum[idx] < target) idx++;
+      // コーナーの途中を避け、前後を探して直線に寄せる
+      let best = idx, bestK = norm[idx % N];
+      for (let d = 1; d <= Math.round(N * 0.06); d++) {
+        [(idx + d) % N, (idx - d + N) % N].forEach(j => {
+          if (norm[j] < bestK - 0.02) { bestK = norm[j]; best = j; }
+        });
+      }
+      bound[bi] = best;
+    });
+    const sectors = [
+      { from: 0, to: bound[0] },
+      { from: bound[0], to: bound[1] },
+      { from: bound[1], to: N }
+    ];
+
     const info = {
       kappa: norm,
       n: N,
+      sectors: sectors,
+      bounds: bound,
       corners: corners,
       straights: straights,
       longest: longest,
@@ -130,7 +159,7 @@ GP.geom = (function () {
      戻り値は各点の通過時刻（1周を 1.0 に正規化した累積）。          */
   function speedProfile(track, stats) {
     const info = analyze(track);
-    const poly = buildPoly(track.path, 1000, 1000, 0);
+    const poly = polyOf(track);
     const N = poly.n, k = info.kappa;
 
     const tot = Math.max(1, stats.speed + stats.corner + stats.accel);
@@ -161,8 +190,12 @@ GP.geom = (function () {
     for (let i = 0; i < N; i++) { cumT[i] = t; t += poly.ds[i] / Math.max(0.05, v[i]); }
     cumT[N] = t;
     for (let i = 0; i <= N; i++) cumT[i] /= t;
-    return { cumT: cumT, v: v, n: N, vmax: vmax };
+    // このマシンが1周のうち各セクターに費やす時間の割合。
+    // コーナーの多いセクターはダウンフォース型ほど短くなる。
+    const b = info.bounds;
+    const share = [cumT[b[0]], cumT[b[1]] - cumT[b[0]], 1 - cumT[b[1]]];
+    return { cumT: cumT, v: v, n: N, vmax: vmax, share: share };
   }
 
-  return { buildPoly, curvature, analyze, speedProfile };
+  return { buildPoly, polyOf, curvature, analyze, speedProfile };
 })();
