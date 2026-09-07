@@ -26,16 +26,17 @@ window.GP = window.GP || {};
     }
     // 研究ポイントの自然増
     g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
-    // コンディション変動
-    g.drivers.forEach(d => {
-      d.form = S.clamp(d.form + S.rnd(-6, 6.5), 62, 122);
-      levelCheck(d);
-    });
+    // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
+    const drift = d => { d.form = S.clamp(d.form + (100 - d.form) * 0.14 + S.rnd(-4.5, 5), 62, 122); };
+    g.drivers.forEach(d => { drift(d); levelCheck(d); });
+    g.rivals.forEach(t => t.drivers.forEach(drift));   // ライバルも同じ条件で
     // ファンの自然減
     g.fans = Math.max(0, g.fans - Math.round(g.fans * 0.006));
 
     g.week++;
+    g.special = null;
     randomEvent();
+    offerSpecial();
 
     if (g.week > S.SEASON_WEEKS) return seasonEnd();
     S.save(g);
@@ -90,6 +91,31 @@ window.GP = window.GP || {};
         return;
       }
     }
+  }
+
+  /* ---------- 特別戦の誘い ---------- */
+  function offerSpecial() {
+    if (isRaceWeek() || g.nextRace >= D.TRACKS.length) return;
+    if (g.week >= S.SEASON_WEEKS - 1) return;          // 最終盤には来ない
+    if (Math.random() > 0.24) return;
+    const pool = D.SPECIALS.filter(x => g.season >= x.minSeason);
+    if (!pool.length) return;
+    const sp = S.pick(pool);
+    g.special = { key: sp.key, trackIndex: S.rint(0, D.TRACKS.length - 1) };
+    U.log(g, sp.icon + ' 「' + sp.name + '」への招待が届いた！', 'good');
+    U.toast(sp.icon + ' ' + sp.name + ' への招待が届いた！', 'good');
+  }
+
+  function specialOf(g2) {
+    return g2.special ? D.SPECIALS.find(x => x.key === g2.special.key) : null;
+  }
+
+  function enterSpecial() {
+    const sp = specialOf(g);
+    if (!sp) return;
+    if (g.funds < sp.entry) return U.toast('エントリー費が足りません', 'bad');
+    g.funds -= sp.entry;
+    beginRace(g.special.trackIndex, sp);
   }
 
   /* =======================================================
@@ -151,7 +177,9 @@ window.GP = window.GP || {};
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus;
+    // ドライバーのフィードバック（職人肌ほど的確）
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus;
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     if (p.power >= cap) gain *= 0.16;
@@ -341,7 +369,7 @@ window.GP = window.GP || {};
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = 1 + g.facilities.sim * 0.14 + S.staffBonus(g, 'trainer') * 0.16;
+    const bonus = (1 + g.facilities.sim * 0.14 + S.staffBonus(g, 'trainer') * 0.16) * S.persOf(d).train;
     let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
@@ -603,9 +631,10 @@ window.GP = window.GP || {};
     refreshMarkets(false);
     let body = '<div class="sub">ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
     g.drivers.forEach((d, i) => {
-      body += '<div class="pickbtn done"><span class="pb-ic" style="background:#3a7ad9">🧑‍✈️</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳' +
-        '<br>' + U.skillChips(d) + '</small></span>' +
+      body += '<div class="pickbtn done">' +
+        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
+        S.persOf(d).icon + S.persOf(d).name + '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost"><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div><div class="sub">ドライバー市場</div><div class="pick">';
@@ -613,8 +642,9 @@ window.GP = window.GP || {};
       const fee = Math.round(d.salary * 12);
       const full = g.drivers.length >= 2;
       body += '<button class="pickbtn" data-k="dm:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#3a7ad9">🧑‍✈️</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳' +
+        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
+        S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
         '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
@@ -668,14 +698,23 @@ window.GP = window.GP || {};
      レース
      ======================================================= */
   let pendingStrategy = {};
-  function cmdRace() {
-    const t = D.TRACKS[g.nextRace];
+  let raceCtx = { trackIndex: 0, special: null };
+
+  function cmdRace() { beginRace(g.nextRace, null); }
+
+  function beginRace(trackIndex, special) {
+    const t = D.TRACKS[trackIndex];
     if (g.drivers.length === 0) return U.toast('ドライバーがいません！', 'bad');
+    raceCtx = { trackIndex: trackIndex, special: special };
     pendingStrategy = {};
     g.drivers.forEach(d => { pendingStrategy[d.id] = 'balance'; });
+    const laps = Math.max(4, Math.round(t.laps * (special ? special.lapMul : 1)));
 
-    let body = '<div class="racehead"><b>第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) + '</b>' +
-      '<span>' + t.laps + '周 ／ ' + esc(t.desc) + '</span></div>';
+    let body = '<div class="racehead"><b>' +
+      (special ? special.icon + ' ' + esc(special.name) : '第' + (trackIndex + 1) + '戦') + ' ' +
+      t.country + ' ' + esc(t.name) + '</b>' +
+      '<span>' + laps + '周 ／ ' + esc(t.desc) + '</span></div>';
+    if (special) body += '<p class="note">' + esc(special.note) + '</p>';
     body += '<div class="sub">作戦を決める</div>';
     g.drivers.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="sr-btns" data-drv="' + d.id + '">';
@@ -687,9 +726,9 @@ window.GP = window.GP || {};
     });
     body += '<p class="desc">🛡️ 安全第一＝ペースは落ちるがリタイアしにくい／🔥 攻める＝速いがミスとタイヤ消耗のリスク大</p>';
 
-    U.modal('🏁 レースウィーク', body, [
+    U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
       { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
-      { label: 'まだ準備する', fn: U.closeModal }
+      { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
     ]);
 
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.stratbtn'), b => {
@@ -704,7 +743,7 @@ window.GP = window.GP || {};
 
   let currentRes = null;
   function startRace() {
-    currentRes = R.simulate(g, g.nextRace, pendingStrategy);
+    currentRes = R.simulate(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
     showQualifying();
   }
 
@@ -745,7 +784,9 @@ window.GP = window.GP || {};
     const reward = R.applyResult(g, res);
     setTimeout(() => {
       $('raceScreen').className = '';
-      let body = '<div class="racehead"><b>第' + (res.trackIndex + 1) + '戦 ' + esc(res.track.name) + '</b><span>' + res.weather.icon + ' ' + res.weather.name + '</span></div>';
+      let body = '<div class="racehead"><b>' +
+        (res.special ? res.special.icon + ' ' + esc(res.special.name) : '第' + (res.trackIndex + 1) + '戦') +
+        ' ' + esc(res.track.name) + '</b><span>' + res.weather.icon + ' ' + res.weather.name + '</span></div>';
       body += '<div class="gridlist">';
       res.classified.slice(0, 22).forEach(e => {
         body += '<div class="gridrow' + (e.isPlayer ? ' me' : '') + (e.dnf ? ' dnf' : '') + '">' +
@@ -764,16 +805,29 @@ window.GP = window.GP || {};
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '</div>';
       if (res.fastestLap) body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) + '（' + fmtTime(res.fastestLap.fastest) + '）</p>';
+
+      // 性格に応じて調子が動き、ひとことを残す
+      const said = [];
+      res.classified.filter(e => e.isPlayer).forEach(e => {
+        const q = S.quoteFor(e.driver, e.pos, e.dnf, said);
+        said.push(q);
+        const p = S.persOf(e.driver);
+        body += '<div class="quote">' + U.face(e.driver, 30) +
+          '<span><em>' + esc(e.driver.name) + '（' + p.icon + p.name + '）</em>「' + esc(q) + '」</span></div>';
+        U.log(g, '💬 ' + e.driver.name + '「' + q + '」');
+      });
       reward.notes.forEach(n => { body += '<p class="note">' + esc(n) + '</p>'; U.log(g, n, 'good'); });
 
-      U.modal('🏆 レース結果', body, [{ label: 'ガレージへ戻る', cls: 'primary', fn: afterRace }], { wide: true });
+      U.modal(res.special ? '🎪 特別戦の結果' : '🏆 レース結果', body,
+        [{ label: 'ガレージへ戻る', cls: 'primary', fn: afterRace }], { wide: true });
     }, 900);
   }
 
   function afterRace() {
     U.closeModal();
-    g.nextRace++;
-    g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(-8, 8), 62, 122); levelCheck(d); });
+    if (!raceCtx.special) g.nextRace++;
+    g.special = null;
+    g.drivers.forEach(d => levelCheck(d));
     endWeek();
   }
 
@@ -862,10 +916,19 @@ window.GP = window.GP || {};
   }
 
   function render() {
-    U.renderAll(g);
+    U.renderAll(g, specialOf(g));
     const race = isRaceWeek();
     $('cmdNormal').style.display = race ? 'none' : '';
     $('cmdRace').style.display = race ? '' : 'none';
+    const btn = $('specialGo');
+    if (btn) btn.onclick = enterSpecial;
+    const skip = $('specialSkip');
+    if (skip) skip.onclick = () => {
+      const sp = specialOf(g);
+      g.special = null;
+      if (sp) U.log(g, sp.icon + ' ' + sp.name + ' への招待を辞退した。');
+      S.save(g); render();
+    };
   }
 
   /* =======================================================
@@ -887,7 +950,7 @@ window.GP = window.GP || {};
   }
 
   function cmdRest() {
-    g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(6, 14), 62, 122); });
+    g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(6, 14) * S.persOf(d).rest, 62, 122); });
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(3, 7), 10, 100);
@@ -951,7 +1014,18 @@ window.GP = window.GP || {};
     });
   }
 
+  /* ---------- Service Worker（オフライン対応）----------
+     file:// で直接開いた場合は登録できないが、その場合も普通に遊べる    */
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
+    registerSW();
     bindCommands();
     document.body.classList.add('preboot');
     g = S.newGame('ニューカマーGP', '#e04a3f');   // 仮state（チーム作成までは非表示）

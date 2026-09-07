@@ -116,6 +116,9 @@ GP.state = (function () {
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
+      nation: opts.nation || rint(0, D.NATIONS.length - 1),
+      pers: opts.pers || pick(D.PERSONALITIES).key,
+      face: rint(0, 999999),          // 顔の見た目を決める種
       skills: opts.skills || rollSkills(level)
     };
     d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
@@ -134,6 +137,29 @@ GP.state = (function () {
     return out;
   }
   const hasSkill = (d, k) => d.skills && d.skills.indexOf(k) >= 0;
+  const persOf = d => D.PERSONALITIES.find(x => x.key === d.pers) || D.PERSONALITIES[0];
+  const nationOf = d => D.NATIONS[d.nation] || D.NATIONS[0];
+
+  /* レース結果を受けての調子の変化。性格で振れ幅が変わる */
+  function reactToResult(d, pos, dnf) {
+    const p = persOf(d);
+    let delta;
+    if (dnf) delta = -rnd(6, 12) * p.down;
+    else if (pos === 1) delta = rnd(9, 16) * p.up;
+    else if (pos <= 3) delta = rnd(5, 11) * p.up;
+    else if (pos <= 10) delta = rnd(-1, 4) * (pos <= 6 ? p.up : p.down);
+    else delta = -rnd(2, 6) * p.down;
+    d.form = clamp(d.form + delta, 62, 122);
+    return delta;
+  }
+
+  /* レース後のひとこと */
+  function quoteFor(d, pos, dnf, avoid) {
+    const set = D.QUOTES[d.pers] || D.QUOTES.cool;
+    const bucket = (!dnf && pos === 1) ? 'win' : (!dnf && pos <= 10) ? 'ok' : 'bad';
+    const lines = set[bucket].filter(l => !avoid || avoid.indexOf(l) < 0);
+    return pick(lines.length ? lines : set[bucket]);
+  }
   function learnableSkills(d) {
     return D.SKILLS.filter(s => !hasSkill(d, s.key));
   }
@@ -193,11 +219,11 @@ GP.state = (function () {
     });
   }
 
-  /* ---------- コース適性を加味したマシンスコア ---------- */
-  function carScore(g, track) {
-    const s = carStats(g);
+  /* ---------- 3性能とコース適性からマシンスコアを出す ---------- */
+  function carScoreOf(s, track) {
     return s.speed * track.weight.speed + s.corner * track.weight.corner + s.accel * track.weight.accel;
   }
+  function carScore(g, track) { return carScoreOf(carStats(g), track); }
 
   /* ---------- スタッフ効果 ---------- */
   function staffBonus(g, key) {
@@ -217,9 +243,15 @@ GP.state = (function () {
     resetNames(keepNames);
     return D.RIVALS.map((r, i) => {
       const lv = (3 + season * 2.1) * r.power;
+      const base = 18 * r.power + season * 10 * r.power + rnd(-4, 4);
       const t = {
-        name: r.name, color: r.color, isPlayer: false,
-        car: 18 * r.power + season * 10 * r.power + rnd(-4, 4),
+        name: r.name, color: r.color, isPlayer: false, char: r.char,
+        // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
+        stats: {
+          speed:  base * 3 * r.bias.speed,
+          corner: base * 3 * r.bias.corner,
+          accel:  base * 3 * r.bias.accel
+        },
         rel: clamp(72 + r.power * 18 + season * 1.2 + rnd(-8, 8), 40, 97),
         points: 0,
         drivers: [makeDriver(lv), makeDriver(lv * 0.92)]
@@ -261,10 +293,12 @@ GP.state = (function () {
 
     resetNames([]);
     g.drivers = [makeDriver(2.2, { age: rint(22, 27) }), makeDriver(1.6, { age: rint(20, 25) })];
-    // 開始時の2人は違うスキルを持たせる
+    // 開始時の2人はスキルも性格も別々にする
     if (g.drivers[0].skills[0] === g.drivers[1].skills[0]) {
-      const other = D.SKILLS.filter(x => x.key !== g.drivers[0].skills[0]);
-      g.drivers[1].skills = [pick(other).key];
+      g.drivers[1].skills = [pick(D.SKILLS.filter(x => x.key !== g.drivers[0].skills[0])).key];
+    }
+    if (g.drivers[0].pers === g.drivers[1].pers) {
+      g.drivers[1].pers = pick(D.PERSONALITIES.filter(x => x.key !== g.drivers[0].pers)).key;
     }
     g.drivers.forEach(d => { d.team = g.team; });
 
@@ -302,12 +336,30 @@ GP.state = (function () {
 
   /* ---------- 全チーム（自分＋ライバル）---------- */
   function allTeams(g, track) {
+    const mine = carStats(g);
     const me = {
-      name: g.team, color: g.color, isPlayer: true,
-      car: carScore(g, track), rel: reliability(g),
+      name: g.team, color: g.color, isPlayer: true, char: machineChar(mine),
+      stats: mine, car: carScoreOf(mine, track), rel: reliability(g),
       points: g.points, drivers: g.drivers
     };
-    return [me].concat(g.rivals);
+    // ライバルのマシン評価はコースとの相性でその都度変わる
+    const rivals = g.rivals.map(r => {
+      r.car = carScoreOf(r.stats, track);
+      return r;
+    });
+    return [me].concat(rivals);
+  }
+
+  /* 自チームのマシンがどの型かを判定する（表示用） */
+  function machineChar(s) {
+    const tot = Math.max(1, s.speed + s.corner + s.accel);
+    const sp = s.speed / tot, co = s.corner / tot, ac = s.accel / tot;
+    if (sp > 0.38) return 'パワー型';
+    if (co > 0.38) return 'ダウンフォース型';
+    if (ac > 0.38) return 'トラクション型';
+    if (sp > co && sp > ac) return 'ロードラッグ寄り';
+    if (co > ac) return 'コーナー重視';
+    return 'オールラウンド';
   }
 
   /* ---------- コンストラクターズ順位表 ---------- */
@@ -348,7 +400,8 @@ GP.state = (function () {
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
-    carStats, carScore, reliability, staffBonus, weeklyCost,
+    persOf, nationOf, reactToResult, quoteFor,
+    carStats, carScore, carScoreOf, machineChar, reliability, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe

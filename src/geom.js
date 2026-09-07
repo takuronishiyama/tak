@@ -1,0 +1,168 @@
+/* =========================================================
+   コース幾何の解析
+   サーキット形状から曲率・コーナー・ストレートを求め、
+   描画（raceview）とレース計算（race）の両方で共有する
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.geom = (function () {
+  'use strict';
+
+  const SUB = 14;              // 制御点あたりの分割数
+  const cache = {};
+
+  /* ---------- Catmull-Rom で閉ループを滑らかに再サンプル ---------- */
+  function buildPoly(path, w, h, pad) {
+    const p = path.map(pt => [pad + pt[0] * (w - pad * 2), pad + pt[1] * (h - pad * 2)]);
+    const n = p.length, out = [];
+    const at = i => p[(i % n + n) % n];
+    for (let i = 0; i < n; i++) {
+      const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+      for (let s = 0; s < SUB; s++) {
+        const t = s / SUB, t2 = t * t, t3 = t2 * t;
+        out.push([
+          0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+          0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
+        ]);
+      }
+    }
+    const N = out.length;
+    const ds = new Float64Array(N);   // 各点から次の点までの長さ
+    const cum = new Float64Array(N + 1);
+    let len = 0;
+    for (let i = 0; i < N; i++) {
+      const a = out[i], b = out[(i + 1) % N];
+      ds[i] = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      cum[i] = len;
+      len += ds[i];
+    }
+    cum[N] = len;
+    return { pts: out, ds: ds, cum: cum, len: len, n: N };
+  }
+
+  /* ---------- 曲率（進行方向の変化量／距離）---------- */
+  function curvature(poly) {
+    const N = poly.n, k = new Float64Array(N);
+    const ang = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      const a = poly.pts[i], b = poly.pts[(i + 1) % N];
+      ang[i] = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    }
+    for (let i = 0; i < N; i++) {
+      let d = ang[(i + 1) % N] - ang[i];
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      k[i] = Math.abs(d) / Math.max(0.5, poly.ds[i]);
+    }
+    // 前後にならして、分割の粗さによるギザつきを消す
+    const sm = new Float64Array(N);
+    const W = 3;
+    for (let i = 0; i < N; i++) {
+      let acc = 0;
+      for (let j = -W; j <= W; j++) acc += k[(i + j + N * 2) % N];
+      sm[i] = acc / (W * 2 + 1);
+    }
+    return sm;
+  }
+
+  /* ---------- コース解析（コーナー・ストレート・DRS区間）---------- */
+  function analyze(track) {
+    if (cache[track.name]) return cache[track.name];
+    // 解析は形状だけで決まるので、正規化された固定サイズで一度だけ行う
+    const poly = buildPoly(track.path, 1000, 1000, 0);
+    const k = curvature(poly);
+    const N = poly.n;
+
+    // 全コースで同じ基準になるよう、絶対値で正規化する
+    // （1000x1000で描いたときの実測レンジ 0.000〜0.032 が根拠）
+    const K_REF = 0.030;
+    const norm = new Float64Array(N);
+    for (let i = 0; i < N; i++) norm[i] = Math.min(1, k[i] / K_REF);
+
+    // 曲率がしきい値を超える区間をコーナーとしてまとめる
+    const CORNER = 0.0085 / K_REF;
+    const corners = [];
+    let i = 0, guard = 0;
+    while (norm[i] > CORNER && guard++ < N) i = (i + 1) % N;   // 直線から数え始める
+    const start = i;
+    let run = null;
+    for (let step = 0; step < N; step++) {
+      const idx = (start + step) % N;
+      if (norm[idx] > CORNER) {
+        if (!run) run = { from: idx, to: idx, peak: norm[idx], len: poly.ds[idx] };
+        else { run.to = idx; run.peak = Math.max(run.peak, norm[idx]); run.len += poly.ds[idx]; }
+      } else if (run) { corners.push(run); run = null; }
+    }
+    if (run) corners.push(run);
+
+    // ストレート（コーナーとコーナーの間）
+    const straights = [];
+    for (let c = 0; c < corners.length; c++) {
+      const a = corners[c], b = corners[(c + 1) % corners.length];
+      let from = (a.to + 1) % N, len = 0, idx = from, steps = 0;
+      while (idx !== b.from && steps++ < N) { len += poly.ds[idx]; idx = (idx + 1) % N; }
+      straights.push({ from: from, to: b.from, len: len });
+    }
+    straights.sort((x, y) => y.len - x.len);
+    const longest = straights[0] || { from: 0, to: 0, len: 0 };
+
+    let straightLen = 0;
+    for (let j = 0; j < N; j++) if (norm[j] <= CORNER) straightLen += poly.ds[j];
+
+    const info = {
+      kappa: norm,
+      n: N,
+      corners: corners,
+      straights: straights,
+      longest: longest,
+      // 全長に占める最長ストレートの割合。追い抜きやすさの根拠になる
+      longestShare: poly.len > 0 ? longest.len / poly.len : 0,
+      straightShare: poly.len > 0 ? straightLen / poly.len : 0,
+      cornerCount: corners.length
+    };
+    cache[track.name] = info;
+    return info;
+  }
+
+  /* ---------- 車ごとの速度プロファイル ----------
+     コーナーでは曲率と「コーナー性能」で頭打ちになり、
+     立ち上がりは「加速性能」、直線の伸びは「最高速性能」で決まる。
+     戻り値は各点の通過時刻（1周を 1.0 に正規化した累積）。          */
+  function speedProfile(track, stats) {
+    const info = analyze(track);
+    const poly = buildPoly(track.path, 1000, 1000, 0);
+    const N = poly.n, k = info.kappa;
+
+    const tot = Math.max(1, stats.speed + stats.corner + stats.accel);
+    const sp = stats.speed / tot, co = stats.corner / tot, ac = stats.accel / tot;
+
+    // コーナリング上限速度
+    const v = new Float64Array(N);
+    const vmax = 1 + sp * 1.30;
+    for (let i = 0; i < N; i++) {
+      v[i] = vmax / (1 + k[i] * (3.4 - co * 2.4));
+    }
+    // 加速・減速の制限（閉ループなので2周ぶん回して収束させる）
+    const accel = 0.055 + ac * 0.075;     // 立ち上がりの鋭さ
+    const brake = 0.150 + co * 0.060;     // ブレーキング性能
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < N; i++) {
+        const p = (i - 1 + N) % N;
+        v[i] = Math.min(v[i], v[p] + accel * poly.ds[p]);
+      }
+      for (let i = N - 1; i >= 0; i--) {
+        const nx = (i + 1) % N;
+        v[i] = Math.min(v[i], v[nx] + brake * poly.ds[i]);
+      }
+    }
+    // 通過時刻の累積（1周＝1.0に正規化）
+    const cumT = new Float64Array(N + 1);
+    let t = 0;
+    for (let i = 0; i < N; i++) { cumT[i] = t; t += poly.ds[i] / Math.max(0.05, v[i]); }
+    cumT[N] = t;
+    for (let i = 0; i <= N; i++) cumT[i] /= t;
+    return { cumT: cumT, v: v, n: N, vmax: vmax };
+  }
+
+  return { buildPoly, curvature, analyze, speedProfile };
+})();

@@ -116,9 +116,12 @@ GP.ui = (function () {
   }
   function driverCard(d, i) {
     const r = Math.round(S.driverRating(d));
+    const p = S.persOf(d), na = S.nationOf(d);
     return '<div class="drv">' +
-      '<div class="drv-head"><span class="helmet" style="background:' + helmetColor(d) + '"></span>' +
-      '<span class="drv-nm">' + esc(d.name) + '</span><span class="drv-age">' + d.age + '歳</span></div>' +
+      '<div class="drv-head">' + face(d, 34) +
+      '<span class="drv-id"><span class="drv-nm">' + esc(d.name) + '</span>' +
+      '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b></span></span>' +
+      '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
       mini('速さ', d.speed) + mini('技術', d.technique) + mini('体力', d.stamina) + mini('精神', d.mental) +
@@ -131,6 +134,50 @@ GP.ui = (function () {
       '<div class="drv-sal">給料 ' + money(d.salary) + '万/週</div>' +
       '</div>';
   }
+  /* =========================================================
+     ドライバーの顔（種から作るドット絵。SVGなので拡大しても崩れない）
+     ========================================================= */
+  const SKIN = ['#f2c9a0', '#e0a878', '#c8865a', '#9a6440', '#6e4630', '#f7dcc0'];
+  const HAIR = ['#2b1c12', '#4a2f1a', '#8a5a2a', '#c8a040', '#d8d2c8', '#8a2a2a', '#2a4a8a', '#1c1c1c'];
+
+  function face(d, px) {
+    px = px || 34;
+    let h = (d.face != null ? d.face : 0) >>> 0;
+    const nx = m => { h = (h * 1103515245 + 12345) >>> 0; return h % m; };
+    const skin = SKIN[nx(SKIN.length)];
+    const hair = HAIR[nx(HAIR.length)];
+    const style = nx(4);           // 髪型
+    const brow = nx(2);
+    const extra = nx(6);           // ヒゲ・そばかす等
+    const f = d.form == null ? 100 : d.form;
+
+    const r = (x, y, w, ht, c) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + ht + '" fill="' + c + '"/>';
+    let g = '';
+    g += r(3, 4, 10, 11, skin);                       // 顔
+    g += r(2, 6, 1, 6, skin) + r(13, 6, 1, 6, skin);  // 耳
+    // 髪型
+    if (style === 0) g += r(2, 2, 12, 4, hair) + r(2, 5, 2, 3, hair) + r(12, 5, 2, 3, hair);
+    else if (style === 1) g += r(3, 1, 10, 4, hair) + r(5, 0, 2, 1, hair) + r(9, 0, 2, 1, hair);
+    else if (style === 2) g += r(2, 2, 12, 3, hair) + r(1, 4, 2, 8, hair) + r(13, 4, 2, 8, hair);
+    else g += r(3, 2, 10, 3, hair) + r(2, 3, 1, 3, hair) + r(13, 3, 1, 3, hair) + r(3, 5, 3, 1, hair);
+    // 眉と目（調子で表情が変わる）
+    const eyeY = f < 88 ? 9 : 8;
+    g += r(5, eyeY - 2 + brow, 2, 1, '#3a2418') + r(9, eyeY - 2 + brow, 2, 1, '#3a2418');
+    if (f >= 112) { g += r(5, eyeY, 2, 1, '#222') + r(9, eyeY, 2, 1, '#222'); }
+    else { g += r(5, eyeY, 2, 2, '#222') + r(9, eyeY, 2, 2, '#222'); }
+    // 口
+    if (f >= 108) g += r(6, 12, 4, 1, '#a04030') + r(7, 13, 2, 1, '#a04030');
+    else if (f <= 88) g += r(6, 13, 4, 1, '#8a4038');
+    else g += r(7, 12, 2, 1, '#8a4038');
+    // 個性
+    if (extra === 0) g += r(6, 11, 4, 1, hair);                       // ヒゲ
+    if (extra === 1) g += r(4, 10, 1, 1, '#c88060') + r(11, 10, 1, 1, '#c88060'); // そばかす
+    if (extra === 2) g += r(4, 7, 8, 2, 'rgba(30,30,40,.75)');        // サングラス
+
+    return '<svg class="face" viewBox="0 0 16 16" width="' + px + '" height="' + px + '" shape-rendering="crispEdges">' +
+      '<rect width="16" height="16" fill="#cfe6f5"/>' + g + '</svg>';
+  }
+
   function skillChips(d) {
     if (!d.skills || !d.skills.length) return '<span class="skill none">スキルなし</span>';
     return d.skills.map(k => {
@@ -149,11 +196,6 @@ GP.ui = (function () {
     if (f >= 88) return '不調';
     return '絶不調';
   }
-  function helmetColor(d) {
-    let h = 0; for (let i = 0; i < d.name.length; i++) h = (h * 31 + d.name.charCodeAt(i)) % 360;
-    return 'hsl(' + h + ',70%,55%)';
-  }
-
   /* ---------- サイドパネル（タブ）---------- */
   let sideTab = 'log';
   function renderSide(g) {
@@ -215,10 +257,29 @@ GP.ui = (function () {
       '<circle cx="' + start[0].toFixed(1) + '" cy="' + start[1].toFixed(1) + '" r="4" fill="#e04a3f" stroke="#4a2f1a" stroke-width="2"/></svg>';
   }
 
+  /* ---------- 特別戦の招待カード ---------- */
+  function specialCard(g, sp) {
+    if (!sp || !g.special) return '';
+    const t = D.TRACKS[g.special.trackIndex];
+    const laps = Math.max(4, Math.round(t.laps * sp.lapMul));
+    return '<div class="card special"><div class="card-h">' + sp.icon + ' 特別戦の招待 — ' + esc(sp.name) + '</div>' +
+      '<div class="pad">' +
+      '<p class="lead">' + esc(sp.desc) + '</p>' +
+      '<div class="sp-meta"><span>会場 <b>' + t.country + ' ' + esc(t.name) + '</b></span>' +
+      '<span>距離 <b>' + laps + '周</b></span>' +
+      '<span>エントリー費 <b>💰' + money(sp.entry) + '万</b></span></div>' +
+      '<p class="note">' + esc(sp.note) + '</p>' +
+      '<p class="desc">選手権のポイントは動きません。参加すると1週を消費します。</p>' +
+      '<div class="sp-btns">' +
+      '<button class="btn primary" id="specialGo"' + (g.funds < sp.entry ? ' disabled' : '') + '>' + sp.icon + ' 参加する</button>' +
+      '<button class="btn" id="specialSkip">見送る</button></div>' +
+      '</div></div>';
+  }
+
   /* ---------- 全体再描画 ---------- */
-  function renderAll(g) {
+  function renderAll(g, special) {
     renderTop(g);
-    $('viewPanel').innerHTML = nextRaceCard(g) + carCard(g) + driverCards(g);
+    $('viewPanel').innerHTML = specialCard(g, special) + nextRaceCard(g) + carCard(g) + driverCards(g);
     if (g.nextRace < D.TRACKS.length) drawMini(D.TRACKS[g.nextRace]);
     renderSide(g);
   }
@@ -270,5 +331,5 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, $ };
+           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, $ };
 })();

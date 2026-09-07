@@ -32,6 +32,7 @@ GP.race = (function () {
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
           num: list.length + 1,
+          stats: t.stats,
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
           rel: t.rel,
@@ -77,14 +78,18 @@ GP.race = (function () {
   }
 
   /* ---------- 決勝シミュレーション ---------- */
-  function simulate(g, trackIndex, strategy) {
+  function simulate(g, trackIndex, strategy, special) {
     const track = D.TRACKS[trackIndex];
-    const weather = rollWeather(track);
+    const weather = special && special.force
+      ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
+      : rollWeather(track);
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
-    const laps = track.laps;
+    const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const events = [];
-    const passEase = 0.35 + track.weight.speed;
+    // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
+    const geo = GP.geom.analyze(track);
+    const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
     const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
     const strategist = S.staffBonus(g, 'strategist');
@@ -203,7 +208,7 @@ GP.race = (function () {
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, fastestLap: fl,
+      events, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       totalTime: laps * track.base * 1.05
     };
   }
@@ -211,23 +216,31 @@ GP.race = (function () {
   /* ---------- レース結果をゲームに反映 ---------- */
   function applyResult(g, res) {
     const notes = [];
+    const sp = res.special;
     let prize = 0, fanDelta = 0;
 
     res.classified.forEach(e => {
       const pts = (!e.dnf && e.pos <= D.POINTS.length) ? D.POINTS[e.pos - 1] : 0;
-      e.points = pts;
-      e.driver.seasonPoints += pts;
-      e.driver.races++;
-      if (!e.dnf) {
-        if (e.pos === 1) e.driver.wins++;
-        if (e.pos <= 3) e.driver.podiums++;
+      // 特別戦は選手権とは無関係。ポイントも通算成績も動かない
+      e.points = sp ? 0 : pts;
+      if (!sp) {
+        e.driver.seasonPoints += pts;
+        e.driver.races++;
+        if (!e.dnf) {
+          if (e.pos === 1) e.driver.wins++;
+          if (e.pos <= 3) e.driver.podiums++;
+        }
       }
+      // 結果を受けての調子の変化は全ドライバーに等しく起きる
+      S.reactToResult(e.driver, e.pos, e.dnf);
       if (e.isPlayer) {
-        g.points += pts;
-        prize += 800 + pts * 470 + (e.dnf ? 0 : Math.max(0, 1300 - e.pos * 50));
-        const gain = 12 + Math.max(0, 22 - e.pos) + (e.dnf ? 0 : 8);
+        if (!sp) g.points += pts;
+        const base = 800 + pts * 470 + (e.dnf ? 0 : Math.max(0, 1300 - e.pos * 50));
+        prize += sp ? base * sp.prize : base;
+        let gain = 12 + Math.max(0, 22 - e.pos) + (e.dnf ? 0 : 8);
+        if (sp) gain = Math.round(gain * sp.lapMul) + (sp.exp || 0);
         e.driver.exp += Math.round(gain * (S.hasSkill(e.driver, 'grower') ? 1.5 : 1));
-      } else {
+      } else if (!sp) {
         e.team.points += pts;
       }
     });
@@ -237,36 +250,37 @@ GP.race = (function () {
     if (best) {
       if (best.pos === 1)      { fanDelta = Math.round(600 + g.fans * 0.16); notes.push('🏆 優勝！ 街中が歓喜に包まれた！'); }
       else if (best.pos <= 3)  { fanDelta = Math.round(300 + g.fans * 0.09); notes.push('🥉 表彰台！ ファンが増えた！'); }
-      else if (best.pos <= 10) { fanDelta = Math.round(120 + g.fans * 0.04); notes.push('ポイント獲得。着実にファンが増えている。'); }
-      else                     { fanDelta = -Math.round(30 + g.fans * 0.02); notes.push('ノーポイント…ファンが少し離れてしまった。'); }
+      else if (best.pos <= 10) { fanDelta = Math.round(120 + g.fans * 0.04); notes.push(sp ? '完走。手応えは残った。' : 'ポイント獲得。着実にファンが増えている。'); }
+      else                     { fanDelta = -Math.round(30 + g.fans * 0.02); notes.push(sp ? '結果は振るわなかった…' : 'ノーポイント…ファンが少し離れてしまった。'); }
+      if (sp) fanDelta = Math.round(Math.max(0, fanDelta) * sp.fans + 60 * sp.fans);
     }
 
-    // スポンサー収入
+    // スポンサー収入（特別戦は選手権外なので基本給のみ）
     let sponsorIncome = 0;
-    g.sponsors.forEach(sp => {
-      sponsorIncome += sp.per * (1 + g.facilities.market * 0.12);
-      if (best && !best.dnf && best.pos <= sp.need) {
-        sponsorIncome += sp.bonus;
-        notes.push('📣 ' + sp.name + ' の目標達成ボーナス！ +' + Math.round(sp.bonus) + '万');
+    g.sponsors.forEach(s2 => {
+      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * (sp ? 0.4 : 1);
+      if (!sp && best && !best.dnf && best.pos <= s2.need) {
+        sponsorIncome += s2.bonus;
+        notes.push('📣 ' + s2.name + ' の目標達成ボーナス！ +' + Math.round(s2.bonus) + '万');
       }
     });
     sponsorIncome = Math.round(sponsorIncome);
 
     // パーツの消耗
-    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk);
+    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
 
     // 初優勝フラグ
-    if (best && best.pos === 1 && !g.flags.firstWin) {
+    if (!sp && best && best.pos === 1 && !g.flags.firstWin) {
       g.flags.firstWin = true;
       notes.push('🎉 チーム初優勝！ 記念すべき一勝が刻まれた！');
     }
 
     g.funds += prize + sponsorIncome;
     g.fans = Math.max(0, g.fans + fanDelta);
-    g.rp += 8 + Math.round(S.staffBonus(g, 'analyst') * 2);
+    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2);
 
     res.reward = { prize, sponsorIncome, fanDelta, notes };
-    g.results.push({
+    if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,
       rows: res.classified.slice(0, 22).map(e => ({
