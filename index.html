@@ -35,12 +35,14 @@
 
   <!-- ================= トップバー ================= -->
   <header class="topbar">
-    <div class="tb-team"><span id="tTeamDot" class="dot"></span><span id="tTeam">-</span></div>
+    <div class="tb-team"><span id="tTeamDot" class="dot"></span><span id="tTeam">-</span>
+      <span id="tRank" class="rank">-</span></div>
     <div class="tb-stats">
       <div class="stat"><span class="ic">💰</span><b id="tFunds">0</b><small>万</small></div>
       <div class="stat"><span class="ic">👥</span><b id="tFans">0</b></div>
       <div class="stat"><span class="ic">🔬</span><b id="tRp">0</b></div>
       <div class="stat"><span class="ic">📅</span>S<b id="tSeason">1</b> W<b id="tWeek">1</b></div>
+      <button class="stat sound" id="tSound" title="効果音の切り替え">🔊</button>
     </div>
     <div class="tb-next" id="tNext">-</div>
   </header>
@@ -112,11 +114,13 @@
 
 <div id="toastLayer"></div>
 
+<script src="src/sound.js"></script>
 <script src="src/data.js"></script>
 <script src="src/geom.js"></script>
 <script src="src/state.js"></script>
 <script src="src/race.js"></script>
 <script src="src/raceview.js"></script>
+<script src="src/base.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>
 </body>

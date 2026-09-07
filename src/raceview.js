@@ -492,6 +492,11 @@ GP.raceview = (function () {
     while (shownEvents < res.events.length) {
       const ev = res.events[shownEvents];
       if (!all && ev.lap > lapNow) break;
+      if (!all) {
+        if (ev.type === 'pass') GP.sound.play('pass', 140);
+        else if (ev.type === 'pit') GP.sound.play('pit', 140);
+        else if (ev.type === 'dnf') GP.sound.play('dnf', 300);
+      }
       const div = document.createElement('div');
       div.className = 'rv-ev rv-' + ev.type;
       div.textContent = 'L' + ev.lap + ' ' + ev.text;
@@ -598,7 +603,7 @@ GP.raceview = (function () {
     buildSectorTimeline();
     trackArt = buildTrackArt();
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; running = true; lastTs = performance.now(); speed = 40; lights = 0;
+    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 40; lights = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }
@@ -611,11 +616,14 @@ GP.raceview = (function () {
   }
 
   /* ---------- スタートシグナル ---------- */
+  let lightBeeps = 0;
   function drawLights(p) {
     const w = cv.width;
     const cxl = w / 2, cy = 46;
     const on = Math.min(5, Math.floor(p * 6.2));      // 5つ順に点灯
     const out = p > 0.86;                              // 一斉消灯＝スタート
+    if (!out && on > lightBeeps) { lightBeeps = on; GP.sound.play('light'); }
+    if (out && lightBeeps < 6) { lightBeeps = 6; GP.sound.play('go'); }
     ctx.fillStyle = 'rgba(20,12,6,.82)';
     ctx.fillRect(cxl - 72, cy - 20, 144, 40);
     ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 3;

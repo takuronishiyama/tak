@@ -26,6 +26,14 @@ GP.ui = (function () {
       ? 'シーズン終了'
       : (left === 0 ? '★ 今週レース！' : '第' + (g.nextRace + 1) + '戦まで あと' + left + '週');
     $('tNext').className = left === 0 ? 'race-imminent' : '';
+    const sc = GP.base.scale(g);
+    const el = $('tRank');
+    if (el && el.textContent !== sc.rank) {
+      el.textContent = sc.rank;
+      el.classList.remove('grow');
+      void el.offsetWidth;
+      el.classList.add('grow');
+    }
     $('tFunds').parentElement.classList.toggle('danger', g.funds < 0);
   }
 
@@ -327,6 +335,10 @@ GP.ui = (function () {
 
   /* ---------- トースト ---------- */
   function toast(text, type) {
+    if (GP.sound) {
+      if (type === 'bad') GP.sound.play('bad', 300);
+      else if (type === 'warn') GP.sound.play('warn', 300);
+    }
     const el = document.createElement('div');
     el.className = 'toast ' + (type || '');
     el.innerHTML = text;

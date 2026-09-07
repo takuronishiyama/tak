@@ -2,16 +2,18 @@
    Service Worker — オフラインでも遊べるようにする
    ホーム画面に追加したあとは、通信なしで起動できる
    ========================================================= */
-const CACHE = 'gp-monogatari-v3';
+const CACHE = 'gp-monogatari-v4';
 const SHELL = [
   './',
   './index.html',
   './assets/style.css',
+  './src/sound.js',
   './src/data.js',
   './src/geom.js',
   './src/state.js',
   './src/race.js',
   './src/raceview.js',
+  './src/base.js',
   './src/ui.js',
   './src/main.js',
   './manifest.webmanifest',

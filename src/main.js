@@ -54,6 +54,7 @@ window.GP = window.GP || {};
       d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
       U.log(g, '⭐ ' + d.name + ' がレベルアップ！ (Lv.' + d.expLv + ')', 'good');
       U.pop('⭐ ' + d.name + ' Lv.' + d.expLv, 'good');
+      GP.sound.play('levelup', 200);
       // レベルアップでスキルを閃くことがある
       const room = (d.skills || []).length < S.SKILL_MAX;
       if (room && Math.random() < 0.32) {
@@ -192,6 +193,7 @@ window.GP = window.GP || {};
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
     U.log(g, msg, crit ? 'good' : '');
     U.pop('+' + gain.toFixed(1), crit ? 'crit' : 'good');
+    GP.sound.play(crit ? 'crit' : 'confirm');
     if (crit) U.toast('✨ ひらめいた！ 開発が大成功！', 'good');
     if (p.power >= cap) U.toast('このパーツは限界です。新型マシンか、より高レアなパーツが必要です。', 'warn');
     endWeek();
@@ -211,6 +213,7 @@ window.GP = window.GP || {};
     const rr = D.RARITY[rarity - 1];
     U.closeModal();
     U.log(g, '📐 ' + part.name + '（' + rr.name + '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
+    GP.sound.play(rarity >= 4 ? 'crit' : 'confirm');
     if (rarity >= 4) U.toast('🎉 ' + rr.name + 'パーツ「' + part.name + '」が完成！', 'good');
     else U.toast('📐 ' + part.name + '（' + rr.name + '）が完成', rarity >= 3 ? 'good' : '');
     U.pop(U.stars(rarity), rarity >= 4 ? 'crit' : 'good');
@@ -270,6 +273,7 @@ window.GP = window.GP || {};
     });
     U.closeModal();
     U.log(g, '🎊 新型マシン「' + nx.name + '」が完成！ 開発上限が ' + nx.cap + ' に上がった！', 'good');
+    GP.sound.play('crit');
     U.toast('🎊 新型マシン「' + nx.name + '」ロールアウト！', 'good');
     U.pop('🏎️ ' + nx.name, 'crit');
     endWeek();
@@ -360,6 +364,7 @@ window.GP = window.GP || {};
     levelCheck(d);
     U.closeModal();
     U.log(g, '🎓 ' + d.name + ' がスキル「' + best.name + '」を習得！', 'good');
+    GP.sound.play('levelup');
     U.toast('🎓 ' + best.icon + ' ' + best.name + ' を習得！', 'good');
     U.pop('🎓 ' + best.name, 'crit');
     endWeek();
@@ -427,6 +432,7 @@ window.GP = window.GP || {};
     const m = Math.round(f * 1.4);
     g.fans += f; g.funds += m;
     U.closeModal();
+    GP.sound.play('coin');
     U.log(g, '📣 プロモーション活動。ファン +' + money(f) + '／収入 +' + money(m) + '万', 'good');
     U.pop('👥+' + money(f), 'good');
     endWeek();
@@ -438,6 +444,7 @@ window.GP = window.GP || {};
     const adv = Math.round(s.per * 4);
     g.funds += adv;
     U.closeModal();
+    GP.sound.play('coin');
     U.log(g, '🤝 ' + s.name + ' と契約！ 契約金 +' + money(adv) + '万', 'good');
     U.toast('🤝 ' + s.name + ' と契約成立！', 'good');
     endWeek();
@@ -586,6 +593,7 @@ window.GP = window.GP || {};
       if (t) msg += '  ' + t.icon + t.name + ' を引き継いだ！';
     }
     U.log(g, msg, up ? 'good' : '');
+    GP.sound.play(up ? 'crit' : 'upgrade');
     U.toast(up ? '⭐ ' + D.RARITY[base.rarity - 1].name + ' に進化！' : '⚗️ 合成成功！ 性能 +' + gain.toFixed(1), up ? 'good' : '');
     U.pop('+' + gain.toFixed(1), up ? 'crit' : 'good');
     S.save(g); render(); cmdGarage();
@@ -594,28 +602,78 @@ window.GP = window.GP || {};
   /* =======================================================
      フリーメニュー：施設
      ======================================================= */
+  let baseSel = 'factory';
+
+  function facilityCost(key) {
+    const f = D.FACILITIES.find(x => x.key === key);
+    const lv = g.facilities[key];
+    return Math.round(f.base * Math.pow(lv, 1.55));
+  }
+
   function cmdFacility() {
-    let body = '<p class="lead">施設を拡張します（週は消費しません）。</p><div class="pick">';
-    D.FACILITIES.forEach(f => {
-      const lv = g.facilities[f.key];
-      const cost = Math.round(f.base * Math.pow(lv, 1.55));
-      const max = lv >= 10;
-      body += '<button class="pickbtn" data-k="' + f.key + '"' + ((max || g.funds < cost) ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#7b5a3a">' + f.icon + '</span>' +
-        '<span class="pb-body"><b>' + f.name + ' Lv.' + lv + (max ? '（MAX）' : ' → ' + (lv + 1)) + '</b><small>' + f.desc + '</small></span>' +
-        '<span class="pb-cost">' + (max ? 'MAX' : '💰' + money(cost)) + '</span></button>';
+    const sc = GP.base.scale(g);
+    const body =
+      '<div class="baseinfo"><span>チーム規模 <b>' + sc.rank + '</b></span>' +
+      '<span>施設を広げるほど、本拠地は大きく賑やかになります</span></div>' +
+      '<div class="basewrap"><canvas id="baseCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
+      '<div id="baseDetail"></div>';
+    U.modal('🏗️ チーム本拠地', body, [{ label: '閉じる', fn: () => { GP.sound.play('tap'); U.closeModal(); } }], { wide: true });
+    drawBase();
+    const cv = $('baseCv');
+    cv.onclick = ev => {
+      const r = cv.getBoundingClientRect();
+      const x = (ev.clientX - r.left) * (GP.base.W / r.width);
+      const y = (ev.clientY - r.top) * (GP.base.H / r.height);
+      const k = GP.base.hit(x, y);
+      if (k) { baseSel = k; GP.sound.play('tap'); drawBase(); }
+    };
+  }
+
+  function drawBase() {
+    const cv = $('baseCv');
+    if (!cv) return;
+    GP.base.render(cv, g, baseSel);
+    const f = D.FACILITIES.find(x => x.key === baseSel);
+    const lv = g.facilities[baseSel];
+    const cost = facilityCost(baseSel);
+    const max = lv >= 10;
+    let h = '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
+      '<p class="desc">' + f.desc + '</p>' +
+      '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
+    for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
+    h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
+      '<div class="basebtns">' +
+      '<button class="btn primary" id="baseUp"' + ((max || g.funds < cost) ? ' disabled' : '') + '>' +
+      (max ? '最大まで拡張済み' : '🔨 拡張する　💰' + money(cost) + '万') + '</button></div>' +
+      '<div class="pick basepick">';
+    D.FACILITIES.forEach(x => {
+      const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
+      h += '<button class="pickbtn small' + (x.key === baseSel ? ' on' : '') + '" data-fac="' + x.key + '">' +
+        x.icon + ' ' + x.name + ' <b>Lv.' + l2 + '</b>' +
+        (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
     });
-    body += '</div>';
-    U.modal('🏗️ 施設の拡張', body, [{ label: '閉じる', fn: U.closeModal }]);
-    bindPick(k => {
-      const f = D.FACILITIES.find(x => x.key === k);
-      const lv = g.facilities[k];
-      const cost = Math.round(f.base * Math.pow(lv, 1.55));
-      if (g.funds < cost || lv >= 10) return;
-      g.funds -= cost; g.facilities[k]++;
-      U.log(g, '🏗️ ' + f.name + ' を Lv.' + g.facilities[k] + ' に拡張した！', 'good');
-      U.toast('🏗️ ' + f.name + ' Lv.' + g.facilities[k] + '！', 'good');
-      S.save(g); render(); cmdFacility();
+    h += '</div>';
+    $('baseDetail').innerHTML = h;
+
+    const up = $('baseUp');
+    if (up) up.onclick = () => {
+      const c = facilityCost(baseSel);
+      if (g.funds < c || g.facilities[baseSel] >= 10) return;
+      g.funds -= c; g.facilities[baseSel]++;
+      const fa = D.FACILITIES.find(x => x.key === baseSel);
+      GP.sound.play('build');
+      U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
+      U.toast('🏗️ ' + fa.name + ' Lv.' + g.facilities[baseSel] + '！', 'good');
+      S.save(g); render(); drawBase();
+      const sc2 = GP.base.scale(g);
+      if (sc2.rank !== GP.base.scale({ facilities: Object.assign({}, g.facilities, { [baseSel]: g.facilities[baseSel] - 1 }), fans: g.fans, titles: g.titles }).rank) {
+        GP.sound.play('levelup');
+        U.toast('🎊 チーム規模が「' + sc2.rank + '」になった！', 'good');
+        U.log(g, '🎊 チーム規模が「' + sc2.rank + '」に成長した！', 'good');
+      }
+    };
+    Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-fac]'), b => {
+      b.onclick = () => { baseSel = b.dataset.fac; GP.sound.play('tap'); drawBase(); };
     });
   }
 
@@ -818,6 +876,14 @@ window.GP = window.GP || {};
       });
       reward.notes.forEach(n => { body += '<p class="note">' + esc(n) + '</p>'; U.log(g, n, 'good'); });
 
+      const bestMine = res.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
+      if (bestMine) {
+        if (!bestMine.dnf && bestMine.pos === 1) GP.sound.play('win');
+        else if (!bestMine.dnf && bestMine.pos <= 3) GP.sound.play('podium');
+        else if (bestMine.dnf || bestMine.pos > 10) GP.sound.play('bad');
+        else GP.sound.play('confirm');
+      }
+
       U.modal(res.special ? '🎪 特別戦の結果' : '🏆 レース結果', body,
         [{ label: 'ガレージへ戻る', cls: 'primary', fn: afterRace }], { wide: true });
     }, 900);
@@ -843,6 +909,7 @@ window.GP = window.GP || {};
     const myChamp = g.drivers.find(d => d.name === champ.name);
 
     g.funds += prize;
+    GP.sound.play(rank <= 3 ? 'win' : 'podium');
     if (rank === 1) { g.titles.teams++; g.fans += Math.round(g.fans * 0.3) + 2000; }
     if (myChamp) { g.titles.drivers++; g.fans += Math.round(g.fans * 0.2) + 1500; }
 
@@ -895,12 +962,14 @@ window.GP = window.GP || {};
     g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name));
     refreshMarkets(true);
     U.log(g, '🚩 シーズン' + g.season + ' 開幕！', 'good');
+    GP.sound.play('confirm');
     U.toast('🚩 シーズン' + g.season + ' 開幕！', 'good');
     S.save(g); render();
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
   function gameOver() {
+    GP.sound.play('bad');
     U.modal('💀 ゲームオーバー', '<p class="lead">資金が尽き、チームは解散となった…</p>' +
       '<p class="desc">シーズン ' + g.season + ' ／ 通算タイトル：コンストラクターズ ' + g.titles.teams + ' 回、ドライバーズ ' + g.titles.drivers + ' 回</p>',
       [{ label: '最初からやり直す', cls: 'primary', fn: () => { S.wipe(); location.reload(); } }]);
@@ -934,6 +1003,23 @@ window.GP = window.GP || {};
   /* =======================================================
      初期化
      ======================================================= */
+  function bindSound() {
+    const btn = $('tSound');
+    const paint = () => { btn.textContent = GP.sound.isOn() ? '🔊' : '🔇'; btn.classList.toggle('off', !GP.sound.isOn()); };
+    paint();
+    btn.onclick = () => { GP.sound.setOn(!GP.sound.isOn()); paint(); };
+    // ブラウザの制限があるので、最初のタップで音を使えるようにしておく
+    const unlock = () => { GP.sound.unlock(); document.removeEventListener('pointerdown', unlock); };
+    document.addEventListener('pointerdown', unlock);
+    // ボタン類には共通のクリック音を付ける
+    document.addEventListener('pointerdown', ev => {
+      const t = ev.target.closest && ev.target.closest('button');
+      if (!t || t.disabled) return;
+      if (t.id === 'tSound') return;
+      GP.sound.play(t.classList.contains('cmd') || t.classList.contains('primary') ? 'click' : 'tap', 40);
+    });
+  }
+
   function bindCommands() {
     const map = {
       cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
@@ -1031,6 +1117,7 @@ window.GP = window.GP || {};
 
   window.addEventListener('DOMContentLoaded', () => {
     registerSW();
+    bindSound();
     bindCommands();
     document.body.classList.add('preboot');
     g = S.newGame('ニューカマーGP', '#e04a3f');   // 仮state（チーム作成までは非表示）
