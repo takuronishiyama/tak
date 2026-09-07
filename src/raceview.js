@@ -114,7 +114,7 @@ GP.raceview = (function () {
     for (let i = ord.length - 1; i >= 0; i--) {
       const o = ord[i], e = o.e;
       const pt = pointAt(o.p);
-      drawCar(pt.x, pt.y, pt.ang, e.color, e.isPlayer, o.out, ord.indexOf(o) + 1);
+      drawCar(pt.x, pt.y, pt.ang, e.color, e.isPlayer, o.out, e.gen || 0);
     }
   }
 
@@ -126,26 +126,39 @@ GP.raceview = (function () {
     ctx.closePath(); ctx.stroke();
   }
 
-  function drawCar(x, y, ang, color, isPlayer, out, pos) {
+  /* マシン世代が上がるほど車体が長く、ウイングが立派になる */
+  function drawCar(x, y, ang, color, isPlayer, out, gen) {
+    gen = Math.max(0, Math.min(5, gen | 0));
+    const len = 15 + gen;                  // ボディ長
+    const rw = 3 + (gen >= 2 ? 1 : 0);     // リアウイング幅
+    const rh = 8 + (gen >= 3 ? 2 : 0);     // リアウイング高
+    const fh = 6 + (gen >= 2 ? 1 : 0);     // フロントウイング高
+    const nose = 7 + Math.floor(gen / 2);
+
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     ctx.rotate(ang);
     ctx.globalAlpha = out ? 0.28 : 1;
     // 影
-    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-6, -3, 14, 8);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-6, -3, len - 1, 8);
     // タイヤ
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(-6, -5, 4, 3); ctx.fillRect(-6, 2, 4, 3);
     ctx.fillRect(3, -5, 4, 3);  ctx.fillRect(3, 2, 4, 3);
+    // サイドポッド（第3世代以降）
+    if (gen >= 3) { ctx.fillStyle = color; ctx.fillRect(-3, -5, 6, 2); ctx.fillRect(-3, 3, 6, 2); }
     // ボディ
     ctx.fillStyle = color;
-    ctx.fillRect(-7, -2, 15, 4);
-    ctx.fillRect(-8, -4, 3, 8);   // リアウイング
-    ctx.fillRect(7, -3, 3, 6);    // フロントウイング
+    ctx.fillRect(-7, -2, len, 4);
+    ctx.fillRect(-8, -rh / 2, rw, rh);      // リアウイング
+    ctx.fillRect(nose, -fh / 2, 3, fh);     // フロントウイング
+    // エンジンカバーのフィン（第4世代以降）
+    if (gen >= 4) { ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.fillRect(-6, -1, 5, 2); }
     // ハイライト
     ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(-4, -2, 8, 1);
-    // コクピット
+    // コクピット（第5世代はハロ付き）
     ctx.fillStyle = '#222'; ctx.fillRect(-1, -1, 3, 2);
+    if (gen >= 5) { ctx.fillStyle = '#555'; ctx.fillRect(2, -2, 1, 4); }
     ctx.restore();
 
     if (isPlayer && !out) {

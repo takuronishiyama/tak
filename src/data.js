@@ -87,25 +87,66 @@ GP.data = (function () {
   /* ---------- マシンパーツのカテゴリ ---------- */
   const PART_CATS = [
     { key: 'pu',    name: 'パワーユニット', icon: '⚙️', color: '#e04a3f',
-      gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6 },
+      gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6,
+      names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'] },
     { key: 'aero',  name: 'エアロダイナミクス', icon: '🪽', color: '#3a7ad9',
-      gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6 },
+      gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6,
+      names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'] },
     { key: 'chas',  name: 'シャシー', icon: '🧱', color: '#4ea63f',
-      gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5 },
+      gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
+      names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'] },
     { key: 'susp',  name: 'サスペンション', icon: '🌀', color: '#b06fd0',
-      gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5 },
+      gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5,
+      names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'] },
     { key: 'elec',  name: 'エレクトロニクス', icon: '💡', color: '#f0a020',
-      gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5 }
+      gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
+      names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
   ];
 
-  /* ---------- 設計ティア（研究で解放）---------- */
-  const TIERS = [
-    { name: 'マークI',    cap: 30,  rp: 0,   cost: 0 },
-    { name: 'マークII',   cap: 55,  rp: 40,  cost: 1200 },
-    { name: 'マークIII',  cap: 80,  rp: 110, cost: 3200 },
-    { name: 'マークIV',   cap: 108, rp: 240, cost: 7000 },
-    { name: 'マークV',    cap: 140, rp: 460, cost: 14000 },
-    { name: 'ゼロシリーズ', cap: 180, rp: 800, cost: 26000 }
+  /* ---------- パーツのレアリティ ----------
+     mult は製作時のベース性能、capMult は改良の上限に効く          */
+  const RARITY = [
+    { n: 1, name: 'ノーマル',     color: '#a89878', mult: 1.00, capMult: 1.00 },
+    { n: 2, name: 'レア',         color: '#4ea63f', mult: 1.22, capMult: 1.11 },
+    { n: 3, name: 'スーパーレア', color: '#3a7ad9', mult: 1.50, capMult: 1.22 },
+    { n: 4, name: 'ウルトラレア', color: '#b06fd0', mult: 1.85, capMult: 1.34 },
+    { n: 5, name: 'レジェンド',   color: '#f0a020', mult: 2.30, capMult: 1.48 }
+  ];
+
+  /* ---------- パーツに付く追加効果（製作時に稀に付与）---------- */
+  const PART_TRAITS = [
+    { key: 'light',  name: '軽量化',   icon: '🪶', desc: '加速性能がさらに上がる' },
+    { key: 'tough',  name: '高耐久',   icon: '🛡️', desc: '消耗しにくい' },
+    { key: 'cool',   name: '冷却強化', icon: '❄️', desc: 'トラブルが起きにくい' },
+    { key: 'sharp',  name: '高剛性',   icon: '💠', desc: 'コーナー性能がさらに上がる' },
+    { key: 'boost',  name: '高出力',   icon: '🔥', desc: '最高速がさらに上がる' }
+  ];
+
+  /* ---------- マシンの世代（研究で開発）---------- */
+  const CAR_GENS = [
+    { name: 'MK-I',   cap: 30,  rp: 0,    cost: 0,     base: 0 },
+    { name: 'MK-II',  cap: 55,  rp: 90,   cost: 3200,  base: 4 },
+    { name: 'MK-III', cap: 80,  rp: 260,  cost: 9500,  base: 9 },
+    { name: 'MK-IV',  cap: 108, rp: 640,  cost: 28000, base: 15 },
+    { name: 'MK-V',   cap: 140, rp: 1100, cost: 52000, base: 22 },
+    { name: 'MK-VI',  cap: 180, rp: 1800, cost: 90000, base: 30 }
+  ];
+
+  /* ---------- ドライバースキル ----------
+     効果はすべて race.js のシミュレーションに実際に接続されている  */
+  const SKILLS = [
+    { key: 'rain',    name: '雨の魔術師',     icon: '🌧️', desc: '雨のレースで速さが大きく上がる' },
+    { key: 'start',   name: 'スタートダッシュ', icon: '🚀', desc: '1周目で大きく順位を上げる' },
+    { key: 'tyre',    name: 'タイヤマネジメント', icon: '🛞', desc: 'タイヤの消耗をおさえる' },
+    { key: 'spurt',   name: 'ラストスパート',   icon: '🏃', desc: 'レース終盤に速さが上がる' },
+    { key: 'heart',   name: '鉄の心臓',       icon: '❤️', desc: 'ミスによるクラッシュが激減する' },
+    { key: 'passer',  name: 'オーバーテイカー', icon: '⚔️', desc: '前車に詰まっても失速しにくい' },
+    { key: 'qualify', name: '予選番長',       icon: '⏱️', desc: '予選での速さが上がる' },
+    { key: 'feeler',  name: 'マシンフィーラー', icon: '🔧', desc: 'マシントラブルを未然に防ぐ' },
+    { key: 'precise', name: '精密機械',       icon: '📐', desc: 'ラップタイムがブレなくなる' },
+    { key: 'stamina', name: 'アイアンマン',   icon: '💪', desc: '終盤の体力低下がなくなる' },
+    { key: 'genius',  name: '天性のセンス',   icon: '✨', desc: '常に速さが底上げされる' },
+    { key: 'grower',  name: '大器晩成',       icon: '🌱', desc: '経験値を多く獲得する' }
   ];
 
   /* ---------- 施設 ---------- */
@@ -152,17 +193,19 @@ GP.data = (function () {
 
   /* ---------- スタッフ ---------- */
   const STAFF_TYPES = [
-    { key: 'engineer', name: 'エンジニア',   icon: '👷', desc: '開発の伸びが上がる',     salary: 60 },
-    { key: 'mechanic', name: 'メカニック',   icon: '🔩', desc: '信頼性とピットが上がる', salary: 50 },
-    { key: 'analyst',  name: 'アナリスト',   icon: '📊', desc: '研究ポイントが増える',   salary: 55 },
-    { key: 'trainer',  name: 'トレーナー',   icon: '💪', desc: 'ドライバー育成が上がる', salary: 45 }
+    { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60 },
+    { key: 'designer',   name: 'デザイナー',     icon: '🎨', desc: '設計するパーツのレアリティが上がる', salary: 62 },
+    { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: '信頼性とピット作業が上がる',   salary: 50 },
+    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピット戦略が最適化される',     salary: 65 },
+    { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増える',         salary: 55 },
+    { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45 }
   ];
 
   /* ---------- ポイントシステム ---------- */
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
-  const PRIZE = [90000, 70000, 56000, 44000, 35000, 28000, 22000, 17000, 13000, 10000, 8000];
+  const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
 
   /* ---------- 天候 ---------- */
   const WEATHER = [
@@ -172,5 +215,6 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { TRACKS, PART_CATS, TIERS, FACILITIES, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+  return { TRACKS, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+           FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

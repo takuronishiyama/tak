@@ -54,25 +54,51 @@ GP.ui = (function () {
   }
 
   /* ---------- マシンパネル ---------- */
+  function stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+
+  function partTraitChips(p) {
+    if (!p.traits || !p.traits.length) return '';
+    return p.traits.map(k => {
+      const t = D.PART_TRAITS.find(x => x.key === k);
+      return t ? '<span class="ptr" title="' + esc(t.desc) + '">' + t.icon + t.name + '</span>' : '';
+    }).join('');
+  }
+
+  /* パーツ1行（装備画面・保管一覧でも使う） */
+  function partRow(g, p, opts) {
+    opts = opts || {};
+    const c = D.PART_CATS.find(x => x.key === p.cat);
+    const rr = D.RARITY[p.rarity - 1];
+    const cap = S.partCap(g, p);
+    const pct = Math.min(100, p.power / cap * 100);
+    return '<div class="part">' +
+      '<span class="p-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+      '<span class="p-nm">' + esc(p.name) +
+        '<small><span class="p-rar" style="color:' + rr.color + '">' + stars(p.rarity) + '</span> ' + c.name + '</small></span>' +
+      '<span class="p-lv">' + Math.round(p.power) + '<small>/' + cap + '</small></span>' +
+      '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
+      '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
+      (opts.trailing || '') +
+      (partTraitChips(p) ? '<span class="p-trs">' + partTraitChips(p) + '</span>' : '') +
+      '</div>';
+  }
+
   function carCard(g) {
     const st = S.carStats(g), rel = S.reliability(g);
+    const gen = D.CAR_GENS[g.carGen];
     let parts = '';
     D.PART_CATS.forEach(c => {
-      const p = g.parts[c.key], tier = D.TIERS[p.tier];
-      const pct = Math.min(100, p.level / tier.cap * 100);
-      parts += '<div class="part">' +
-        '<span class="p-ic">' + c.icon + '</span>' +
-        '<span class="p-nm">' + c.name + '<small>' + tier.name + '</small></span>' +
-        '<span class="p-lv">Lv.' + Math.round(p.level) + '</span>' +
-        '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
-        '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
-        '</div>';
+      const p = g.equipped[c.key];
+      parts += p ? partRow(g, p)
+        : '<div class="part empty"><span class="p-ic">' + c.icon + '</span>' +
+          '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
-    return '<div class="card"><div class="card-h">🏎️ マシン開発状況</div><div class="pad">' +
+    return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
       '<div class="parts">' + parts + '</div>' +
+      (g.inventory.length ? '<div class="invnote">📦 保管パーツ ' + g.inventory.length + ' 個（「マシン」で装着・合成）</div>' : '') +
       '</div></div>';
   }
   function statBar(name, v, col) {
@@ -93,7 +119,7 @@ GP.ui = (function () {
     return '<div class="drv">' +
       '<div class="drv-head"><span class="helmet" style="background:' + helmetColor(d) + '"></span>' +
       '<span class="drv-nm">' + esc(d.name) + '</span><span class="drv-age">' + d.age + '歳</span></div>' +
-      '<div class="trait">' + esc(d.trait) + '</div>' +
+      '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
       mini('速さ', d.speed) + mini('技術', d.technique) + mini('体力', d.stamina) + mini('精神', d.mental) +
       '</div>' +
@@ -105,6 +131,14 @@ GP.ui = (function () {
       '<div class="drv-sal">給料 ' + money(d.salary) + '万/週</div>' +
       '</div>';
   }
+  function skillChips(d) {
+    if (!d.skills || !d.skills.length) return '<span class="skill none">スキルなし</span>';
+    return d.skills.map(k => {
+      const s = D.SKILLS.find(x => x.key === k);
+      return s ? '<span class="skill" title="' + esc(s.desc) + '">' + s.icon + s.name + '</span>' : '';
+    }).join('');
+  }
+
   function mini(n, v) {
     return '<div class="mst"><span>' + n + '</span><i><b style="width:' + Math.min(100, v / 1.9) + '%"></b></i><em>' + Math.round(v) + '</em></div>';
   }
@@ -235,5 +269,6 @@ GP.ui = (function () {
   }
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal, money, esc, driverCard, drawMini, $ };
+  return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
+           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, $ };
 })();

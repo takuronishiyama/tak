@@ -123,15 +123,28 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .rel small{font-size:10px;opacity:.75}
 .good{color:#2e8b30}.warn{color:#d08000}.bad{color:#d02020}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
-.part{display:flex;align-items:center;gap:6px;font-size:11px;
+.part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
       background:#fffdf3;border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
-.p-ic{width:18px;text-align:center}
-.p-nm{width:110px;display:flex;flex-direction:column;line-height:1.2}
-.p-nm small{font-size:9px;opacity:.65}
-.p-lv{width:46px;font-weight:bold}
-.p-bar{flex:1;height:10px;background:#e9dcbc;border:2px solid var(--ink);border-radius:5px;overflow:hidden}
+.part.empty{opacity:.55;border-style:dashed}
+.p-ic{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+      border:2px solid var(--ink);border-radius:5px;font-size:11px}
+.p-nm{width:132px;display:flex;flex-direction:column;line-height:1.2;min-width:0;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-nm small{font-size:9px;opacity:.75;font-weight:normal}
+.p-rar{letter-spacing:-1px;font-size:9px}
+.p-lv{width:56px;font-weight:bold;text-align:right}
+.p-lv small{font-size:9px;opacity:.6;font-weight:normal}
+.p-bar{flex:1;min-width:60px;height:10px;background:#e9dcbc;border:2px solid var(--ink);
+       border-radius:5px;overflow:hidden}
 .p-bar i{display:block;height:100%;transition:width .35s}
 .p-cond{width:38px;text-align:right}
+.p-act{display:flex;gap:3px;align-items:center}
+.p-act small{font-size:9px;opacity:.6}
+.p-trs{display:flex;gap:3px;flex-wrap:wrap;width:100%;padding-left:26px}
+.ptr{font-size:9px;background:var(--yellow);border:2px solid var(--ink);border-radius:4px;padding:0 4px}
+.invnote{margin-top:8px;font-size:11px;background:#f0fbe8;border:2px dashed var(--ink2);
+         border-radius:6px;padding:4px 8px;text-align:center}
+.card-h b.gen{background:var(--red);border-radius:5px;padding:0 8px;font-size:12px;margin-left:4px}
 .p-cond.warn{color:#d08000;font-weight:bold}
 .p-cond.bad{color:#d02020;font-weight:bold;animation:blink 1s steps(2,end) infinite}
 
@@ -145,8 +158,10 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .helmet{width:15px;height:15px;border:2px solid var(--ink);border-radius:50% 50% 40% 40%;flex-shrink:0}
 .drv-nm{font-size:13px;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .drv-age{font-size:10px;opacity:.7}
-.trait{display:inline-block;background:var(--sky);border:2px solid var(--ink);border-radius:4px;
-       font-size:9px;padding:0 5px;margin-bottom:4px}
+.skills{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:5px}
+.skill{background:var(--sky);border:2px solid var(--ink);border-radius:4px;
+       font-size:9px;padding:0 5px;white-space:nowrap}
+.skill.none{background:#e0d6bc;opacity:.7}
 .drv-stats{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin-bottom:5px}
 .mst{display:flex;align-items:center;gap:3px;font-size:10px}
 .mst span{width:24px}
@@ -352,27 +367,28 @@ body.preboot .topbar{visibility:hidden}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ================= トースト・ポップ ================= */
-#toastLayer{position:fixed;inset:0;pointer-events:none;z-index:80}
+#toastLayer{position:fixed;inset:0;pointer-events:none;z-index:80;
+  display:flex;flex-direction:column;align-items:center;padding-top:60px;gap:5px}
 .toast{
-  position:absolute;left:50%;transform:translateX(-50%);top:64px;
+  flex-shrink:0;
   background:var(--paper);border:3px solid var(--ink);border-radius:9px;
   box-shadow:0 4px 0 var(--ink);padding:7px 16px;font-size:13px;
-  animation:drop .25s cubic-bezier(.3,1.6,.5,1);white-space:nowrap;max-width:92vw;
+  animation:drop .25s cubic-bezier(.3,1.6,.5,1);max-width:92vw;text-align:center;
 }
 .toast.good{background:linear-gradient(#fff4c0,#ffe88a)}
 .toast.bad{background:linear-gradient(#ffd0c8,#ffb0a0)}
 .toast.warn{background:linear-gradient(#fff0c0,#ffd98a)}
 .toast.out{animation:fadeup .4s forwards}
-@keyframes drop{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
-@keyframes fadeup{to{transform:translate(-50%,-20px);opacity:0}}
+@keyframes drop{from{transform:translateY(-26px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeup{to{transform:translateY(-18px);opacity:0}}
 .numpop{
-  position:absolute;bottom:120px;font-size:22px;font-weight:bold;color:var(--green);
+  position:absolute;top:110px;font-size:22px;font-weight:bold;color:var(--green);
   text-shadow:2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;
   animation:floatup 1.4s ease-out forwards;
 }
 .numpop.crit{color:var(--red);font-size:28px}
-@keyframes floatup{0%{transform:translateY(0);opacity:0}
-  15%{opacity:1}100%{transform:translateY(-90px);opacity:0}}
+@keyframes floatup{0%{transform:translateY(20px);opacity:0}
+  20%{opacity:1}100%{transform:translateY(-46px);opacity:0}}
 
 /* ================= レスポンシブ ================= */
 @media (max-width:860px){

@@ -53,6 +53,17 @@ window.GP = window.GP || {};
       d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
       U.log(g, '⭐ ' + d.name + ' がレベルアップ！ (Lv.' + d.expLv + ')', 'good');
       U.pop('⭐ ' + d.name + ' Lv.' + d.expLv, 'good');
+      // レベルアップでスキルを閃くことがある
+      const room = (d.skills || []).length < S.SKILL_MAX;
+      if (room && Math.random() < 0.32) {
+        const cand = S.learnableSkills(d);
+        if (cand.length) {
+          const sk = S.pick(cand);
+          S.teachSkill(d, sk.key);
+          U.log(g, '🎓 ' + d.name + ' がスキル「' + sk.name + '」を習得！', 'good');
+          U.toast('🎓 ' + d.name + ' が ' + sk.icon + sk.name + ' を習得！', 'good');
+        }
+      }
     }
   }
 
@@ -61,11 +72,13 @@ window.GP = window.GP || {};
     { p: 0.06, run: () => { const m = S.rint(300, 1400); g.funds += m; return '💰 グッズが売れた！ +' + money(m) + '万'; } },
     { p: 0.05, run: () => { const f = S.rint(80, 400); g.fans += f; return '📺 テレビ特集が組まれた！ ファン +' + money(f); } },
     { p: 0.05, run: () => { const r = S.rint(6, 20); g.rp += r; return '💡 若手エンジニアがひらめいた！ 研究P +' + r; } },
-    { p: 0.04, run: () => { const c = S.pick(D.PART_CATS); g.parts[c.key].cond = S.clamp(g.parts[c.key].cond - S.rint(8, 18), 10, 100); return '🔧 ' + c.name + 'に不具合が見つかった…'; } },
+    { p: 0.04, run: () => { const c = S.pick(D.PART_CATS); const p = g.equipped[c.key]; if (!p) return null;
+        p.cond = S.clamp(p.cond - S.rint(8, 18), 10, 100); return '🔧 ' + p.name + 'に不具合が見つかった…'; } },
     { p: 0.04, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.form = S.clamp(d.form + 12, 62, 122); return '😄 ' + d.name + ' の調子が上向いてきた！'; } },
     { p: 0.03, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.form = S.clamp(d.form - 12, 62, 122); return '🤒 ' + d.name + ' が体調を崩している…'; } },
     { p: 0.03, run: () => { const m = S.rint(400, 1600); g.funds -= m; return '🧾 設備の修繕費がかかった… -' + money(m) + '万'; } },
-    { p: 0.03, run: () => { const c = S.pick(D.PART_CATS); g.parts[c.key].level += 2; return '📐 ' + c.name + 'の設計を見直した！ Lv+2'; } },
+    { p: 0.03, run: () => { const c = S.pick(D.PART_CATS); const p = g.equipped[c.key]; if (!p) return null;
+        p.power = Math.round((p.power + 2) * 10) / 10; return '📐 ' + p.name + 'の設計を見直した！ 性能+2'; } },
     { p: 0.02, run: () => { const f = Math.round(g.fans * 0.06) + 50; g.fans += f; return '🎪 ファン感謝祭が大盛況！ ファン +' + money(f); } },
     { p: 0.02, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.exp += 25; levelCheck(d); return '📚 ' + d.name + ' が自主練に励んだ！'; } }
   ];
@@ -82,28 +95,56 @@ window.GP = window.GP || {};
   /* =======================================================
      コマンド：開発
      ======================================================= */
+  const improveCost = p => Math.round(D.PART_CATS.find(c => c.key === p.cat).cost * (1 + p.power / 20));
+  const designCost = () => ({
+    money: Math.round(1000 + g.carGen * 2200),
+    rp: Math.round(26 + g.carGen * 24)
+  });
+
   function cmdDevelop() {
-    let body = '<p class="lead">開発するパーツを選んでください。資金と研究ポイントを使います。</p><div class="pick">';
+    let body = '<div class="sub">装着中パーツの改良</div><div class="pick">';
     D.PART_CATS.forEach(c => {
-      const p = g.parts[c.key], tier = D.TIERS[p.tier];
-      const cost = Math.round(c.cost * (1 + p.level / 20));
-      const capped = p.level >= tier.cap;
+      const p = g.equipped[c.key];
+      if (!p) {
+        body += '<div class="pickbtn done"><span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+          '<span class="pb-body"><b>' + c.name + '</b><small>パーツが未装着です</small></span><span class="pb-cost">—</span></div>';
+        return;
+      }
+      const cost = improveCost(p), cap = S.partCap(g, p);
+      const capped = p.power >= cap;
       const ok = g.funds >= cost && g.rp >= c.rp;
-      body += '<button class="pickbtn" data-k="' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
+      body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
-        '<span class="pb-body"><b>' + c.name + '</b>' +
-        '<small>Lv.' + Math.round(p.level) + ' / 上限' + tier.cap + '（' + tier.name + '）' + (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
+        '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
+        '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
+        (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br>🔬' + c.rp + '</span></button>';
+    });
+    const dc = designCost();
+    body += '</div><div class="sub">新しいパーツを設計する</div>' +
+      '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
+      '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
+    D.PART_CATS.forEach(c => {
+      const ok = g.funds >= dc.money && g.rp >= dc.rp;
+      body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(c.names[Math.min(c.names.length - 1, g.carGen)]) + ' を設計</b>' +
+        '<small>' + c.name + '／' + D.CAR_GENS[g.carGen].name + '世代</small></span>' +
+        '<span class="pb-cost">💰' + money(dc.money) + '<br>🔬' + dc.rp + '</span></button>';
     });
     body += '</div>';
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
-    bindPick(k => doDevelop(k));
+    bindPick(k => {
+      const [kind, key] = k.split(':');
+      if (kind === 'imp') doImprove(key); else doDesign(key);
+    });
   }
 
-  function doDevelop(key) {
+  function doImprove(key) {
     const c = D.PART_CATS.find(x => x.key === key);
-    const p = g.parts[key], tier = D.TIERS[p.tier];
-    const cost = Math.round(c.cost * (1 + p.level / 20));
+    const p = g.equipped[key];
+    if (!p) return;
+    const cost = improveCost(p), cap = S.partCap(g, p);
     if (g.funds < cost || g.rp < c.rp) return;
     g.funds -= cost; g.rp -= c.rp;
 
@@ -113,18 +154,44 @@ window.GP = window.GP || {};
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus;
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
-    if (p.level >= tier.cap) gain *= 0.16;
+    if (p.power >= cap) gain *= 0.16;
     gain = Math.round(gain * 10) / 10;
 
-    p.level = Math.round((p.level + gain) * 10) / 10;
-    p.cond = S.clamp(p.cond - S.rnd(2.5, 7), 10, 100);
+    p.power = Math.round((p.power + gain) * 10) / 10;
+    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
 
     U.closeModal();
-    const msg = c.icon + ' ' + c.name + ' Lv+' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
+    const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
     U.log(g, msg, crit ? 'good' : '');
     U.pop('+' + gain.toFixed(1), crit ? 'crit' : 'good');
     if (crit) U.toast('✨ ひらめいた！ 開発が大成功！', 'good');
-    if (p.level >= tier.cap) U.toast('この設計は限界です。「研究」で次の設計を解放しましょう。', 'warn');
+    if (p.power >= cap) U.toast('このパーツは限界です。新型マシンか、より高レアなパーツが必要です。', 'warn');
+    endWeek();
+  }
+
+  function doDesign(key) {
+    const c = D.PART_CATS.find(x => x.key === key);
+    const dc = designCost();
+    if (g.funds < dc.money || g.rp < dc.rp) return;
+    if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。「マシン」で合成・破棄しましょう。', 'warn'); return; }
+    g.funds -= dc.money; g.rp -= dc.rp;
+
+    const rarity = S.rollRarity(g);
+    const part = S.makePart(key, g.carGen, rarity);
+    g.inventory.push(part);
+
+    const rr = D.RARITY[rarity - 1];
+    U.closeModal();
+    U.log(g, '📐 ' + part.name + '（' + rr.name + '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
+    if (rarity >= 4) U.toast('🎉 ' + rr.name + 'パーツ「' + part.name + '」が完成！', 'good');
+    else U.toast('📐 ' + part.name + '（' + rr.name + '）が完成', rarity >= 3 ? 'good' : '');
+    U.pop(U.stars(rarity), rarity >= 4 ? 'crit' : 'good');
+
+    // 装着中より強ければすすめる
+    const cur = g.equipped[key];
+    if (!cur || S.partScore(part) > S.partScore(cur)) {
+      U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
+    }
     endWeek();
   }
 
@@ -132,28 +199,27 @@ window.GP = window.GP || {};
      コマンド：研究（研究P獲得＋設計ティア解放）
      ======================================================= */
   function cmdResearch() {
+    const cur = D.CAR_GENS[g.carGen], nx = D.CAR_GENS[g.carGen + 1];
     let body = '<div class="pick">' +
       '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">🔬</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
-      '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>' +
-      '<div class="sub">新設計の解放</div><div class="pick">';
-    D.PART_CATS.forEach(c => {
-      const p = g.parts[c.key];
-      const nt = D.TIERS[p.tier + 1];
-      if (!nt) {
-        body += '<div class="pickbtn done"><span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
-          '<span class="pb-body"><b>' + c.name + '</b><small>最終設計に到達済み</small></span><span class="pb-cost">MAX</span></div>';
-        return;
-      }
-      const ok = g.rp >= nt.rp && g.funds >= nt.cost;
-      body += '<button class="pickbtn" data-k="' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
-        '<span class="pb-body"><b>' + c.name + ' → ' + nt.name + '</b><small>開発上限 ' + D.TIERS[p.tier].cap + ' → ' + nt.cap + '</small></span>' +
-        '<span class="pb-cost">💰' + money(nt.cost) + '<br>🔬' + nt.rp + '</span></button>';
-    });
-    body += '</div>';
+      '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
+
+    body += '<div class="sub">新型マシンの開発</div>';
+    body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>（全パーツの開発上限 ' + cur.cap + '／車体ベース +' + cur.base + '）</p>';
+    if (!nx) {
+      body += '<div class="bigbox">🏁 最終型 <b>' + cur.name + '</b> に到達済み</div>';
+    } else {
+      const ok = g.rp >= nx.rp && g.funds >= nx.cost;
+      body += '<div class="pick"><button class="pickbtn" data-k="__gen"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#e04a3f">🏎️</span>' +
+        '<span class="pb-body"><b>' + cur.name + ' → ' + nx.name + '</b>' +
+        '<small>開発上限 ' + cur.cap + ' → ' + nx.cap + '／車体ベース +' + cur.base + ' → +' + nx.base +
+        '<br>より高性能なパーツを設計できるようになります</small></span>' +
+        '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
+    }
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
-    bindPick(k => (k === '__gain') ? doResearchGain() : doUnlockTier(k));
+    bindPick(k => (k === '__gain') ? doResearchGain() : doNewCar());
   }
 
   function doResearchGain() {
@@ -165,15 +231,19 @@ window.GP = window.GP || {};
     endWeek();
   }
 
-  function doUnlockTier(key) {
-    const c = D.PART_CATS.find(x => x.key === key), p = g.parts[key], nt = D.TIERS[p.tier + 1];
-    if (!nt || g.rp < nt.rp || g.funds < nt.cost) return;
-    g.rp -= nt.rp; g.funds -= nt.cost; p.tier++;
-    p.level = Math.round((p.level + 6) * 10) / 10;
-    p.cond = S.clamp(p.cond + 12, 10, 100);
+  function doNewCar() {
+    const nx = D.CAR_GENS[g.carGen + 1];
+    if (!nx || g.rp < nx.rp || g.funds < nx.cost) return;
+    g.rp -= nx.rp; g.funds -= nx.cost; g.carGen++;
+    // 新車のシェイクダウンで各パーツのコンディションが整う
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (p) p.cond = S.clamp(p.cond + 15, 10, 100);
+    });
     U.closeModal();
-    U.log(g, '🎊 ' + c.name + ' の新設計「' + nt.name + '」が完成！', 'good');
-    U.toast('🎊 新設計「' + nt.name + '」完成！ 開発上限が上がった！', 'good');
+    U.log(g, '🎊 新型マシン「' + nx.name + '」が完成！ 開発上限が ' + nx.cap + ' に上がった！', 'good');
+    U.toast('🎊 新型マシン「' + nx.name + '」ロールアウト！', 'good');
+    U.pop('🏎️ ' + nx.name, 'crit');
     endWeek();
   }
 
@@ -181,7 +251,7 @@ window.GP = window.GP || {};
      コマンド：整備
      ======================================================= */
   function cmdMaintain() {
-    const sum = D.PART_CATS.reduce((a, c) => a + g.parts[c.key].level, 0);
+    const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const body = '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">現在の信頼性 <b>' + Math.round(S.reliability(g)) + '%</b></div>' +
@@ -195,7 +265,8 @@ window.GP = window.GP || {};
     g.funds -= cost;
     const mech = 1 + S.staffBonus(g, 'mechanic') * 0.2 + g.facilities.pit * 0.08;
     D.PART_CATS.forEach(c => {
-      g.parts[c.key].cond = S.clamp(g.parts[c.key].cond + S.rnd(16, 26) * mech, 10, 100);
+      const p = g.equipped[c.key];
+      if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
     });
     U.closeModal();
     U.log(g, '🛠️ 分解整備を行った。信頼性 ' + Math.round(S.reliability(g)) + '%', 'good');
@@ -217,8 +288,53 @@ window.GP = window.GP || {};
     });
     const cost = 250 + g.facilities.sim * 60;
     body += '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
-    U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }]);
-    bindPick(k => doTrain(k, cost));
+
+    const scost = Math.round(2600 + g.season * 900);
+    body += '<div class="sub">スキル特訓</div>' +
+      '<p class="desc">集中特訓で新しいスキルを習得させます（1週消費・費用 💰' + money(scost) + '万）。<br>' +
+      'トレーナーとシミュレーターが優秀なほど、良いスキルを覚えやすくなります。</p><div class="pick">';
+    g.drivers.forEach((d, i) => {
+      const full = (d.skills || []).length >= S.SKILL_MAX;
+      const cand = S.learnableSkills(d);
+      const ok = !full && cand.length && g.funds >= scost;
+      body += '<button class="pickbtn" data-k="skill:' + i + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#8a6ad0">🎓</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + ' に特訓</b>' +
+        '<small>習得済み ' + (d.skills || []).length + ' / ' + S.SKILL_MAX +
+        (full ? '（スキル枠が満杯）' : '') + '</small></span>' +
+        '<span class="pb-cost">💰' + money(scost) + '</span></button>';
+    });
+    body += '</div>';
+
+    U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }], { wide: true });
+    bindPick(k => {
+      if (k.indexOf('skill:') === 0) doSkillTrain(+k.split(':')[1], scost);
+      else doTrain(k, cost);
+    });
+  }
+
+  function doSkillTrain(idx, cost) {
+    const d = g.drivers[idx];
+    if (!d || g.funds < cost) return;
+    const cand = S.learnableSkills(d);
+    if (!cand.length || (d.skills || []).length >= S.SKILL_MAX) return;
+    g.funds -= cost;
+
+    // トレーナーと施設が良いほど候補から複数回引き、良いスキルを引き当てやすい
+    const tries = 1 + Math.min(3, Math.floor(S.staffBonus(g, 'trainer') * 0.8 + g.facilities.sim * 0.3));
+    let best = null;
+    for (let i = 0; i < tries; i++) {
+      const pick = S.pick(cand);
+      if (!best || Math.random() < 0.5) best = pick;
+    }
+    S.teachSkill(d, best.key);
+    d.exp += 15; d.form = S.clamp(d.form - S.rnd(2, 6), 62, 122);
+    levelCheck(d);
+    U.closeModal();
+    U.log(g, '🎓 ' + d.name + ' がスキル「' + best.name + '」を習得！', 'good');
+    U.toast('🎓 ' + best.icon + ' ' + best.name + ' を習得！', 'good');
+    U.pop('🎓 ' + best.name, 'crit');
+    endWeek();
   }
   function doTrain(k, cost) {
     if (g.funds < cost) return U.toast('資金が足りません', 'bad');
@@ -300,6 +416,154 @@ window.GP = window.GP || {};
   }
 
   /* =======================================================
+     フリーメニュー：マシン（装着・合成・保管）
+     ======================================================= */
+  const fuseCost = m => Math.round(400 + m.power * 22);
+
+  function cmdGarage() {
+    let body = '<div class="sub">装着中のパーツ</div><div class="parts">';
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      const spare = g.inventory.filter(x => x.cat === c.key).length;
+      const btn = '<span class="p-act"><button class="mini" data-swap="' + c.key + '"' +
+        (spare ? '' : ' disabled') + '>交換' + (spare ? '(' + spare + ')' : '') + '</button></span>';
+      body += p ? U.partRow(g, p, { trailing: btn })
+        : '<div class="part empty"><span class="p-ic">' + c.icon + '</span>' +
+          '<span class="p-nm">' + c.name + '<small>未装着</small></span>' + btn + '</div>';
+    });
+    body += '</div>';
+
+    body += '<div class="sub">保管パーツ（' + g.inventory.length + ' / 24）</div>';
+    if (!g.inventory.length) {
+      body += '<p class="desc">保管パーツはありません。「開発」→「新しいパーツを設計する」で作れます。</p>';
+    } else {
+      body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
+      g.inventory.forEach(p => {
+        const act = '<span class="p-act">' +
+          '<button class="mini" data-eq="' + p.id + '">装着</button>' +
+          '<button class="mini" data-fuse="' + p.id + '">合成</button>' +
+          '<button class="mini danger" data-del="' + p.id + '">破棄</button></span>';
+        body += U.partRow(g, p, { trailing: act });
+      });
+      body += '</div>';
+    }
+
+    U.modal('🏎️ マシン', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    bindAct('data-swap', k => openSwap(k));
+    bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
+    bindAct('data-fuse', id => openFuse(id));
+    bindAct('data-del', id => {
+      const p = g.inventory.find(x => x.id === id);
+      if (!p) return;
+      U.modal('パーツを破棄', '<p class="lead">「' + esc(p.name) + '」を破棄しますか？<br>元には戻せません。</p>', [
+        { label: '破棄する', cls: 'danger', fn: () => {
+            g.inventory = g.inventory.filter(x => x.id !== id);
+            U.log(g, '🗑️ ' + p.name + ' を破棄した。');
+            S.save(g); render(); cmdGarage();
+          } },
+        { label: 'やめる', fn: cmdGarage }
+      ]);
+    });
+  }
+
+  function bindAct(attr, fn) {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[' + attr + ']'), b => {
+      b.onclick = () => fn(b.getAttribute(attr));
+    });
+  }
+
+  function openSwap(catKey) {
+    const c = D.PART_CATS.find(x => x.key === catKey);
+    const list = g.inventory.filter(p => p.cat === catKey);
+    let body = '<p class="lead">' + c.name + ' に装着するパーツを選んでください。</p>';
+    const cur = g.equipped[catKey];
+    if (cur) body += '<div class="sub">装着中</div><div class="parts">' + U.partRow(g, cur) + '</div>';
+    body += '<div class="sub">保管パーツ</div><div class="parts">';
+    list.forEach(p => {
+      body += U.partRow(g, p, { trailing: '<span class="p-act"><button class="mini" data-eq="' + p.id + '">装着</button></span>' });
+    });
+    body += '</div>';
+    U.modal('🔄 パーツ交換', body, [{ label: '戻る', fn: cmdGarage }], { wide: true });
+    bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
+  }
+
+  function doEquip(id) {
+    const p = g.inventory.find(x => x.id === id);
+    if (!p) return;
+    const old = g.equipped[p.cat];
+    g.inventory = g.inventory.filter(x => x.id !== id);
+    g.equipped[p.cat] = p;
+    if (old) g.inventory.push(old);
+    U.log(g, '🔄 ' + p.name + ' を装着した。' + (old ? '（' + old.name + ' を保管）' : ''), 'good');
+    U.toast('🔄 ' + p.name + ' を装着！', 'good');
+    S.save(g); render();
+  }
+
+  function openFuse(materialId) {
+    const m = g.inventory.find(x => x.id === materialId);
+    if (!m) return;
+    const c = D.PART_CATS.find(x => x.key === m.cat);
+    const cost = fuseCost(m);
+    const cands = [];
+    if (g.equipped[m.cat]) cands.push({ p: g.equipped[m.cat], where: '装着中' });
+    g.inventory.forEach(p => { if (p.cat === m.cat && p.id !== m.id) cands.push({ p: p, where: '保管' }); });
+
+    let body = '<p class="lead">素材：<b>' + esc(m.name) + '</b>（' + U.stars(m.rarity) + '／性能 ' + Math.round(m.power) + '）<br>' +
+      'この素材を吸収させる ' + c.name + ' を選んでください。</p>' +
+      '<p class="desc">性能を <b>+' + Math.round(m.power * 0.45) + '</b> 引き継ぎ、' +
+      Math.round((0.22 + m.rarity * 0.08) * 100) + '% の確率でレアリティが1段階上がります。<br>' +
+      '費用 💰' + money(cost) + '万（週は消費しません）</p>';
+    if (!cands.length) {
+      body += '<div class="bigbox">同じ種類のパーツがありません</div>';
+    } else {
+      body += '<div class="parts">';
+      cands.forEach(x => {
+        body += U.partRow(g, x.p, { trailing: '<span class="p-act"><small>' + x.where + '</small>' +
+          '<button class="mini" data-base="' + x.p.id + '"' + (g.funds < cost ? ' disabled' : '') + '>合成</button></span>' });
+      });
+      body += '</div>';
+    }
+    U.modal('⚗️ パーツ合成', body, [{ label: '戻る', fn: cmdGarage }], { wide: true });
+    bindAct('data-base', id => doFuse(id, materialId));
+  }
+
+  function doFuse(baseId, materialId) {
+    const m = g.inventory.find(x => x.id === materialId);
+    if (!m) return;
+    const base = (g.equipped[m.cat] && g.equipped[m.cat].id === baseId)
+      ? g.equipped[m.cat] : g.inventory.find(x => x.id === baseId);
+    if (!base) return;
+    const cost = fuseCost(m);
+    if (g.funds < cost) return;
+    g.funds -= cost;
+
+    const gain = Math.round(m.power * 0.45 * 10) / 10;
+    base.power = Math.round((base.power + gain) * 10) / 10;
+    let up = false;
+    if (base.rarity < 5 && Math.random() < 0.22 + m.rarity * 0.08) { base.rarity++; up = true; }
+    // 素材の追加効果を引き継ぐことがある
+    let inherited = null;
+    (m.traits || []).forEach(t => {
+      if (base.traits.indexOf(t) < 0 && base.traits.length < 2 && Math.random() < 0.45) {
+        base.traits.push(t); inherited = t;
+      }
+    });
+    base.cond = S.clamp(base.cond + 6, 10, 100);
+    g.inventory = g.inventory.filter(x => x.id !== materialId);
+
+    let msg = '⚗️ ' + base.name + ' に ' + m.name + ' を合成！ 性能 +' + gain.toFixed(1);
+    if (up) msg += '  ⭐レアリティが ' + D.RARITY[base.rarity - 1].name + ' に上がった！';
+    if (inherited) {
+      const t = D.PART_TRAITS.find(x => x.key === inherited);
+      if (t) msg += '  ' + t.icon + t.name + ' を引き継いだ！';
+    }
+    U.log(g, msg, up ? 'good' : '');
+    U.toast(up ? '⭐ ' + D.RARITY[base.rarity - 1].name + ' に進化！' : '⚗️ 合成成功！ 性能 +' + gain.toFixed(1), up ? 'good' : '');
+    U.pop('+' + gain.toFixed(1), up ? 'crit' : 'good');
+    S.save(g); render(); cmdGarage();
+  }
+
+  /* =======================================================
      フリーメニュー：施設
      ======================================================= */
   function cmdFacility() {
@@ -340,7 +604,8 @@ window.GP = window.GP || {};
     let body = '<div class="sub">ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
     g.drivers.forEach((d, i) => {
       body += '<div class="pickbtn done"><span class="pb-ic" style="background:#3a7ad9">🧑‍✈️</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + esc(d.trait) + '</small></span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳' +
+        '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost"><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div><div class="sub">ドライバー市場</div><div class="pick">';
@@ -349,7 +614,9 @@ window.GP = window.GP || {};
       const full = g.drivers.length >= 2;
       body += '<button class="pickbtn" data-k="dm:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#3a7ad9">🧑‍✈️</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + esc(d.trait) + '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) + '</small></span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳' +
+        '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
+        '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
     });
     body += '</div><div class="sub">スタッフ市場</div><div class="pick">';
@@ -567,6 +834,9 @@ window.GP = window.GP || {};
       g.drivers = g.drivers.filter(x => x.id !== d.id);
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
     });
+    // スタッフの成長
+    const grown = S.growStaff(g);
+    if (grown.length) U.log(g, '📈 スタッフが成長した：' + grown.join('、'), 'good');
     // ライバル強化
     g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name));
     refreshMarkets(true);
@@ -605,7 +875,8 @@ window.GP = window.GP || {};
     const map = {
       cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
-      cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo, cRaceGo: cmdRace
+      cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
+      cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
@@ -617,7 +888,10 @@ window.GP = window.GP || {};
 
   function cmdRest() {
     g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(6, 14), 62, 122); });
-    D.PART_CATS.forEach(c => { g.parts[c.key].cond = S.clamp(g.parts[c.key].cond + S.rnd(3, 7), 10, 100); });
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (p) p.cond = S.clamp(p.cond + S.rnd(3, 7), 10, 100);
+    });
     U.log(g, '☕ チーム全体で休養をとった。コンディションが回復した。');
     U.pop('☕ 回復', 'good');
     endWeek();

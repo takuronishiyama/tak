@@ -22,19 +22,20 @@ GP.race = (function () {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track);
         const st = STRATEGIES[strat];
+        const sk = k => S.hasSkill(d, k);
         let drv = S.driverRating(d);
-        // 個性による補正
-        if (d.trait === '雨マスター' && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.16;
-        if (d.trait === 'タイヤに優しい') drv *= 1.02;
+        // スキルによる補正
+        if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
         const perf = t.car * 0.60 + drv * 0.40;
 
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
           num: list.length + 1,
-          perf: perf, strat: strat, st: st,
+          gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
+          perf: perf, strat: strat, st: st, sk: sk,
           rel: t.rel,
-          tyreSkill: (d.trait === 'タイヤに優しい' ? 0.55 : 1) * (1 - d.technique / 420),
+          tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
           lapTimes: [], cum: [], pits: [],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
@@ -64,7 +65,7 @@ GP.race = (function () {
   function qualify(entries, track, weather) {
     entries.forEach(e => {
       let q = e.perf;
-      if (e.driver.trait === '予選番長') q *= 1.06;
+      if (e.sk('qualify')) q *= 1.07;
       q *= (0.94 + Math.random() * 0.12) * weather.grip;
       q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08);
       e.qScore = q;
@@ -86,16 +87,21 @@ GP.race = (function () {
     const passEase = 0.35 + track.weight.speed;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
     const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
+    const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略決定
     entries.forEach(e => {
-      const stops = (track.tyre * e.st.tyre > 1.18 || laps > 28) ? 2 : 1;
+      // 摩耗の速さから最適なストップ数を見積もる。ストラテジストがいるほど読みが正確
+      const wear = track.tyre * e.st.tyre * e.tyreSkill;
+      const stops = (wear > 1.05 || laps > 28) ? 2 : 1;
+      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.2;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
-        e.pitPlan.push(Math.round(laps * i / (stops + 1)) + S.rint(-1, 1));
+        e.pitPlan.push(Math.max(2, Math.round(laps * i / (stops + 1) + S.rnd(-blur, blur))));
       }
+      e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
       e.tyreAge = 0;
-      e.startBoost = (e.driver.trait === 'スタート職人' ? 1.6 : 0) + e.driver.technique / 200;
+      e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
     });
 
     let order = grid.slice();
@@ -114,18 +120,24 @@ GP.race = (function () {
         e.tyreAge++;
         t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre;
 
-        // スタミナ低下（終盤）
-        if (lap > laps * 0.6) t += track.base * 0.0006 * (1 - e.driver.stamina / 200) * (lap - laps * 0.6);
+        // スタミナ低下（終盤）— アイアンマンは影響を受けない
+        if (lap > laps * 0.6 && !e.sk('stamina')) {
+          t += track.base * 0.0006 * (1 - e.driver.stamina / 200) * (lap - laps * 0.6);
+        }
 
-        // ランダム
-        t += track.base * S.rnd(-0.0035, 0.0045) * weather.chaos * (1 - e.driver.mental / 400);
+        // ラストスパート
+        if (e.sk('spurt') && lap > laps * 0.8) t *= 0.994;
+
+        // ランダム（精密機械はブレが小さい）
+        const jitter = e.sk('precise') ? 0.45 : 1;
+        t += track.base * S.rnd(-0.0035, 0.0045) * jitter * weather.chaos * (1 - e.driver.mental / 400);
 
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
         // ピットイン
         if (e.pitPlan.indexOf(lap) >= 0) {
-          const loss = pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
+          const loss = e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
           t += loss;
           e.tyreAge = 0;
           e.pits.push(lap);
@@ -143,7 +155,8 @@ GP.race = (function () {
       for (let i = 1; i < running.length; i++) {
         const gap = running[i].cum[lap - 1] - running[i - 1].cum[lap - 1];
         if (gap > 0 && gap < 0.9) {
-          const stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
+          let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
+          if (running[i].sk('passer')) stuck *= 0.45;
           running[i].cum[lap - 1] += stuck;
         }
       }
@@ -151,8 +164,9 @@ GP.race = (function () {
       // リタイア判定
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
-        const mech = (100 - e.rel) / 100 * 0.0022 * track.risk;
-        const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * weather.chaos * e.st.risk;
+        const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
+        const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * weather.chaos * e.st.risk
+                      * (e.sk('heart') ? 0.40 : 1);
         const r = Math.random();
         if (r < mech) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
@@ -210,8 +224,9 @@ GP.race = (function () {
       }
       if (e.isPlayer) {
         g.points += pts;
-        prize += 620 + pts * 420 + (e.dnf ? 0 : Math.max(0, 1100 - e.pos * 45));
-        e.driver.exp += 12 + Math.max(0, 22 - e.pos) + (e.dnf ? 0 : 8);
+        prize += 800 + pts * 470 + (e.dnf ? 0 : Math.max(0, 1300 - e.pos * 50));
+        const gain = 12 + Math.max(0, 22 - e.pos) + (e.dnf ? 0 : 8);
+        e.driver.exp += Math.round(gain * (S.hasSkill(e.driver, 'grower') ? 1.5 : 1));
       } else {
         e.team.points += pts;
       }
@@ -238,9 +253,7 @@ GP.race = (function () {
     sponsorIncome = Math.round(sponsorIncome);
 
     // パーツの消耗
-    D.PART_CATS.forEach(c => {
-      g.parts[c.key].cond = S.clamp(g.parts[c.key].cond - S.rnd(1.5, 4.5) * res.track.risk, 20, 100);
-    });
+    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk);
 
     // 初優勝フラグ
     if (best && best.pos === 1 && !g.flags.firstWin) {

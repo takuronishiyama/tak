@@ -4,10 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>グランプリ物語 - F1チーム運営シミュレーション</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
+<!--
+  ドット絵フォントは表示完了後に読み込む。
+  ネットに繋がらない環境でも起動が一切遅れないようにするため、
+  <link> ではなく load イベント後に差し込む。取得できなくてもフォールバック書体で遊べる。
+-->
+<script>
+  window.addEventListener('load', function () {
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=DotGothic16&display=swap';
+    document.head.appendChild(l);
+  });
+</script>
 </head>
 <body>
 
@@ -41,6 +51,7 @@
       <button class="cmd" id="cSponsor"><span>📣</span>営業</button>
       <button class="cmd" id="cRest"><span>☕</span>休養</button>
       <span class="cmd-sep"></span>
+      <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
       <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
@@ -48,7 +59,8 @@
     <div id="cmdRace" class="cmdset" style="display:none">
       <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
       <span class="cmd-sep"></span>
-      <button class="cmd sub" id="cFacility2" hidden></button>
+      <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
+      <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
     </div>
   </nav>
 </div>
