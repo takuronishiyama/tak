@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>グランプリ物語 - F1チーム運営シミュレーション</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= トップバー ================= -->
+  <header class="topbar">
+    <div class="tb-team"><span id="tTeamDot" class="dot"></span><span id="tTeam">-</span></div>
+    <div class="tb-stats">
+      <div class="stat"><span class="ic">💰</span><b id="tFunds">0</b><small>万</small></div>
+      <div class="stat"><span class="ic">👥</span><b id="tFans">0</b></div>
+      <div class="stat"><span class="ic">🔬</span><b id="tRp">0</b></div>
+      <div class="stat"><span class="ic">📅</span>S<b id="tSeason">1</b> W<b id="tWeek">1</b></div>
+    </div>
+    <div class="tb-next" id="tNext">-</div>
+  </header>
+
+  <!-- ================= メイン ================= -->
+  <main class="main">
+    <section id="viewPanel" class="col-left"></section>
+    <aside id="sidePanel" class="col-right"></aside>
+  </main>
+
+  <!-- ================= コマンドバー ================= -->
+  <nav class="cmdbar">
+    <div id="cmdNormal" class="cmdset">
+      <button class="cmd" id="cDevelop"><span>🔧</span>開発</button>
+      <button class="cmd" id="cResearch"><span>🔬</span>研究</button>
+      <button class="cmd" id="cMaintain"><span>🛠️</span>整備</button>
+      <button class="cmd" id="cTrain"><span>💪</span>練習</button>
+      <button class="cmd" id="cSponsor"><span>📣</span>営業</button>
+      <button class="cmd" id="cRest"><span>☕</span>休養</button>
+      <span class="cmd-sep"></span>
+      <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
+      <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
+      <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
+    </div>
+    <div id="cmdRace" class="cmdset" style="display:none">
+      <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
+      <span class="cmd-sep"></span>
+      <button class="cmd sub" id="cFacility2" hidden></button>
+    </div>
+  </nav>
+</div>
+
+<!-- ================= レース画面 ================= -->
+<div id="raceScreen">
+  <div class="rv-wrap">
+    <div class="rv-head">
+      <b id="rvTrack">-</b>
+      <span id="rvWeather">-</span>
+      <span id="rvLap">LAP 1 / 1</span>
+    </div>
+    <div class="rv-body">
+      <canvas id="raceCanvas" width="560" height="400"></canvas>
+      <div class="rv-side">
+        <div class="rv-order-h">順位</div>
+        <div id="rvOrder" class="rv-order"></div>
+      </div>
+    </div>
+    <div id="rvLog" class="rv-loglist"></div>
+    <div class="rv-ctrl">
+      <button class="btn" id="rvSpeed1">▶ 等速</button>
+      <button class="btn" id="rvSpeed2">▶▶ 倍速</button>
+      <button class="btn" id="rvSpeed3">▶▶▶ 超速</button>
+      <button class="btn primary" id="rvSkip">⏭ 結果へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= モーダル ================= -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-h"><span id="modalTitle"></span><button id="modalClose" class="modal-x">✕</button></div>
+    <div id="modalBody" class="modal-body"></div>
+    <div id="modalBtns" class="modal-btns"></div>
+  </div>
+</div>
+
+<div id="toastLayer"></div>
+
+<script src="src/data.js"></script>
+<script src="src/state.js"></script>
+<script src="src/race.js"></script>
+<script src="src/raceview.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
