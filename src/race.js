@@ -103,6 +103,7 @@ GP.race = (function () {
     const weather = special && special.force
       ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
       : rollWeather(track);
+    weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
@@ -112,8 +113,11 @@ GP.race = (function () {
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
+    const E = D.ERS;
+    // ストレートが長いコースほど、放電を速さに変えやすい
+    const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
+    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4 - S.mgr(g, 'pitchief') * 0.06;
     const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略とタイヤの割り当て
@@ -147,10 +151,35 @@ GP.race = (function () {
         e.stints.push({ from: bounds[i] + 1, to: bounds[i + 1],
                         key: pickTyre(len, weather, prefer, e.tyreBias), laps: len });
       }
+      // ドライレースでは2種類以上のタイヤを使わなければならない（実際のF1のルール）
+      if (!weather.wetTyres && e.stints.length >= 2) {
+        const keys = e.stints.map(x => x.key);
+        if (keys.every(k => k === keys[0])) {
+          // いちばん短いスティントを、別の銘柄に差し替える
+          let si = 0;
+          for (let i = 1; i < e.stints.length; i++) if (e.stints[i].laps < e.stints[si].laps) si = i;
+          const st2 = e.stints[si];
+          const alt = D.DRY_TYRES.map(k => tyreOf(k))
+            .filter(t => t.key !== keys[0] && t.life >= st2.laps * 0.85);
+          st2.key = alt.length ? alt[0].key
+            : (keys[0] === 'hard' ? 'medium' : 'hard');
+          st2.forced = true;
+        }
+      }
       e.tyreKey = e.stints[0].key;
       e.stintIdx = 0;
       e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
       e.pitTime = [];       // 各周のピット停止時間
+      e.lapErs = [];        // 各周のバッテリー残量
+      // ERS：エレクトロニクスの性能が高いほど容量も回生量も大きい
+      const elecPower = e.isPlayer
+        ? S.ersOf(g).power
+        : (e.stats.accel * 0.42 + e.stats.speed * 0.12);
+      const ers = S.ersFrom(elecPower);
+      e.ersCap = ers.capacity;
+      e.ersRecover = ers.recover;
+      e.ersDeploy = ers.deploy;
+      e.battery = ers.capacity;   // 満充電でスタート
     });
 
     let order = grid.slice();
@@ -183,6 +212,14 @@ GP.race = (function () {
 
         // ラストスパート
         if (e.sk('spurt') && lap > laps * 0.8) t *= 0.994;
+
+        // ERS：溜まっている電気を放電して速さに変える。
+        // 前の車に迫っているときは多めに使う（前周の差で判定）
+        const want = e.ersDeploy * (e.chasing ? E.attackMul : 1);
+        const use = Math.min(e.battery, want);
+        e.battery = Math.min(e.ersCap, e.battery - use + e.ersRecover);
+        t *= (1 - use * E.gainPerUnit * ersScale);
+        e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
 
         // ランダム（精密機械はブレが小さい）
         const jitter = e.sk('precise') ? 0.45 : 1;
@@ -228,8 +265,11 @@ GP.race = (function () {
 
       // ブロッキング（前車に詰まると遅くなる＝抜きにくいコースほど顕著）
       const running = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+      running.forEach(e => { e.chasing = false; });
       for (let i = 1; i < running.length; i++) {
         const gap = running[i].cum[lap - 1] - running[i - 1].cum[lap - 1];
+        // 2秒以内なら次の周はERSを多めに使って仕掛ける
+        if (gap > 0 && gap < 2.0) running[i].chasing = true;
         if (gap > 0 && gap < 0.9) {
           let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
           if (running[i].sk('passer')) stuck *= 0.45;
@@ -351,6 +391,7 @@ GP.race = (function () {
       if (gained > 0) hypeDelta += Math.min(6, gained * 0.4); // 追い上げも評価される
     });
     if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
+    hypeDelta *= (1 + S.mgr(g, 'principal') * 0.004);          // 発信力のあるプリンシパルほど話題になる
     const beforeTier = S.hypeTier(g).name;
     S.addHype(g, hypeDelta);
     const afterTier = S.hypeTier(g).name;
@@ -361,7 +402,7 @@ GP.race = (function () {
     res.hypeDelta = hypeDelta;
 
     // スポンサー収入（注目度が高いほど増える。特別戦は選手権外なので基本給のみ）
-    const hb = S.hypeBonus(g);
+    const hb = S.hypeBonus(g) * (1 + S.mgr(g, 'principal') * 0.006);
     let sponsorIncome = 0;
     g.sponsors.forEach(s2 => {
       sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * hb * (sp ? 0.4 : 1) * diff.sponsor;

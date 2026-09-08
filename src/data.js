@@ -341,6 +341,38 @@ GP.data = (function () {
   /* ファステストラップのボーナスポイント（10位以内で完走した場合のみ） */
   const FASTEST_LAP_POINT = 1;
 
+  /* ---------- マネジメント層（役職）----------
+     現場のスタッフとは別枠。1役職に1人だけ据えられる。
+     効果はすべて実際の計算に掛かる                                  */
+  const MANAGERS = [
+    { key: 'principal', name: 'チームプリンシパル', icon: '👔', salary: 180,
+      desc: 'チームの顔。スポンサー収入と注目度が上がり、スタッフも育ちやすくなる',
+      effect: '収入 +0.6%／技能1、注目度 +0.4%／技能1' },
+    { key: 'technical', name: '開発責任者',       icon: '🔬', salary: 150,
+      desc: '技術部門の統括。開発の伸びと、設計するパーツのレアリティが上がる',
+      effect: '開発 +0.8%／技能1、レアリティ抽選に加算' },
+    { key: 'pitchief',  name: 'ピットクルーチーフ', icon: '🔧', salary: 130,
+      desc: 'ピット作業を仕切る。停止時間が短くなり、マシンの信頼性も上がる',
+      effect: 'ピット -0.06秒／技能1、信頼性 +0.15／技能1' },
+    { key: 'logistics', name: 'ロジスティクス責任者', icon: '🚚', salary: 85,
+      desc: '遠征と運営の効率化。週ごとの固定費が下がる（大所帯ほど効く）',
+      effect: '固定費 -1.0%／技能1（最大35%）' }
+  ];
+
+  /* ---------- ERS（バッテリー）----------
+     エレクトロニクスの性能から容量と回生量が決まる。
+     直線で放電して速さに変え、前車に迫るときは多めに使う             */
+  const ERS = {
+    baseCapacity: 55,       // 最低限の容量
+    capPerPower: 1.35,      // エレクトロニクス性能1あたりの容量
+    recoverBase: 15,        // 1周あたりの基本回生量
+    recoverPerPower: 0.30,  // 性能1あたりの追加回生量
+    deployBase: 18,         // 通常時に1周で使う量
+    deployPerPower: 0.30,   // 性能1あたりの追加放電量
+    attackMul: 1.75,        // 前車に迫っているときの倍率
+    gainPerUnit: 0.00025    // 放電1あたりのラップタイム短縮率
+  };
+
   /* ---------- スタッフ ---------- */
   const STAFF_TYPES = [
     { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60 },
@@ -425,5 +457,5 @@ GP.data = (function () {
   ];
 
   return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

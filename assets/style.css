@@ -161,6 +161,45 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .gp-t .flp{font-style:normal;margin-left:3px}
 .rewardbox small{display:block;font-size:9px;opacity:.65}
 
+/* ---------- 収支ダッシュボード ---------- */
+.fin{display:flex;gap:8px;flex-wrap:wrap}
+.fin-col{flex:1;min-width:200px;background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.fin-h{background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px;font-size:11px;margin-bottom:5px}
+.fin-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0;
+         border-bottom:1px dashed #d8c8a4}
+.fin-row.cut{color:#2e8b30}
+.fin-row.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:3px;padding-top:4px;font-size:13px}
+.fin-row.total b{font-size:14px}
+
+/* ---------- ERS ---------- */
+.ersrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;margin:6px 0;
+        background:#eef4ff;border:2px solid var(--ink);border-radius:6px;padding:3px 8px}
+.ersrow em{font-style:normal;opacity:.85}
+.sc-ers{display:inline-flex;align-items:center;gap:3px;width:52px;flex-shrink:0;font-size:10px}
+.sc-ers i{flex:1;height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;display:block}
+.sc-ers i u{display:block;height:100%;text-decoration:none;background:#6cf0ff;transition:width .4s}
+.sc-ers.mid i u{background:#ffd24a}
+.sc-ers.low i u{background:#ff6a4a}
+
+/* ---------- 人事のタブ ---------- */
+.hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
+       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
+.hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.skbar{display:inline-block;width:70px;height:7px;background:#e9dcbc;border:1px solid var(--ink);
+       border-radius:4px;overflow:hidden;vertical-align:middle}
+.skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
+.srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
+.deptgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px}
+.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+      border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.dept span{width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dept i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.dept i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
+.dept em{font-style:normal;width:26px;text-align:right}
+.mgmtrow.empty{opacity:.65;border-style:dashed}
+.mgeff{font-style:normal;color:#2e6b8b}
+
 /* ---------- チャンピオンシップ順位表 ---------- */
 .tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:#fffdf3;margin-bottom:4px}
 table.rank.champ{font-size:11px}
@@ -601,8 +640,9 @@ body.preboot .topbar{visibility:hidden}
   #raceCanvas{width:100%;height:auto}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
-  .sc-ty{width:72px}
+  .sc-ty{width:64px}
   .sc-ty em{display:none}
+  .sc-ers{width:40px}
   .sc-lap{width:60px;font-size:10px}
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }

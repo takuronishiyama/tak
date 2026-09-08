@@ -142,8 +142,14 @@ GP.ui = (function () {
         : '<div class="part empty"><span class="p-ic">' + c.icon + '</span>' +
           '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
+    const ers = S.ersOf(g);
     return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
+      '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
+      '<span>🔋 バッテリー</span>' +
+      '<em>容量 <b>' + Math.round(ers.capacity) + '</b></em>' +
+      '<em>回生 <b>' + ers.recover + '</b>/周</em>' +
+      '<em>放電 <b>' + ers.deploy + '</b>/周</em></div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
       '<div class="parts">' + parts + '</div>' +
@@ -336,6 +342,43 @@ GP.ui = (function () {
   }
 
   /* =========================================================
+     収支ダッシュボード
+     ========================================================= */
+  function finance(g) {
+    const f = S.finances(g);
+    const cyc = S.raceWeek(0);
+    const rows = [
+      ['👥 スタッフ給料', f.staff], ['👔 首脳陣の報酬', f.managers],
+      ['🧑‍✈️ ドライバー給料', f.drivers], ['🎓 育成の費用', f.youth],
+      ['🏗️ 施設の維持費', f.facilities], ['📋 その他', f.other]
+    ];
+    const raw = rows.reduce((a, r) => a + r[1], 0);
+    let h = '<div class="sub">💹 収支</div>' +
+      '<div class="fin"><div class="fin-col"><div class="fin-h">毎週の支出</div>';
+    rows.forEach(r => {
+      h += '<div class="fin-row"><span>' + r[0] + '</span><b>' + money(r[1]) + '</b></div>';
+    });
+    if (f.cut > 0) {
+      h += '<div class="fin-row cut"><span>🚚 ロジスティクス削減</span><b>-' +
+        Math.round(f.cut * 100) + '%</b></div>';
+    }
+    h += '<div class="fin-row total"><span>合計</span><b>' + money(f.weekly) + '万 / 週</b></div>' +
+      '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
+      '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
+      '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost) + '</b></div>' +
+      '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
+      (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +
+      '<p class="desc">※ここに賞金が加わります。賞金は順位しだいなので、' +
+      'この差し引きがマイナスでも上位に入れば黒字になります。</p>' +
+      '</div></div>';
+    if (f.net < 0) {
+      h += '<p class="note">スポンサー収入だけでは ' + money(-f.net) + '万 足りません。' +
+        '順位を上げて賞金と注目度を稼ぐか、支出を見直しましょう。</p>';
+    }
+    return h;
+  }
+
+  /* =========================================================
      チャンピオンシップ順位表
      実際のF1と同じ配点（25-18-15-12-10-8-6-4-2-1）＋
      10位以内で完走したファステストラップに +1
@@ -483,5 +526,5 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, $ };
+           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

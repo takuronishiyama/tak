@@ -635,8 +635,18 @@ GP.raceview = (function () {
           '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
           '<em>' + ty.age + '周</em></span>';
       }
+      // バッテリー残量
+      const li2 = lapInfo(e, vt);
+      const er = (e.lapErs || [])[li2.lap - 1] || (e.lapErs || [])[0];
+      let erchip = '<span class="sc-ers"></span>';
+      if (er) {
+        const pct = Math.max(0, Math.min(100, er.level / er.cap * 100));
+        const cls = pct < 20 ? ' low' : pct < 45 ? ' mid' : '';
+        erchip = '<span class="sc-ers' + cls + '" title="バッテリー ' + er.level + ' / ' + er.cap + '">' +
+          '🔋<i><u style="width:' + pct.toFixed(0) + '%"></u></i></span>';
+      }
       h += '<div class="sc-row"><span class="sc-nm">' +
-        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip;
+        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip + erchip;
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];
         let cls = '';
@@ -650,7 +660,7 @@ GP.raceview = (function () {
       }
       h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
     });
-    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span>' +
+    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span><span class="sc-ers"></span>' +
       [0, 1, 2].map(k => '<span class="sc-t purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';

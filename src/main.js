@@ -777,16 +777,23 @@ window.GP = window.GP || {};
   /* =======================================================
      フリーメニュー：人事
      ======================================================= */
-  let staffMarket = null, driverMarket = null, youthMarket = null;
+  let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
+  let hrTab = 'drivers';
+
+  function teamQuality() { return GP.base.scale(g).value; }
+
   function refreshMarkets(force) {
-    if (force || !staffMarket) staffMarket = [0, 1, 2].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key));
+    const q = teamQuality();
+    if (force || !staffMarket) staffMarket = [0, 1, 2, 3].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key, q));
     if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
+    if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
   }
 
   const youthFee = d => Math.round(600 + S.driverRating(d) * 26 + d.pot * 900);
+  const staffFee = st => st.salary * 8;
+  const mgrFee = m => Math.round(m.salary * 10);
 
-  /* 若手1人の表示 */
   function youthRow(d, actions) {
     const pt = S.potOf(d);
     return '<div class="pickbtn done youthrow">' +
@@ -799,15 +806,57 @@ window.GP = window.GP || {};
       ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
       '</small></span><span class="pb-cost">' + actions + '</span></div>';
   }
+
+  /* スタッフ1人の能力表示 */
+  function staffRow(st, actions, extra) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type);
+    const pct = Math.min(100, st.skill / 60 * 100);
+    const rank = st.skill >= 45 ? '一流' : st.skill >= 32 ? '熟練' : st.skill >= 20 ? '中堅' : '見習い';
+    return '<div class="pickbtn done staffrow">' +
+      '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
+      '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
+      '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
+      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill + '</b>' +
+      '<br>' + t.desc + (extra || '') + '</small></span>' +
+      '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
+  }
+
   function cmdStaff() {
     refreshMarkets(false);
-    let body = '<div class="sub">ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
-    g.drivers.forEach((d, i) => {
+    const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
+                  ['staff', '👥 スタッフ'], ['mgmt', '👔 首脳陣']];
+    let body = '<div class="hrtabs">' +
+      tabs.map(t => '<button class="hrtab' + (hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
+      '</div>';
+
+    if (hrTab === 'drivers') body += hrDrivers();
+    else if (hrTab === 'youth') body += hrYouth();
+    else if (hrTab === 'staff') body += hrStaff();
+    else body += hrManagement();
+
+    U.modal('👥 人事', body, [
+      { label: '🔄 市場を更新（500万）', disabled: g.funds < 500,
+        fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
+      { label: '閉じる', fn: U.closeModal }
+    ], { wide: true });
+
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.hrtab'), b => {
+      b.onclick = () => { hrTab = b.dataset.hr; GP.sound.play('tap'); cmdStaff(); };
+    });
+    bindPick(k => hrPick(k));
+    bindHrActions();
+  }
+
+  /* ---- ドライバー ---- */
+  function hrDrivers() {
+    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
+    g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
-        S.persOf(d).icon + S.persOf(d).name + '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost"><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
+        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
+        '<br>' + U.skillChips(d) + '</small></span>' +
+        '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div><div class="sub">ドライバー市場</div><div class="pick">';
     driverMarket.forEach((d, i) => {
@@ -815,24 +864,25 @@ window.GP = window.GP || {};
       const full = g.drivers.length >= 2;
       body += '<button class="pickbtn" data-k="dm:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
-        S.persOf(d).icon + S.persOf(d).name +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
+        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
         '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
     });
-    body += '</div>';
+    return body + '</div>';
+  }
 
-    // ---- 下部組織 ----
+  /* ---- 下部組織 ---- */
+  function hrYouth() {
     const slots = S.youthSlots(g);
-    body += '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
+    let body = '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
       '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
     (g.youth || []).forEach(d => {
-      const canUp = g.drivers.length < 2;
       body += youthRow(d,
-        '<button class="mini" data-promote="' + d.id + '"' + (canUp ? '' : ' disabled') + '>昇格</button>' +
+        '<button class="mini" data-promote="' + d.id + '"' + (g.drivers.length < 2 ? '' : ' disabled') + '>昇格</button>' +
         '<button class="mini danger" data-release="' + d.id + '">放出</button>');
     });
     body += '</div><div class="sub">若手スカウト</div><div class="pick">';
@@ -841,55 +891,132 @@ window.GP = window.GP || {};
       const full = (g.youth || []).length >= slots;
       body += '<button class="pickbtn" data-k="ym:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
-        S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' + Math.round(S.driverRating(d)) +
-        '<br>才能 <em style="color:' + S.potOf(d).color + '">' + U.stars(d.pot) + ' ' + S.potOf(d).name + '</em>' +
-        '</small></span><span class="pb-cost">💰' + money(fee) + '</span></button>';
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' +
+        Math.round(S.driverRating(d)) + '<br>才能 <em style="color:' + S.potOf(d).color + '">' +
+        U.stars(d.pot) + ' ' + S.potOf(d).name + '</em></small></span>' +
+        '<span class="pb-cost">💰' + money(fee) + '</span></button>';
     });
-    body += '</div><div class="sub">スタッフ市場</div><div class="pick">';
-    staffMarket.forEach((s, i) => {
-      const t = D.STAFF_TYPES.find(x => x.key === s.type);
-      const fee = s.salary * 8;
-      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(s.name) + '</b><small>' + t.name + '／技能 ' + s.skill + '／' + t.desc + '</small></span>' +
-        '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(s.salary) + '</em></span></button>';
+    return body + '</div>';
+  }
+
+  /* ---- 現場スタッフ ---- */
+  function hrStaff() {
+    const q = teamQuality();
+    let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
+      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>';
+    body += '<div class="sub">在籍スタッフ（' + g.staff.length + '人）</div><div class="pick">';
+    if (!g.staff.length) body += '<p class="desc">スタッフがいません。</p>';
+    // 職種ごとの合計効果も見えるようにする
+    const byType = {};
+    g.staff.forEach(st => { byType[st.type] = (byType[st.type] || 0) + st.skill; });
+    g.staff.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
+      body += staffRow(st, '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>');
     });
     body += '</div>';
-    U.modal('👥 人事', body, [
-      { label: '🔄 市場を更新（500万）', disabled: g.funds < 500, fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
-      { label: '閉じる', fn: U.closeModal }
-    ], { wide: true });
-
-    bindPick(k => {
-      const [kind, idx] = k.split(':');
-      if (kind === 'dm') {
-        const d = driverMarket[+idx], fee = Math.round(d.salary * 12);
-        if (g.drivers.length >= 2 || g.funds < fee) return;
-        g.funds -= fee; d.team = g.team; g.drivers.push(d);
-        driverMarket.splice(+idx, 1);
-        U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
-        U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
-      } else if (kind === 'ym') {
-        const d = youthMarket[+idx], fee = youthFee(d);
-        if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
-        g.funds -= fee;
-        g.youth = (g.youth || []).concat([d]);
-        youthMarket.splice(+idx, 1);
-        GP.sound.play('confirm');
-        U.log(g, '🎓 若手の ' + d.name + '（' + S.potOf(d).name + '）を獲得した！', 'good');
-        U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
-      } else {
-        const s = staffMarket[+idx], fee = s.salary * 8;
-        if (g.funds < fee) return;
-        g.funds -= fee; g.staff.push(s);
-        staffMarket.splice(+idx, 1);
-        U.log(g, '👥 ' + s.name + ' を雇用した。', 'good');
-        U.toast('👥 ' + s.name + ' が加入！', 'good');
-      }
-      S.save(g); render(); cmdStaff();
+    body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
+    D.STAFF_TYPES.forEach(t => {
+      const v = byType[t.key] || 0;
+      body += '<div class="dept"><span>' + t.icon + ' ' + t.name + '</span>' +
+        '<i><b style="width:' + Math.min(100, v / 120 * 100) + '%"></b></i><em>' + v + '</em></div>';
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-promote]'), b => {
+    body += '</div>';
+    body += '<div class="sub">スタッフ市場</div><div class="pick">';
+    staffMarket.forEach((st, i) => {
+      const fee = staffFee(st);
+      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:#7b5a3a">' +
+        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
+        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).name + '／技能 ' + st.skill +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
+    });
+    return body + '</div>';
+  }
+
+  /* ---- 首脳陣 ---- */
+  function hrManagement() {
+    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。</p><div class="pick">';
+    D.MANAGERS.forEach(m => {
+      const cur = g.managers && g.managers[m.key];
+      if (cur) {
+        body += '<div class="pickbtn done mgmtrow">' +
+          '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + m.name + '：' + esc(cur.name) + '</b>' +
+          '<small><span class="skbar"><i style="width:' + Math.min(100, cur.skill / 60 * 100) + '%"></i></span> 技能 <b>' + cur.skill + '</b>' +
+          '<br>' + m.desc + '<br><em class="mgeff">' + m.effect + '</em></small></span>' +
+          '<span class="pb-cost">週' + money(cur.salary) + '万<br>' +
+          '<button class="mini danger" data-firemgr="' + m.key + '">解任</button></span></div>';
+      } else {
+        body += '<div class="pickbtn done mgmtrow empty">' +
+          '<span class="pb-ic" style="background:#a89878">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + m.name + '</b><small>空席<br>' + m.desc + '</small></span>' +
+          '<span class="pb-cost">—</span></div>';
+      }
+    });
+    body += '</div><div class="sub">候補者</div><div class="pick">';
+    mgrMarket.forEach((cand, i) => {
+      const m = D.MANAGERS.find(x => x.key === cand.role);
+      const cur = g.managers && g.managers[cand.role];
+      const fee = mgrFee(cand);
+      const better = cur ? cand.skill - cur.skill : null;
+      body += '<button class="pickbtn" data-k="mm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(cand.name) + '</b><small>' + m.name + '／技能 ' + cand.skill +
+        (better !== null ? '（現任と<em class="' + (better > 0 ? 'good' : 'bad') + '">' + (better > 0 ? '+' : '') + better + '</em>）' : '') +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
+        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
+    });
+    return body + '</div>';
+  }
+
+  /* ---- 操作 ---- */
+  function hrPick(k) {
+    const parts = k.split(':');
+    const kind = parts[0], idx = +parts[1];
+    if (kind === 'dm') {
+      const d = driverMarket[idx], fee = Math.round(d.salary * 12);
+      if (g.drivers.length >= 2 || g.funds < fee) return;
+      g.funds -= fee; d.team = g.team; g.drivers.push(d);
+      driverMarket.splice(idx, 1);
+      U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
+      U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
+    } else if (kind === 'ym') {
+      const d = youthMarket[idx], fee = youthFee(d);
+      if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
+      g.funds -= fee;
+      g.youth = (g.youth || []).concat([d]);
+      youthMarket.splice(idx, 1);
+      GP.sound.play('confirm');
+      U.log(g, '🎓 若手の ' + d.name + '（' + S.potOf(d).name + '）を獲得した！', 'good');
+      U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
+    } else if (kind === 'sm') {
+      const st = staffMarket[idx], fee = staffFee(st);
+      if (g.funds < fee) return;
+      g.funds -= fee; g.staff.push(st);
+      staffMarket.splice(idx, 1);
+      U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
+      U.toast('👥 ' + st.name + ' が加入！', 'good');
+    } else if (kind === 'mm') {
+      const cand = mgrMarket[idx], fee = mgrFee(cand);
+      if (g.funds < fee) return;
+      const m = D.MANAGERS.find(x => x.key === cand.role);
+      const cur = g.managers && g.managers[cand.role];
+      g.funds -= fee;
+      g.managers = g.managers || {};
+      g.managers[cand.role] = cand;
+      mgrMarket.splice(idx, 1);
+      GP.sound.play('levelup');
+      U.log(g, '👔 ' + m.name + ' に ' + cand.name + ' が就任！（技能 ' + cand.skill + '）' +
+        (cur ? ' ' + cur.name + ' は退任した。' : ''), 'good');
+      U.toast('👔 ' + m.name + '：' + cand.name + ' が就任！', 'good');
+    }
+    S.save(g); render(); cmdStaff();
+  }
+
+  function bindHrActions() {
+    const body = $('modalBody');
+    Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
         const d = S.promoteYouth(g, b.dataset.promote);
         if (!d) return;
@@ -899,7 +1026,7 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-release]'), b => {
+    Array.prototype.forEach.call(body.querySelectorAll('[data-release]'), b => {
       b.onclick = () => {
         const d = (g.youth || []).find(x => x.id === b.dataset.release);
         if (!d) return;
@@ -908,12 +1035,35 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-fired]'), b => {
+    Array.prototype.forEach.call(body.querySelectorAll('[data-fired]'), b => {
       b.onclick = () => {
         const d = g.drivers.find(x => x.id === b.dataset.fired);
+        if (!d) return;
         g.funds -= d.salary * 6;
         g.drivers = g.drivers.filter(x => x.id !== b.dataset.fired);
         U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(d.salary * 6) + '万）。');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-firestaff]'), b => {
+      b.onclick = () => {
+        const st = g.staff.find(x => x.id === b.dataset.firestaff);
+        if (!st) return;
+        g.funds -= st.salary * 4;
+        g.staff = g.staff.filter(x => x.id !== b.dataset.firestaff);
+        U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(st.salary * 4) + '万）。');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-firemgr]'), b => {
+      b.onclick = () => {
+        const key = b.dataset.firemgr;
+        const cur = g.managers && g.managers[key];
+        if (!cur) return;
+        g.funds -= cur.salary * 6;
+        delete g.managers[key];
+        const m = D.MANAGERS.find(x => x.key === key);
+        U.log(g, '👋 ' + m.name + ' の ' + cur.name + ' を解任した（違約金 ' + money(cur.salary * 6) + '万）。');
         S.save(g); render(); cmdStaff();
       };
     });
@@ -1263,7 +1413,8 @@ window.GP = window.GP || {};
   }
 
   function cmdInfo() {
-    let body = U.standings(g);
+    let body = U.finance(g);
+    body += U.standings(g);
     body += '<div class="sub">今季のレース結果</div>';
     if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
     g.results.slice().reverse().forEach(r => {

@@ -176,6 +176,45 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .gp-t .flp{font-style:normal;margin-left:3px}
 .rewardbox small{display:block;font-size:9px;opacity:.65}
 
+/* ---------- 収支ダッシュボード ---------- */
+.fin{display:flex;gap:8px;flex-wrap:wrap}
+.fin-col{flex:1;min-width:200px;background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.fin-h{background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px;font-size:11px;margin-bottom:5px}
+.fin-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0;
+         border-bottom:1px dashed #d8c8a4}
+.fin-row.cut{color:#2e8b30}
+.fin-row.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:3px;padding-top:4px;font-size:13px}
+.fin-row.total b{font-size:14px}
+
+/* ---------- ERS ---------- */
+.ersrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;margin:6px 0;
+        background:#eef4ff;border:2px solid var(--ink);border-radius:6px;padding:3px 8px}
+.ersrow em{font-style:normal;opacity:.85}
+.sc-ers{display:inline-flex;align-items:center;gap:3px;width:52px;flex-shrink:0;font-size:10px}
+.sc-ers i{flex:1;height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;display:block}
+.sc-ers i u{display:block;height:100%;text-decoration:none;background:#6cf0ff;transition:width .4s}
+.sc-ers.mid i u{background:#ffd24a}
+.sc-ers.low i u{background:#ff6a4a}
+
+/* ---------- 人事のタブ ---------- */
+.hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
+       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
+.hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.skbar{display:inline-block;width:70px;height:7px;background:#e9dcbc;border:1px solid var(--ink);
+       border-radius:4px;overflow:hidden;vertical-align:middle}
+.skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
+.srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
+.deptgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px}
+.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+      border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.dept span{width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dept i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.dept i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
+.dept em{font-style:normal;width:26px;text-align:right}
+.mgmtrow.empty{opacity:.65;border-style:dashed}
+.mgeff{font-style:normal;color:#2e6b8b}
+
 /* ---------- チャンピオンシップ順位表 ---------- */
 .tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:#fffdf3;margin-bottom:4px}
 table.rank.champ{font-size:11px}
@@ -616,8 +655,9 @@ body.preboot .topbar{visibility:hidden}
   #raceCanvas{width:100%;height:auto}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
-  .sc-ty{width:72px}
+  .sc-ty{width:64px}
   .sc-ty em{display:none}
+  .sc-ers{width:40px}
   .sc-lap{width:60px;font-size:10px}
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }
@@ -1224,6 +1264,38 @@ GP.data = (function () {
   /* ファステストラップのボーナスポイント（10位以内で完走した場合のみ） */
   const FASTEST_LAP_POINT = 1;
 
+  /* ---------- マネジメント層（役職）----------
+     現場のスタッフとは別枠。1役職に1人だけ据えられる。
+     効果はすべて実際の計算に掛かる                                  */
+  const MANAGERS = [
+    { key: 'principal', name: 'チームプリンシパル', icon: '👔', salary: 180,
+      desc: 'チームの顔。スポンサー収入と注目度が上がり、スタッフも育ちやすくなる',
+      effect: '収入 +0.6%／技能1、注目度 +0.4%／技能1' },
+    { key: 'technical', name: '開発責任者',       icon: '🔬', salary: 150,
+      desc: '技術部門の統括。開発の伸びと、設計するパーツのレアリティが上がる',
+      effect: '開発 +0.8%／技能1、レアリティ抽選に加算' },
+    { key: 'pitchief',  name: 'ピットクルーチーフ', icon: '🔧', salary: 130,
+      desc: 'ピット作業を仕切る。停止時間が短くなり、マシンの信頼性も上がる',
+      effect: 'ピット -0.06秒／技能1、信頼性 +0.15／技能1' },
+    { key: 'logistics', name: 'ロジスティクス責任者', icon: '🚚', salary: 85,
+      desc: '遠征と運営の効率化。週ごとの固定費が下がる（大所帯ほど効く）',
+      effect: '固定費 -1.0%／技能1（最大35%）' }
+  ];
+
+  /* ---------- ERS（バッテリー）----------
+     エレクトロニクスの性能から容量と回生量が決まる。
+     直線で放電して速さに変え、前車に迫るときは多めに使う             */
+  const ERS = {
+    baseCapacity: 55,       // 最低限の容量
+    capPerPower: 1.35,      // エレクトロニクス性能1あたりの容量
+    recoverBase: 15,        // 1周あたりの基本回生量
+    recoverPerPower: 0.30,  // 性能1あたりの追加回生量
+    deployBase: 18,         // 通常時に1周で使う量
+    deployPerPower: 0.30,   // 性能1あたりの追加放電量
+    attackMul: 1.75,        // 前車に迫っているときの倍率
+    gainPerUnit: 0.00025    // 放電1あたりのラップタイム短縮率
+  };
+
   /* ---------- スタッフ ---------- */
   const STAFF_TYPES = [
     { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60 },
@@ -1308,7 +1380,7 @@ GP.data = (function () {
   ];
 
   return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
 
 </script>
@@ -1527,7 +1599,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v4';
+  const SAVE_KEY = 'gp_monogatari_save_v5';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -1595,7 +1667,7 @@ GP.state = (function () {
 
   /* 設計時のレアリティ抽選（デザイナーの腕で上振れする） */
   function rollRarity(g) {
-    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35;
+    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35 + mgr(g, 'technical') * 0.06;
     const w = [
       Math.max(6, 58 - dz * 5),
       26 + dz * 0.6,
@@ -1736,6 +1808,24 @@ GP.state = (function () {
     return s;
   }
 
+  /* ---------- ERS（バッテリー）----------
+     エレクトロニクスの性能と世代から、容量と1周あたりの回生量が決まる  */
+  function ersOf(g2) {
+    const p = g2.equipped && g2.equipped.elec;
+    const pw = p ? p.power * (0.82 + p.cond / 100 * 0.18) : 10;
+    const genB = D.CAR_GENS[g2.carGen] ? D.CAR_GENS[g2.carGen].base : 0;
+    return ersFrom(pw + genB * 0.5);
+  }
+  function ersFrom(power) {
+    const E = D.ERS;
+    return {
+      capacity: Math.round(E.baseCapacity + power * E.capPerPower),
+      recover: Math.round((E.recoverBase + power * E.recoverPerPower) * 10) / 10,
+      deploy: Math.round((E.deployBase + power * E.deployPerPower) * 10) / 10,
+      power: Math.round(power * 10) / 10
+    };
+  }
+
   /* ---------- マシン信頼性（0-100）---------- */
   function reliability(g) {
     let sum = 0, bonus = 0, n = 0;
@@ -1747,7 +1837,7 @@ GP.state = (function () {
       if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
-    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2, 5, 99);
+    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
@@ -1796,14 +1886,59 @@ GP.state = (function () {
     return g2.fans >= sp.fans && (g2.hype || 0) >= (sp.hype || 0);
   }
 
-  /* ---------- 週あたりの固定費 ---------- */
-  function weeklyCost(g) {
-    const staff = g.staff.reduce((a, s) => a + s.salary, 0);
-    const drv = g.drivers.reduce((a, d) => a + d.salary, 0)
-              + (g.youth || []).reduce((a, d) => a + d.salary, 0);
-    const fac = D.FACILITIES.reduce((a, f) => a + g.facilities[f.key] * 12, 0);
-    return Math.round(staff + drv + fac + 150);
+  /* =======================================================
+     マネジメント層
+     ======================================================= */
+  function makeManager(key, quality) {
+    const m = D.MANAGERS.find(x => x.key === key) || D.MANAGERS[0];
+    const skill = clamp(Math.round(10 + (quality || 0) * 0.32 + rnd(-5, 9)), 5, 60);
+    return {
+      id: 'm' + Math.random().toString(36).slice(2, 8),
+      role: key, name: pick(D.FIRST) + '・' + pick(D.LAST),
+      skill: skill,
+      salary: Math.round(m.salary * (0.5 + skill / 46))
+    };
   }
+  /* 役職に就いている人の技能。空席なら0 */
+  function mgr(g2, key) {
+    const m = g2.managers && g2.managers[key];
+    return m ? m.skill : 0;
+  }
+
+  /* ---------- 収支の内訳 ---------- */
+  function finances(g2) {
+    const staff = g2.staff.reduce((a, s) => a + s.salary, 0);
+    const mgrs = D.MANAGERS.reduce((a, m) => a + (g2.managers && g2.managers[m.key] ? g2.managers[m.key].salary : 0), 0);
+    const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0);
+    const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
+    const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
+    const other = 150;
+    const raw = staff + mgrs + drivers + youth + facilities + other;
+    // ロジスティクス責任者は運営全体の費用を下げる
+    const cut = Math.min(0.35, mgr(g2, 'logistics') * 0.010);
+    const weekly = Math.round(raw * (1 - cut));
+
+    // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
+    const diff = diffOf(g2);
+    const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
+    const perRace = Math.round(g2.sponsors.reduce((a, sp) =>
+      a + sp.per * (1 + g2.facilities.market * 0.12) * boost * diff.sponsor, 0));
+
+    const PREP = raceWeek(0);                       // レース1回あたりの週数
+    return {
+      staff: staff, managers: mgrs, drivers: drivers, youth: youth,
+      facilities: facilities, other: other, cut: cut,
+      weekly: weekly,
+      sponsorPerRace: perRace,
+      // レース1回ぶん（準備週＋レース週）の収支
+      cycleCost: weekly * PREP,
+      cycleIncome: perRace,
+      net: perRace - weekly * PREP
+    };
+  }
+
+  /* ---------- 週あたりの固定費 ---------- */
+  function weeklyCost(g) { return finances(g).weekly; }
 
   /* ---------- ライバルチーム生成 ---------- */
   function makeRivals(season, keepNames, diff) {
@@ -1841,7 +1976,7 @@ GP.state = (function () {
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 4,
+      version: 5,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
@@ -1852,6 +1987,7 @@ GP.state = (function () {
       hype: 4,              // 注目度（メディア露出）0-100
       dryStreak: 0,         // 入賞できていないレース数
       youth: [],            // 下部組織の若手
+      managers: {},         // 役職（空席から始まる）
       fans: 500,
       rp: 20,                       // 研究ポイント
       nextRace: 0,                  // 次のレースのindex
@@ -1890,9 +2026,10 @@ GP.state = (function () {
     return g;
   }
 
-  function makeStaff(type) {
+  function makeStaff(type, quality) {
     const t = D.STAFF_TYPES.find(s => s.key === type);
-    const skill = rint(8, 22);
+    // チームの規模が大きいほど、良い人材が応募してくる
+    const skill = clamp(Math.round(rint(8, 22) + (quality || 0) * 0.28), 5, 60);
     return {
       id: 's' + Math.random().toString(36).slice(2, 8),
       type: type, name: pick(D.FIRST) + '・' + pick(D.LAST),
@@ -2021,7 +2158,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 4) ? g : null;
+      return (g && g.version === 5) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -2031,6 +2168,7 @@ GP.state = (function () {
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
+    makeManager, mgr, finances, ersOf, ersFrom,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -2149,6 +2287,7 @@ GP.race = (function () {
     const weather = special && special.force
       ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
       : rollWeather(track);
+    weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
@@ -2158,8 +2297,11 @@ GP.race = (function () {
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
+    const E = D.ERS;
+    // ストレートが長いコースほど、放電を速さに変えやすい
+    const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
+    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4 - S.mgr(g, 'pitchief') * 0.06;
     const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略とタイヤの割り当て
@@ -2193,10 +2335,35 @@ GP.race = (function () {
         e.stints.push({ from: bounds[i] + 1, to: bounds[i + 1],
                         key: pickTyre(len, weather, prefer, e.tyreBias), laps: len });
       }
+      // ドライレースでは2種類以上のタイヤを使わなければならない（実際のF1のルール）
+      if (!weather.wetTyres && e.stints.length >= 2) {
+        const keys = e.stints.map(x => x.key);
+        if (keys.every(k => k === keys[0])) {
+          // いちばん短いスティントを、別の銘柄に差し替える
+          let si = 0;
+          for (let i = 1; i < e.stints.length; i++) if (e.stints[i].laps < e.stints[si].laps) si = i;
+          const st2 = e.stints[si];
+          const alt = D.DRY_TYRES.map(k => tyreOf(k))
+            .filter(t => t.key !== keys[0] && t.life >= st2.laps * 0.85);
+          st2.key = alt.length ? alt[0].key
+            : (keys[0] === 'hard' ? 'medium' : 'hard');
+          st2.forced = true;
+        }
+      }
       e.tyreKey = e.stints[0].key;
       e.stintIdx = 0;
       e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
       e.pitTime = [];       // 各周のピット停止時間
+      e.lapErs = [];        // 各周のバッテリー残量
+      // ERS：エレクトロニクスの性能が高いほど容量も回生量も大きい
+      const elecPower = e.isPlayer
+        ? S.ersOf(g).power
+        : (e.stats.accel * 0.42 + e.stats.speed * 0.12);
+      const ers = S.ersFrom(elecPower);
+      e.ersCap = ers.capacity;
+      e.ersRecover = ers.recover;
+      e.ersDeploy = ers.deploy;
+      e.battery = ers.capacity;   // 満充電でスタート
     });
 
     let order = grid.slice();
@@ -2229,6 +2396,14 @@ GP.race = (function () {
 
         // ラストスパート
         if (e.sk('spurt') && lap > laps * 0.8) t *= 0.994;
+
+        // ERS：溜まっている電気を放電して速さに変える。
+        // 前の車に迫っているときは多めに使う（前周の差で判定）
+        const want = e.ersDeploy * (e.chasing ? E.attackMul : 1);
+        const use = Math.min(e.battery, want);
+        e.battery = Math.min(e.ersCap, e.battery - use + e.ersRecover);
+        t *= (1 - use * E.gainPerUnit * ersScale);
+        e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
 
         // ランダム（精密機械はブレが小さい）
         const jitter = e.sk('precise') ? 0.45 : 1;
@@ -2274,8 +2449,11 @@ GP.race = (function () {
 
       // ブロッキング（前車に詰まると遅くなる＝抜きにくいコースほど顕著）
       const running = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+      running.forEach(e => { e.chasing = false; });
       for (let i = 1; i < running.length; i++) {
         const gap = running[i].cum[lap - 1] - running[i - 1].cum[lap - 1];
+        // 2秒以内なら次の周はERSを多めに使って仕掛ける
+        if (gap > 0 && gap < 2.0) running[i].chasing = true;
         if (gap > 0 && gap < 0.9) {
           let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
           if (running[i].sk('passer')) stuck *= 0.45;
@@ -2397,6 +2575,7 @@ GP.race = (function () {
       if (gained > 0) hypeDelta += Math.min(6, gained * 0.4); // 追い上げも評価される
     });
     if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
+    hypeDelta *= (1 + S.mgr(g, 'principal') * 0.004);          // 発信力のあるプリンシパルほど話題になる
     const beforeTier = S.hypeTier(g).name;
     S.addHype(g, hypeDelta);
     const afterTier = S.hypeTier(g).name;
@@ -2407,7 +2586,7 @@ GP.race = (function () {
     res.hypeDelta = hypeDelta;
 
     // スポンサー収入（注目度が高いほど増える。特別戦は選手権外なので基本給のみ）
-    const hb = S.hypeBonus(g);
+    const hb = S.hypeBonus(g) * (1 + S.mgr(g, 'principal') * 0.006);
     let sponsorIncome = 0;
     g.sponsors.forEach(s2 => {
       sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * hb * (sp ? 0.4 : 1) * diff.sponsor;
@@ -3103,8 +3282,18 @@ GP.raceview = (function () {
           '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
           '<em>' + ty.age + '周</em></span>';
       }
+      // バッテリー残量
+      const li2 = lapInfo(e, vt);
+      const er = (e.lapErs || [])[li2.lap - 1] || (e.lapErs || [])[0];
+      let erchip = '<span class="sc-ers"></span>';
+      if (er) {
+        const pct = Math.max(0, Math.min(100, er.level / er.cap * 100));
+        const cls = pct < 20 ? ' low' : pct < 45 ? ' mid' : '';
+        erchip = '<span class="sc-ers' + cls + '" title="バッテリー ' + er.level + ' / ' + er.cap + '">' +
+          '🔋<i><u style="width:' + pct.toFixed(0) + '%"></u></i></span>';
+      }
       h += '<div class="sc-row"><span class="sc-nm">' +
-        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip;
+        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip + erchip;
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];
         let cls = '';
@@ -3118,7 +3307,7 @@ GP.raceview = (function () {
       }
       h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
     });
-    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span>' +
+    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span><span class="sc-ers"></span>' +
       [0, 1, 2].map(k => '<span class="sc-t purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';
@@ -3632,8 +3821,14 @@ GP.ui = (function () {
         : '<div class="part empty"><span class="p-ic">' + c.icon + '</span>' +
           '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
+    const ers = S.ersOf(g);
     return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
+      '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
+      '<span>🔋 バッテリー</span>' +
+      '<em>容量 <b>' + Math.round(ers.capacity) + '</b></em>' +
+      '<em>回生 <b>' + ers.recover + '</b>/周</em>' +
+      '<em>放電 <b>' + ers.deploy + '</b>/周</em></div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
       '<div class="parts">' + parts + '</div>' +
@@ -3826,6 +4021,43 @@ GP.ui = (function () {
   }
 
   /* =========================================================
+     収支ダッシュボード
+     ========================================================= */
+  function finance(g) {
+    const f = S.finances(g);
+    const cyc = S.raceWeek(0);
+    const rows = [
+      ['👥 スタッフ給料', f.staff], ['👔 首脳陣の報酬', f.managers],
+      ['🧑‍✈️ ドライバー給料', f.drivers], ['🎓 育成の費用', f.youth],
+      ['🏗️ 施設の維持費', f.facilities], ['📋 その他', f.other]
+    ];
+    const raw = rows.reduce((a, r) => a + r[1], 0);
+    let h = '<div class="sub">💹 収支</div>' +
+      '<div class="fin"><div class="fin-col"><div class="fin-h">毎週の支出</div>';
+    rows.forEach(r => {
+      h += '<div class="fin-row"><span>' + r[0] + '</span><b>' + money(r[1]) + '</b></div>';
+    });
+    if (f.cut > 0) {
+      h += '<div class="fin-row cut"><span>🚚 ロジスティクス削減</span><b>-' +
+        Math.round(f.cut * 100) + '%</b></div>';
+    }
+    h += '<div class="fin-row total"><span>合計</span><b>' + money(f.weekly) + '万 / 週</b></div>' +
+      '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
+      '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
+      '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost) + '</b></div>' +
+      '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
+      (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +
+      '<p class="desc">※ここに賞金が加わります。賞金は順位しだいなので、' +
+      'この差し引きがマイナスでも上位に入れば黒字になります。</p>' +
+      '</div></div>';
+    if (f.net < 0) {
+      h += '<p class="note">スポンサー収入だけでは ' + money(-f.net) + '万 足りません。' +
+        '順位を上げて賞金と注目度を稼ぐか、支出を見直しましょう。</p>';
+    }
+    return h;
+  }
+
+  /* =========================================================
      チャンピオンシップ順位表
      実際のF1と同じ配点（25-18-15-12-10-8-6-4-2-1）＋
      10位以内で完走したファステストラップに +1
@@ -3973,7 +4205,7 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, $ };
+           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
 
 </script>
@@ -4758,16 +4990,23 @@ window.GP = window.GP || {};
   /* =======================================================
      フリーメニュー：人事
      ======================================================= */
-  let staffMarket = null, driverMarket = null, youthMarket = null;
+  let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
+  let hrTab = 'drivers';
+
+  function teamQuality() { return GP.base.scale(g).value; }
+
   function refreshMarkets(force) {
-    if (force || !staffMarket) staffMarket = [0, 1, 2].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key));
+    const q = teamQuality();
+    if (force || !staffMarket) staffMarket = [0, 1, 2, 3].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key, q));
     if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
+    if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
   }
 
   const youthFee = d => Math.round(600 + S.driverRating(d) * 26 + d.pot * 900);
+  const staffFee = st => st.salary * 8;
+  const mgrFee = m => Math.round(m.salary * 10);
 
-  /* 若手1人の表示 */
   function youthRow(d, actions) {
     const pt = S.potOf(d);
     return '<div class="pickbtn done youthrow">' +
@@ -4780,15 +5019,57 @@ window.GP = window.GP || {};
       ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
       '</small></span><span class="pb-cost">' + actions + '</span></div>';
   }
+
+  /* スタッフ1人の能力表示 */
+  function staffRow(st, actions, extra) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type);
+    const pct = Math.min(100, st.skill / 60 * 100);
+    const rank = st.skill >= 45 ? '一流' : st.skill >= 32 ? '熟練' : st.skill >= 20 ? '中堅' : '見習い';
+    return '<div class="pickbtn done staffrow">' +
+      '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
+      '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
+      '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
+      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill + '</b>' +
+      '<br>' + t.desc + (extra || '') + '</small></span>' +
+      '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
+  }
+
   function cmdStaff() {
     refreshMarkets(false);
-    let body = '<div class="sub">ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
-    g.drivers.forEach((d, i) => {
+    const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
+                  ['staff', '👥 スタッフ'], ['mgmt', '👔 首脳陣']];
+    let body = '<div class="hrtabs">' +
+      tabs.map(t => '<button class="hrtab' + (hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
+      '</div>';
+
+    if (hrTab === 'drivers') body += hrDrivers();
+    else if (hrTab === 'youth') body += hrYouth();
+    else if (hrTab === 'staff') body += hrStaff();
+    else body += hrManagement();
+
+    U.modal('👥 人事', body, [
+      { label: '🔄 市場を更新（500万）', disabled: g.funds < 500,
+        fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
+      { label: '閉じる', fn: U.closeModal }
+    ], { wide: true });
+
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.hrtab'), b => {
+      b.onclick = () => { hrTab = b.dataset.hr; GP.sound.play('tap'); cmdStaff(); };
+    });
+    bindPick(k => hrPick(k));
+    bindHrActions();
+  }
+
+  /* ---- ドライバー ---- */
+  function hrDrivers() {
+    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
+    g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
-        S.persOf(d).icon + S.persOf(d).name + '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost"><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
+        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
+        '<br>' + U.skillChips(d) + '</small></span>' +
+        '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div><div class="sub">ドライバー市場</div><div class="pick">';
     driverMarket.forEach((d, i) => {
@@ -4796,24 +5077,25 @@ window.GP = window.GP || {};
       const full = g.drivers.length >= 2;
       body += '<button class="pickbtn" data-k="dm:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／' +
-        S.persOf(d).icon + S.persOf(d).name +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
+        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
         '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
     });
-    body += '</div>';
+    return body + '</div>';
+  }
 
-    // ---- 下部組織 ----
+  /* ---- 下部組織 ---- */
+  function hrYouth() {
     const slots = S.youthSlots(g);
-    body += '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
+    let body = '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
       '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
     (g.youth || []).forEach(d => {
-      const canUp = g.drivers.length < 2;
       body += youthRow(d,
-        '<button class="mini" data-promote="' + d.id + '"' + (canUp ? '' : ' disabled') + '>昇格</button>' +
+        '<button class="mini" data-promote="' + d.id + '"' + (g.drivers.length < 2 ? '' : ' disabled') + '>昇格</button>' +
         '<button class="mini danger" data-release="' + d.id + '">放出</button>');
     });
     body += '</div><div class="sub">若手スカウト</div><div class="pick">';
@@ -4822,55 +5104,132 @@ window.GP = window.GP || {};
       const full = (g.youth || []).length >= slots;
       body += '<button class="pickbtn" data-k="ym:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
-        S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' + Math.round(S.driverRating(d)) +
-        '<br>才能 <em style="color:' + S.potOf(d).color + '">' + U.stars(d.pot) + ' ' + S.potOf(d).name + '</em>' +
-        '</small></span><span class="pb-cost">💰' + money(fee) + '</span></button>';
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' +
+        Math.round(S.driverRating(d)) + '<br>才能 <em style="color:' + S.potOf(d).color + '">' +
+        U.stars(d.pot) + ' ' + S.potOf(d).name + '</em></small></span>' +
+        '<span class="pb-cost">💰' + money(fee) + '</span></button>';
     });
-    body += '</div><div class="sub">スタッフ市場</div><div class="pick">';
-    staffMarket.forEach((s, i) => {
-      const t = D.STAFF_TYPES.find(x => x.key === s.type);
-      const fee = s.salary * 8;
-      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(s.name) + '</b><small>' + t.name + '／技能 ' + s.skill + '／' + t.desc + '</small></span>' +
-        '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(s.salary) + '</em></span></button>';
+    return body + '</div>';
+  }
+
+  /* ---- 現場スタッフ ---- */
+  function hrStaff() {
+    const q = teamQuality();
+    let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
+      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>';
+    body += '<div class="sub">在籍スタッフ（' + g.staff.length + '人）</div><div class="pick">';
+    if (!g.staff.length) body += '<p class="desc">スタッフがいません。</p>';
+    // 職種ごとの合計効果も見えるようにする
+    const byType = {};
+    g.staff.forEach(st => { byType[st.type] = (byType[st.type] || 0) + st.skill; });
+    g.staff.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
+      body += staffRow(st, '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>');
     });
     body += '</div>';
-    U.modal('👥 人事', body, [
-      { label: '🔄 市場を更新（500万）', disabled: g.funds < 500, fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
-      { label: '閉じる', fn: U.closeModal }
-    ], { wide: true });
-
-    bindPick(k => {
-      const [kind, idx] = k.split(':');
-      if (kind === 'dm') {
-        const d = driverMarket[+idx], fee = Math.round(d.salary * 12);
-        if (g.drivers.length >= 2 || g.funds < fee) return;
-        g.funds -= fee; d.team = g.team; g.drivers.push(d);
-        driverMarket.splice(+idx, 1);
-        U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
-        U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
-      } else if (kind === 'ym') {
-        const d = youthMarket[+idx], fee = youthFee(d);
-        if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
-        g.funds -= fee;
-        g.youth = (g.youth || []).concat([d]);
-        youthMarket.splice(+idx, 1);
-        GP.sound.play('confirm');
-        U.log(g, '🎓 若手の ' + d.name + '（' + S.potOf(d).name + '）を獲得した！', 'good');
-        U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
-      } else {
-        const s = staffMarket[+idx], fee = s.salary * 8;
-        if (g.funds < fee) return;
-        g.funds -= fee; g.staff.push(s);
-        staffMarket.splice(+idx, 1);
-        U.log(g, '👥 ' + s.name + ' を雇用した。', 'good');
-        U.toast('👥 ' + s.name + ' が加入！', 'good');
-      }
-      S.save(g); render(); cmdStaff();
+    body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
+    D.STAFF_TYPES.forEach(t => {
+      const v = byType[t.key] || 0;
+      body += '<div class="dept"><span>' + t.icon + ' ' + t.name + '</span>' +
+        '<i><b style="width:' + Math.min(100, v / 120 * 100) + '%"></b></i><em>' + v + '</em></div>';
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-promote]'), b => {
+    body += '</div>';
+    body += '<div class="sub">スタッフ市場</div><div class="pick">';
+    staffMarket.forEach((st, i) => {
+      const fee = staffFee(st);
+      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:#7b5a3a">' +
+        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
+        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).name + '／技能 ' + st.skill +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
+    });
+    return body + '</div>';
+  }
+
+  /* ---- 首脳陣 ---- */
+  function hrManagement() {
+    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。</p><div class="pick">';
+    D.MANAGERS.forEach(m => {
+      const cur = g.managers && g.managers[m.key];
+      if (cur) {
+        body += '<div class="pickbtn done mgmtrow">' +
+          '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + m.name + '：' + esc(cur.name) + '</b>' +
+          '<small><span class="skbar"><i style="width:' + Math.min(100, cur.skill / 60 * 100) + '%"></i></span> 技能 <b>' + cur.skill + '</b>' +
+          '<br>' + m.desc + '<br><em class="mgeff">' + m.effect + '</em></small></span>' +
+          '<span class="pb-cost">週' + money(cur.salary) + '万<br>' +
+          '<button class="mini danger" data-firemgr="' + m.key + '">解任</button></span></div>';
+      } else {
+        body += '<div class="pickbtn done mgmtrow empty">' +
+          '<span class="pb-ic" style="background:#a89878">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + m.name + '</b><small>空席<br>' + m.desc + '</small></span>' +
+          '<span class="pb-cost">—</span></div>';
+      }
+    });
+    body += '</div><div class="sub">候補者</div><div class="pick">';
+    mgrMarket.forEach((cand, i) => {
+      const m = D.MANAGERS.find(x => x.key === cand.role);
+      const cur = g.managers && g.managers[cand.role];
+      const fee = mgrFee(cand);
+      const better = cur ? cand.skill - cur.skill : null;
+      body += '<button class="pickbtn" data-k="mm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(cand.name) + '</b><small>' + m.name + '／技能 ' + cand.skill +
+        (better !== null ? '（現任と<em class="' + (better > 0 ? 'good' : 'bad') + '">' + (better > 0 ? '+' : '') + better + '</em>）' : '') +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
+        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
+    });
+    return body + '</div>';
+  }
+
+  /* ---- 操作 ---- */
+  function hrPick(k) {
+    const parts = k.split(':');
+    const kind = parts[0], idx = +parts[1];
+    if (kind === 'dm') {
+      const d = driverMarket[idx], fee = Math.round(d.salary * 12);
+      if (g.drivers.length >= 2 || g.funds < fee) return;
+      g.funds -= fee; d.team = g.team; g.drivers.push(d);
+      driverMarket.splice(idx, 1);
+      U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
+      U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
+    } else if (kind === 'ym') {
+      const d = youthMarket[idx], fee = youthFee(d);
+      if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
+      g.funds -= fee;
+      g.youth = (g.youth || []).concat([d]);
+      youthMarket.splice(idx, 1);
+      GP.sound.play('confirm');
+      U.log(g, '🎓 若手の ' + d.name + '（' + S.potOf(d).name + '）を獲得した！', 'good');
+      U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
+    } else if (kind === 'sm') {
+      const st = staffMarket[idx], fee = staffFee(st);
+      if (g.funds < fee) return;
+      g.funds -= fee; g.staff.push(st);
+      staffMarket.splice(idx, 1);
+      U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
+      U.toast('👥 ' + st.name + ' が加入！', 'good');
+    } else if (kind === 'mm') {
+      const cand = mgrMarket[idx], fee = mgrFee(cand);
+      if (g.funds < fee) return;
+      const m = D.MANAGERS.find(x => x.key === cand.role);
+      const cur = g.managers && g.managers[cand.role];
+      g.funds -= fee;
+      g.managers = g.managers || {};
+      g.managers[cand.role] = cand;
+      mgrMarket.splice(idx, 1);
+      GP.sound.play('levelup');
+      U.log(g, '👔 ' + m.name + ' に ' + cand.name + ' が就任！（技能 ' + cand.skill + '）' +
+        (cur ? ' ' + cur.name + ' は退任した。' : ''), 'good');
+      U.toast('👔 ' + m.name + '：' + cand.name + ' が就任！', 'good');
+    }
+    S.save(g); render(); cmdStaff();
+  }
+
+  function bindHrActions() {
+    const body = $('modalBody');
+    Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
         const d = S.promoteYouth(g, b.dataset.promote);
         if (!d) return;
@@ -4880,7 +5239,7 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-release]'), b => {
+    Array.prototype.forEach.call(body.querySelectorAll('[data-release]'), b => {
       b.onclick = () => {
         const d = (g.youth || []).find(x => x.id === b.dataset.release);
         if (!d) return;
@@ -4889,12 +5248,35 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-fired]'), b => {
+    Array.prototype.forEach.call(body.querySelectorAll('[data-fired]'), b => {
       b.onclick = () => {
         const d = g.drivers.find(x => x.id === b.dataset.fired);
+        if (!d) return;
         g.funds -= d.salary * 6;
         g.drivers = g.drivers.filter(x => x.id !== b.dataset.fired);
         U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(d.salary * 6) + '万）。');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-firestaff]'), b => {
+      b.onclick = () => {
+        const st = g.staff.find(x => x.id === b.dataset.firestaff);
+        if (!st) return;
+        g.funds -= st.salary * 4;
+        g.staff = g.staff.filter(x => x.id !== b.dataset.firestaff);
+        U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(st.salary * 4) + '万）。');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-firemgr]'), b => {
+      b.onclick = () => {
+        const key = b.dataset.firemgr;
+        const cur = g.managers && g.managers[key];
+        if (!cur) return;
+        g.funds -= cur.salary * 6;
+        delete g.managers[key];
+        const m = D.MANAGERS.find(x => x.key === key);
+        U.log(g, '👋 ' + m.name + ' の ' + cur.name + ' を解任した（違約金 ' + money(cur.salary * 6) + '万）。');
         S.save(g); render(); cmdStaff();
       };
     });
@@ -5244,7 +5626,8 @@ window.GP = window.GP || {};
   }
 
   function cmdInfo() {
-    let body = U.standings(g);
+    let body = U.finance(g);
+    body += U.standings(g);
     body += '<div class="sub">今季のレース結果</div>';
     if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
     g.results.slice().reverse().forEach(r => {

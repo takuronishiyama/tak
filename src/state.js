@@ -6,7 +6,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v4';
+  const SAVE_KEY = 'gp_monogatari_save_v5';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -74,7 +74,7 @@ GP.state = (function () {
 
   /* 設計時のレアリティ抽選（デザイナーの腕で上振れする） */
   function rollRarity(g) {
-    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35;
+    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35 + mgr(g, 'technical') * 0.06;
     const w = [
       Math.max(6, 58 - dz * 5),
       26 + dz * 0.6,
@@ -215,6 +215,24 @@ GP.state = (function () {
     return s;
   }
 
+  /* ---------- ERS（バッテリー）----------
+     エレクトロニクスの性能と世代から、容量と1周あたりの回生量が決まる  */
+  function ersOf(g2) {
+    const p = g2.equipped && g2.equipped.elec;
+    const pw = p ? p.power * (0.82 + p.cond / 100 * 0.18) : 10;
+    const genB = D.CAR_GENS[g2.carGen] ? D.CAR_GENS[g2.carGen].base : 0;
+    return ersFrom(pw + genB * 0.5);
+  }
+  function ersFrom(power) {
+    const E = D.ERS;
+    return {
+      capacity: Math.round(E.baseCapacity + power * E.capPerPower),
+      recover: Math.round((E.recoverBase + power * E.recoverPerPower) * 10) / 10,
+      deploy: Math.round((E.deployBase + power * E.deployPerPower) * 10) / 10,
+      power: Math.round(power * 10) / 10
+    };
+  }
+
   /* ---------- マシン信頼性（0-100）---------- */
   function reliability(g) {
     let sum = 0, bonus = 0, n = 0;
@@ -226,7 +244,7 @@ GP.state = (function () {
       if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
-    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2, 5, 99);
+    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
@@ -275,14 +293,59 @@ GP.state = (function () {
     return g2.fans >= sp.fans && (g2.hype || 0) >= (sp.hype || 0);
   }
 
-  /* ---------- 週あたりの固定費 ---------- */
-  function weeklyCost(g) {
-    const staff = g.staff.reduce((a, s) => a + s.salary, 0);
-    const drv = g.drivers.reduce((a, d) => a + d.salary, 0)
-              + (g.youth || []).reduce((a, d) => a + d.salary, 0);
-    const fac = D.FACILITIES.reduce((a, f) => a + g.facilities[f.key] * 12, 0);
-    return Math.round(staff + drv + fac + 150);
+  /* =======================================================
+     マネジメント層
+     ======================================================= */
+  function makeManager(key, quality) {
+    const m = D.MANAGERS.find(x => x.key === key) || D.MANAGERS[0];
+    const skill = clamp(Math.round(10 + (quality || 0) * 0.32 + rnd(-5, 9)), 5, 60);
+    return {
+      id: 'm' + Math.random().toString(36).slice(2, 8),
+      role: key, name: pick(D.FIRST) + '・' + pick(D.LAST),
+      skill: skill,
+      salary: Math.round(m.salary * (0.5 + skill / 46))
+    };
   }
+  /* 役職に就いている人の技能。空席なら0 */
+  function mgr(g2, key) {
+    const m = g2.managers && g2.managers[key];
+    return m ? m.skill : 0;
+  }
+
+  /* ---------- 収支の内訳 ---------- */
+  function finances(g2) {
+    const staff = g2.staff.reduce((a, s) => a + s.salary, 0);
+    const mgrs = D.MANAGERS.reduce((a, m) => a + (g2.managers && g2.managers[m.key] ? g2.managers[m.key].salary : 0), 0);
+    const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0);
+    const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
+    const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
+    const other = 150;
+    const raw = staff + mgrs + drivers + youth + facilities + other;
+    // ロジスティクス責任者は運営全体の費用を下げる
+    const cut = Math.min(0.35, mgr(g2, 'logistics') * 0.010);
+    const weekly = Math.round(raw * (1 - cut));
+
+    // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
+    const diff = diffOf(g2);
+    const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
+    const perRace = Math.round(g2.sponsors.reduce((a, sp) =>
+      a + sp.per * (1 + g2.facilities.market * 0.12) * boost * diff.sponsor, 0));
+
+    const PREP = raceWeek(0);                       // レース1回あたりの週数
+    return {
+      staff: staff, managers: mgrs, drivers: drivers, youth: youth,
+      facilities: facilities, other: other, cut: cut,
+      weekly: weekly,
+      sponsorPerRace: perRace,
+      // レース1回ぶん（準備週＋レース週）の収支
+      cycleCost: weekly * PREP,
+      cycleIncome: perRace,
+      net: perRace - weekly * PREP
+    };
+  }
+
+  /* ---------- 週あたりの固定費 ---------- */
+  function weeklyCost(g) { return finances(g).weekly; }
 
   /* ---------- ライバルチーム生成 ---------- */
   function makeRivals(season, keepNames, diff) {
@@ -320,7 +383,7 @@ GP.state = (function () {
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 4,
+      version: 5,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
@@ -331,6 +394,7 @@ GP.state = (function () {
       hype: 4,              // 注目度（メディア露出）0-100
       dryStreak: 0,         // 入賞できていないレース数
       youth: [],            // 下部組織の若手
+      managers: {},         // 役職（空席から始まる）
       fans: 500,
       rp: 20,                       // 研究ポイント
       nextRace: 0,                  // 次のレースのindex
@@ -369,9 +433,10 @@ GP.state = (function () {
     return g;
   }
 
-  function makeStaff(type) {
+  function makeStaff(type, quality) {
     const t = D.STAFF_TYPES.find(s => s.key === type);
-    const skill = rint(8, 22);
+    // チームの規模が大きいほど、良い人材が応募してくる
+    const skill = clamp(Math.round(rint(8, 22) + (quality || 0) * 0.28), 5, 60);
     return {
       id: 's' + Math.random().toString(36).slice(2, 8),
       type: type, name: pick(D.FIRST) + '・' + pick(D.LAST),
@@ -500,7 +565,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 4) ? g : null;
+      return (g && g.version === 5) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -510,6 +575,7 @@ GP.state = (function () {
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
+    makeManager, mgr, finances, ersOf, ersFrom,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
