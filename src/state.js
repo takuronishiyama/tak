@@ -710,7 +710,8 @@ GP.state = (function () {
   function finances(g2) {
     const staff = g2.staff.reduce((a, s) => a + s.salary, 0);
     const mgrs = D.MANAGERS.reduce((a, m) => a + (g2.managers && g2.managers[m.key] ? g2.managers[m.key].salary : 0), 0);
-    const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0);
+    const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0)
+                  + (g2.reserve ? g2.reserve.salary : 0);
     const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
     const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
     // パワーユニットの供給料。1戦ぶんを週あたりにならす
@@ -804,6 +805,7 @@ GP.state = (function () {
       hype: 4,              // 注目度（メディア露出）0-100
       dryStreak: 0,         // 入賞できていないレース数
       youth: [],            // 下部組織の若手
+      reserve: null,        // リザーブドライバー（1人）
       managers: {},         // 役職（空席から始まる）
       fans: 500,
       rp: 20,                       // 研究ポイント
@@ -1076,6 +1078,68 @@ GP.state = (function () {
   }
 
   /* トップチームへ昇格 */
+  /* =======================================================
+     リザーブドライバー
+     万一のときに走る控え。事故で負傷した正ドライバーの代役になり、
+     育成の出口にもなる。走らないぶん給料は安い。
+     ======================================================= */
+  const RESERVE_PAY = 0.45;        // 正ドライバーに対する給料の割合
+
+  function setReserve(g2, d) {
+    if (!d) return null;
+    d.isReserve = true;
+    d.isYouth = false;
+    d.team = g2.team;
+    d.salary = Math.round(((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18) * RESERVE_PAY);
+    g2.reserve = d;
+    return d;
+  }
+  function clearReserve(g2) { const d = g2.reserve; g2.reserve = null; return d; }
+  /* 正ドライバーと入れ替える */
+  function swapReserve(g2, driverId) {
+    const i = (g2.drivers || []).findIndex(x => x.id === driverId);
+    const r = g2.reserve;
+    if (i < 0 || !r) return null;
+    const out = g2.drivers[i];
+    out.isReserve = true;
+    out.salary = Math.round(((out.speed + out.technique + out.stamina + out.mental) / 4 * 0.95 + 18) * RESERVE_PAY);
+    r.isReserve = false;
+    r.salary = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
+    g2.drivers[i] = r;
+    g2.reserve = out;
+    return { inD: r, outD: out };
+  }
+  /* 負傷。クラッシュでのリタイアのときだけ起こる */
+  function injureDriver(g2, d, races) {
+    d.outFor = Math.max(d.outFor || 0, races);
+    return d.outFor;
+  }
+  /* 欠場のカウントを1戦ぶん進める */
+  function tickInjuries(g2) {
+    const back = [];
+    (g2.drivers || []).concat(g2.reserve ? [g2.reserve] : []).forEach(d => {
+      if (d.outFor > 0) { d.outFor--; if (d.outFor === 0) back.push(d); }
+    });
+    return back;
+  }
+  /* レース週の朝に、体調を崩して走れなくなることがある。
+     リザーブを置いておく理由のひとつ                                   */
+  function rollAbsence(g2) {
+    const out = [];
+    (g2.drivers || []).forEach(d => {
+      if (!canDrive(d)) return;
+      // 体力のあるドライバーほど休まない
+      if (Math.random() < 0.030 * (1 - d.stamina / 320)) {
+        d.outFor = 1;
+        out.push(d);
+      }
+    });
+    return out;
+  }
+
+  /* 今週そのドライバーは走れるか */
+  const canDrive = d => !d || !(d.outFor > 0);
+
   function promoteYouth(g2, id) {
     const d = (g2.youth || []).find(x => x.id === id);
     if (!d || g2.drivers.length >= 2) return null;
@@ -1142,10 +1206,24 @@ GP.state = (function () {
   /* ---------- 全チーム（自分＋ライバル）---------- */
   function allTeams(g, track) {
     const mine = carStats(g);
+    // 負傷しているドライバーはリザーブが代わりに走る。
+    // 代役がいなければ、痛みを押して出走することになる
+    let usedReserve = false;
+    if (g.reserve) g.reserve.standIn = false;
+    const lineup = (g.drivers || []).map(d => {
+      if (canDrive(d)) { d.hurt = false; return d; }
+      if (!usedReserve && g.reserve && canDrive(g.reserve)) {
+        usedReserve = true;
+        g.reserve.standIn = true;
+        return g.reserve;
+      }
+      d.hurt = true;
+      return d;
+    });
     const me = {
       name: g.team, color: g.color, isPlayer: true, char: machineChar(mine),
       stats: mine, car: carScoreOf(mine, track), rel: reliability(g),
-      points: g.points, drivers: g.drivers
+      points: g.points, drivers: lineup
     };
     // ライバルのマシン評価はコースとの相性でその都度変わる
     const rivals = g.rivals.map(r => {
@@ -1199,6 +1277,7 @@ GP.state = (function () {
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
       if (!g.logi) g.logi = { plan: 'std', crew: 0 };
       if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
+      if (g.reserve === undefined) g.reserve = null;
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
         D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
@@ -1226,6 +1305,7 @@ GP.state = (function () {
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
+    setReserve, clearReserve, swapReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, machineChar, reliability, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,

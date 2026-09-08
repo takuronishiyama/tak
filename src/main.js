@@ -1294,7 +1294,38 @@ window.GP = window.GP || {};
         '<br>' + U.skillChips(d) + '</small></span>' +
         '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
-    body += '</div><div class="sub">ドライバー市場</div><div class="pick">';
+    body += '</div>';
+
+    // ---- リザーブドライバー ----
+    body += '<div class="sub">🪑 リザーブドライバー</div>' +
+      '<p class="desc">万一のときに走る控えです。給料は正ドライバーの ' +
+      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入り、' +
+      'いつでも正ドライバーと入れ替えられます。</p><div class="pick">';
+    if (g.reserve) {
+      const r = g.reserve;
+      const swaps = g.drivers.map(d =>
+        '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) + 'と交代</button>').join('');
+      body += '<div class="pickbtn done">' +
+        '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(r.name) + '</b><small>' + S.nationOf(r).flag + ' 総合 ' +
+        Math.round(S.driverRating(r)) + '／' + r.age + '歳／' + S.persOf(r).icon + S.persOf(r).name +
+        (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
+        '<br>' + U.skillChips(r) + '</small></span>' +
+        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + swaps +
+        '<button class="mini danger" data-relres="1">解除</button></span></div>';
+    } else {
+      body += '<p class="desc">リザーブはいません。下部組織の若手か、市場のドライバーを置けます。</p>';
+      (g.youth || []).forEach(d => {
+        body += '<div class="pickbtn done youthrow">' +
+          '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' ' +
+          d.age + '歳／総合 ' + Math.round(S.driverRating(d)) + '（下部組織）</small></span>' +
+          '<span class="pb-cost"><button class="mini" data-tores="' + d.id + '">リザーブへ</button></span></div>';
+      });
+    }
+    body += '</div>';
+
+    body += '<div class="sub">ドライバー市場</div><div class="pick">';
     driverMarket.forEach((d, i) => {
       const fee = Math.round(d.salary * 12);
       const full = g.drivers.length >= 2;
@@ -1304,7 +1335,9 @@ window.GP = window.GP || {};
         Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
         '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost">契約金<br>💰' + money(fee) + '</span></button>';
+        '<span class="pb-cost">契約金<br>💰' + money(fee) +
+        (g.reserve ? '' : '<br><button class="mini" data-mktres="' + i + '">リザーブへ</button>') +
+        '</span></button>';
     });
     return body + '</div>';
   }
@@ -1507,6 +1540,49 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-tores]'), b => {
+      b.onclick = () => {
+        const d = (g.youth || []).find(x => x.id === b.dataset.tores);
+        if (!d || g.reserve) return;
+        g.youth = g.youth.filter(x => x.id !== b.dataset.tores);
+        S.setReserve(g, d);
+        GP.sound.play('confirm');
+        U.log(g, '🪑 ' + d.name + ' をリザーブドライバーにした。', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-mktres]'), b => {
+      b.onclick = ev => {
+        ev.stopPropagation();
+        const d = driverMarket[+b.dataset.mktres];
+        if (!d || g.reserve) return;
+        const fee = Math.round(d.salary * 12 * S.RESERVE_PAY);
+        if (g.funds < fee) return U.toast('資金が足りません', 'bad');
+        g.funds -= fee;
+        driverMarket.splice(+b.dataset.mktres, 1);
+        S.setReserve(g, d);
+        GP.sound.play('confirm');
+        U.log(g, '🪑 ' + d.name + ' とリザーブ契約を結んだ（契約金 ' + money(fee) + '万）。', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-swapres]'), b => {
+      b.onclick = () => {
+        const r = S.swapReserve(g, b.dataset.swapres);
+        if (!r) return;
+        GP.sound.play('levelup');
+        U.log(g, '🔁 ' + r.inD.name + ' が正ドライバーに、' + r.outD.name + ' がリザーブに回った。', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-relres]'), b => {
+      b.onclick = () => {
+        const d = S.clearReserve(g);
+        if (!d) return;
+        U.log(g, '👋 リザーブの ' + d.name + ' との契約を解除した。');
+        S.save(g); render(); cmdStaff();
+      };
+    });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote-staff]'), b => {
       b.onclick = () => {
         const [id, role] = b.dataset.promoteStaff.split(':');
@@ -1574,9 +1650,21 @@ window.GP = window.GP || {};
   function beginRace(trackIndex, special) {
     const t = D.TRACKS[trackIndex];
     if (g.drivers.length === 0) return U.toast('ドライバーがいません！', 'bad');
-    raceCtx = { trackIndex: trackIndex, special: special };
+    // レース週の朝。体調を崩して走れない人が出ることがある
+    if (!raceCtx || raceCtx.trackIndex !== trackIndex || !raceCtx.rolled) {
+      S.rollAbsence(g).forEach(d => {
+        const cover = g.reserve && S.canDrive(g.reserve);
+        U.log(g, '🤒 ' + d.name + ' が体調不良で今週は走れない。' +
+          (cover ? 'リザーブの ' + g.reserve.name + ' が代役に入る。'
+                 : 'リザーブがいないため、押して出走することになる…'), cover ? 'warn' : 'bad');
+        U.toast('🤒 ' + d.name + ' が欠場', 'warn');
+      });
+    }
+    raceCtx = { trackIndex: trackIndex, special: special, rolled: true };
+    // 実際に走る2人。負傷や体調不良ならリザーブが入る
+    const lineup = S.allTeams(g, t).find(x => x.isPlayer).drivers;
     pendingStrategy = {};
-    g.drivers.forEach(d => { pendingStrategy[d.id] = 'balance'; });
+    lineup.forEach(d => { pendingStrategy[d.id] = 'balance'; });
     const laps = Math.max(4, Math.round(t.laps * (special ? special.lapMul : 1)));
 
     let body = '<div class="racehead"><b>' +
@@ -1603,8 +1691,14 @@ window.GP = window.GP || {};
       (pu.grid ? '<br><b class="warn">今回は基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
       '</small></div>';
 
+    const subs = lineup.filter(d => d.standIn || d.hurt);
+    if (subs.length) {
+      body += '<p class="note">' + subs.map(d => d.hurt
+        ? '🩹 ' + esc(d.name) + ' は本調子ではありません（本来の力を出せません）'
+        : '🪑 リザーブの ' + esc(d.name) + ' が代役として出走します').join('<br>') + '</p>';
+    }
     body += '<div class="sub">作戦を決める</div>';
-    g.drivers.forEach(d => {
+    lineup.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="sr-btns" data-drv="' + d.id + '">';
       Object.keys(R.STRATEGIES).forEach(k => {
         const st = R.STRATEGIES[k];
@@ -1619,7 +1713,7 @@ window.GP = window.GP || {};
     body += '<div class="sub">スタートタイヤ</div>' +
       '<p class="desc">最初のスティントで履くタイヤです。以降は残り周回に合わせて自動で選ばれます。<br>' +
       '雨の場合は自動的に雨用タイヤになります。</p>';
-    g.drivers.forEach(d => {
+    lineup.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div><div class="sr-btns tyres" data-tdrv="' + d.id + '">';
       D.DRY_TYRES.forEach((k, i) => {
         const t = D.TYRES.find(x => x.key === k);
@@ -2280,6 +2374,9 @@ window.GP = window.GP || {};
       g.nextCar = Math.round(g.nextCar * 0.8 * 10) / 10;
       U.log(g, '🌱 来季マシンの仕込みを持ち越した（' + Math.round(S.nextCarProgress(g) * 100) + '%）。', 'good');
     }
+    // リザーブも1年ぶん歳を取り、負傷は明ける
+    if (g.reserve) { g.reserve.age++; g.reserve.outFor = 0; g.reserve.seasonPoints = 0; }
+    g.drivers.forEach(d => { d.outFor = 0; d.hurt = false; });
     // 若手の加齢と、育ちきった選手のお知らせ
     (g.youth || []).forEach(d => {
       d.age++;

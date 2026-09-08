@@ -44,6 +44,8 @@ GP.race = (function () {
         let drv = S.driverRating(d);
         // スキルによる補正
         if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
+        // 痛みを押しての出走。本来の力は出せない
+        if (d.hurt) drv *= 0.72;
         // 母国グランプリ。地元のスタンドが自分の色で埋まると、人は強くなる
         if (S.nationOf(d).flag === track.country) drv *= 1.035;
         // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
@@ -714,6 +716,23 @@ GP.race = (function () {
     sponsorRp = Math.round(sponsorRp);
     sponsorFans = Math.round(sponsorFans);
     fanDelta += sponsorFans;
+
+    // 事故で負傷することがある。次戦以降をリザーブが埋める
+    res.classified.filter(e => e.isPlayer && e.dnf).forEach(e => {
+      const crashed = ['クラッシュ', '接触'].indexOf(e.dnfReason) >= 0;
+      if (!crashed) return;
+      const p = 0.45 * (1 - e.driver.stamina / 300);
+      if (Math.random() >= p) return;
+      const out = S.injureDriver(g, e.driver, S.rint(1, 2));
+      const cover = g.reserve && S.canDrive(g.reserve);
+      notes.push('🚑 ' + e.driver.name + ' が事故で負傷。次の ' + out + '戦を欠場します。' +
+        (cover ? 'リザーブの ' + g.reserve.name + ' が代役に入ります。'
+               : 'リザーブがいないため、痛みを押しての出走になります。'));
+    });
+    // 欠場のカウントを1戦ぶん進める
+    S.tickInjuries(g).forEach(d => {
+      notes.push('🩹 ' + d.name + ' が復帰しました。');
+    });
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
