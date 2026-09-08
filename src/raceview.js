@@ -8,6 +8,7 @@ GP.raceview = (function () {
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
   let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
+  let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
 
@@ -1042,7 +1043,7 @@ GP.raceview = (function () {
     if (!out && vel < 0.52) {
       const a = (0.55 + (0.52 - vel)).toFixed(2);
       r(rwX + 1.0, -1.4, 1.2, 2.8, 'rgba(255,60,40,' + a + ')');
-      GP.fx.addLight(function (lg) {
+      if (!standalone) GP.fx.addLight(function (lg) {
         lg.save(); camTransform(lg); lg.translate(x, y); lg.rotate(ang);
         lg.fillStyle = 'rgba(255,70,50,.95)';
         lg.fillRect(rwX + 1.0, -1.4, 1.2, 2.8);
@@ -1150,7 +1151,7 @@ GP.raceview = (function () {
     ctx.beginPath(); ctx.arc(-1, -2.6, 1.2, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     if (goSign) {
-      GP.fx.addLight(function (lg) {
+      if (!standalone) GP.fx.addLight(function (lg) {
         lg.save(); camTransform(lg); lg.translate(px, py); lg.rotate(ang);
         lg.fillStyle = '#3fd44a';
         lg.beginPath(); lg.arc(0, -18.5, 3.4, 0, Math.PI * 2); lg.fill();
@@ -1446,9 +1447,18 @@ GP.raceview = (function () {
   }
   function stop() { running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; }
 
+  /* レース以外の画面でもマシンを描けるようにする。
+     drawCar はこのモジュール内の ctx に描くので、一時的に差し替える。 */
+  function paintCar(target, x, y, ang, color, gen, vel) {
+    const keep = ctx;
+    ctx = target; standalone = true;
+    try { drawCar(x, y, ang, color, false, false, gen, vel == null ? 0.7 : vel, 0); }
+    finally { ctx = keep; standalone = false; }
+  }
+
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode,
+  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, paintCar,
            _drawCar: drawCar, _drawPitCrew: drawPitCrew };
 })();

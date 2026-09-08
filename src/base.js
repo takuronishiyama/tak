@@ -28,7 +28,7 @@ GP.base = (function () {
   const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
 
   /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
-  function doorOf(x, g2) {
+  function doorOf(x, y, g2) {
     let best = null, bd = 1e9;
     PLOTS.forEach(p => {
       const s = tierOf(g2.facilities[p.key] || 1);

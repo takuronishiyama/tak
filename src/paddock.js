@@ -14,13 +14,26 @@ GP.paddock = (function () {
   /* 歩ける範囲。ガレージの手前の通路を左右に移動する */
   const WALK = { x0: 20, x1: W - 20, y0: 264, y1: 320 };
 
-  /* 立ち寄れる場所。x は入口の中心 */
+  /* ガレージの並び。i=4 が自チーム */
+  const GW = 52, GSTEP = 53, MINE_AT = 4;
+  const garageX = i => 4 + i * GSTEP + GW / 2;
+
+  /* 通路側で立ち寄れる場所。x は入口の中心 */
   const SPOTS = [
-    { key: 'garage',  x: 242, label: '自チームのガレージ' },
     { key: 'drivers', x: 92,  label: 'ドライバーの控え' },
     { key: 'timing',  x: 400, label: 'タイミングブース' },
     { key: 'gate',    x: 530, label: 'コースへの出口' }
   ];
+
+  /* パドックにいる人。通路側に立っていて、話しかけられる */
+  const PEOPLE = [
+    { key: 'drv0',  x: 168, label: '' },   // 自チームのドライバー1
+    { key: 'drv1',  x: 200, label: '' },   // 自チームのドライバー2
+    { key: 'press', x: 320, label: '記者たち' }
+  ];
+
+  /* ガレージ寄りに立っているか（上半分）。ここでは建物を相手にする */
+  const NEAR_GARAGE = y => y < WALK.y0 + 26;
 
   let hitBoxes = [];
   let dusk = false;
@@ -39,18 +52,33 @@ GP.paddock = (function () {
 
   function mixDark(hex) { return mix(hex, -0.20); }
 
-  function doorOf(x) {
+  /* いま立っている場所から手が届く相手を返す。
+     ガレージ寄りならガレージ（自チーム＝入る／他チーム＝覗く）、
+     通路側なら人やブースが相手になる。                          */
+  function doorOf(x, y, g2) {
+    const near = NEAR_GARAGE(y == null ? WALK.y0 : y);
+    const cands = [];
+    if (near) {
+      for (let i = 0; i < 11; i++) {
+        cands.push({ key: i === MINE_AT ? 'garage' : ('scout' + i), x: garageX(i) });
+      }
+    } else {
+      SPOTS.forEach(s => cands.push({ key: s.key, x: s.x }));
+      PEOPLE.forEach(s => cands.push({ key: s.key, x: s.x }));
+    }
     let best = null, bd = 1e9;
-    SPOTS.forEach(s => {
-      const d = Math.abs(x - s.x);
-      if (d < 26 && d < bd) { bd = d; best = { key: s.key, x: s.x }; }
+    cands.forEach(c => {
+      const d = Math.abs(x - c.x);
+      if (d < 24 && d < bd) { bd = d; best = c; }
     });
     return best;
   }
 
   function doorPos(key) {
-    const s = SPOTS.find(q => q.key === key);
-    return s ? { x: s.x, y: WALK.y0 + 8 } : null;
+    if (key === 'garage') return { x: garageX(MINE_AT), y: WALK.y0 + 6 };
+    if (/^scout(\d+)$/.test(key)) return { x: garageX(parseInt(RegExp.$1, 10)), y: WALK.y0 + 6 };
+    const s = SPOTS.concat(PEOPLE).find(q => q.key === key);
+    return s ? { x: s.x, y: WALK.y0 + 40 } : null;
   }
 
   function clampWalk(x, y) {
@@ -88,8 +116,8 @@ GP.paddock = (function () {
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 11 + g2.nextRace * 7);
     // 名前と色しか使わないので、allTeams（コースが要る）は呼ばない。
     // 自チームのガレージは真ん中あたりに固定して、入口の位置を一定にする。
-    const MINE_AT = 4;
     const rivals = (g2.rivals || []).map(r => ({ name: r.name, color: r.color }));
+    const scouted = g2.scouted || [];
     const teams = [];
     for (let i = 0, k = 0; i < 11; i++) {
       if (i === MINE_AT) teams.push({ name: g2.team, color: g2.color, mine: true });
@@ -134,9 +162,9 @@ GP.paddock = (function () {
     }
 
     /* ---- ガレージ（チームごとに1つ並ぶ）---- */
-    const gw = 52, gy = 246;
+    const gw = GW, gy = 246;
     for (let i = 0; i < 11; i++) {
-      const gx = 4 + i * (gw + 1);
+      const gx = 4 + i * GSTEP;
       const t = teams[i];
       const mine = !!(t && t.mine);
       const wall = dusk ? '#2f2b38' : '#b8b2a4';
@@ -205,7 +233,19 @@ GP.paddock = (function () {
         ctx.fillStyle = '#e8b98e'; ctx.fillRect(cx2 - 2.4, cy2 - 12, 5, 4);   // 顔
         ctx.fillStyle = '#3a2718'; ctx.fillRect(cx2 - 2.4, cy2 - 12.6, 5, 2); // 髪
       }
-      if (mine) hitBoxes.push({ key: 'garage', x: gx - 2, y: 126, w: gw + 4, h: gy - 124 });
+      if (mine) {
+        hitBoxes.push({ key: 'garage', x: gx - 2, y: 126, w: gw + 4, h: gy - 124 });
+      } else {
+        hitBoxes.push({ key: 'scout' + i, x: gx - 2, y: 126, w: gw + 4, h: gy - 124 });
+        // すでに覗いたガレージには印を出す（同じ週に何度も稼げないので）
+        if (scouted.indexOf(t && t.name) >= 0) {
+          ctx.fillStyle = 'rgba(20,14,8,.55)';
+          ctx.fillRect(gx + gw / 2 - 11, 156, 22, 16);
+          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillStyle = '#8fe08a';
+          ctx.fillText('✓', gx + gw / 2, 168);
+        }
+      }
     }
 
     /* ---- 手前：パドックの通路 ---- */
@@ -285,12 +325,55 @@ GP.paddock = (function () {
     crate(302, 320, 16, 10, '#6a7078');
     crate(432, 320, 18, 11, '#6a7078');
 
-    /* ---- 看板 ---- */
-    SPOTS.forEach((sp, i) => {
-      const y = [126, 214, 218, 200][i];
-      sign(ctx, sp.x, Math.max(2, y - 16 - (i % 2) * 12), sp.label,
-           sel === sp.key ? '#e04a3f' : '#4a2f1a');
+    /* ---- パドックにいる人 ----
+       自チームのドライバーは通路にいて、話しかけると気持ちが聞ける。
+       記者は取材を待っている。                                     */
+    const person = (x, y, suit, hair, face) => {
+      ctx.fillStyle = 'rgba(0,0,0,.30)';
+      ctx.beginPath(); ctx.ellipse(x, y, 7, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = mix(suit, -0.20); ctx.fillRect(x - 5, y - 21, 10, 21);
+      ctx.fillStyle = suit;             ctx.fillRect(x - 5, y - 21, 10, 8);
+      ctx.fillStyle = 'rgba(255,255,255,.24)'; ctx.fillRect(x - 5, y - 21, 10, 2);
+      ctx.fillStyle = '#2c3140'; ctx.fillRect(x - 5, y - 9, 4, 9);    // 脚
+      ctx.fillRect(x + 1, y - 9, 4, 9);
+      ctx.fillStyle = face;  ctx.fillRect(x - 4, y - 29, 8, 8);       // 顔
+      ctx.fillStyle = hair;  ctx.fillRect(x - 4, y - 30, 8, 4);       // 髪
+      ctx.fillStyle = '#2a2028'; ctx.fillRect(x - 3, y - 26, 2, 2);
+      ctx.fillStyle = '#2a2028'; ctx.fillRect(x + 1, y - 26, 2, 2);
+    };
+    const py = WALK.y1 - 4;
+    (g2.drivers || []).slice(0, 2).forEach((d, i) => {
+      person(PEOPLE[i].x, py, g2.color, '#3a2718', '#f0c49a');
+      hitBoxes.push({ key: PEOPLE[i].key, x: PEOPLE[i].x - 12, y: py - 32, w: 24, h: 34 });
+      // ヘルメットを小脇に抱えている
+      ctx.fillStyle = mix(g2.color, 0.18);
+      ctx.fillRect(PEOPLE[i].x + 5, py - 15, 7, 7);
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(PEOPLE[i].x + 5, py - 15, 7, 2);
     });
+    // 記者たち（カメラを持っている）
+    hitBoxes.push({ key: 'press', x: PEOPLE[2].x - 24, y: py - 34, w: 48, h: 36 });
+    [0, 1, 2].forEach(k => {
+      const x = PEOPLE[2].x - 14 + k * 14;
+      person(x, py + (k === 1 ? 0 : 2), ['#4a5060', '#3f4652', '#55505e'][k], '#241c14', '#e8bd94');
+      if (k === 1) {
+        ctx.fillStyle = '#1b1e26'; ctx.fillRect(x - 6, py - 26, 12, 7);
+        ctx.fillStyle = '#3a4048'; ctx.fillRect(x + 4, py - 25, 4, 5);
+        ctx.fillStyle = 'rgba(200,230,255,.7)'; ctx.fillRect(x + 6, py - 24, 2, 3);
+      }
+    });
+
+    /* ---- 看板 ---- */
+    sign(ctx, garageX(MINE_AT), 110, '自チームのガレージ',
+         sel === 'garage' ? '#e04a3f' : '#4a2f1a');
+    SPOTS.forEach((sp, i) => {
+      sign(ctx, sp.x, [198, 202, 184][i], sp.label, sel === sp.key ? '#e04a3f' : '#4a2f1a');
+    });
+    sign(ctx, PEOPLE[2].x, WALK.y1 - 40, '記者たち', sel === 'press' ? '#e04a3f' : '#4a2f1a');
+    if (sel && /^scout(\d+)$/.test(sel)) {
+      const i = parseInt(RegExp.$1, 10);
+      const t = teams[i];
+      sign(ctx, garageX(i), 110, (t && t.name ? t.name : 'ライバル') + ' を覗く', '#e04a3f');
+    }
 
     /* ---- 選択中の場所を囲む ---- */
     if (sel) {
@@ -318,7 +401,8 @@ GP.paddock = (function () {
 
   function keyOf(g2, sel) {
     return [document.body.getAttribute('data-skin'), sel || '',
-            Math.floor(g2.fans), g2.season, g2.nextRace, g2.color, g2.team].join('|');
+            Math.floor(g2.fans), g2.season, g2.nextRace, g2.color, g2.team,
+            (g2.scouted || []).join(',')].join('|');
   }
 
   function scene(g2, sel) {
@@ -343,5 +427,5 @@ GP.paddock = (function () {
   }
 
   return { render, scene, drawWith, invalidate, hit,
-           doorOf, doorPos, clampWalk, WALK, SPOTS, W, H };
+           doorOf, doorPos, clampWalk, WALK, SPOTS, PEOPLE, MINE_AT, garageX, W, H };
 })();

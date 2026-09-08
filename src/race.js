@@ -296,10 +296,58 @@ GP.race = (function () {
         const gap = running[i].cum[lap - 1] - running[i - 1].cum[lap - 1];
         // 2秒以内なら次の周はERSを多めに使って仕掛ける
         if (gap > 0 && gap < 2.0) running[i].chasing = true;
-        if (gap > 0 && gap < 0.9) {
-          let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
-          if (running[i].sk('passer')) stuck *= 0.45;
-          running[i].cum[lap - 1] += stuck;
+        // ---- 追い抜きの攻防 ----
+        // 0.8秒以内まで詰めたら仕掛ける。コースの性格で、
+        // 「ストレートで刺す」か「コーナーで飛び込む」かが変わる。
+        if (gap > 0 && gap < 0.55) {
+          const atk = running[i], def = running[i - 1];
+          // ストレートが長いコースほど、直線勝負になりやすい
+          const onStraight = Math.random() < Math.min(0.88, 0.15 + passEase * 0.85);
+          const batt = atk.ersCap ? atk.battery / atk.ersCap : 0;
+
+          let p = 0.035 + (atk.perf - def.perf) * 0.007 + (0.55 - gap) * 0.22;
+          if (onStraight) {
+            // 直線：電気が残っているほど伸びる。スリップストリームも効く
+            p += 0.07 + batt * 0.16 + geo.longestShare * 0.46;
+          } else {
+            // コーナー：腕とマシンのコーナー性能がものを言う
+            p += (atk.driver.technique - def.driver.technique) * 0.004
+               + (atk.stats.corner - def.stats.corner) * 0.0012;
+          }
+          if (atk.sk('passer')) p += 0.12;
+          if (def.sk('heart')) p -= 0.08;             // 勝負強い相手は簡単には譲らない
+          if (atk.st && atk.st.push) p += (atk.st.push - 1) * 0.10;
+          // コースの抜きやすさで全体を大きく上下させる。
+          // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
+          p *= 0.18 + passEase * 1.24;
+          p = S.clamp(p, 0.01, 0.80);
+
+          if (Math.random() < p) {
+            // 成功：前に出る。詰まっていた時間もここで解ける
+            atk.cum[lap - 1] = def.cum[lap - 1] - S.rnd(0.08, 0.28);
+            atk.passes = (atk.passes || 0) + 1;
+            if (atk.isPlayer || def.isPlayer) {
+              events.push({ lap: lap, type: 'pass', car: atk,
+                text: atk.driver.name + (onStraight
+                  ? ' ストレートで ' + def.driver.name + ' を刺した！'
+                  : ' コーナーで ' + def.driver.name + ' の内に飛び込んだ！') });
+            }
+          } else {
+            // 失敗：抜けずに詰まる。コーナーで無理をすると足を痛める
+            let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
+            if (atk.sk('passer')) stuck *= 0.55;
+            atk.cum[lap - 1] += stuck;
+            if (!onStraight && Math.random() < 0.05 + (atk.st ? (atk.st.push - 1) * 0.05 : 0)) {
+              const miss = S.rnd(0.7, 2.3);
+              atk.cum[lap - 1] += miss;
+              atk.tyreAge += 0.6;                     // 無理をするとタイヤも傷む
+              if (atk.isPlayer) {
+                events.push({ lap: lap, type: 'miss', car: atk,
+                  text: atk.driver.name + ' 仕掛けきれずにコースを外れかけた…（-' +
+                        miss.toFixed(1) + '秒）' });
+              }
+            }
+          }
         }
 
         // ---- アンダーカット ----

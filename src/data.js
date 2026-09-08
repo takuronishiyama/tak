@@ -181,7 +181,10 @@ GP.data = (function () {
       gain: { speed: 0.00, corner: 0.75, accel: 0.00 } },
     { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
       desc: '信頼性が上がり、バッテリーの回生量も増える',
-      gain: { speed: 0.00, corner: 0.00, accel: 0.18 } }
+      gain: { speed: 0.00, corner: 0.00, accel: 0.18 } },
+    { key: 'battery',  name: 'バッテリー',   icon: '🔋', color: '#f0a020',
+      desc: '電気の容量と放電量が増える。直線で伸びる',
+      gain: { speed: 0.34, corner: 0.00, accel: 0.40 } }
   ];
   /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
   const BODY_CAP_RATIO = 0.35;

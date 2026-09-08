@@ -193,11 +193,14 @@ window.GP = window.GP || {};
       const cost = improveCost(p), cap = S.partCap(g, p);
       const capped = p.power >= cap;
       const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
-      body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
+      // 供給を受けているパワーユニットは、こちらでは手を入れられない
+      const locked = c.key === 'pu' && p.supplied;
+      body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
         '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
-        (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
+        (locked ? ' <em class="warn">供給中は開発できません</em>'
+                : (capped ? ' <em class="warn">上限到達</em>' : '')) + '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
     // ---- 車体開発 ----
@@ -394,9 +397,114 @@ window.GP = window.GP || {};
         '<br>車体は新造され、前の知見を4割引き継いで再スタートします</small></span>' +
         '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
     }
+    // ---- パワーユニットの供給 ----
+    // 自前で育てるか、強いチームから買うか。買えばすぐ速くなるが、
+    // 供給を受けているあいだは自分で手を入れられず、毎戦の供給料もかかる。
+    body += '<div class="sub">パワーユニットの供給</div>';
+    if (g.engine) {
+      const mine = g.equipped.pu;
+      body += '<div class="bigbox">🔌 <b>' + esc(g.engine.team) + '</b> から供給を受けています' +
+        '<small>性能 ' + (mine ? Math.round(mine.power) : '-') +
+        '／供給料 💰' + money(g.engine.fee) + '万 毎戦</small></div>' +
+        '<p class="desc">供給中は、自分でパワーユニットを開発・交換できません。' +
+        '契約を切ると、自前のパワーユニットに戻ります。</p>' +
+        '<div class="pick"><button class="pickbtn" data-k="__engoff">' +
+        '<span class="pb-ic engic">✂️</span>' +
+        '<span class="pb-body"><b>供給契約を切る</b>' +
+        '<small>' + (g.engine.season === g.season ? '今季中の解約は違約金がかかります' : '違約金なし') +
+        '</small></span><span class="pb-cost">' +
+        (g.engine.season === g.season ? '💰' + money(engineBreakFee()) : '無料') +
+        '</span></button></div>';
+    } else {
+      const offers = engineOffers();
+      if (!offers.length) {
+        body += '<p class="desc">いまは、こちらより強いパワーユニットを' +
+          '分けてくれるチームがありません。</p>';
+      } else {
+        body += '<p class="desc">強いチームからパワーユニットを買えます。' +
+          'すぐに速くなりますが、供給中は自分で開発できず、毎戦の供給料がかかります。</p>' +
+          '<div class="pick">';
+        offers.forEach(o => {
+          const ok = g.funds >= o.upfront;
+          body += '<button class="pickbtn" data-k="__eng:' + esc(o.team) + '"' + (ok ? '' : ' disabled') + '>' +
+            '<span class="pb-ic engic" style="border-color:' + o.color + '">🔌</span>' +
+            '<span class="pb-body"><b>' + esc(o.team) + ' 製</b>' +
+            '<small>性能 ' + o.power + '（いまの自前は ' + o.mine + '）' +
+            '／供給料 💰' + money(o.fee) + '万 毎戦</small></span>' +
+            '<span class="pb-cost">💰' + money(o.upfront) + '</span></button>';
+        });
+        body += '</div>';
+      }
+    }
+
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
     paintInterior();
-    bindPick(k => (k === '__gain') ? doResearchGain() : doNewCar());
+    bindPick(k => {
+      if (k === '__gain') return doResearchGain();
+      if (k === '__engoff') return doEngineOff();
+      if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
+      return doNewCar();
+    });
+  }
+
+  /* ---- エンジン供給 ---- */
+  function engineBreakFee() {
+    return Math.round((g.engine ? g.engine.fee : 0) * 6 + 900);
+  }
+
+  /* こちらより強いパワーユニットを持つチームの一覧。
+     速いチームほど高く売る。                                        */
+  function engineOffers() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const teams = S.allTeams(g, track).filter(t => !t.isPlayer);
+    if (!teams.length) return [];
+    const scores = teams.map(t => t.car);
+    const lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    const cap = D.CAR_GENS[g.carGen].cap;
+    const mine = g.equipped.pu ? Math.round(g.equipped.pu.power) : 0;
+    return teams.map(t => {
+      const rank01 = hi > lo ? (t.car - lo) / (hi - lo) : 0.5;
+      const power = Math.round(cap * (0.55 + rank01 * 0.62));
+      return {
+        team: t.name, color: t.color, power: power, mine: mine, rank01: rank01,
+        upfront: Math.round(1200 + power * 78 + rank01 * 2600),
+        fee: Math.round(120 + power * 7 + rank01 * 190)
+      };
+    }).filter(o => o.power > mine + 2)
+      .sort((a, b) => b.power - a.power)
+      .slice(0, 4);
+  }
+
+  function doEngineOn(teamName) {
+    const o = engineOffers().find(x => x.team === teamName);
+    if (!o || g.funds < o.upfront) return;
+    g.funds -= o.upfront;
+    // 自前のパワーユニットは預けておき、契約を切ったら戻す
+    g.engineStash = g.equipped.pu || null;
+    g.equipped.pu = S.makePart('pu', g.carGen, 3, { power: o.power, name: o.team + ' PU' });
+    g.equipped.pu.supplied = true;
+    g.equipped.pu.name = o.team + ' 製 PU';
+    g.engine = { team: o.team, fee: o.fee, power: o.power, season: g.season };
+    U.closeModal();
+    U.log(g, '🔌 ' + o.team + ' からパワーユニットの供給を受けることにした（性能 ' + o.power + '）');
+    U.toast('🔌 ' + o.team + ' 製 PU を搭載', 'good');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  function doEngineOff() {
+    if (!g.engine) return;
+    const fee = g.engine.season === g.season ? engineBreakFee() : 0;
+    if (fee > g.funds) return U.toast('違約金が払えません', 'bad');
+    g.funds -= fee;
+    g.equipped.pu = g.engineStash || S.makePart('pu', g.carGen, 1, {});
+    g.engineStash = null;
+    const was = g.engine.team;
+    g.engine = null;
+    U.closeModal();
+    U.log(g, '✂️ ' + was + ' との供給契約を切り、自前のパワーユニットに戻した' +
+      (fee ? '（違約金 ' + money(fee) + '万）' : ''));
+    S.save(g); render();
   }
 
   function doResearchGain() {
@@ -1557,7 +1665,158 @@ window.GP = window.GP || {};
 
   /* いま歩いている場所（本拠地／パドック）と、その入口一覧 */
   function hubMap() { return isRaceWeek() ? GP.paddock : GP.base; }
-  function hubDoors() { return isRaceWeek() ? PADDOCK_DOORS : HUB_DOORS; }
+
+  /* 同じレースウィークのうちは、一度きりの行動を覚えておく */
+  function weekFlags() {
+    if (g.wkTag !== g.season + ':' + g.week) {
+      g.wkTag = g.season + ':' + g.week;
+      g.scouted = [];
+      g.talked = [];
+    }
+    return g;
+  }
+
+  /* パドックの入口一覧。ライバルのガレージと人はゲームの状態から作る */
+  function hubDoors() {
+    if (!isRaceWeek()) return HUB_DOORS;
+    weekFlags();
+    const map = {};
+    Object.keys(PADDOCK_DOORS).forEach(k => { map[k] = PADDOCK_DOORS[k]; });
+    (g.rivals || []).forEach((r, ri) => {
+      // ガレージの並びは i=4 が自チーム。ライバルはそこを飛ばして詰める
+      const gi = ri < GP.paddock.MINE_AT ? ri : ri + 1;
+      const done = (g.scouted || []).indexOf(r.name) >= 0;
+      map['scout' + gi] = {
+        icon: done ? '✓' : '👀', label: r.name + ' のガレージ',
+        to: done ? '確認済み' : '覗く',
+        fn: () => doScout(r)
+      };
+    });
+    (g.drivers || []).slice(0, 2).forEach((d, i) => {
+      map['drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す', fn: () => doTalk(d) };
+    });
+    map.press = { icon: '📰', label: '記者たち', to: '取材', fn: doPress };
+    return map;
+  }
+
+  /* ---- 他チームのガレージを覗く ----
+     自分より速いマシンほど学べるものが多い。分析担当がいると読み取れる量が増える。
+     同じレースウィークでは1チームにつき1回まで。                       */
+  function doScout(r) {
+    weekFlags();
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const mine = S.carScoreOf(S.carStats(g), track);
+    const theirs = S.carScoreOf(r.stats, track);
+    if ((g.scouted || []).indexOf(r.name) >= 0) {
+      return U.modal('👀 ' + esc(r.name) + ' のガレージ',
+        '<p class="lead">今週はもう十分に見せてもらった。</p>' +
+        '<p class="desc">同じチームからは、レースウィークごとに一度しか学べません。</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const analyst = S.staffBonus(g, 'analyst');
+    // 差がそのまま学びになる。自分のほうが速ければ得るものは少ない
+    const edge = Math.max(0, theirs - mine);
+    const gain = Math.max(1, Math.round(edge * 0.30 + analyst * 0.5 + S.rnd(0, 1.5)));
+    g.rp += gain;
+    g.scouted.push(r.name);
+    GP.paddock.invalidate();
+    S.save(g);
+    U.renderTop(g);            // ×で閉じても数字が合うように、先に上部バーを更新する
+    const cmp = edge > 12 ? 'こちらより明らかに速い。学べることが多い。'
+              : edge > 4 ? 'いくつか気になる工夫がある。'
+              : 'こちらのほうが進んでいる。得るものは少ない。';
+    U.modal('👀 ' + esc(r.name) + ' のガレージ',
+      '<div class="intwrap"><canvas id="scoutCv" width="' + GP.paddock.W +
+        '" height="120"></canvas></div>' +
+      '<p class="lead">' + esc(cmp) + '</p>' +
+      '<div class="bigbox">研究ポイント <b>+' + gain + '</b></div>' +
+      '<p class="desc">相手のマシンがこのコースでどれだけ速いかで、学べる量が変わります。' +
+      '分析担当を雇うと読み取れる量が増えます。</p>',
+      [{ label: 'なるほど', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    // 覗いたマシンを描く
+    const cv = $('scoutCv');
+    if (cv) {
+      const c2 = cv.getContext('2d');
+      c2.imageSmoothingEnabled = false;
+      c2.fillStyle = '#2a2436'; c2.fillRect(0, 0, cv.width, cv.height);
+      c2.fillStyle = 'rgba(255,236,180,.14)'; c2.fillRect(0, 0, cv.width, 26);
+      c2.save();
+      c2.translate(cv.width / 2, 78); c2.scale(3.4, 3.4);
+      GP.raceview.paintCar(c2, 0, 0, 0, r.color,
+        Math.min(5, Math.max(0, Math.round((theirs - 12) / 26))), 0);
+      c2.restore();
+    }
+    U.log(g, '👀 ' + r.name + ' のガレージを覗いた。研究ポイント +' + gain);
+    GP.sound.play('good');
+  }
+
+  /* ---- ドライバーと話す ---- */
+  function doTalk(d) {
+    weekFlags();
+    const key = 'talk:' + d.id;
+    const done = (g.talked || []).indexOf(key) >= 0;
+    const p = S.persOf(d);
+    const line = S.quoteFor ? S.quoteFor(d, 'pre') : null;
+    let body = '<div class="quote">' + U.face(d, 40) + '<span>' +
+      esc(line || (d.form >= 108 ? '調子はいい。今日はいけると思う。'
+                 : d.form <= 88 ? '正直、あまり感触がよくない。'
+                 : 'いつも通り。やることをやるだけだ。')) + '</span></div>' +
+      '<p class="desc">' + esc(p.icon + p.name + '／' + p.desc) + '</p>';
+    if (done) {
+      body += '<p class="note">今週はもう話した。</p>';
+      return U.modal('🧑‍✈️ ' + esc(d.name), body, [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const up = Math.round(S.rnd(3, 8) * p.rest);
+    d.form = S.clamp(d.form + up, 62, 122);
+    g.talked.push(key);
+    S.save(g);
+    U.renderTop(g);
+    body += '<div class="bigbox">調子 <b>+' + up + '</b></div>' +
+      '<p class="desc">レースウィークごとに、ひとり一度だけ話せます。</p>';
+    U.modal('🧑‍✈️ ' + esc(d.name), body,
+      [{ label: '送り出す', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    U.log(g, '🧑‍✈️ ' + d.name + ' と話した。調子 +' + up);
+    GP.sound.play('good');
+  }
+
+  /* ---- 記者の取材 ----
+     強気に出れば注目度が大きく動くが、外すと反動もある。          */
+  function doPress() {
+    weekFlags();
+    if ((g.talked || []).indexOf('press') >= 0) {
+      return U.modal('📰 記者たち',
+        '<p class="lead">今週の取材はもう終えた。</p>', [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const rank = S.constructorTable(g).findIndex(t => t.isPlayer) + 1;
+    const teams = S.allTeams(g, D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)]).length;
+    const strong = rank > 0 && rank <= Math.ceil(teams / 2);
+    const answer = (label, hype, fan, note) => ({
+      label: label, cls: hype > 6 ? 'primary' : '',
+      fn: () => {
+        // 上位にいるときの強気は効く。下位で大口を叩くと空回りする
+        const mul = strong ? 1 : 0.45;
+        const h = Math.round(hype * mul);
+        S.addHype(g, h);
+        g.fans = Math.max(0, Math.round(g.fans * (1 + fan * mul / 100)));
+        g.talked.push('press');
+        U.closeModal();
+        U.toast('📰 注目度 ' + (h >= 0 ? '+' : '') + h, h >= 0 ? 'good' : 'bad');
+        U.log(g, '📰 ' + note + '（注目度 ' + (h >= 0 ? '+' : '') + h + '）');
+        S.save(g); render();
+      }
+    });
+    U.modal('📰 記者たち',
+      '<p class="lead">「今週の手応えはいかがですか？」</p>' +
+      '<p class="desc">いまのコンストラクターズ順位は <b>' + (rank || '-') + '位</b>。' +
+      (strong ? '上位にいるので、強気の発言はよく届きます。'
+              : '下位のうちは、大きな話をしても響きにくいものです。') + '</p>',
+      [
+        answer('🔥 「表彰台を狙う」', 14, 3, '強気の発言をした'),
+        answer('🙂 「一戦ずつ戦う」', 6, 1, '手堅く答えた'),
+        answer('🤐 「特にありません」', 1, 0, '取材を短く切り上げた'),
+        { label: 'やめる', fn: U.closeModal }
+      ]);
+  }
 
   const HUB_DOORS = {
     factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
@@ -1639,7 +1898,7 @@ window.GP = window.GP || {};
     }
 
     // 入口の判定と案内
-    const door = hubMap().doorOf(actor.x, g);
+    const door = hubMap().doorOf(actor.x, actor.y, g);
     const key = door ? door.key : null;
     if (key !== hubDoor) {
       hubDoor = key;

@@ -265,8 +265,8 @@ GP.state = (function () {
   function ersOf(g2) {
     const p = g2.equipped && g2.equipped.elec;
     const pw = p ? p.power * (0.82 + p.cond / 100 * 0.18) : 10;
-    // 冷却が良いほど電気を多く回せる
-    return ersFrom(pw + bodyVal(g2, 'cooling') * 0.45);
+    // 冷却が良いほど電気を多く回せる。バッテリー開発はそれより直接効く
+    return ersFrom(pw + bodyVal(g2, 'cooling') * 0.45 + bodyVal(g2, 'battery') * 0.95);
   }
   function ersFrom(power) {
     const E = D.ERS;
@@ -365,8 +365,10 @@ GP.state = (function () {
     const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0);
     const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
     const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
+    // パワーユニットの供給料。1戦ぶんを週あたりにならす
+    const engine = g2.engine ? Math.round(g2.engine.fee / raceWeek(0)) : 0;
     const other = 150;
-    const raw = staff + mgrs + drivers + youth + facilities + other;
+    const raw = staff + mgrs + drivers + youth + facilities + engine + other;
     // ロジスティクス責任者は運営全体の費用を下げる
     const cut = Math.min(0.35, mgr(g2, 'logistics') * 0.010);
     const weekly = Math.round(raw * (1 - cut));
@@ -381,7 +383,7 @@ GP.state = (function () {
     const PREP = raceWeek(0);                       // レース1回あたりの週数
     return {
       staff: staff, managers: mgrs, drivers: drivers, youth: youth,
-      facilities: facilities, other: other, cut: cut,
+      facilities: facilities, engine: engine, other: other, cut: cut,
       weekly: weekly,
       sponsorPerRace: perRace,
       sponsorRpPerRace: rpRace,

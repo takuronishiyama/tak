@@ -1061,3 +1061,7 @@ body[data-skin="hd"]{
        image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
 [data-skin="hd"] .intwrap{border-color:var(--gold2);
   box-shadow:inset 0 0 0 1px rgba(214,178,106,.30), 0 4px 16px rgba(0,0,0,.6)}
+/* エンジン供給の申し出。絵文字は色を指定できないので、下地を明るくして
+   チームカラーは枠に回す（暗い下地に暗い絵文字が乗るのを避ける）*/
+.pb-ic.engic{background:#e8e2d2;border-width:3px;color:#1c1526}
+[data-skin="hd"] .pb-ic.engic{background:#efe6d0}
