@@ -22,13 +22,33 @@ GP.base = (function () {
 
   let hitBoxes = [];
   let dusk = false;          // HD-2Dスキンのときは夕景で描く
+  let off = false;           // オフ期間（建物は閉まり、人が敷地に出ている）
 
   /* 歩ける範囲。建物の手前の敷地を左右に移動する。
      建物より奥へは行けないので、キャラは常に建物より手前に描けばよい。 */
   const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
 
+  /* オフ期間に敷地へ出ている人。x は立っている位置 */
+  const OFF_SPOTS = [
+    { key: 'off:drv0',  x: 90  },
+    { key: 'off:drv1',  x: 150 },
+    { key: 'off:staff', x: 250 },
+    { key: 'off:youth', x: 360 },
+    { key: 'off:mgr',   x: 450 },
+    { key: 'off:next',  x: 545 }     // 来季への出発
+  ];
+
   /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
   function doorOf(x, y, g2) {
+    // オフ期間は建物が閉まっていて、代わりに人が相手になる
+    if (g2 && g2.offseason) {
+      let best = null, bd = 1e9;
+      OFF_SPOTS.forEach(s2 => {
+        const d = Math.abs(x - s2.x);
+        if (d < 26 && d < bd) { bd = d; best = { key: s2.key, x: s2.x }; }
+      });
+      return best;
+    }
     let best = null, bd = 1e9;
     PLOTS.forEach(p => {
       const s = tierOf(g2.facilities[p.key] || 1);
@@ -41,6 +61,10 @@ GP.base = (function () {
 
   /* 入口の位置（キャラをそこへ歩かせるのに使う）*/
   function doorPos(key, g2) {
+    if (key && key.indexOf('off:') === 0) {
+      const s2 = OFF_SPOTS.find(q => q.key === key);
+      return s2 ? { x: s2.x, y: WALK.y1 - 6 } : null;
+    }
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const s = tierOf(g2.facilities[key] || 1);
@@ -367,7 +391,7 @@ GP.base = (function () {
   let cache = null, cacheKey = '';
 
   function keyOf(g2, sel) {
-    return [document.body.getAttribute('data-skin'), sel || '',
+    return [document.body.getAttribute('data-skin'), sel || '', g2.offseason ? 'off' : '',
             Math.floor(g2.fans), g2.season, g2.titles.teams, g2.titles.drivers, g2.color,
             PLOTS.map(p => g2.facilities[p.key]).join('-')].join('|');
   }
@@ -397,6 +421,7 @@ GP.base = (function () {
 
   function render(cv, g2, sel) {
     dusk = document.body.getAttribute('data-skin') === 'hd';
+    off = !!g2.offseason;
     const out = cv.getContext('2d');
     out.imageSmoothingEnabled = false;
     // 夕景では、いったん裏画面に描いてから光と色を乗せる
@@ -514,6 +539,68 @@ GP.base = (function () {
     bg.fillStyle = '#7a6a52'; bg.fillRect(24, 116, 3, 54);
     bg.fillStyle = g2.color; bg.fillRect(27, 116, 26, 16);
     bg.fillStyle = 'rgba(255,255,255,.55)'; bg.fillRect(29, 119, 22, 3);
+
+    /* ---- オフ期間 ----
+       建物は閉まっていて、人が敷地に出ている。歩いて話しかけて回る。 */
+    if (off) {
+      // オフ期間は建物に入れないので、建物の当たり判定は捨てて人に差し替える
+      hitBoxes = [];
+      const py = WALK.y1 - 4;
+      const stand = (x, suit, hair, faceC, hat) => {
+        bg.fillStyle = 'rgba(0,0,0,.30)';
+        bg.beginPath(); bg.ellipse(x, py, 7, 2.6, 0, 0, Math.PI * 2); bg.fill();
+        bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(x - 5, py - 21, 10, 21);
+        bg.fillStyle = suit;                  bg.fillRect(x - 5, py - 21, 10, 8);
+        bg.fillStyle = 'rgba(255,255,255,.24)'; bg.fillRect(x - 5, py - 21, 10, 2);
+        bg.fillStyle = '#2c3140'; bg.fillRect(x - 5, py - 9, 4, 9);
+        bg.fillRect(x + 1, py - 9, 4, 9);
+        bg.fillStyle = faceC; bg.fillRect(x - 4, py - 29, 8, 8);
+        bg.fillStyle = hair;  bg.fillRect(x - 4, py - 30, 8, 4);
+        bg.fillStyle = '#2a2028'; bg.fillRect(x - 3, py - 26, 2, 2);
+        bg.fillRect(x + 1, py - 26, 2, 2);
+        if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
+      };
+      const names = [];
+      const box = (i) => hitBoxes.push({ key: OFF_SPOTS[i].key,
+        x: OFF_SPOTS[i].x - 14, y: py - 34, w: 28, h: 36 });
+      (g2.drivers || []).slice(0, 2).forEach((d, i) => {
+        stand(OFF_SPOTS[i].x, g2.color, '#3a2718', '#f0c49a', null);
+        names.push([OFF_SPOTS[i].x, d.name]);
+        box(i);
+      });
+      stand(OFF_SPOTS[2].x, '#5a6270', '#2b1d12', '#e8bd94', null);           // スタッフ
+      names.push([OFF_SPOTS[2].x, 'スタッフのみんな']); box(2);
+      stand(OFF_SPOTS[3].x, '#3f8a4a', '#4a3018', '#f2cba4', '#e8c24a');      // ユース
+      names.push([OFF_SPOTS[3].x, '下部組織の若手']); box(3);
+      stand(OFF_SPOTS[4].x, '#3a3f52', '#241c14', '#e2b48e', null);           // 首脳陣
+      names.push([OFF_SPOTS[4].x, '首脳陣']); box(4);
+
+      // 来季への出発地点
+      const nx = OFF_SPOTS[5].x;
+      bg.fillStyle = '#241a10'; bg.fillRect(nx - 24, py - 62, 48, 14);
+      bg.fillStyle = dusk ? '#5c4a24' : '#e8dcc0'; bg.fillRect(nx - 23, py - 61, 46, 12);
+      bg.font = 'bold 9px sans-serif'; bg.textAlign = 'center';
+      bg.fillStyle = dusk ? '#ffe9b0' : '#3a2f1a';
+      bg.fillText('NEXT SEASON', nx, py - 52);
+      bg.fillStyle = '#8d8578'; bg.fillRect(nx - 22, py - 48, 3, 48);
+      bg.fillRect(nx + 19, py - 48, 3, 48);
+      bg.fillStyle = 'rgba(255,255,255,.40)';
+      for (let k = 0; k < 3; k++) bg.fillRect(nx - 8, py - 30 + k * 9, 16, 3);
+      names.push([nx, '来季へ']);
+      hitBoxes.push({ key: OFF_SPOTS[5].key, x: nx - 26, y: py - 64, w: 52, h: 66 });
+
+      // 名札
+      names.forEach((n, i) => sign(bg, n[0], py - 44 - (i % 2) * 12, n[1],
+        sel === OFF_SPOTS[i].key ? '#e04a3f' : '#3f3a30'));
+
+      // 祝いの垂れ幕
+      bg.fillStyle = '#241a10'; bg.fillRect(140, 118, 320, 18);
+      bg.fillStyle = g2.color;  bg.fillRect(142, 120, 316, 14);
+      bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(142, 120, 316, 3);
+      bg.font = 'bold 11px sans-serif'; bg.textAlign = 'center';
+      bg.fillStyle = '#fff8e3';
+      bg.fillText('シーズン ' + g2.season + ' おつかれさま！', 300, 131);
+    }
 
     if (!dusk) return;
 

@@ -1563,12 +1563,16 @@ window.GP = window.GP || {};
     if (myChamp) body += '<p class="note big">🎉 ' + esc(myChamp.name) + ' がドライバーズタイトルを獲得！</p>';
     body += '<div class="rewardbox"><div>💰 シーズン賞金 <b>+' + money(prize) + '万</b></div></div>';
 
-    U.modal('🎊 シーズン終了', body, [{ label: '次のシーズンへ →', cls: 'primary', fn: nextSeason }], { wide: true });
+    U.modal('🎊 シーズン終了', body,
+      [{ label: '🌱 オフへ →', cls: 'primary', fn: enterOffseason }], { wide: true });
     U.log(g, '🎊 シーズン' + g.season + ' 終了。コンストラクターズ ' + rank + '位。賞金 +' + money(prize) + '万', 'good');
   }
 
   function nextSeason() {
     U.closeModal();
+    g.offseason = false;
+    g.offTalked = [];
+    GP.base.invalidate();
     g.history.push({ season: g.season, points: g.points, rank: S.constructorTable(g).findIndex(r => r.isPlayer) + 1 });
     g.season++;
     g.week = 1;
@@ -1663,6 +1667,142 @@ window.GP = window.GP || {};
     gate:    { icon: '🏁', label: 'コースへの出口',   to: 'レース', fn: () => cmdRace() }
   };
 
+  /* =======================================================
+     オフ期間
+     建物は閉まり、みんなが敷地に出ている。歩いて挨拶して回ると、
+     来季に向けて少しずつ整う。話しかけられるのは一人一度きり。
+     ======================================================= */
+  const OFF_DOORS = {
+    'off:drv0':  { icon: '🧑‍✈️', label: '', to: '話す', fn: () => doOffDriver(0) },
+    'off:drv1':  { icon: '🧑‍✈️', label: '', to: '話す', fn: () => doOffDriver(1) },
+    'off:staff': { icon: '👥', label: 'スタッフのみんな', to: '労う', fn: doOffStaff },
+    'off:youth': { icon: '🎓', label: '下部組織の若手', to: '激励', fn: doOffYouth },
+    'off:mgr':   { icon: '👔', label: '首脳陣', to: '来季の話', fn: doOffMgr },
+    'off:next':  { icon: '🌱', label: '来季へ', to: '出発', fn: doOffNext }
+  };
+
+  function offDoors() {
+    const m = {};
+    Object.keys(OFF_DOORS).forEach(k => { m[k] = OFF_DOORS[k]; });
+    (g.drivers || []).slice(0, 2).forEach((d, i) => {
+      if (m['off:drv' + i]) m['off:drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す',
+                                                 fn: () => doOffDriver(i) };
+    });
+    return m;
+  }
+
+  function offDone(key) { return (g.offTalked || []).indexOf(key) >= 0; }
+  function offMark(key) { g.offTalked = (g.offTalked || []).concat([key]); }
+
+  function doOffDriver(i) {
+    const d = (g.drivers || [])[i];
+    if (!d) return;
+    const key = 'drv' + i;
+    const p = S.persOf(d);
+    if (offDone(key)) {
+      return U.modal('🧑‍✈️ ' + esc(d.name),
+        '<div class="quote">' + U.face(d, 40) + '<span>また来季、よろしく頼む。</span></div>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    // 来季に向けて気持ちを整える。休養と同じで、性格で効きが変わる
+    const up = Math.round(S.rnd(8, 16) * p.rest);
+    d.form = S.clamp(d.form + up, 62, 122);
+    const mup = Math.round(S.rnd(1, 3));
+    d.mental = S.clamp(d.mental + mup, 1, 199);
+    offMark(key);
+    S.save(g); U.renderTop(g);
+    U.modal('🧑‍✈️ ' + esc(d.name),
+      '<div class="quote">' + U.face(d, 40) + '<span>' +
+      esc(d.seasonPoints > 0 ? '今季は悪くなかった。来季はもっと上でやりたい。'
+                             : '悔しいシーズンだった。来季は必ず返す。') + '</span></div>' +
+      '<div class="rewardbox"><div>調子 <b>+' + up + '</b></div>' +
+      '<div>精神 <b>+' + mup + '</b></div></div>',
+      [{ label: 'ありがとう', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    GP.sound.play('good');
+  }
+
+  function doOffStaff() {
+    if (offDone('staff')) {
+      return U.modal('👥 スタッフのみんな', '<p class="lead">「来季も頼みます！」</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    // 労うと、シーズンの疲れが抜けて少し伸びる
+    let n = 0;
+    (g.staff || []).forEach(st => { st.skill = S.clamp(st.skill + S.rnd(1, 3), 1, 99); n++; });
+    offMark('staff');
+    S.save(g);
+    U.modal('👥 スタッフのみんな',
+      '<p class="lead">一年の働きを労った。</p>' +
+      '<div class="bigbox">' + n + ' 人の技能が <b>少し上がった</b></div>' +
+      '<p class="desc">オフのうちに労っておくと、来季の立ち上がりが変わります。</p>',
+      [{ label: 'おつかれさま', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    GP.sound.play('good');
+  }
+
+  function doOffYouth() {
+    if (offDone('youth')) {
+      return U.modal('🎓 下部組織の若手', '<p class="lead">「来季こそ乗ります！」</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    let n = 0;
+    (g.youth || []).forEach(y => {
+      ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
+        y[k] = S.clamp(y[k] + S.rnd(1, 4), 1, 199);
+      });
+      n++;
+    });
+    offMark('youth');
+    S.save(g);
+    U.modal('🎓 下部組織の若手',
+      n ? '<p class="lead">若手を集めて、来季の話をした。</p>' +
+          '<div class="bigbox">' + n + ' 人が <b>少し伸びた</b></div>'
+        : '<p class="lead">いまは下部組織に誰もいない。</p>' +
+          '<p class="desc">「人事」→「育成」からスカウトできます。</p>',
+      [{ label: '戻る', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+  }
+
+  function doOffMgr() {
+    if (offDone('mgr')) {
+      return U.modal('👔 首脳陣', '<p class="lead">「方針は決まりました。あとはやるだけです」</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    // 来季に向けた仕込み。研究ポイントで返ってくる
+    const gain = Math.round(10 + S.staffBonus(g, 'analyst') * 2 + S.mgr(g, 'principal') * 0.6 + S.rnd(0, 6));
+    g.rp += gain;
+    offMark('mgr');
+    S.save(g); U.renderTop(g);
+    U.modal('👔 首脳陣',
+      '<p class="lead">来季の方針を詰めた。</p>' +
+      '<div class="bigbox">研究ポイント <b>+' + gain + '</b></div>' +
+      '<p class="desc">首脳陣が揃っているほど、実りのある話になります。</p>',
+      [{ label: 'よろしく', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    GP.sound.play('good');
+  }
+
+  function doOffNext() {
+    const left = ['drv0', 'drv1', 'staff', 'youth', 'mgr']
+      .filter(k => !offDone(k) && (k.indexOf('drv') !== 0 || g.drivers[parseInt(k.slice(3), 10)]));
+    const body = left.length
+      ? '<p class="lead">まだ挨拶していない相手がいます。</p>' +
+        '<p class="desc">オフのうちにしか話せません。残り <b>' + left.length + '</b> 人。</p>'
+      : '<p class="lead">みんなに挨拶を済ませた。来季へ向かおう。</p>';
+    U.modal('🌱 来季へ', body, [
+      { label: '🌱 来季を始める', cls: 'primary', fn: nextSeason },
+      { label: 'もう少し回る', fn: U.closeModal }
+    ]);
+  }
+
+  function enterOffseason() {
+    U.closeModal();
+    g.offseason = true;
+    g.offTalked = [];
+    GP.base.invalidate();
+    S.save(g);
+    U.toast('🌱 オフ期間。みんなに挨拶して回ろう', 'good');
+    U.log(g, '🌱 シーズンオフに入った。');
+    render();
+  }
+
   /* いま歩いている場所（本拠地／パドック）と、その入口一覧 */
   function hubMap() { return isRaceWeek() ? GP.paddock : GP.base; }
 
@@ -1678,6 +1818,7 @@ window.GP = window.GP || {};
 
   /* パドックの入口一覧。ライバルのガレージと人はゲームの状態から作る */
   function hubDoors() {
+    if (g.offseason) return offDoors();
     if (!isRaceWeek()) return HUB_DOORS;
     weekFlags();
     const map = {};
@@ -1696,7 +1837,140 @@ window.GP = window.GP || {};
       map['drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す', fn: () => doTalk(d) };
     });
     map.press = { icon: '📰', label: '記者たち', to: '取材', fn: doPress };
+    GP.paddock.visitors(g).forEach(v => {
+      map[v.spot.key] = {
+        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）',
+        to: '接触', fn: () => doPoach(v.driver, v.team)
+      };
+    });
     return map;
+  }
+
+  /* ---- ライバルのドライバーへの接触 ----
+     一度で決まる話ではない。レースウィークごとに接触して心証を積み上げ、
+     十分に傾いたところで移籍金を積んで引き抜く。                     */
+  function poachInterest(d, team) {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const table = S.constructorTable(g);
+    const myRank = table.findIndex(t => t.isPlayer) + 1;
+    const theirRank = table.findIndex(t => t.name === team.name) + 1;
+    // 上のチームからは来にくい。下のチームからは来やすい
+    const rankPull = theirRank > 0 && myRank > 0 ? (theirRank - myRank) * 3.4 : 0;
+    const fame = S.hypeTier(g).idx != null ? 0 : 0;
+    return { rankPull: rankPull, myRank: myRank, theirRank: theirRank, track: track };
+  }
+
+  function poachFee(d, team) {
+    const rating = S.driverRating(d);
+    const table = S.constructorTable(g);
+    const theirRank = Math.max(1, table.findIndex(t => t.name === team.name) + 1);
+    // 強い選手ほど、上位チームに所属しているほど高い
+    return Math.round(rating * 62 + (12 - theirRank) * 180 + 600);
+  }
+
+  function doPoach(d, team) {
+    weekFlags();
+    const key = 'poach:' + team.name + ':' + d.name;
+    const info = poachInterest(d, team);
+    if (d.interest == null) d.interest = 0;
+    const already = (g.talked || []).indexOf(key) >= 0;
+    const rating = Math.round(S.driverRating(d));
+    const p = S.persOf(d);
+    const fee = poachFee(d, team);
+
+    const head =
+      '<div class="quote">' + U.face(d, 40) + '<span><b>' + esc(d.name) + '</b>' +
+      '<br><small>' + esc(team.name) + ' ／ ' + d.age + '歳 ／ 総合 ' + rating +
+      ' ／ 給料 ' + money(d.salary) + '万/週</small></span></div>' +
+      '<div class="reqrow"><span>心証</span><i><b style="width:' +
+        Math.round(S.clamp(d.interest, 0, 100)) + '%"></b></i><em>' +
+        Math.round(d.interest) + ' / 100</em></div>' +
+      '<p class="desc">' + esc(p.icon + p.name + '／' + p.desc) + '</p>';
+
+    const rows = [];
+    // 心証が十分なら、移籍金を積んで誘える
+    if (d.interest >= 60) {
+      const canPay = g.funds >= fee;
+      const full = g.drivers.length >= 2;
+      rows.push({
+        label: '💰 ' + money(fee) + '万で誘う', cls: 'primary',
+        disabled: !canPay,
+        fn: () => offerSeat(d, team, fee)
+      });
+      if (full) rows.push({ label: '（移籍には枠の入れ替えが要ります）', disabled: true, fn: () => {} });
+    }
+    if (!already) {
+      rows.push({
+        label: '🤝 話をする', cls: d.interest >= 60 ? '' : 'primary',
+        fn: () => {
+          // 自分のほうが上位なら心証は上がりやすい。下位だと響かない
+          const up = S.clamp(6 + info.rankPull + S.rnd(-2, 5) + S.hypeBonus(g) * 4 - 4, -3, 22);
+          d.interest = S.clamp(d.interest + up, 0, 100);
+          g.talked.push(key);
+          S.save(g);
+          U.closeModal();
+          U.toast('🤝 心証 ' + (up >= 0 ? '+' : '') + Math.round(up), up >= 0 ? 'good' : 'bad');
+          U.log(g, '🤝 ' + d.name + ' に接触した（心証 ' + Math.round(d.interest) + '）');
+          render();
+        }
+      });
+    }
+    rows.push({ label: '戻る', fn: U.closeModal });
+
+    const hint = already
+      ? '<p class="note">今週はもう話した。次のレースウィークにまた来よう。</p>'
+      : (info.rankPull < 0
+          ? '<p class="note">相手のほうが上位のチームにいる。心証は上がりにくい。</p>'
+          : '<p class="note">こちらのほうが上位。話は聞いてもらえそうだ。</p>');
+
+    U.modal('🤝 ' + esc(d.name),
+      head + hint +
+      '<p class="desc">心証が <b>60</b> を超えると、移籍金を積んで誘えます。' +
+      '移籍金の目安は <b>💰' + money(fee) + '万</b>。' +
+      'いまの資金は ' + money(g.funds) + '万です。</p>',
+      rows);
+  }
+
+  /* 引き抜きの実行。枠が埋まっていれば、誰と入れ替えるかを選ぶ */
+  function offerSeat(d, team, fee) {
+    if (g.funds < fee) return U.toast('資金が足りません', 'bad');
+    const doSign = (outId) => {
+      g.funds -= fee;
+      if (outId != null) {
+        const out = g.drivers.find(x => x.id === outId);
+        g.drivers = g.drivers.filter(x => x.id !== outId);
+        if (out) U.log(g, '👋 ' + out.name + ' との契約を解除した。');
+      }
+      // 相手チームから引き抜き、向こうには代役が入る
+      team.drivers = team.drivers.filter(x => x !== d);
+      const rep = S.makeDriver(Math.max(6, S.driverRating(d) * 0.82));
+      rep.team = team.name;
+      team.drivers.push(rep);
+      d.team = g.team;
+      d.interest = 100;
+      d.seasonPoints = 0;
+      g.drivers.push(d);
+      U.closeModal();
+      U.log(g, '🤝 ' + d.name + ' の獲得に成功した！（移籍金 ' + money(fee) + '万）', 'good');
+      U.toast('🤝 ' + d.name + ' が加入！', 'good');
+      GP.sound.play('good');
+      GP.paddock.invalidate();
+      S.save(g); render();
+    };
+    if (g.drivers.length < 2) return doSign(null);
+    // 枠が埋まっているので、放出する側を選ぶ
+    let body = '<p class="lead">' + esc(d.name) + ' を迎えるには、いまの2人のうち一人と契約を解除する必要があります。</p>' +
+      '<div class="pick">';
+    g.drivers.forEach(x => {
+      body += '<button class="pickbtn" data-k="out:' + x.id + '">' +
+        '<span class="pb-ic face-ic">' + U.face(x, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.name) + ' を放出</b>' +
+        '<small>' + x.age + '歳／総合 ' + Math.round(S.driverRating(x)) +
+        '／給料 ' + money(x.salary) + '万/週</small></span></button>';
+    });
+    body += '</div>';
+    U.modal('🤝 ' + esc(d.name) + ' の獲得', body, [{ label: 'やめる', fn: U.closeModal }]);
+    bindPick(k => { if (k.indexOf('out:') === 0) doSign(k.slice(4)); });
   }
 
   /* ---- 他チームのガレージを覗く ----
@@ -1844,7 +2118,8 @@ window.GP = window.GP || {};
   function hubStep(ts) {
     const cv = $('hubCv');
     // 画面から消えた／レース中は止める（後処理の裏画面を奪い合わないように）
-    if (!cv || !document.body.contains(cv) || /\bshow\b/.test($('raceScreen').className)) {
+    const rs = $('raceScreen');
+    if (!cv || !document.body.contains(cv) || !rs || /\bshow\b/.test(rs.className)) {
       hubRaf = null; return;
     }
     const dt = Math.min(0.05, (ts - hubLast) / 1000 || 0.016);
@@ -1852,7 +2127,8 @@ window.GP = window.GP || {};
 
     // 画面（モーダル）が開いているあいだは操作を受けず、描画もしない。
     // ここで止めてしまうと、閉じたときに再開できないのでループ自体は回し続ける。
-    if (/\bshow\b/.test($('modal').className)) {
+    const mo = $('modal');
+    if (mo && /\bshow\b/.test(mo.className)) {
       hubKeys = {}; hubGoal = null; hubAutoEnter = null;
       hubRaf = requestAnimationFrame(hubStep);
       return;
@@ -1981,7 +2257,8 @@ window.GP = window.GP || {};
     };
     document.addEventListener('keydown', ev => {
       if (typing() || !$('hubCv')) return;
-      if (/\bshow\b/.test($('modal').className)) return;
+      const m2 = $('modal');
+      if (m2 && /\bshow\b/.test(m2.className)) return;
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hubEnter(); return; }
       const k = MAP[ev.key];
       if (!k) return;
@@ -2000,8 +2277,10 @@ window.GP = window.GP || {};
     U.renderAll(g, specialOf(g));
     bindHub();
     const race = isRaceWeek();
-    $('cmdNormal').style.display = race ? 'none' : '';
-    $('cmdRace').style.display = race ? '' : 'none';
+    const offs = !!g.offseason;
+    $('cmdNormal').style.display = (offs || race) ? 'none' : '';
+    $('cmdRace').style.display = (!offs && race) ? '' : 'none';
+    if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
     const btn = $('specialGo');
     if (btn) btn.onclick = enterSpecial;
     const skip = $('specialSkip');
@@ -2068,7 +2347,8 @@ window.GP = window.GP || {};
       cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
-      cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff
+      cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
+      cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
