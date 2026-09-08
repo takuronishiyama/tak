@@ -424,7 +424,10 @@ GP.state = (function () {
       const old2 = g2.equipped[c.key];
       // 積んできた知見のぶんだけ、ゼロよりは良いところから始まる
       const carry = old2 ? Math.min(14, old2.power * 0.18) : 0;
-      g2.equipped[c.key] = makePart(c.key, 0, 1, { power: 10 + carry });
+      // 規則が変わってもチームの設計力までは失われない。
+      // レアリティ（＝到達できる上限）は引き継ぎ、性能だけが白紙に戻る
+      const rar = old2 ? old2.rarity : 1;
+      g2.equipped[c.key] = makePart(c.key, 0, rar, { power: 10 + carry, traits: old2 ? old2.traits : [] });
     });
     g2.stock = [];
     g2.body = makeBody(g2, null);
@@ -486,6 +489,10 @@ GP.state = (function () {
     const pen = g2.capPenalty ? D.COST_CAP_ATR : 1;    // 前年の予算超過ぶん
     if (!r) return pen;                                // 1年目は順位の傾斜なし
     return D.ATR[Math.min(D.ATR.length - 1, r - 1)] * pen;
+  }
+  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度ぶんを合わせたもの */
+  function devRate(g2) {
+    return atrOf(g2) * (diffOf(g2).dev || 1);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
@@ -1356,7 +1363,7 @@ GP.state = (function () {
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
-    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap,
+    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
     hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,

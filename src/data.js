@@ -280,7 +280,7 @@ GP.data = (function () {
   /* ---------- マシンの世代（研究で開発）---------- */
   /* 技術の世代が1つ進むごとに、ライバルの水準もこれだけ上がる。
      自分だけが新しいマシンに乗るわけではない、というための係数        */
-  const ERA_STEP = 26;
+  const ERA_STEP = 22;
 
   const CAR_GENS = [
     { name: 'MK-I',   cap: 30,  rp: 0,    cost: 0,     base: 0 },
@@ -347,24 +347,24 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルの土台が弱く、賞金もスポンサー料も多めに入ります。',
-      rivalPower: 0.78, rivalGrow: 1.05, funds: 1.45, prize: 1.15, sponsor: 1.15,
+            'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入ります。',
+      rivalPower: 0.78, rivalGrow: 1.05, dev: 1.15, funds: 1.45, prize: 1.15, sponsor: 1.15,
       ticket: 3, oilSponsor: true
     },
     {
       key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
-            'ライバルもシーズン中に少しずつ速くなります。',
-      rivalPower: 1.00, rivalGrow: 1.10, funds: 1.00, prize: 1.00, sponsor: 1.00,
+            'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。',
+      rivalPower: 0.94, rivalGrow: 1.00, dev: 0.74, funds: 1.00, prize: 1.00, sponsor: 1.00,
       ticket: 4, oilSponsor: false
     },
     {
       key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
-            '手を止めるとすぐ置いていかれ、資金も賞金も渋い。',
-      rivalPower: 1.05, rivalGrow: 1.15, funds: 0.82, prize: 0.88, sponsor: 0.88,
+            '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。',
+      rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.88, sponsor: 0.88,
       ticket: 5, oilSponsor: false
     }
   ];

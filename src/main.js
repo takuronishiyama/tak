@@ -349,7 +349,7 @@ window.GP = window.GP || {};
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.atrOf(g);
+    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
@@ -464,7 +464,7 @@ window.GP = window.GP || {};
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.atrOf(g);
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
