@@ -23,6 +23,110 @@ GP.base = (function () {
   let hitBoxes = [];
   let dusk = false;          // HD-2Dスキンのときは夕景で描く
 
+  /* 歩ける範囲。建物の手前の敷地を左右に移動する。
+     建物より奥へは行けないので、キャラは常に建物より手前に描けばよい。 */
+  const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
+
+  /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
+  function doorOf(x, g2) {
+    let best = null, bd = 1e9;
+    PLOTS.forEach(p => {
+      const s = tierOf(g2.facilities[p.key] || 1);
+      const cx = p.x + s.w / 2;
+      const d = Math.abs(x - cx);
+      if (d < 22 && d < bd) { bd = d; best = { key: p.key, x: cx, y: p.y }; }
+    });
+    return best;
+  }
+
+  /* 入口の位置（キャラをそこへ歩かせるのに使う）*/
+  function doorPos(key, g2) {
+    const p = PLOTS.find(q => q.key === key);
+    if (!p) return null;
+    const s = tierOf(g2.facilities[key] || 1);
+    return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
+  }
+
+  function clampWalk(x, y) {
+    return { x: Math.max(WALK.x0, Math.min(WALK.x1, x)),
+             y: Math.max(WALK.y0, Math.min(WALK.y1, y)) };
+  }
+
+  /* ---------- 歩く人 ----------
+     チームプリンシパル（プレイヤー）。12×20くらいの大きさで、
+     向き4方向 × 歩行3コマ。足の運びを左右で入れ替えて歩いて見せる。   */
+  const ACTOR_SCALE = 1.4;      // 建物と並べたときに見える大きさ
+
+  function drawActor(g, a) {
+    const x = Math.round(a.x), y = Math.round(a.y);   // y は足元
+    const dir = a.dir || 'down';
+    const fr = a.moving ? (a.frame | 0) % 4 : 0;      // 0,1,2,3 → 立ち,右足,立ち,左足
+    const step = fr === 1 ? 1 : (fr === 3 ? -1 : 0);
+    const col = a.color || '#e04a3f';
+    const mix = (hex, amt) => {
+      const n = parseInt(hex.slice(1), 16);
+      const c = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+      return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
+    };
+    const colD = mix(col, -0.16), colL = mix(col, 0.16);
+    const SKIN = '#f0c49a', SKIN_D = '#d8a479', HAIR = '#3a2718';
+    const r = (rx, ry, rw, rh, c) => { g.fillStyle = c; g.fillRect(x + rx, y + ry, rw, rh); };
+
+    // 影（倍率をかける前の座標で描く）
+    g.fillStyle = 'rgba(0,0,0,.32)';
+    g.beginPath(); g.ellipse(x, y - 1, 6 * ACTOR_SCALE, 2.6 * ACTOR_SCALE, 0, 0, Math.PI * 2); g.fill();
+
+    g.save();
+    g.translate(x, y);
+    g.scale(ACTOR_SCALE, ACTOR_SCALE);
+    g.translate(-x, -y);
+
+    // 脚（歩くと前後にずれる）
+    r(-4, -7, 3, 7, '#2c3140');
+    r(1, -7, 3, 7, '#2c3140');
+    if (step) { r(-4, -7 + step, 3, 7, '#2c3140'); r(1, -7 - step, 3, 7, '#343a4c'); }
+    r(-5, -1, 4, 2, '#1a1d26');            // 靴
+    r(1, -1, 4, 2, '#1a1d26');
+
+    // 胴（チームカラーのジャケット）
+    r(-5, -16, 10, 9, colD);
+    r(-4, -16, 8, 9, col);
+    r(-4, -16, 8, 2, colL);                // 肩の照り
+    r(-1, -15, 2, 8, mix(col, -0.28));     // 前合わせ
+    // 腕
+    const sw = a.moving ? step : 0;
+    r(-6, -15 + sw, 2, 7, colD);
+    r(4, -15 - sw, 2, 7, colD);
+    r(-6, -9 + sw, 2, 2, SKIN);            // 手
+    r(4, -9 - sw, 2, 2, SKIN);
+
+    // 頭
+    r(-4, -24, 8, 8, SKIN);
+    r(2, -24, 2, 8, SKIN_D);               // 右側は影
+    if (dir === 'up') {
+      r(-4, -25, 8, 6, HAIR);              // 後ろ姿は髪だけ
+    } else if (dir === 'left') {
+      r(-4, -25, 8, 4, HAIR);
+      r(-5, -24, 1, 4, HAIR);              // 顔の向きに合わせて髪を寄せる
+      r(-3, -21, 2, 2, '#2a2028');         // 横顔の目
+    } else if (dir === 'right') {
+      r(-4, -25, 8, 4, HAIR);
+      r(4, -24, 1, 4, HAIR);
+      r(1, -21, 2, 2, '#2a2028');
+    } else {
+      r(-4, -25, 8, 4, HAIR);              // 前髪
+      r(-4, -24, 1, 3, HAIR); r(3, -24, 1, 3, HAIR);
+      r(-3, -21, 2, 2, '#2a2028');         // 目
+      r(1, -21, 2, 2, '#2a2028');
+      r(-1, -18, 2, 1, '#a8564a');         // 口
+    }
+    // 首元
+    r(-2, -17, 4, 1, SKIN_D);
+    g.restore();
+  }
+
+
+
   /* レベルから建物の大きさと段階を決める */
   function tierOf(lv) {
     return { t: Math.min(4, Math.floor((lv - 1) / 2.5)), w: 40 + lv * 3.6, h: 26 + lv * 3.6 };
@@ -257,6 +361,40 @@ GP.base = (function () {
     return { c: c, g: g };
   }
 
+  /* ---------- 背景のキャッシュ ----------
+     人が歩くと毎フレーム描き直すことになるが、背景は変わらない。
+     一度描いたものを取っておき、キャラだけを上に重ねる。            */
+  let cache = null, cacheKey = '';
+
+  function keyOf(g2, sel) {
+    return [document.body.getAttribute('data-skin'), sel || '',
+            Math.floor(g2.fans), g2.season, g2.titles.teams, g2.titles.drivers, g2.color,
+            PLOTS.map(p => g2.facilities[p.key]).join('-')].join('|');
+  }
+
+  /* 背景（キャラなし）を得る。中身が変わっていなければ作り直さない */
+  function scene(g2, sel) {
+    const k = keyOf(g2, sel);
+    if (cache && cacheKey === k) return cache;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    render(c, g2, sel);
+    cache = c; cacheKey = k;
+    return cache;
+  }
+
+  function invalidate() { cache = null; cacheKey = ''; }
+
+  /* 背景＋歩いている人を、表の画面へ描く */
+  function drawWith(cv, g2, sel, actor) {
+    const out = cv.getContext('2d');
+    out.imageSmoothingEnabled = false;
+    out.setTransform(1, 0, 0, 1, 0, 0);
+    out.clearRect(0, 0, W, H);
+    out.drawImage(scene(g2, sel), 0, 0);
+    if (actor) drawActor(out, actor);
+  }
+
   function render(cv, g2, sel) {
     dusk = document.body.getAttribute('data-skin') === 'hd';
     const out = cv.getContext('2d');
@@ -305,6 +443,43 @@ GP.base = (function () {
     ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(W / 2 - 22, 252, 44, H - 252);
     ctx.fillStyle = 'rgba(255,255,255,.55)';
     for (let y = 262; y < H; y += 16) ctx.fillRect(W / 2 - 2, y, 4, 8);
+
+    // ---- 手前の敷地 ----
+    // ここをキャラが歩くので、生活感のあるものを置いて「場所」らしくする。
+    // 建物の当たり判定とは無関係なので、通り抜けられる（歩行の邪魔をしない）。
+    const yardLine = dusk ? 'rgba(230,224,200,.22)' : 'rgba(255,255,255,.40)';
+    ctx.fillStyle = yardLine;                                   // 駐車枠の白線
+    for (let x = 30; x < W / 2 - 40; x += 34) ctx.fillRect(x, 286, 2, 30);
+    ctx.fillRect(30, 286, W / 2 - 70 - 30, 2);
+    for (let x = W / 2 + 40; x < W - 30; x += 34) ctx.fillRect(x, 286, 2, 30);
+    ctx.fillRect(W / 2 + 40, 286, W - 30 - (W / 2 + 40), 2);
+
+    // タイヤの山（積み上げ）
+    const tyreStack = (tx, ty, n) => {
+      for (let i = 0; i < n; i++) {
+        const yy = ty - i * 5;
+        ctx.fillStyle = '#15161a'; ctx.fillRect(tx - 8, yy - 5, 16, 6);
+        ctx.fillStyle = i % 2 ? '#2a2c33' : '#22242a'; ctx.fillRect(tx - 8, yy - 5, 16, 2);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(tx - 8, ty - n * 5 - 5, 16, 1);
+    };
+    tyreStack(64, 316, 4); tyreStack(86, 316, 3);
+    tyreStack(W - 70, 316, 3);
+
+    // 資材のコンテナ（チームカラー）
+    const crate = (cx, cy, cw, ch2, c) => {
+      ctx.fillStyle = '#2a2015'; ctx.fillRect(cx - 1, cy - ch2 - 1, cw + 2, ch2 + 2);
+      ctx.fillStyle = c; ctx.fillRect(cx, cy - ch2, cw, ch2);
+      ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx, cy - ch2, cw, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(cx, cy - 3, cw, 3);
+    };
+    crate(150, 318, 22, 13, g2.color);
+    crate(178, 318, 16, 10, "#6a7078");
+    crate(W - 150, 318, 20, 12, '#6a7078');
+
+    // 車止めのポール
+    ctx.fillStyle = dusk ? '#4a4450' : '#8a8578';
+    for (let x = 40; x < W - 30; x += 58) { ctx.fillRect(x, 278, 3, 7); }
     // フェンス（敷地の奥側）
     ctx.fillStyle = '#7a6a52';
     for (let x = 10; x < W - 8; x += 10) ctx.fillRect(x, 100, 3, 10);
@@ -326,7 +501,9 @@ GP.base = (function () {
         bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
         bg.setLineDash([]);
       }
-      signs.push({ x: p.x + bb.w / 2 - 2, y: p.y + 8 + (signs.length % 2) * 13,
+      // 看板は建物の上に出す（手前はキャラが歩くので空けておく）。
+      // 隣同士でぶつからないよう、一段ずつ高さをずらす。
+      signs.push({ x: p.x + bb.w / 2 - 2, y: Math.max(2, bb.y - 15 - (signs.length % 2) * 13),
                    text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
     signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
@@ -386,5 +563,6 @@ GP.base = (function () {
     return { value: Math.round(v), rank: r ? r[1] : '伝説のチーム' };
   }
 
-  return { render, hit, scale, W, H };
+  return { render, scene, drawWith, invalidate, hit, scale,
+           drawActor, doorOf, doorPos, clampWalk, WALK, W, H };
 })();

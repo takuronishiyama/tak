@@ -1478,48 +1478,154 @@ window.GP = window.GP || {};
     pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() }
   };
 
+  /* ---------- 拠点を歩く ----------
+     プレイヤー（チームプリンシパル）が敷地を左右に歩き、
+     建物の入口に立つと、その設備へ入れる。
+     操作は 矢印キー／WASD と、画面のタップ（そこまで歩いていく）。   */
+  const actor = { x: 264, y: 300, dir: 'down', frame: 0, moving: false, color: '#e04a3f' };
+  let hubRaf = null, hubLast = 0, hubGoal = null, hubKeys = {}, hubDoor = null, hubBusy = false;
+  const WALK_SPEED = 62;            // 1秒あたりに進むドット数
+
+  function stopHub() {
+    if (hubRaf) cancelAnimationFrame(hubRaf);
+    hubRaf = null; hubGoal = null; hubKeys = {};
+  }
+
+  function hubStep(ts) {
+    const cv = $('hubCv');
+    // 画面から消えた／レース中は止める（後処理の裏画面を奪い合わないように）
+    if (!cv || !document.body.contains(cv) || /\bshow\b/.test($('raceScreen').className)) {
+      hubRaf = null; return;
+    }
+    const dt = Math.min(0.05, (ts - hubLast) / 1000 || 0.016);
+    hubLast = ts;
+
+    // 画面（モーダル）が開いているあいだは操作を受けず、描画もしない。
+    // ここで止めてしまうと、閉じたときに再開できないのでループ自体は回し続ける。
+    if (/\bshow\b/.test($('modal').className)) {
+      hubKeys = {}; hubGoal = null;
+      hubRaf = requestAnimationFrame(hubStep);
+      return;
+    }
+
+    let dx = 0, dy = 0;
+    if (hubKeys.left) dx -= 1;
+    if (hubKeys.right) dx += 1;
+    if (hubKeys.up) dy -= 1;
+    if (hubKeys.down) dy += 1;
+    if (dx || dy) hubGoal = null;                    // キー操作が入ったら目的地を捨てる
+    else if (hubGoal) {                              // タップした場所へ向かう
+      const gx = hubGoal.x - actor.x, gy = hubGoal.y - actor.y;
+      const d = Math.hypot(gx, gy);
+      if (d < 2.5) { hubGoal = null; }
+      else { dx = gx / d; dy = gy / d; }
+    }
+
+    const len = Math.hypot(dx, dy) || 1;
+    actor.moving = !!(dx || dy);
+    if (actor.moving) {
+      const p = GP.base.clampWalk(actor.x + (dx / len) * WALK_SPEED * dt,
+                                  actor.y + (dy / len) * WALK_SPEED * dt);
+      actor.x = p.x; actor.y = p.y;
+      actor.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right')
+                                              : (dy < 0 ? 'up' : 'down');
+      actor.frame += dt * 8;
+    } else {
+      actor.frame = 0;
+    }
+
+    // 入口の判定と案内
+    const door = GP.base.doorOf(actor.x, g);
+    const key = door ? door.key : null;
+    if (key !== hubDoor) {
+      hubDoor = key;
+      const d = key && HUB_DOORS[key];
+      const hint = $('hubHint');
+      if (hint) {
+        hint.textContent = d ? d.icon + ' ' + d.label + ' — ここで「入る」' : HUB_IDLE_HINT;
+        hint.classList.toggle('on', !!d);
+      }
+      const btn = $('hubEnter');
+      if (btn) { btn.disabled = !key; btn.textContent = key ? '▲ ' + HUB_DOORS[key].to + 'へ入る' : '▲ 入る'; }
+      if (key) GP.sound.play('tap', 30);
+    }
+
+    GP.base.drawWith(cv, g, hubDoor, actor);
+    hubRaf = requestAnimationFrame(hubStep);
+  }
+
+  function hubEnter() {
+    if (!hubDoor || hubBusy) return;
+    const d = HUB_DOORS[hubDoor];
+    if (!d) return;
+    hubBusy = true;
+    GP.sound.play('click');
+    hubGoal = null; hubKeys = {};
+    d.fn();
+    hubBusy = false;
+  }
+
+  const HUB_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」';
+
   function bindHub() {
     const cv = $('hubCv');
-    if (!cv) return;
-    // レース観戦中はポストエフェクトの裏画面を共有しているので、拠点は描き直さない
-    const racing = () => /\bshow\b/.test($('raceScreen').className);
-    const hint = $('hubHint');
-    let hot = null;                     // いまカーソルが乗っている建物
+    if (!cv) { stopHub(); return; }
+    GP.base.invalidate();          // 施設を広げた直後などに背景を作り直す
+    actor.color = g.color || '#e04a3f';
+    const p = GP.base.clampWalk(actor.x, actor.y);
+    actor.x = p.x; actor.y = p.y;
+    hubDoor = null;
 
-    const paint = () => { if (!racing()) GP.base.render(cv, g, hot); };
-    paint();
-
-    // 画面上の座標を、キャンバスの座標へ直す
+    // 画面上の座標をキャンバスの座標へ直す
     const at = ev => {
       const r = cv.getBoundingClientRect();
-      const t = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
-      return GP.base.hit((t.clientX - r.left) * (GP.base.W / r.width),
-                         (t.clientY - r.top) * (GP.base.H / r.height));
+      const t = (ev.changedTouches && ev.changedTouches[0]) || ev;
+      return { x: (t.clientX - r.left) * (GP.base.W / r.width),
+               y: (t.clientY - r.top) * (GP.base.H / r.height) };
     };
 
-    cv.onmousemove = ev => {
-      const k = at(ev);
-      if (k === hot) return;
-      hot = k;
-      paint();
-      const d = k && HUB_DOORS[k];
-      hint.textContent = d ? d.icon + ' ' + d.label + ' → 「' + d.to + '」の画面を開く'
-                           : '建物を選ぶと、その設備の画面が開きます';
-      hint.classList.toggle('on', !!d);
-      cv.style.cursor = d ? 'pointer' : 'default';
-    };
-    cv.onmouseleave = () => {
-      if (hot === null) return;
-      hot = null; paint();
-      hint.textContent = '建物を選ぶと、その設備の画面が開きます';
-      hint.classList.remove('on');
-    };
+    // 建物を押したら、その入口まで歩いていく。地面を押したらそこへ歩く
     cv.onclick = ev => {
-      const d = HUB_DOORS[at(ev)];
-      if (!d) return;
-      GP.sound.play('click');
-      d.fn();
+      const q = at(ev);
+      const k = GP.base.hit(q.x, q.y);
+      if (k && HUB_DOORS[k]) {
+        const dp = GP.base.doorPos(k, g);
+        if (dp) { hubGoal = dp; return; }
+      }
+      hubGoal = GP.base.clampWalk(q.x, q.y);
     };
+    cv.ondblclick = () => hubEnter();
+
+    const btn = $('hubEnter');
+    if (btn) btn.onclick = hubEnter;
+
+    if (!hubRaf) { hubLast = performance.now(); hubRaf = requestAnimationFrame(hubStep); }
+  }
+
+  /* キーボード操作。入力欄に文字を打っているときは邪魔しない */
+  function bindHubKeys() {
+    const MAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+                  a: 'left', d: 'right', w: 'up', s: 'down',
+                  A: 'left', D: 'right', W: 'up', S: 'down' };
+    const typing = () => {
+      const t = document.activeElement;
+      return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+    };
+    document.addEventListener('keydown', ev => {
+      if (typing() || !$('hubCv')) return;
+      if (/\bshow\b/.test($('modal').className)) return;
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hubEnter(); return; }
+      const k = MAP[ev.key];
+      if (!k) return;
+      ev.preventDefault();
+      hubKeys[k] = true;
+    });
+    document.addEventListener('keyup', ev => {
+      const k = MAP[ev.key];
+      if (k) hubKeys[k] = false;
+    });
+    // 画面から離れたときにキーが押しっぱなしにならないように
+    window.addEventListener('blur', () => { hubKeys = {}; });
   }
 
   function render() {
@@ -1735,6 +1841,7 @@ window.GP = window.GP || {};
   window.addEventListener('DOMContentLoaded', () => {
     registerSW();
     bindSkin();
+    bindHubKeys();
     bindSound();
     bindCommands();
     document.body.classList.add('preboot');

@@ -638,8 +638,10 @@ GP.ui = (function () {
       '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>' +
       '<div class="pad">' +
       '<div class="basewrap"><canvas id="hubCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
-      '<div class="hubhint" id="hubHint">建物を選ぶと、その設備の画面が開きます</div>' +
-      '</div></div>';
+      '<div class="hubbar">' +
+      '<div class="hubhint" id="hubHint">矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」</div>' +
+      '<button class="btn hubenter" id="hubEnter" disabled>▲ 入る</button>' +
+      '</div></div></div>';
   }
 
   /* ---------- ログ ---------- */
