@@ -1704,6 +1704,106 @@ window.GP = window.GP || {};
     U.modal('⏱️ 予選', body, [{ label: '🚦 決勝スタート！', cls: 'primary', fn: runRace }], { wide: true });
   }
 
+  /* =======================================================
+     デブリーフィング
+     「なぜその順位だったのか」を、シミュレーションと同じ式で分解する。
+     ラップタイム差 = 基準タイム × 0.00092 × 性能差、
+     性能 = （マシン × 0.6 ＋ ドライバー × 0.4）× 週の調子。
+     この式をそのまま逆に辿るので、出る数字は実際の中身と一致する。
+     ======================================================= */
+  const PERF_TO_SEC = 0.00092;
+
+  function raceDebrief(res) {
+    const me = res.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
+    if (!me || !me.lapTimes || !me.lapTimes.length) return '';
+    const fin = res.classified.filter(e => !e.dnf).sort((a, b) => a.pos - b.pos);
+    // 比べる相手は優勝者。自分が勝っていれば2位
+    const rival = (fin[0] && fin[0].id === me.id) ? fin[1] : fin[0];
+    if (!rival || !rival.lapTimes || !rival.lapTimes.length) return '';
+
+    const base = res.track.base;
+    const drive = e => {
+      const laps = e.lapTimes.filter(v => v != null);
+      const pit = (e.pitTime || []).reduce((a, v) => a + (v || 0), 0);
+      return { avg: (laps.reduce((a, v) => a + v, 0) - pit) / laps.length, pit: pit, laps: laps.length };
+    };
+    const A = drive(me), B = drive(rival);
+    const gap = A.avg - B.avg;                       // 1周あたり、自分が遅れている秒数
+    const carSec = base * PERF_TO_SEC * 0.60 *
+      (rival.carScore * rival.formMul - me.carScore * me.formMul);
+    const drvSec = base * PERF_TO_SEC * 0.40 *
+      (rival.drvScore * rival.formMul - me.drvScore * me.formMul);
+    const restSec = gap - carSec - drvSec;           // タイヤ・戦略・ERS・ミス
+
+    // この週、全チームの中で自分のマシンと腕が何番目だったか
+    const teams = {};
+    res.entries.forEach(e => {
+      const k = e.team.name;
+      if (!teams[k] || e.drvScore > teams[k].drv) teams[k] = { car: e.carScore, drv: e.drvScore, mine: e.isPlayer };
+    });
+    const list = Object.keys(teams).map(k => teams[k]);
+    const rankOf = key => {
+      const mineV = (list.find(x => x.mine) || {})[key];
+      if (mineV == null) return null;
+      return list.filter(x => x[key] > mineV).length + 1;
+    };
+    const carRank = rankOf('car'), drvRank = rankOf('drv'), n = list.length;
+
+    // いちばん効いたものを名指しする
+    const items = [
+      { key: 'car', label: 'マシンの速さ', sec: carSec, rank: carRank,
+        advice: 'パーツの改良と車体の熟成に、もっとコマンドを割きましょう。' },
+      { key: 'drv', label: 'ドライバーの腕', sec: drvSec, rank: drvRank,
+        advice: '練習で鍛えるか、市場でより速いドライバーを獲りましょう。' },
+      { key: 'etc', label: 'タイヤ・戦略・電気の使い方', sec: restSec, rank: null,
+        advice: 'ピット回数やタイヤの狙い、ストラテジストの補強を見直しましょう。' }
+    ];
+    const worst = items.slice().sort((a, b) => b.sec - a.sec)[0];
+
+    const sign = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+    const bar = v => {
+      const w = Math.min(100, Math.abs(v) / Math.max(0.15, Math.abs(gap)) * 100);
+      return '<i class="' + (v >= 0 ? 'lose' : 'win') + '" style="width:' + w + '%"></i>';
+    };
+    let h = '<div class="sub">🔍 デブリーフィング</div>' +
+      '<p class="desc">' + esc(rival.team.name) + '（' + (rival.pos) + '位）と比べて、' +
+      '1周あたり <b class="' + (gap >= 0 ? 'bad' : 'good') + '">' + sign(gap) + '秒</b>' +
+      (gap >= 0 ? ' 遅れていました。その内訳です。' : ' 速く走れていました。その内訳です。') + '</p>';
+    h += '<div class="dbr">';
+    items.forEach(it => {
+      h += '<div class="dbr-row' + (it === worst && it.sec > 0.02 ? ' worst' : '') + '">' +
+        '<span class="dbr-nm">' + it.label +
+        (it.rank ? '<em>全' + n + 'チーム中 ' + it.rank + '番目</em>' : '') + '</span>' +
+        '<span class="dbr-bar">' + bar(it.sec) + '</span>' +
+        '<b class="' + (it.sec >= 0 ? 'bad' : 'good') + '">' + sign(it.sec) + '秒</b></div>';
+    });
+    h += '</div>';
+
+    // 走りそのもの以外で失ったもの
+    const extra = [];
+    const pd = A.pit - B.pit;
+    if (Math.abs(pd) > 1.2) {
+      extra.push('ピット作業では ' + (pd > 0 ? '相手より ' + pd.toFixed(1) + '秒 多く失いました'
+                                             : '相手より ' + (-pd).toFixed(1) + '秒 得をしました') +
+                 '（' + me.pits.length + '回ストップ・相手は' + rival.pits.length + '回）');
+    }
+    const moved = me.grid - me.pos;
+    if (!me.dnf && moved !== 0) {
+      extra.push('スタート ' + me.grid + '番手から ' + (moved > 0 ? moved + 'つ順位を上げました' : (-moved) + 'つ落としました'));
+    }
+    if (me.passes) extra.push('コース上で ' + me.passes + '回、前の車を抜きました');
+    if (me.dnf) extra.push('リタイア（' + me.dnfReason + '）。信頼性は ' + Math.round(S.reliability(g)) + '% です');
+    if (extra.length) h += '<p class="desc">' + extra.map(esc).join('<br>') + '</p>';
+
+    if (worst.sec > 0.02) {
+      h += '<p class="note">📌 いちばんの足かせは <b>' + worst.label + '</b>（1周 ' + sign(worst.sec) + '秒）。' +
+           worst.advice + '</p>';
+    } else {
+      h += '<p class="note">📌 弱点らしい弱点はありません。この調子で積み上げましょう。</p>';
+    }
+    return h;
+  }
+
   function fmtTime(s) {
     const m = Math.floor(s / 60);
     const r = (s - m * 60);
@@ -1763,6 +1863,8 @@ window.GP = window.GP || {};
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
+      // なぜその順位だったのかを分解して見せる
+      body += raceDebrief(res);
       if (res.fastestLap) {
         const scored = !res.fastestLap.dnf && res.fastestLap.pos <= D.POINTS.length && !res.special;
         body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) +
@@ -3183,8 +3285,64 @@ window.GP = window.GP || {};
     });
   }
 
+  /* ---- チーム診断：いま何が足を引っぱっているのか ---- */
+  function teamDiag() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const mineCar = S.carScoreOf(S.carStats(g), track);
+    const mineDrv = g.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, g.drivers.length);
+    const mineRel = S.reliability(g);
+    const rows = [
+      { key: 'car', icon: '🏎️', name: 'マシンの速さ', mine: mineCar,
+        rivals: (g.rivals || []).map(r => S.carScoreOf(r.stats, track)),
+        advice: 'パーツの改良と車体の熟成にコマンドを割きましょう。' },
+      { key: 'drv', icon: '🧑‍✈️', name: 'ドライバーの腕', mine: mineDrv,
+        rivals: (g.rivals || []).map(r => r.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, r.drivers.length)),
+        advice: '練習で鍛えるか、市場でより速い人を獲りましょう。' },
+      { key: 'rel', icon: '🔩', name: 'マシンの信頼性', mine: mineRel,
+        rivals: (g.rivals || []).map(r => r.rel),
+        advice: '整備コマンド、ピット設備、メカニックの補強を。車体の剛性と冷却も効きます。' }
+    ];
+    const n = (g.rivals || []).length + 1;
+    rows.forEach(r => {
+      r.rank = r.rivals.filter(v => v > r.mine).length + 1;
+      r.pct = (n - r.rank) / Math.max(1, n - 1);
+    });
+    const worst = rows.slice().sort((a, b) => b.rank - a.rank)[0];
+
+    let h = '<div class="sub">🔎 チーム診断（次戦 ' + esc(track.name) + ' で）</div>' +
+      '<div class="diag">';
+    rows.forEach(r => {
+      const cls = r.rank <= 3 ? 'top' : r.rank <= Math.ceil(n / 2) ? 'mid' : 'low';
+      h += '<div class="diag-row' + (r === worst && r.rank > 3 ? ' worst' : '') + '">' +
+        '<span class="diag-nm">' + r.icon + ' ' + r.name + '</span>' +
+        '<span class="diag-bar"><i class="' + cls + '" style="width:' +
+          Math.round(Math.max(4, r.pct * 100)) + '%"></i></span>' +
+        '<b class="' + cls + '">' + r.rank + ' / ' + n + '位</b></div>';
+    });
+    h += '</div>';
+    // 現場の細かいところ
+    const fin = S.finances(g);
+    const cw = S.crewPenalty(g);
+    h += '<div class="diag-sub">' +
+      '<span>🔧 ピット作業 <b>' + (20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
+        - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5 + cw.pit).toFixed(1) + '秒</b></span>' +
+      '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
+      '<span>👷 開発の厚み <b>' + (S.staffBonus(g, 'engineer') * 100 / 3).toFixed(0) + '</b></span>' +
+      '<span>💹 1戦の収支 <b class="' + (fin.net >= 0 ? 'good' : 'bad') + '">' +
+        (fin.net >= 0 ? '+' : '') + money(fin.net) + '万</b></span>' +
+      '</div>';
+    if (worst.rank > 3) {
+      h += '<p class="note">📌 いま一番の足かせは <b>' + worst.name + '</b>（' + worst.rank + '/' + n + '位）。' +
+           worst.advice + '</p>';
+    } else {
+      h += '<p class="note">📌 どの部門も上位です。この形を保ちましょう。</p>';
+    }
+    return h;
+  }
+
   function cmdInfo() {
-    let body = U.finance(g);
+    let body = teamDiag();
+    body += U.finance(g);
     body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
     body += U.standings(g);
     body += '<div class="sub">今季のレース結果</div>';

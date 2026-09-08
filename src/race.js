@@ -62,6 +62,8 @@ GP.race = (function () {
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk, hot: ti === hot,
+          // あとで「何が効いて、その順位になったのか」を分解するために残す
+          carScore: t.car, drvScore: drv, formMul: form[ti],
           bd: t.isPlayer ? myBody : evenBody,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
