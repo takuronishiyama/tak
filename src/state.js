@@ -453,12 +453,39 @@ GP.state = (function () {
      これが無いと、プレイヤーだけが毎週伸びて途中から一方的になる。
      強いチームほど開発が速く、下位はゆっくり。難易度でも変わる。
      ただしプレイヤーほどは伸びないので、手を入れただけ前に出られる。 */
+  /* ---------- コストキャップ ----------
+     開発と設備に注ぎ込める1シーズンの上限。使い切ったら、
+     金があってもそれ以上マシンには注げない                        */
+  function costCap(g2) {
+    return D.COST_CAP + (g2.season - 1) * D.COST_CAP_GROW;
+  }
+  const capSpent = g2 => g2.capSpent || 0;
+  const capLeft = g2 => Math.max(0, costCap(g2) - capSpent(g2));
+  /* 上限に対して使った割合（0..1超） */
+  const capRatio = g2 => capSpent(g2) / Math.max(1, costCap(g2));
+  /* 開発・設備の支出を記録する。上限を超えた分は返す */
+  function spendCapped(g2, amount) {
+    g2.capSpent = capSpent(g2) + amount;
+    return Math.max(0, g2.capSpent - costCap(g2));
+  }
+  /* シーズン明けの精算。超過していれば罰金と、翌年の風洞時間の削減 */
+  function settleCap(g2) {
+    const over = Math.max(0, capSpent(g2) - costCap(g2));
+    g2.capSpent = 0;
+    g2.capPenalty = over > 0;
+    if (over <= 0) return null;
+    const fine = Math.round(over * D.COST_CAP_FINE);
+    g2.funds -= fine;
+    return { over: Math.round(over), fine: fine };
+  }
+
   /* ---------- 風洞・CFDの使用時間 ----------
      前年の順位で決まる開発の伸びの倍率。1年を通して変わらない       */
   function atrOf(g2) {
     const r = g2.lastRank || 0;
-    if (!r) return 1;                                  // 1年目は傾斜なし
-    return D.ATR[Math.min(D.ATR.length - 1, r - 1)];
+    const pen = g2.capPenalty ? D.COST_CAP_ATR : 1;    // 前年の予算超過ぶん
+    if (!r) return pen;                                // 1年目は順位の傾斜なし
+    return D.ATR[Math.min(D.ATR.length - 1, r - 1)] * pen;
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
@@ -667,6 +694,34 @@ GP.state = (function () {
     return clamp(Math.round(rank * 1.6 - 0.6), 1, 20);
   }
 
+  /* ---------- タイトルスポンサー ---------- */
+  const titleOf = g2 => (g2.title && D.TITLE_SPONSORS.find(x => x.key === g2.title.key)) || null;
+  /* 話ができる相手（ファンと注目度が届いているもののうち、いちばん大きいもの） */
+  function titleOpen(g2) {
+    return D.TITLE_SPONSORS.filter(t =>
+      (g2.fans || 0) >= t.fans && (g2.hype || 0) >= t.hype);
+  }
+  function signTitle(g2, key) {
+    const t = D.TITLE_SPONSORS.find(x => x.key === key);
+    if (!t) return null;
+    g2.title = { key: t.key, left: t.years };     // left は残りシーズン数
+    return t;
+  }
+  /* 表示に使うチーム名。冠がつく */
+  function teamLabel(g2) {
+    const t = titleOf(g2);
+    return t ? t.short + ' ' + g2.team : g2.team;
+  }
+  /* シーズン明けに契約年数が減る。切れたら外れる */
+  function tickTitle(g2) {
+    if (!g2.title) return null;
+    g2.title.left--;
+    if (g2.title.left > 0) return null;
+    const gone = titleOf(g2);
+    g2.title = null;
+    return gone;
+  }
+
   function hypeBonus(g2) {
     return 1 + (g2.hype || 0) / 100 * 0.6;
   }
@@ -728,9 +783,12 @@ GP.state = (function () {
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
     const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
                 * (1 + osk(g2, 'money') * 0.06);   // 商才
-    const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
+    const ts = titleOf(g2);
+    const perRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.per || 0), 0)
+                                + (ts ? ts.per : 0)) * scale);
     const merch = fanIncome(g2);           // グッズ・入場料
-    const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
+    const rpRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.rp || 0), 0)
+                               + (ts ? ts.rp : 0)) * scale);
 
     const PREP = raceWeek(0);                       // レース1回あたりの週数
     // 次のレースへの輸送費（コースの遠さで変わる）
@@ -806,6 +864,9 @@ GP.state = (function () {
       dryStreak: 0,         // 入賞できていないレース数
       youth: [],            // 下部組織の若手
       reserve: null,        // リザーブドライバー（1人）
+      title: null,          // タイトルスポンサー（冠）
+      capSpent: 0,          // 今季ここまでの開発・設備への支出
+      capPenalty: false,    // 前季に予算上限を超えたか
       managers: {},         // 役職（空席から始まる）
       fans: 500,
       rp: 20,                       // 研究ポイント
@@ -1221,7 +1282,7 @@ GP.state = (function () {
       return d;
     });
     const me = {
-      name: g.team, color: g.color, isPlayer: true, char: machineChar(mine),
+      name: teamLabel(g), color: g.color, isPlayer: true, char: machineChar(mine),
       stats: mine, car: carScoreOf(mine, track), rel: reliability(g),
       points: g.points, drivers: lineup
     };
@@ -1247,7 +1308,7 @@ GP.state = (function () {
 
   /* ---------- コンストラクターズ順位表 ---------- */
   function constructorTable(g) {
-    const rows = [{ name: g.team, color: g.color, points: g.points, isPlayer: true }]
+    const rows = [{ name: teamLabel(g), color: g.color, points: g.points, isPlayer: true }]
       .concat(g.rivals.map(r => ({ name: r.name, color: r.color, points: r.points, isPlayer: false })));
     rows.sort((a, b) => b.points - a.points);
     return rows;
@@ -1256,7 +1317,7 @@ GP.state = (function () {
   /* ---------- ドライバーズ順位表 ---------- */
   function driverTable(g) {
     let rows = [];
-    g.drivers.forEach(d => rows.push({ name: d.name, team: g.team, color: g.color, points: d.seasonPoints, isPlayer: true }));
+    g.drivers.forEach(d => rows.push({ name: d.name, team: teamLabel(g), color: g.color, points: d.seasonPoints, isPlayer: true }));
     g.rivals.forEach(t => t.drivers.forEach(d =>
       rows.push({ name: d.name, team: t.name, color: t.color, points: d.seasonPoints, isPlayer: false })));
     rows.sort((a, b) => b.points - a.points);
@@ -1278,6 +1339,7 @@ GP.state = (function () {
       if (!g.logi) g.logi = { plan: 'std', crew: 0 };
       if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
       if (g.reserve === undefined) g.reserve = null;
+      if (g.capSpent == null) g.capSpent = 0;
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
         D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
@@ -1294,7 +1356,8 @@ GP.state = (function () {
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
-    hypeTier, hypeBonus, addHype, sponsorOpen, atrOf, atrLabel, championshipStake,
+    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,

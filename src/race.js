@@ -712,6 +712,13 @@ GP.race = (function () {
           '（今季 ' + s2.hits + '/' + D.SPONSOR_BONUS_CAP + '回目）');
       }
     });
+    // タイトルスポンサー。冠がつくぶん、支払いも大きい
+    const ts = S.titleOf(g);
+    if (ts) {
+      sponsorIncome += (ts.per || 0) * spScale;
+      sponsorRp     += (ts.rp || 0) * spScale;
+      sponsorFans   += (ts.fan || 0) * spScale;
+    }
     sponsorIncome = Math.round(sponsorIncome);
     sponsorRp = Math.round(sponsorRp);
     sponsorFans = Math.round(sponsorFans);

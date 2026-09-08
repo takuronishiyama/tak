@@ -473,6 +473,25 @@ GP.data = (function () {
     media: { name: '露出型',   icon: '📣', desc: '資金は控えめだが、ファンと注目度が伸びる' }
   };
 
+  /* ---------- タイトルスポンサー ----------
+     チーム名に冠がつく、いちばん大きな契約。
+     ファンと注目度が届いた相手からしか話は来ない。
+     契約すると呼び名が変わり、収入も一段跳ね上がる                */
+  const TITLE_SPONSORS = [
+    { key: 'aoi',   name: 'アオイ精機', icon: '🔧', short: 'アオイ',
+      per: 1500, rp: 12, fan: 180, fans: 4000,  hype: 26, years: 2,
+      desc: '国内最大の工作機械メーカー。堅実で、契約も長い' },
+    { key: 'kuro',  name: 'クロガネ銀行', icon: '🏦', short: 'クロガネ',
+      per: 2400, rp: 0,  fan: 120, fans: 12000, hype: 42, years: 2,
+      desc: '大手金融。金払いは良いが、結果を強く求めてくる' },
+    { key: 'nova',  name: 'ノヴァ・エナジー', icon: '⚡', short: 'ノヴァ',
+      per: 3600, rp: 26, fan: 320, fans: 30000, hype: 58, years: 3,
+      desc: '世界的なエネルギー企業。ここと組めれば本物' },
+    { key: 'astra', name: 'アストラ航空', icon: '✈️', short: 'アストラ',
+      per: 5200, rp: 40, fan: 520, fans: 80000, hype: 74, years: 3,
+      desc: '最上級の看板。名門だけが名を並べられる' }
+  ];
+
   const SPONSORS = [
     { name: 'マメゾウ電機',   icon: '🔌', kind: 'cash',  per: 340,  rp: 0,  fan: 0,
       bonus: 1500,  bonusRp: 0,   need: 12, fans: 0,     hype: 0 },
@@ -655,6 +674,15 @@ GP.data = (function () {
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
+  /* ---------- コストキャップ（予算上限） ----------
+     1シーズンに開発と設備へ注ぎ込める金額の上限。
+     資金が「多いほど良い」から「何に使うか」に変わる。
+     超えた分は罰金になり、翌年の風洞時間も削られる                */
+  const COST_CAP = 22000;          // 1シーズンの上限
+  const COST_CAP_GROW = 15000;     // シーズンごとに上がる分（開発費の伸びに合わせてある）
+  const COST_CAP_FINE = 0.60;      // 超過額に対する罰金の割合
+  const COST_CAP_ATR = 0.94;       // 超過した翌年の風洞時間の倍率
+
   /* ---------- パワーユニットの使用基数 ----------
      1シーズンに使える基数は決まっていて、超えるとグリッド降格になる。
      速さのために回すか、基数を守って我慢するか、という判断を作る      */
@@ -714,5 +742,5 @@ GP.data = (function () {
 
   return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

@@ -74,6 +74,22 @@ window.GP = window.GP || {};
     });
   }
 
+  /* 開発と設備への支出を、今季の予算に記録する。
+     上限を超えても止めはしないが、シーズン明けに罰金と風洞時間の削減が来る */
+  let capWarned = false;
+  function capSpend(amount) {
+    const before = S.capSpent(g);
+    S.spendCapped(g, amount);
+    const cap = S.costCap(g);
+    if (before <= cap && S.capSpent(g) > cap && !capWarned) {
+      capWarned = true;
+      U.log(g, '🧾 今季の予算上限（' + money(cap) + '万）を超えた。' +
+               'シーズン明けに超過分の' + Math.round(D.COST_CAP_FINE * 100) + '%が罰金となり、' +
+               '翌年の風洞時間も削られる。', 'bad');
+      U.toast('🧾 予算上限を超えました', 'bad');
+    }
+  }
+
   function levelCheck(d) {
     while (d.exp >= 40 * d.expLv) {
       d.exp -= 40 * d.expLv;
@@ -261,6 +277,20 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
+    // ---- 今季の予算 ----
+    const capPct = Math.min(140, S.capRatio(g) * 100);
+    const overCap = S.capSpent(g) > S.costCap(g);
+    body += '<div class="capbox' + (overCap ? ' over' : capPct > 80 ? ' warn' : '') + '">' +
+      '<b>🧾 今季の予算 ' + money(S.capSpent(g)) + ' / ' + money(S.costCap(g)) + '万</b>' +
+      '<span class="skbar big"><i class="' + (overCap ? 'f2' : capPct > 80 ? 'f1' : 'f0') +
+        '" style="width:' + Math.min(100, capPct) + '%"></i></span>' +
+      '<em>' + Math.round(capPct) + '%</em>' +
+      '<small>開発・設計・合成・施設に使える1シーズンの上限です。' +
+      (overCap
+        ? '<b class="warn">超過分の' + Math.round(D.COST_CAP_FINE * 100) + '%が罰金になり、翌年の風洞時間も削られます。</b>'
+        : '残り ' + money(S.capLeft(g)) + '万。超えても止まりませんが、罰金と翌年の開発時間削減が待っています。') +
+      '</small></div>';
+
     const at2 = S.atrLabel(g);
     if (g.lastRank) {
       body += '<div class="atrbox slim" style="--ac:' + at2.color + '">' +
@@ -313,7 +343,7 @@ window.GP = window.GP || {};
     const free = spendTicket();
     if (!free) {
       if (g.funds < cost || g.rp < 8) return;
-      g.funds -= cost; g.rp -= 8;
+      g.funds -= cost; g.rp -= 8; capSpend(cost);
     }
     const facBonus = 1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06;
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
@@ -425,7 +455,7 @@ window.GP = window.GP || {};
     const free = spendTicket();
     if (!free) {
       if (g.funds < cost || g.rp < c.rp) return;
-      g.funds -= cost; g.rp -= c.rp;
+      g.funds -= cost; g.rp -= c.rp; capSpend(cost);
     }
 
     const facBonus = 1 + g.facilities.factory * 0.10 +
@@ -512,7 +542,7 @@ window.GP = window.GP || {};
     const free = spendTicket();
     if (!free) {
       if (g.funds < dc.money || g.rp < dc.rp) return;
-      g.funds -= dc.money; g.rp -= dc.rp;
+      g.funds -= dc.money; g.rp -= dc.rp; capSpend(dc.money);
     }
 
     const rarity = S.rollRarity(g);
@@ -867,6 +897,35 @@ window.GP = window.GP || {};
           '<span class="pb-cost">受ける</span></button></div>';
       }
     }
+    // ---- タイトルスポンサー ----
+    const cur = S.titleOf(g);
+    body += '<div class="sub">👑 タイトルスポンサー</div>';
+    if (cur) {
+      body += '<div class="titlebox on"><b>' + cur.icon + ' ' + esc(cur.name) + '</b>' +
+        '<span>チーム名：<b>' + esc(S.teamLabel(g)) + '</b></span>' +
+        '<small>1戦あたり ' + money(cur.per) + '万' +
+        (cur.rp ? '／研究P +' + cur.rp : '') + (cur.fan ? '／ファン +' + cur.fan : '') +
+        '　契約はあと <b>' + g.title.left + 'シーズン</b></small></div>';
+    } else {
+      const open = S.titleOpen(g);
+      body += '<p class="desc">チーム名に冠がつく、いちばん大きな契約です。' +
+        'ファンと注目度が届いた相手からしか話は来ません。</p><div class="pick">';
+      D.TITLE_SPONSORS.forEach(t => {
+        const ok = open.indexOf(t) >= 0;
+        body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="ttl:' + t.key + '"' +
+          (ok ? '' : ' disabled') + '>' +
+          '<span class="pb-ic" style="background:#8a6ad0">' + t.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(t.name) + '</b>' +
+          '<small>' + esc(t.desc) + '<br>1戦 ' + money(t.per) + '万' +
+          (t.rp ? '／研究P +' + t.rp : '') + (t.fan ? '／ファン +' + t.fan : '') +
+          '　契約 ' + t.years + 'シーズン' +
+          '<br>条件：ファン ' + money(t.fans) + ' 以上・注目度 ' + t.hype + ' 以上' +
+          (ok ? '　<em class="free">条件を満たしています</em>' : '') + '</small></span>' +
+          '<span class="pb-cost">' + (ok ? '交渉する' : '—') + '</span></button>';
+      });
+      body += '</div>';
+    }
+
     body += '<div class="pick"><button class="pickbtn" data-k="__ad"><span class="pb-ic" style="background:#f0a020">📣</span>' +
       '<span class="pb-body"><b>プロモーション活動</b><small>ファンを増やし、少し資金も入る</small></span>' +
       '<span class="pb-cost">+ファン</span></button></div>';
@@ -896,6 +955,7 @@ window.GP = window.GP || {};
     bindPick(k => {
       if (k === '__ad') return doPromo();
       if (k === '__offer') return doAcceptOffer();
+      if (k.indexOf('ttl:') === 0) return doTitleSponsor(k.slice(4));
       doSign(k);
     });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-drop]'), b => {
@@ -1078,7 +1138,7 @@ window.GP = window.GP || {};
     if (!base) return;
     const cost = fuseCost(m);
     if (g.funds < cost) return;
-    g.funds -= cost;
+    g.funds -= cost; capSpend(cost);
 
     const gain = Math.round(m.power * 0.45 * 10) / 10;
     base.power = Math.round((base.power + gain) * 10) / 10;
@@ -1167,7 +1227,7 @@ window.GP = window.GP || {};
     if (up) up.onclick = () => {
       const c = facilityCost(baseSel);
       if (g.funds < c || g.facilities[baseSel] >= 10) return;
-      g.funds -= c; g.facilities[baseSel]++;
+      g.funds -= c; capSpend(c); g.facilities[baseSel]++;
       const fa = D.FACILITIES.find(x => x.key === baseSel);
       GP.sound.play('build');
       U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
@@ -2345,6 +2405,18 @@ window.GP = window.GP || {};
     g.week = 1;
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
     S.puReset(g);                // パワーユニットの使用基数も新品から数え直す
+    const capRes = S.settleCap(g);   // 予算の精算
+    capWarned = false;
+    if (capRes) {
+      U.log(g, '🧾 予算超過 ' + money(capRes.over) + '万。罰金 -' + money(capRes.fine) +
+               '万、来季の風洞時間も削られる。', 'bad');
+      U.toast('🧾 予算超過の罰金 -' + money(capRes.fine) + '万', 'bad');
+    }
+    const goneTitle = S.tickTitle(g);
+    if (goneTitle) {
+      U.log(g, '👑 ' + goneTitle.name + ' とのタイトルスポンサー契約が満了した。', 'warn');
+      U.toast('👑 冠スポンサーの契約が満了', 'warn');
+    }
     g.nextRace = 0;
     // 4シーズンに一度、マシンの規則が変わる
     const regChange = S.regulationDue(g);
@@ -3507,6 +3579,8 @@ window.GP = window.GP || {};
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +
         '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）</span>' +
       '<span>👷 開発の厚み <b>' + (S.staffBonus(g, 'engineer') * 100 / 3).toFixed(0) + '</b></span>' +
+      '<span>🧾 今季の予算 <b class="' + (S.capSpent(g) > S.costCap(g) ? 'bad' : '') + '">' +
+        money(S.capSpent(g)) + '/' + money(S.costCap(g)) + '万</b></span>' +
       '<span>💹 1戦の収支 <b class="' + (fin.net >= 0 ? 'good' : 'bad') + '">' +
         (fin.net >= 0 ? '+' : '') + money(fin.net) + '万</b></span>' +
       '</div>';
@@ -3517,6 +3591,20 @@ window.GP = window.GP || {};
       h += '<p class="note">📌 どの部門も上位です。この形を保ちましょう。</p>';
     }
     return h;
+  }
+
+  /* ---- タイトルスポンサーと契約する（週は消費しない）---- */
+  function doTitleSponsor(key) {
+    if (g.title) return;
+    if (S.titleOpen(g).every(t => t.key !== key)) return;
+    const t = S.signTitle(g, key);
+    if (!t) return;
+    GP.sound.play('crit');
+    U.log(g, '👑 ' + t.name + ' とタイトルスポンサー契約！ チーム名が「' +
+             S.teamLabel(g) + '」になった。', 'good');
+    U.toast('👑 ' + t.name + ' が冠スポンサーに！', 'good');
+    U.pop('👑 ' + t.short, 'crit');
+    S.save(g); render(); cmdSponsor();
   }
 
   function cmdInfo() {
