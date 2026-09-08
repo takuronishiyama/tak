@@ -98,7 +98,10 @@ GP.sound = (function () {
     podium:  () => [N.G4, N.C5, N.E5].forEach((f, i) => tone({ from: f, dur: 0.16, vol: 0.6, at: i * 0.1 })),
     bad:     () => { tone({ from: N.D4, dur: 0.16, vol: 0.5, type: 'triangle' });
                      tone({ from: N.B4 * 0.5, dur: 0.24, vol: 0.5, type: 'triangle', at: 0.14 }); },
-    warn:    () => { tone({ from: N.A4, dur: 0.09, vol: 0.5 }); tone({ from: N.A4, dur: 0.09, vol: 0.5, at: 0.13 }); }
+    warn:    () => { tone({ from: N.A4, dur: 0.09, vol: 0.5 }); tone({ from: N.A4, dur: 0.09, vol: 0.5, at: 0.13 }); },
+    /* 無線が入るときの、短いかすれ音 */
+    radio:   () => { noise({ from: 2600, to: 1300, dur: 0.05, vol: 0.30, q: 5 });
+                     tone({ from: N.E5, dur: 0.04, vol: 0.22, type: 'square', at: 0.05 }); }
   };
 
   /* 連打で音が団子にならないよう間引く */

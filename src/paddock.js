@@ -194,6 +194,18 @@ GP.paddock = (function () {
       ctx.fillRect(x, y, 2, 2);
     }
 
+    /* ---- ピットレーンを移動していくマシン ----
+       奥のほうなので小さく、かすませて置く                        */
+    if (GP.grid && GP.grid.sideCar) {
+      [[128, 0.44], [352, 0.44], [520, 0.40]].forEach((v, k) => {
+        const t2 = teams[(k * 4 + 2) % teams.length];
+        GP.grid.sideCar(ctx, v[0], 118, v[1], (t2 && t2.color) || '#8a8578', 1, false);
+      });
+      // 奥はうっすら空気の層をかけて距離を出す（かけすぎると車が消える）
+      ctx.fillStyle = dusk ? 'rgba(46,50,68,.16)' : 'rgba(186,200,216,.14)';
+      ctx.fillRect(0, 76, W, 52);
+    }
+
     /* ---- ガレージ（チームごとに1つ並ぶ）---- */
     const gw = GW, gy = 246;
     for (let i = 0; i < 11; i++) {
@@ -227,6 +239,26 @@ GP.paddock = (function () {
         ctx.fillRect(sx + 3, 214, 5, 8); ctx.fillRect(sx + sw - 8, 214, 5, 8);
         ctx.fillStyle = '#2b2e36'; ctx.fillRect(sx + 5, 192, sw - 10, 3);    // フロントウイング
         ctx.fillRect(sx + 6, 224, sw - 12, 3);                               // リアウイング
+      } else if ((i * 7 + 3) % 11 < 6) {
+        // 半分ほどのガレージは開いていて、中で仕上げているマシンが見える。
+        // 「他所の車の間を歩いている」という感じは、ここで作られる
+        ctx.fillStyle = dusk ? '#3b3346' : '#5f5a52';
+        ctx.fillRect(sx, 156, sw, gy - 162);
+        ctx.fillStyle = 'rgba(255,236,180,.30)';                             // 天井の照明
+        ctx.fillRect(sx, 156, sw, 6);
+        ctx.fillStyle = 'rgba(255,236,180,.10)';
+        ctx.fillRect(sx, 162, sw, gy - 172);
+        // 横から見たマシン。奥まっているので少し暗く小さく
+        if (GP.grid && GP.grid.sideCar) {
+          ctx.save();
+          ctx.beginPath(); ctx.rect(sx, 156, sw, gy - 162); ctx.clip();
+          GP.grid.sideCar(ctx, gx + gw / 2, gy - 16, 0.62,
+                          t ? t.color : '#8a8578', 1, true);
+          ctx.restore();
+        }
+        // シャッターは上まで上がっている
+        ctx.fillStyle = dusk ? '#2a2530' : '#8a9098';
+        ctx.fillRect(sx, 152, sw, 6);
       } else {
         ctx.fillStyle = dusk ? '#3a3f4a' : '#9aa0a8';                        // 閉じたシャッター
         ctx.fillRect(sx, 156, sw, gy - 162);
@@ -430,6 +462,32 @@ GP.paddock = (function () {
         ctx.setLineDash([]);
       }
     }
+
+    /* ---- 光と、手前の抜け ----
+       通路に光を落とし、画面の縁を落として視線を集める。
+       いちばん手前には、ピントの外にある機材を大きく置く       */
+    (function () {
+      const pool = ctx.createRadialGradient(300, WALK.y1 - 6, 40, 300, WALK.y1 - 6, 340);
+      pool.addColorStop(0, 'rgba(255,226,168,' + (dusk ? '.16' : '.20') + ')');
+      pool.addColorStop(0.6, 'rgba(255,214,150,.05)');
+      pool.addColorStop(1, 'rgba(255,214,150,0)');
+      ctx.fillStyle = pool; ctx.fillRect(0, 120, W, H - 120);
+      // 手前のタイヤの山（形だけの黒い塊）
+      ctx.fillStyle = 'rgba(10,9,14,.80)';
+      for (let k = 0; k < 4; k++) ctx.fillRect(6, H - 30 + k * 8, 52, 7);
+      ctx.fillRect(W - 74, H - 22, 60, 22);
+      const v2 = ctx.createLinearGradient(0, 0, 0, H);
+      v2.addColorStop(0, 'rgba(10,8,16,.22)');
+      v2.addColorStop(0.5, 'rgba(10,8,16,0)');
+      v2.addColorStop(1, 'rgba(10,8,16,.30)');
+      ctx.fillStyle = v2; ctx.fillRect(0, 0, W, H);
+      const h2 = ctx.createLinearGradient(0, 0, W, 0);
+      h2.addColorStop(0, 'rgba(10,8,16,.30)');
+      h2.addColorStop(0.22, 'rgba(10,8,16,0)');
+      h2.addColorStop(0.78, 'rgba(10,8,16,0)');
+      h2.addColorStop(1, 'rgba(10,8,16,.30)');
+      ctx.fillStyle = h2; ctx.fillRect(0, 0, W, H);
+    })();
 
     if (!dusk) return;
     // 夕暮れの空気

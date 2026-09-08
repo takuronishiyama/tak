@@ -11,6 +11,8 @@ GP.raceview = (function () {
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
+  /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
+  let shownRadio = 0, radioQueue = [], radioTimer = 0;
   let wetNow = false;        // いま雨が降っているか（途中で変わる）
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -1289,6 +1291,7 @@ GP.raceview = (function () {
     advanceSectors(vt);
     renderSectors();
     flushEvents(false);
+    pumpRadio(false);
   }
 
   /* レース中の急変を、画面いっぱいの帯で数秒だけ知らせる */
@@ -1300,6 +1303,53 @@ GP.raceview = (function () {
     el.className = 'rv-flash show' + (wet ? ' wet' : '');
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => { el.className = 'rv-flash' + (wet ? ' wet' : ''); }, 2600);
+  }
+
+  /* =========================================================
+     チーム無線
+     ピットとドライバーのやりとりを、会話らしく少し間を置いて出す
+     ========================================================= */
+  const rvEsc = t => String(t).replace(/[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function pumpRadio(all) {
+    const list = res.radio || [];
+    const lapNow = vt / res.track.base + 1;
+    while (shownRadio < list.length) {
+      const r = list[shownRadio];
+      if (!all && r.lap > lapNow) break;
+      if (!all) radioQueue.push(r);
+      shownRadio++;
+    }
+    if (!all) drainRadio();
+  }
+  function drainRadio() {
+    if (radioTimer || !radioQueue.length) return;
+    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）
+    if (radioQueue.length > 4) radioQueue = radioQueue.slice(-4);
+    showRadio(radioQueue.shift());
+    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, 1150);
+  }
+  function showRadio(r) {
+    const box = document.getElementById('rvRadio');
+    if (!box) return;
+    const d = document.createElement('div');
+    d.className = 'rvr ' + (r.from === 'pit' ? 'pit' : 'drv');
+    d.innerHTML = '<b>' + (r.from === 'pit' ? '📻 ピット → ' + rvEsc(r.name)
+                                            : '🗣️ ' + rvEsc(r.name)) + '</b>' +
+                  '<span>' + rvEsc(r.text) + '</span>';
+    box.appendChild(d);
+    while (box.children.length > 3) box.removeChild(box.firstChild);
+    GP.sound.play('radio', 300);
+    setTimeout(() => {
+      d.className += ' out';
+      setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 500);
+    }, 5000);
+  }
+  function clearRadio() {
+    clearTimeout(radioTimer); radioTimer = 0; radioQueue = [];
+    const box = document.getElementById('rvRadio');
+    if (box) box.innerHTML = '';
   }
 
   function flushEvents(all) {
@@ -1461,12 +1511,13 @@ GP.raceview = (function () {
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
     wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
     document.getElementById('rvLog').innerHTML = '';
+    clearRadio();
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
@@ -1477,7 +1528,7 @@ GP.raceview = (function () {
     running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
     vt = duration;
-    draw(vt); updateHud(); flushEvents(true); finish();
+    draw(vt); updateHud(); flushEvents(true); pumpRadio(true); clearRadio(); finish();
   }
 
   /* ---------- チェッカーフラッグ ---------- */
@@ -1542,7 +1593,9 @@ GP.raceview = (function () {
       ctx.fillText('GO!', cxl, cy + 46);
     }
   }
-  function stop() { running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; }
+  function stop() {
+    running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; clearRadio();
+  }
 
   /* レース以外の画面でもマシンを描けるようにする。
      drawCar はこのモジュール内の ctx に描くので、一時的に差し替える。 */

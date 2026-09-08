@@ -1348,6 +1348,19 @@ GP.state = (function () {
     return d;
   }
   function clearReserve(g2) { const d = g2.reserve; g2.reserve = null; return d; }
+  /* 空いているシートにリザーブを座らせる（正ドライバーへの昇格）。
+     控えのままでは伸びしろを使いきれないので、席が空いたら上げられる */
+  function promoteReserve(g2) {
+    const r = g2.reserve;
+    if (!r || (g2.drivers || []).length >= 2) return null;
+    g2.reserve = null;
+    r.isReserve = false;
+    r.isYouth = false;
+    r.team = g2.team;
+    r.salary = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
+    g2.drivers.push(r);
+    return r;
+  }
   /* 正ドライバーと入れ替える */
   function swapReserve(g2, driverId) {
     const i = (g2.drivers || []).findIndex(x => x.id === driverId);
@@ -1565,7 +1578,7 @@ GP.state = (function () {
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
-    setReserve, clearReserve, swapReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
+    setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, machineChar, reliability, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,

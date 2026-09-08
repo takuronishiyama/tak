@@ -647,6 +647,30 @@ body.preboot .topbar{visibility:hidden}
 .rv-badge.vsc{background:#ffe14a;animation:rvBadgeV 1.2s steps(2) infinite}
 @keyframes rvBadgeV{0%,100%{background:#ffe14a}50%{background:#fff6c8}}
 @keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
+
+/* ---- チーム無線 ----
+   実況の文字列とは別に、ピットとドライバーの声だけを数秒だけ出す */
+.rv-radio{position:absolute;left:8px;bottom:8px;width:min(260px,58%);
+          display:flex;flex-direction:column;gap:4px;z-index:7;pointer-events:none}
+.rvr{border:2px solid #12100c;border-radius:6px;padding:4px 7px;
+     background:#141b16;color:#d8f0d4;box-shadow:0 2px 0 rgba(0,0,0,.45);
+     animation:rvrIn .22s ease-out}
+.rvr b{display:block;font-size:9px;letter-spacing:.02em;color:#8ef08e;margin-bottom:1px}
+.rvr span{display:block;font-size:11px;line-height:1.45}
+.rvr.drv{background:#211a12;color:#f6e5c8;border-color:#12100c}
+.rvr.drv b{color:#ffc93c}
+.rvr.out{opacity:0;transform:translateY(-4px);transition:opacity .45s,transform .45s}
+@keyframes rvrIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+
+/* レース後にふり返る無線のログ */
+.radiolog{max-height:210px;overflow:auto;border:2px solid var(--ink);border-radius:6px;
+          padding:6px 8px;background:#141b16;margin:4px 0 10px}
+.radiolog .rl{display:flex;gap:6px;align-items:baseline;font-size:11px;line-height:1.6;
+              color:#d8f0d4;padding:1px 0}
+.radiolog .rl i{font-style:normal;font-size:9px;color:#6f8a6c;min-width:26px}
+.radiolog .rl b{font-size:9px;color:#8ef08e;font-weight:bold;white-space:nowrap}
+.radiolog .rl.drv{color:#f6e5c8}
+.radiolog .rl.drv b{color:#ffc93c}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ---------- エラー表示 ---------- */
@@ -710,6 +734,8 @@ body.preboot .topbar{visibility:hidden}
   .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
   .rv-cam button{font-size:9px;padding:2px 5px}
+  .rv-radio{width:70%;bottom:34px}
+  .rvr span{font-size:10px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
   .sc-ty{width:64px}
@@ -1240,7 +1266,8 @@ body[data-skin="hd"]{
 .trchip b{font-weight:bold}
 .fromteam{font-style:normal;padding:1px 6px;border-radius:9px;font-size:10px;
   background:#f0d2c8;border:1px solid #8a4a3a;color:#6a2a1c}
-.staffrow .mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
+.staffrow .mini.good,
+.mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
 .poachbox{display:flex;justify-content:space-between;align-items:center;gap:8px;
   margin:5px 0;padding:6px 10px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
@@ -1362,6 +1389,21 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* この週末に出ていくお金 */
+.billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+         background:#fff8e3;color:var(--ink)}
+.billbox b{font-size:12px}
+.billbox small{display:block;margin-top:4px;font-size:10px;line-height:1.7;color:var(--ink2)}
+.billbox small b{font-size:11px}
+.billbox .good{color:#2f7a34}.billbox .warn{color:#8f1f16}.billbox .bad{color:#b02a20}
+.billbox.warn{border-color:#c98b10;box-shadow:inset 0 0 0 2px rgba(255,201,60,.26)}
+.billbox.bad{border-color:#b02a20;box-shadow:inset 0 0 0 2px rgba(224,74,63,.30)}
+[data-skin="hd"] .billbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .billbox small{color:#cbbb9a}
+[data-skin="hd"] .billbox .good{color:#8ef08e}
+[data-skin="hd"] .billbox .warn{color:#ffb3a4}
+[data-skin="hd"] .billbox .bad{color:#ff9a8a}
+
 /* 載せ替えの選択肢 */
 .puswap{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-top:8px;
         padding-top:8px;border-top:1px dashed rgba(74,47,26,.35)}

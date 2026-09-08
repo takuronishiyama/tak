@@ -662,6 +662,30 @@ body.preboot .topbar{visibility:hidden}
 .rv-badge.vsc{background:#ffe14a;animation:rvBadgeV 1.2s steps(2) infinite}
 @keyframes rvBadgeV{0%,100%{background:#ffe14a}50%{background:#fff6c8}}
 @keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
+
+/* ---- チーム無線 ----
+   実況の文字列とは別に、ピットとドライバーの声だけを数秒だけ出す */
+.rv-radio{position:absolute;left:8px;bottom:8px;width:min(260px,58%);
+          display:flex;flex-direction:column;gap:4px;z-index:7;pointer-events:none}
+.rvr{border:2px solid #12100c;border-radius:6px;padding:4px 7px;
+     background:#141b16;color:#d8f0d4;box-shadow:0 2px 0 rgba(0,0,0,.45);
+     animation:rvrIn .22s ease-out}
+.rvr b{display:block;font-size:9px;letter-spacing:.02em;color:#8ef08e;margin-bottom:1px}
+.rvr span{display:block;font-size:11px;line-height:1.45}
+.rvr.drv{background:#211a12;color:#f6e5c8;border-color:#12100c}
+.rvr.drv b{color:#ffc93c}
+.rvr.out{opacity:0;transform:translateY(-4px);transition:opacity .45s,transform .45s}
+@keyframes rvrIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+
+/* レース後にふり返る無線のログ */
+.radiolog{max-height:210px;overflow:auto;border:2px solid var(--ink);border-radius:6px;
+          padding:6px 8px;background:#141b16;margin:4px 0 10px}
+.radiolog .rl{display:flex;gap:6px;align-items:baseline;font-size:11px;line-height:1.6;
+              color:#d8f0d4;padding:1px 0}
+.radiolog .rl i{font-style:normal;font-size:9px;color:#6f8a6c;min-width:26px}
+.radiolog .rl b{font-size:9px;color:#8ef08e;font-weight:bold;white-space:nowrap}
+.radiolog .rl.drv{color:#f6e5c8}
+.radiolog .rl.drv b{color:#ffc93c}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ---------- エラー表示 ---------- */
@@ -725,6 +749,8 @@ body.preboot .topbar{visibility:hidden}
   .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
   .rv-cam button{font-size:9px;padding:2px 5px}
+  .rv-radio{width:70%;bottom:34px}
+  .rvr span{font-size:10px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
   .sc-ty{width:64px}
@@ -1255,7 +1281,8 @@ body[data-skin="hd"]{
 .trchip b{font-weight:bold}
 .fromteam{font-style:normal;padding:1px 6px;border-radius:9px;font-size:10px;
   background:#f0d2c8;border:1px solid #8a4a3a;color:#6a2a1c}
-.staffrow .mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
+.staffrow .mini.good,
+.mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
 .poachbox{display:flex;justify-content:space-between;align-items:center;gap:8px;
   margin:5px 0;padding:6px 10px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
@@ -1377,6 +1404,21 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* この週末に出ていくお金 */
+.billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+         background:#fff8e3;color:var(--ink)}
+.billbox b{font-size:12px}
+.billbox small{display:block;margin-top:4px;font-size:10px;line-height:1.7;color:var(--ink2)}
+.billbox small b{font-size:11px}
+.billbox .good{color:#2f7a34}.billbox .warn{color:#8f1f16}.billbox .bad{color:#b02a20}
+.billbox.warn{border-color:#c98b10;box-shadow:inset 0 0 0 2px rgba(255,201,60,.26)}
+.billbox.bad{border-color:#b02a20;box-shadow:inset 0 0 0 2px rgba(224,74,63,.30)}
+[data-skin="hd"] .billbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .billbox small{color:#cbbb9a}
+[data-skin="hd"] .billbox .good{color:#8ef08e}
+[data-skin="hd"] .billbox .warn{color:#ffb3a4}
+[data-skin="hd"] .billbox .bad{color:#ff9a8a}
+
 /* 載せ替えの選択肢 */
 .puswap{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-top:8px;
         padding-top:8px;border-top:1px dashed rgba(74,47,26,.35)}
@@ -1612,6 +1654,7 @@ body[data-skin="hd"]{
       <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
       <span class="cmd-sep"></span>
       <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
+      <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
       <button class="cmd sub" id="cLogiR"><span>🚚</span>輸送</button>
       <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
@@ -1619,6 +1662,8 @@ body[data-skin="hd"]{
     <div id="cmdOff" class="cmdset" style="display:none">
       <button class="cmd big" id="cOffGo"><span>🌱</span>来季を始める</button>
       <span class="cmd-sep"></span>
+      <button class="cmd sub" id="cGarageO"><span>🏎️</span>マシン</button>
+      <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
       <button class="cmd sub" id="cLogiO"><span>🚚</span>輸送</button>
       <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
@@ -1640,6 +1685,7 @@ body[data-skin="hd"]{
         <canvas id="raceCanvas" width="560" height="400"></canvas>
         <div id="rvFlash" class="rv-flash"></div>
         <div id="rvBadge" class="rv-badge"></div>
+        <div id="rvRadio" class="rv-radio"></div>
         <div id="rvCam" class="rv-cam">
           <button data-cam="auto" class="on">🎬 おまかせ</button>
           <button data-cam="mine">🚩 自チーム</button>
@@ -1777,7 +1823,10 @@ GP.sound = (function () {
     podium:  () => [N.G4, N.C5, N.E5].forEach((f, i) => tone({ from: f, dur: 0.16, vol: 0.6, at: i * 0.1 })),
     bad:     () => { tone({ from: N.D4, dur: 0.16, vol: 0.5, type: 'triangle' });
                      tone({ from: N.B4 * 0.5, dur: 0.24, vol: 0.5, type: 'triangle', at: 0.14 }); },
-    warn:    () => { tone({ from: N.A4, dur: 0.09, vol: 0.5 }); tone({ from: N.A4, dur: 0.09, vol: 0.5, at: 0.13 }); }
+    warn:    () => { tone({ from: N.A4, dur: 0.09, vol: 0.5 }); tone({ from: N.A4, dur: 0.09, vol: 0.5, at: 0.13 }); },
+    /* 無線が入るときの、短いかすれ音 */
+    radio:   () => { noise({ from: 2600, to: 1300, dur: 0.05, vol: 0.30, q: 5 });
+                     tone({ from: N.E5, dur: 0.04, vol: 0.22, type: 'square', at: 0.05 }); }
   };
 
   /* 連打で音が団子にならないよう間引く */
@@ -4422,6 +4471,19 @@ GP.state = (function () {
     return d;
   }
   function clearReserve(g2) { const d = g2.reserve; g2.reserve = null; return d; }
+  /* 空いているシートにリザーブを座らせる（正ドライバーへの昇格）。
+     控えのままでは伸びしろを使いきれないので、席が空いたら上げられる */
+  function promoteReserve(g2) {
+    const r = g2.reserve;
+    if (!r || (g2.drivers || []).length >= 2) return null;
+    g2.reserve = null;
+    r.isReserve = false;
+    r.isYouth = false;
+    r.team = g2.team;
+    r.salary = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
+    g2.drivers.push(r);
+    return r;
+  }
   /* 正ドライバーと入れ替える */
   function swapReserve(g2, driverId) {
     const i = (g2.drivers || []).findIndex(x => x.id === driverId);
@@ -4639,7 +4701,7 @@ GP.state = (function () {
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
-    setReserve, clearReserve, swapReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
+    setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, machineChar, reliability, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
@@ -4678,12 +4740,12 @@ GP.race = (function () {
     return l.length ? S.pick(l) : 'コーナー';
   }
   function say(list, v) {
+    let t = S.pick(list);
     v = v || {};
-    return S.pick(list)
-      .replace(/\{A\}/g, v.A == null ? '' : v.A)
-      .replace(/\{B\}/g, v.B == null ? '' : v.B)
-      .replace(/\{C\}/g, v.C == null ? '' : v.C)
-      .replace(/\{P\}/g, v.P == null ? '' : v.P);
+    Object.keys(v).forEach(k => {
+      t = t.split('{' + k + '}').join(v[k] == null ? '' : v[k]);
+    });
+    return t;
   }
 
   const SAY = {
@@ -4803,6 +4865,206 @@ GP.race = (function () {
     ]
   };
 
+  /* =========================================================
+     チーム無線
+     ピットウォールとドライバーの、その場のやりとり。
+     実況が「外から見た絵」なら、こちらは「中の声」。
+     短い言葉だけを、起きたことに合わせて積んでいく
+     {D}=ドライバー名／{P}=順位／{N}=残り周回／{T}=タイヤ
+     {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
+     ========================================================= */
+  const RADIO = {
+    /* --- ピット → ドライバー --- */
+    box: ['「ボックス、ボックス。{T} に行く」',
+          '「今周ピットだ。{T} を用意してある」',
+          '「入れ。{T}、準備できている」',
+          '「ボックス確認。{T} で最後まで行く」'],
+    gapAhead: ['「前とのギャップ {GA}。まだ削れる」',
+               '「差は {GA}。このペースなら追いつく」',
+               '「前は {GA}。焦らず一定で」',
+               '「ギャップ {GA}、じわじわ来ている。いい流れだ」'],
+    gapBehind: ['「後ろが {GB} まで来ている。ラインは締めておけ」',
+                '「うしろ {GB}。ストレートだけ気をつけろ」',
+                '「{GB} 差まで詰められている。ミスだけはするな」'],
+    clear: ['「前後ともクリア。自分のリズムで行っていい」',
+            '「まわりは空いている。タイヤを労わろう」'],
+    tyre: ['「そのタイヤ、あと {L} 周は持たせたい」',
+           '「タイヤの数字は悪くない。あと {L} 周は行ける」',
+           '「タイヤを労われ。あと {L} 周だ」'],
+    save: ['「ペースを落とせ。タイヤを最後まで持たせる」',
+           '「1周あたり少し捨てていい。終盤に取り返す」',
+           '「いまは我慢だ。仕掛けるのはまだ先」'],
+    push: ['「ここからプッシュ。残り {N} 周、全部使え」',
+           '「行っていい。ペースを上げろ」',
+           '「いまが勝負どころだ。攻めてくれ」'],
+    sc: ['「セーフティカー、セーフティカー。デルタを守れ」',
+         '「イエロー全面。ペースを落として隊列につけ」',
+         '「セーフティカーだ。落ち着いて、デルタ確認」'],
+    vsc: ['「バーチャルセーフティカー。デルタ、デルタ」',
+          '「VSC 発動。指定タイムを外すな」'],
+    rain: ['「3コーナー付近に雨。数周で本格的に来る」',
+           '「レーダーが赤い。すぐ濡れる、備えてくれ」',
+           '「雨が来た。無理はするな、様子を教えてくれ」'],
+    dry: ['「路面が乾いてきた。ドライのタイミングを見ている」',
+          '「雨は上がった。ラインの外はまだ濡れている」'],
+    pen: ['「{S}秒の加算だ。取り返すぞ、まだ終わっていない」',
+          '「裁定が出た。{S}秒。頭を切り替えてくれ」'],
+    ok: ['「大丈夫か？ マシンの状態を教えてくれ」',
+         '「いまのは見えた。ダメージはないか」',
+         '「落ち着いていこう。何が起きた？」'],
+    final: ['「残り {N} 周。このまま持ち帰ってくれ」',
+            '「あと {N} 周。ポジションを守れ」',
+            '「最後の {N} 周だ。ミスなく行こう」'],
+    last: ['「ファイナルラップ。行ってこい」',
+           '「最終ラップだ。全部出しきれ」'],
+    win: ['「P1！ P1だ！ よくやった！！」',
+          '「チェッカー、P1！ 信じられない、最高だ！」'],
+    podium: ['「P{P}！ 表彰台だ！ よくやった！」',
+             '「チェッカー、P{P}。素晴らしい走りだった」'],
+    points: ['「チェッカー、P{P}。ポイントを持ち帰った。よくやった」',
+             '「P{P} でフィニッシュ。悪くない一日だ」'],
+    plain: ['「チェッカー、P{P}。今日はここまでだ。お疲れさま」',
+            '「P{P}。持ち帰れたことをよしとしよう」'],
+    dnfPit: ['「マシンを止めてくれ。安全な場所に寄せろ」',
+             '「今日は終わりだ。ゆっくり降りてくれ」'],
+
+    /* --- ドライバー → ピット --- */
+    roger: ['「了解、入る」', '「コピー、ボックス」', '「わかった、今周入る」'],
+    rogerShort: ['「了解」', '「コピー」', '「わかっている」'],
+    tyreGone: ['「タイヤが終わった。これ以上は保たない」',
+               '「グリップがない。もう滑るだけだ」',
+               '「限界だ、タイヤを替えてくれ」',
+               '「リアが完全に終わっている。入れてくれ」'],
+    under: ['「アンダーがひどい。フロントが入らない」',
+            '「曲がらない。ターン1で毎回はらんでいる」',
+            '「フロントがまるで効かない」'],
+    over: ['「リアが逃げる。乗りにくい」',
+           '「立ち上がりで毎回滑る。押さえきれない」',
+           '「バランスが後ろに寄りすぎている」'],
+    stuck: ['「前が遅い。なんとかしてくれ」',
+            '「後ろにいると曲がらない。離れるしかない」',
+            '「ずっと詰まっている。作戦を変えられないか」'],
+    okBack: ['「問題ない、続ける」',
+             '「大丈夫だ。少し行き過ぎただけ」',
+             '「マシンは無事だ。行ける」'],
+    pushBack: ['「まだ行ける。プッシュする」',
+               '「任せてくれ。ここから上げる」',
+               '「わかった。全部出す」'],
+    rainBack: ['「セクター2、もう濡れている」',
+               '「見えない。前のしぶきで何も見えない」',
+               '「まだドライでいける。もう少し引っぱらせてくれ」'],
+    angry: ['「その作戦は違うだろう！」',
+            '「なぜあそこで入れなかったんだ」',
+            '「こんな加算は納得できない」'],
+    thanks: ['「みんな、ありがとう！ 最高のクルマだった！」',
+             '「やった！ チーム全員のおかげだ！」',
+             '「この一勝は、工場のみんなのものだ」'],
+    thanksOk: ['「ありがとう、いいクルマだった」',
+               '「持ち帰れてよかった。次はもっと行ける」'],
+    sorry: ['「すまない。自分のミスだ」',
+            '「悔しい。次は必ず持ち帰る」',
+            '「マシンは良かった。それだけに残念だ」']
+  };
+
+  /* その周に、自チームのドライバーとどんなやりとりがあったか。
+     優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
+     状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
+  function radioTick(st) {
+    const lap = st.lap, laps = st.laps, radio = st.radio;
+    const run = st.order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+    run.forEach((e, i) => {
+      if (!e.isPlayer) return;
+      e.radioCool = Math.max(0, (e.radioCool || 0) - 1);
+      const ty = tyreOf(e.tyreKey);
+      const ahead = i > 0 ? run[i - 1] : null;
+      const behind = i < run.length - 1 ? run[i + 1] : null;
+      const V = {
+        D: e.driver.name, P: i + 1, N: laps - lap, T: ty.name,
+        L: Math.max(0, Math.round(ty.life - e.tyreAge)),
+        GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
+        GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
+        S: e.penalty || 0
+      };
+      const push = (pool, from, force) => {
+        // 直前と同じ言い回しにならないように、二度までは引き直す
+        let text = say(pool, V);
+        for (let k = 0; k < 2 && radio.length && radio[radio.length - 1].text === text; k++) {
+          text = say(pool, V);
+        }
+        radio.push({ lap: lap, from: from, name: e.driver.name, id: e.id, text: text });
+        if (!force) e.radioCool = 3;
+      };
+      const beat = lap + (e.num || 0);      // 2台の無線が重ならないようにずらす
+      // ---- 起きたことに応じて、優先度の高いものから ----
+      if (e.pitPlan.indexOf(lap + 1) >= 0) {           // 次の周にピット
+        push(RADIO.box, 'pit', true);
+        push(RADIO.roger, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (st.scStart) {                                 // セーフティカーが出た
+        push(st.scVirtual ? RADIO.vsc : RADIO.sc, 'pit', true);
+        push(RADIO.rogerShort, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (st.wxChanged) {                               // 天候が動いた
+        push(st.wxWet ? RADIO.rain : RADIO.dry, 'pit', true);
+        push(RADIO.rainBack, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (e.radioPen === lap) {                         // 加算をもらった
+        e.radioPen = -1;
+        push(RADIO.pen, 'pit', true);
+        push(RADIO.angry, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.radioMiss === lap) {                        // 大きく崩した
+        e.radioMiss = -1;
+        push(RADIO.ok, 'pit', true);
+        push(RADIO.okBack, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.radioCool > 0) return;
+      // ---- ここから先は、間が空いているときだけ ----
+      if (e.tyreAge > ty.life + 1) {                    // タイヤが終わった
+        push(RADIO.tyreGone, 'drv');
+        push(e.pitPlan.some(l => l > lap) ? RADIO.tyre : RADIO.save, 'pit', true);
+        return;
+      }
+      if (lap === laps) { return; }                     // 最終周は結果側で入れる
+      if (lap === laps - 1) { push(RADIO.last, 'pit'); return; }
+      if (laps - lap <= 4) {                            // 残りわずか
+        push(behind && (behind.cum[lap - 1] - e.cum[lap - 1]) < 2.5 ? RADIO.final : RADIO.push, 'pit');
+        push(RADIO.pushBack, 'drv', true);
+        return;
+      }
+      if (e.stuckLaps >= 3 && ahead) {                  // ずっと前に詰まっている
+        e.stuckLaps = 0;
+        push(RADIO.stuck, 'drv');
+        push(RADIO.push, 'pit', true);
+        return;
+      }
+      if (beat % 5 === 2) {                             // 定期的な状況報告
+        const gA = ahead ? e.cum[lap - 1] - ahead.cum[lap - 1] : 99;
+        const gB = behind ? behind.cum[lap - 1] - e.cum[lap - 1] : 99;
+        if (gA < 3.0) push(RADIO.gapAhead, 'pit');
+        else if (gB < 3.0) push(RADIO.gapBehind, 'pit');
+        else if (e.tyreAge > ty.life * 0.7) push(RADIO.save, 'pit');
+        else push(RADIO.clear, 'pit');
+        return;
+      }
+      if (beat % 7 === 4) {                             // ドライバーからの訴え
+        // マシンの性格を、ドライバーの言葉で出す
+        const under = e.stats && e.stats.corner < e.stats.speed;
+        push(under ? RADIO.under : RADIO.over, 'drv');
+      }
+    });
+  }
+
   /* ---------- エントリーリスト作成 ---------- */
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
@@ -4886,6 +5148,7 @@ GP.race = (function () {
     if (e.cum[lap - 1] != null) e.cum[lap - 1] += P.sec;
     else e.penPending = (e.penPending || 0) + P.sec;
     if (e.isPlayer) {
+      e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
         text: P.icon + ' ' + e.driver.name + ' に' + P.sec + '秒加算 — ' + P.text });
     }
@@ -4979,8 +5242,10 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
+    let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
     const scInfo = { from: 0, laps: 0, virtual: false };
+    const radio = [];                 // チーム無線。自チームのぶんだけ積む
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
@@ -5098,6 +5363,7 @@ GP.race = (function () {
         wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
                wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
+        wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
           text: wxTo.icon + ' 天候が変わった！ ' + weather.name + ' → ' + wxTo.name
               + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
@@ -5180,6 +5446,7 @@ GP.race = (function () {
             t += lost;
             e.tyreAge += big ? 1.6 : 0.5;
             e.misses = (e.misses || 0) + 1;
+            if (big && e.isPlayer) e.radioMiss = lap;
             // 何が原因だったかで、言い回しを変える
             const pool = big ? SAY.missBig
                        : wx.wet && Math.random() < 0.7 ? SAY.missWet
@@ -5302,6 +5569,7 @@ GP.race = (function () {
             // 成功：前に出る。詰まっていた時間もここで解ける
             atk.cum[lap - 1] = def.cum[lap - 1] - S.rnd(0.08, 0.28);
             atk.passes = (atk.passes || 0) + 1;
+            atk.stuckLaps = 0;
             // 実況。自チームが絡む攻防と、上位の攻防は必ず伝える
             if (atk.isPlayer || def.isPlayer || i <= 3) {
               const v = { A: atk.driver.name, B: def.driver.name, C: lm(track), P: i };
@@ -5322,6 +5590,7 @@ GP.race = (function () {
             let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
             if (atk.sk('passer')) stuck *= 0.55;
             atk.cum[lap - 1] += stuck;
+            atk.stuckLaps = (atk.stuckLaps || 0) + 1;
             // 抜けなかったことも、たまには言葉にする（毎周だとうるさいので控えめに）
             if ((atk.isPlayer || def.isPlayer) && Math.random() < 0.16) {
               events.push({ lap: lap, type: 'miss', car: atk,
@@ -5390,7 +5659,7 @@ GP.race = (function () {
       // 隊列が詰まるので、大きなリードも一度リセットされる。
       // ここで入るか引っ張るかが、レースの分かれ目になる。
       if (scPending && !scDone) {
-        scPending = false; scDone = true;
+        scPending = false; scDone = true; scStarted = true;
         // 障害物がコース脇で済むならバーチャル、コース上に残るなら実車が出る。
         // バーチャルは全車が一斉に減速するだけで、差はそのまま残る。
         const virtual = Math.random() < 0.45;
@@ -5430,6 +5699,12 @@ GP.race = (function () {
         });
       }
 
+      // ---- チーム無線 ----
+      radioTick({ lap: lap, laps: laps, order: order, radio: radio,
+                  scStart: scStarted, scVirtual: scInfo.virtual,
+                  wxChanged: wxChangedThisLap, wxWet: wx.wet });
+      scStarted = false; wxChangedThisLap = false;
+
       // 順位変動の記録
       const newOrder = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
       if (lap > 1) {
@@ -5451,12 +5726,27 @@ GP.race = (function () {
     const classified = finishers.concat(retired);
     classified.forEach((e, i) => { e.pos = i + 1; });
 
+    // ---- チェッカー後の無線 ----
+    classified.forEach(e => {
+      if (!e.isPlayer) return;
+      const V = { D: e.driver.name, P: e.pos, N: 0 };
+      const at = e.dnf ? Math.max(1, e.dnfLap) : laps;
+      const pair = e.dnf ? [RADIO.dnfPit, RADIO.sorry]
+                 : e.pos === 1 ? [RADIO.win, RADIO.thanks]
+                 : e.pos <= 3 ? [RADIO.podium, RADIO.thanks]
+                 : e.pos <= D.POINTS.length ? [RADIO.points, RADIO.thanksOk]
+                 : [RADIO.plain, RADIO.thanksOk];
+      radio.push({ lap: at, from: 'pit', name: e.driver.name, id: e.id, text: say(pair[0], V) });
+      radio.push({ lap: at, from: 'drv', name: e.driver.name, id: e.id, text: say(pair[1], V) });
+    });
+    radio.sort((a, b) => a.lap - b.lap);
+
     let fl = null;
     finishers.forEach(e => { if (!fl || e.fastest < fl.fastest) fl = e; });
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      events, radio: radio, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
@@ -5731,6 +6021,8 @@ GP.raceview = (function () {
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
+  /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
+  let shownRadio = 0, radioQueue = [], radioTimer = 0;
   let wetNow = false;        // いま雨が降っているか（途中で変わる）
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -7009,6 +7301,7 @@ GP.raceview = (function () {
     advanceSectors(vt);
     renderSectors();
     flushEvents(false);
+    pumpRadio(false);
   }
 
   /* レース中の急変を、画面いっぱいの帯で数秒だけ知らせる */
@@ -7020,6 +7313,53 @@ GP.raceview = (function () {
     el.className = 'rv-flash show' + (wet ? ' wet' : '');
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => { el.className = 'rv-flash' + (wet ? ' wet' : ''); }, 2600);
+  }
+
+  /* =========================================================
+     チーム無線
+     ピットとドライバーのやりとりを、会話らしく少し間を置いて出す
+     ========================================================= */
+  const rvEsc = t => String(t).replace(/[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function pumpRadio(all) {
+    const list = res.radio || [];
+    const lapNow = vt / res.track.base + 1;
+    while (shownRadio < list.length) {
+      const r = list[shownRadio];
+      if (!all && r.lap > lapNow) break;
+      if (!all) radioQueue.push(r);
+      shownRadio++;
+    }
+    if (!all) drainRadio();
+  }
+  function drainRadio() {
+    if (radioTimer || !radioQueue.length) return;
+    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）
+    if (radioQueue.length > 4) radioQueue = radioQueue.slice(-4);
+    showRadio(radioQueue.shift());
+    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, 1150);
+  }
+  function showRadio(r) {
+    const box = document.getElementById('rvRadio');
+    if (!box) return;
+    const d = document.createElement('div');
+    d.className = 'rvr ' + (r.from === 'pit' ? 'pit' : 'drv');
+    d.innerHTML = '<b>' + (r.from === 'pit' ? '📻 ピット → ' + rvEsc(r.name)
+                                            : '🗣️ ' + rvEsc(r.name)) + '</b>' +
+                  '<span>' + rvEsc(r.text) + '</span>';
+    box.appendChild(d);
+    while (box.children.length > 3) box.removeChild(box.firstChild);
+    GP.sound.play('radio', 300);
+    setTimeout(() => {
+      d.className += ' out';
+      setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 500);
+    }, 5000);
+  }
+  function clearRadio() {
+    clearTimeout(radioTimer); radioTimer = 0; radioQueue = [];
+    const box = document.getElementById('rvRadio');
+    if (box) box.innerHTML = '';
   }
 
   function flushEvents(all) {
@@ -7181,12 +7521,13 @@ GP.raceview = (function () {
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
     wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
     document.getElementById('rvLog').innerHTML = '';
+    clearRadio();
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
@@ -7197,7 +7538,7 @@ GP.raceview = (function () {
     running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
     vt = duration;
-    draw(vt); updateHud(); flushEvents(true); finish();
+    draw(vt); updateHud(); flushEvents(true); pumpRadio(true); clearRadio(); finish();
   }
 
   /* ---------- チェッカーフラッグ ---------- */
@@ -7262,7 +7603,9 @@ GP.raceview = (function () {
       ctx.fillText('GO!', cxl, cy + 46);
     }
   }
-  function stop() { running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; }
+  function stop() {
+    running = false; if (raf) cancelAnimationFrame(raf); onEnd = null; clearRadio();
+  }
 
   /* レース以外の画面でもマシンを描けるようにする。
      drawCar はこのモジュール内の ctx に描くので、一時的に差し替える。 */
@@ -8266,6 +8609,18 @@ GP.paddock = (function () {
       ctx.fillRect(x, y, 2, 2);
     }
 
+    /* ---- ピットレーンを移動していくマシン ----
+       奥のほうなので小さく、かすませて置く                        */
+    if (GP.grid && GP.grid.sideCar) {
+      [[128, 0.44], [352, 0.44], [520, 0.40]].forEach((v, k) => {
+        const t2 = teams[(k * 4 + 2) % teams.length];
+        GP.grid.sideCar(ctx, v[0], 118, v[1], (t2 && t2.color) || '#8a8578', 1, false);
+      });
+      // 奥はうっすら空気の層をかけて距離を出す（かけすぎると車が消える）
+      ctx.fillStyle = dusk ? 'rgba(46,50,68,.16)' : 'rgba(186,200,216,.14)';
+      ctx.fillRect(0, 76, W, 52);
+    }
+
     /* ---- ガレージ（チームごとに1つ並ぶ）---- */
     const gw = GW, gy = 246;
     for (let i = 0; i < 11; i++) {
@@ -8299,6 +8654,26 @@ GP.paddock = (function () {
         ctx.fillRect(sx + 3, 214, 5, 8); ctx.fillRect(sx + sw - 8, 214, 5, 8);
         ctx.fillStyle = '#2b2e36'; ctx.fillRect(sx + 5, 192, sw - 10, 3);    // フロントウイング
         ctx.fillRect(sx + 6, 224, sw - 12, 3);                               // リアウイング
+      } else if ((i * 7 + 3) % 11 < 6) {
+        // 半分ほどのガレージは開いていて、中で仕上げているマシンが見える。
+        // 「他所の車の間を歩いている」という感じは、ここで作られる
+        ctx.fillStyle = dusk ? '#3b3346' : '#5f5a52';
+        ctx.fillRect(sx, 156, sw, gy - 162);
+        ctx.fillStyle = 'rgba(255,236,180,.30)';                             // 天井の照明
+        ctx.fillRect(sx, 156, sw, 6);
+        ctx.fillStyle = 'rgba(255,236,180,.10)';
+        ctx.fillRect(sx, 162, sw, gy - 172);
+        // 横から見たマシン。奥まっているので少し暗く小さく
+        if (GP.grid && GP.grid.sideCar) {
+          ctx.save();
+          ctx.beginPath(); ctx.rect(sx, 156, sw, gy - 162); ctx.clip();
+          GP.grid.sideCar(ctx, gx + gw / 2, gy - 16, 0.62,
+                          t ? t.color : '#8a8578', 1, true);
+          ctx.restore();
+        }
+        // シャッターは上まで上がっている
+        ctx.fillStyle = dusk ? '#2a2530' : '#8a9098';
+        ctx.fillRect(sx, 152, sw, 6);
       } else {
         ctx.fillStyle = dusk ? '#3a3f4a' : '#9aa0a8';                        // 閉じたシャッター
         ctx.fillRect(sx, 156, sw, gy - 162);
@@ -8503,6 +8878,32 @@ GP.paddock = (function () {
       }
     }
 
+    /* ---- 光と、手前の抜け ----
+       通路に光を落とし、画面の縁を落として視線を集める。
+       いちばん手前には、ピントの外にある機材を大きく置く       */
+    (function () {
+      const pool = ctx.createRadialGradient(300, WALK.y1 - 6, 40, 300, WALK.y1 - 6, 340);
+      pool.addColorStop(0, 'rgba(255,226,168,' + (dusk ? '.16' : '.20') + ')');
+      pool.addColorStop(0.6, 'rgba(255,214,150,.05)');
+      pool.addColorStop(1, 'rgba(255,214,150,0)');
+      ctx.fillStyle = pool; ctx.fillRect(0, 120, W, H - 120);
+      // 手前のタイヤの山（形だけの黒い塊）
+      ctx.fillStyle = 'rgba(10,9,14,.80)';
+      for (let k = 0; k < 4; k++) ctx.fillRect(6, H - 30 + k * 8, 52, 7);
+      ctx.fillRect(W - 74, H - 22, 60, 22);
+      const v2 = ctx.createLinearGradient(0, 0, 0, H);
+      v2.addColorStop(0, 'rgba(10,8,16,.22)');
+      v2.addColorStop(0.5, 'rgba(10,8,16,0)');
+      v2.addColorStop(1, 'rgba(10,8,16,.30)');
+      ctx.fillStyle = v2; ctx.fillRect(0, 0, W, H);
+      const h2 = ctx.createLinearGradient(0, 0, W, 0);
+      h2.addColorStop(0, 'rgba(10,8,16,.30)');
+      h2.addColorStop(0.22, 'rgba(10,8,16,0)');
+      h2.addColorStop(0.78, 'rgba(10,8,16,0)');
+      h2.addColorStop(1, 'rgba(10,8,16,.30)');
+      ctx.fillStyle = h2; ctx.fillRect(0, 0, W, H);
+    })();
+
     if (!dusk) return;
     // 夕暮れの空気
     const air = ctx.createLinearGradient(0, 40, 0, H);
@@ -8564,26 +8965,24 @@ GP.grid = (function () {
 
   const W = 600, H = 340;
 
-  /* 歩けるのは、グリッドの脇の細い帯 */
-  const WALK = { x0: 22, x1: W - 22, y0: 250, y1: 316 };
+  /* 画面の奥行き。
+     真上から見下ろすのではなく、グリッドの脇に立って
+     並んだマシンを横から見ている、という絵にしている。
+     奥ほど小さく、かすんで、暗くなる                            */
+  const HORIZON = 96;                       // 空と路面の境
+  const FAR = { y: 182, s: 0.72 };          // 偶数グリッド（奥の列）
+  const NEAR = { y: 238, s: 1.00 };         // 奇数グリッド（手前の列）
 
-  /* グリッドの枠。左右2列を互い違いに置く。i は予選順（0始まり） */
-  const SLOT_W = 44, SLOT_H = 26;
-  const COL_X = [176, 300];              // 左列・右列の中心
-  const ROW_Y = 44, ROW_STEP = 40;       // 先頭列のy と 1列ぶんの間隔
-  const ROWS = 5;                        // 描くのは10番手まで（通路に被らない範囲）
-  function slotPos(i) {
-    const r = Math.floor(i / 2), c = i % 2;
-    return { x: COL_X[c] + (c ? 0 : 0), y: ROW_Y + r * ROW_STEP + (c ? 18 : 0) };
-  }
+  /* 歩けるのは、並んだマシンの手前を横切る帯 */
+  const WALK = { x0: 24, x1: W - 24, y0: 274, y1: 318 };
 
-  /* 通路側で立ち止まれる場所 */
+  /* 立ち止まれる場所（通路上のx） */
   const SPOTS = [
-    { key: 'gd:mine0', x: 92,  label: '' },     // 自チームのマシン1
-    { key: 'gd:mine1', x: 168, label: '' },     // 自チームのマシン2
-    { key: 'gd:look',  x: 262, label: '並んだマシン' },
-    { key: 'gd:guest', x: 372, label: '' },     // その週の来客
-    { key: 'gd:go',    x: 508, label: 'スタート進行' }
+    { key: 'gd:mine0', x: 74,  label: '' },     // 自チームのマシン1
+    { key: 'gd:mine1', x: 172, label: '' },     // 自チームのマシン2
+    { key: 'gd:look',  x: 286, label: '並んだマシン' },
+    { key: 'gd:guest', x: 398, label: '' },     // その週の来客
+    { key: 'gd:go',    x: 522, label: 'スタート進行' }
   ];
 
   let cache = null, cacheKey = '';
@@ -8667,10 +9066,10 @@ GP.grid = (function () {
 
   /* 傘（グリッドの日除け） */
   function parasol(c, x, y, col) {
-    c.fillStyle = '#7a6a52'; c.fillRect(x - 1, y - 30, 2, 30);
+    c.fillStyle = '#7a6a52'; c.fillRect(x - 1, y - 28, 2, 28);
     c.fillStyle = col; c.beginPath();
-    c.moveTo(x - 18, y - 30); c.lineTo(x + 18, y - 30); c.lineTo(x, y - 42); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.30)'; c.fillRect(x - 17, y - 31, 34, 2);
+    c.moveTo(x - 14, y - 28); c.lineTo(x + 14, y - 28); c.lineTo(x, y - 38); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.30)'; c.fillRect(x - 13, y - 29, 26, 2);
   }
 
   /* テレビカメラ */
@@ -8684,17 +9083,159 @@ GP.grid = (function () {
     c.fillStyle = '#e04a3f'; c.fillRect(x + 10, y - 32, 2, 2);   // 録画ランプ
   }
 
-  /* スタートシグナルの門 */
-  function gantry(c) {
-    c.fillStyle = '#3a3a42'; c.fillRect(120, 6, 8, 34); c.fillRect(348, 6, 8, 34);
-    c.fillStyle = '#2a2a32'; c.fillRect(118, 4, 240, 16);
-    c.fillStyle = '#15151a'; c.fillRect(126, 7, 224, 10);
-    for (let k = 0; k < 5; k++) {
-      c.fillStyle = '#3a1a18';
-      c.fillRect(140 + k * 42, 9, 12, 6);
-      c.fillStyle = 'rgba(224,74,63,.35)';
-      c.fillRect(141 + k * 42, 10, 10, 4);
+  /* =========================================================
+     横から見たフォーミュラカー
+     真上からの絵（raceview）とは別に、立って眺めたときの姿を描く。
+     y は接地線、x は車体の中心。s で奥行きぶんの大きさを変える
+     ========================================================= */
+  function sideCar(c, x, y, s, color, gen, dim) {
+    const L = 78 * s, hub = 9 * s;            // 全長とタイヤ半径
+    const x0 = x - L / 2, x1 = x + L / 2;     // 後端・前端
+    const dark = shade(color, -0.24), lite = shade(color, 0.18);
+    const ink = dim ? 'rgba(24,22,30,.55)' : '#15151a';
+    c.save();
+    // 影。近いものほど長く、濃く落ちる
+    c.fillStyle = 'rgba(0,0,0,' + (0.16 + 0.16 * s).toFixed(2) + ')';
+    c.beginPath();
+    c.ellipse(x, y + 1, L * 0.52, 4 * s, 0, 0, Math.PI * 2);
+    c.fill();
+
+    const R = (rx, ry, rw, rh, col) => {
+      c.fillStyle = col;
+      c.fillRect(x0 + rx * s, y - ry * s, rw * s, rh * s);
+    };
+    // リアウイング（世代が進むほど立派になる）
+    const wingH = 20 + gen * 0.8;
+    R(2, wingH, 3, wingH - 9, ink);
+    R(-1, wingH, 13, 4, dark);
+    R(-1, wingH, 13, 1.6, lite);
+    // フロア〜サイドポンツーン
+    R(8, 11, 46, 8, color);
+    R(8, 11, 46, 2.4, lite);
+    R(8, 4, 46, 3, ink);
+    // エンジンカバーからノーズへ、なだらかに落ちる
+    R(16, 17, 20, 6, color);
+    R(16, 17, 20, 2, lite);
+    R(34, 14, 16, 4, color);
+    R(48, 11, 22, 4, color);      // ノーズ
+    R(48, 11, 22, 1.4, lite);
+    // エアボックス
+    R(20, 22, 8, 5, dark);
+    R(20, 22, 8, 1.6, lite);
+    // コクピットとヘルメット
+    R(28, 18, 10, 3, ink);
+    c.fillStyle = dim ? '#6a6070' : '#f0e6c8';
+    c.fillRect(x0 + 30 * s, y - 22 * s, 7 * s, 5 * s);
+    c.fillStyle = ink;
+    c.fillRect(x0 + 31 * s, y - 20.5 * s, 5 * s, 2 * s);
+    // ハロ
+    c.strokeStyle = ink; c.lineWidth = Math.max(1, 1.6 * s);
+    c.beginPath();
+    c.moveTo(x0 + 27 * s, y - 19 * s);
+    c.quadraticCurveTo(x0 + 34 * s, y - 27 * s, x0 + 41 * s, y - 18 * s);
+    c.stroke();
+    // フロントウイング
+    R(66, 6, 12, 3, dark);
+    R(66, 6, 12, 1.2, lite);
+    R(74, 4, 4, 4, ink);
+    // タイヤ（後・前）
+    const tyre = (tx) => {
+      c.fillStyle = ink;
+      c.beginPath(); c.arc(x0 + tx * s, y - hub, hub, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dim ? '#4a4550' : '#2e2e36';
+      c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.62, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dim ? '#6a6070' : '#b8b8c0';
+      c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.26, 0, Math.PI * 2); c.fill();
+    };
+    tyre(11); tyre(60);
+    c.restore();
+  }
+
+  /* 小物を、その列の大きさで描く */
+  function atScale(c, x, y, s, fn) {
+    c.save(); c.translate(x, y); c.scale(s, s); c.translate(-x, -y);
+    fn(); c.restore();
+  }
+
+  /* 奥のスタンドと、そこを埋める観客 */
+  function grandstand(c) {
+    // 空
+    const sky = c.createLinearGradient(0, 0, 0, HORIZON);
+    sky.addColorStop(0, '#7fb0da');
+    sky.addColorStop(0.62, '#b9d2e4');
+    sky.addColorStop(1, '#dfe6ea');
+    c.fillStyle = sky; c.fillRect(0, 0, W, HORIZON);
+    // 遠くのビルと木立
+    c.fillStyle = 'rgba(126,146,166,.40)';
+    for (let x = -10; x < W; x += 37) {
+      const h = 12 + ((x * 7919) % 17);
+      c.fillRect(x, HORIZON - 42 - h, 26, h + 12);
     }
+    // スタンドの屋根
+    c.fillStyle = '#4a4f5c'; c.fillRect(0, HORIZON - 44, W, 7);
+    c.fillStyle = '#5c6270'; c.fillRect(0, HORIZON - 44, W, 2);
+    // 観客席。段ごとに人の点を打つ
+    for (let r = 0; r < 4; r++) {
+      const y = HORIZON - 36 + r * 8;
+      c.fillStyle = r % 2 ? '#3c4250' : '#454b59';
+      c.fillRect(0, y, W, 8);
+      for (let x = 3 + (r % 2) * 4; x < W; x += 8) {
+        const n = (x * 31 + r * 977) % 7;
+        c.fillStyle = ['#e0b48a', '#d8d2c4', '#c86a5a', '#6a86b0', '#d8c05a', '#8ab07a', '#b090c8'][n];
+        c.fillRect(x, y + 1, 3, 4);
+      }
+    }
+    // ピットウォールの広告帯
+    c.fillStyle = '#20242c'; c.fillRect(0, HORIZON - 6, W, 8);
+    for (let x = 0; x < W; x += 60) {
+      c.fillStyle = ['#b8443c', '#3a6ab0', '#4a8a44', '#c8a340'][(x / 60) % 4];
+      c.fillRect(x + 4, HORIZON - 5, 52, 6);
+    }
+  }
+
+  /* 陽の当たりかた。
+     手前の列と通路にだけ光を落として、そこに視線が行くようにする */
+  function lighting(c) {
+    const pool = c.createRadialGradient(300, NEAR.y + 20, 30, 300, NEAR.y + 20, 330);
+    pool.addColorStop(0, 'rgba(255,226,168,.20)');
+    pool.addColorStop(0.55, 'rgba(255,214,150,.07)');
+    pool.addColorStop(1, 'rgba(255,214,150,0)');
+    c.fillStyle = pool; c.fillRect(0, HORIZON, W, H - HORIZON);
+    // 奥は青く沈ませる
+    const cool = c.createLinearGradient(0, HORIZON, 0, NEAR.y - 20);
+    cool.addColorStop(0, 'rgba(70,96,132,.30)');
+    cool.addColorStop(1, 'rgba(70,96,132,0)');
+    c.fillStyle = cool; c.fillRect(0, HORIZON, W, NEAR.y - 20 - HORIZON);
+  }
+
+  /* 画面の手前。ピントの外にあるものを大きく暗く置いて、奥行きを作る */
+  function foreground(c) {
+    // すぐ目の前にもう1台。画面の外まではみ出した黒い塊として置くと、
+    // 「並んだマシンの間に立っている」という距離感が出る
+    c.save();
+    c.globalAlpha = 0.94;
+    sideCar(c, 118, H + 6, 1.55, '#1b1b24', 3, true);
+    c.restore();
+    // 縁にだけ光を乗せて、黒い塊が「マシン」だと分かるようにする
+    c.fillStyle = 'rgba(255,226,168,.22)';
+    c.fillRect(48, H - 24, 142, 2);
+    // 手前に積まれたタイヤ（大きく、影だけの塊として）
+    c.fillStyle = 'rgba(10,9,14,.88)';
+    for (let k = 0; k < 4; k++) c.fillRect(W - 96, H - 34 + k * 9, 58, 8);
+    // ケーブルドラム
+    c.beginPath(); c.arc(W - 178, H - 2, 24, Math.PI, Math.PI * 2); c.fill();
+    // 画面のふちを落として、視線を中央に集める
+    const v = c.createLinearGradient(0, 0, 0, H);
+    v.addColorStop(0, 'rgba(10,8,16,.14)');
+    v.addColorStop(0.45, 'rgba(10,8,16,0)');
+    v.addColorStop(1, 'rgba(10,8,16,.34)');
+    c.fillStyle = v; c.fillRect(0, 0, W, H);
+    const h = c.createLinearGradient(0, 0, W, 0);
+    h.addColorStop(0, 'rgba(10,8,16,.34)');
+    h.addColorStop(0.2, 'rgba(10,8,16,0)');
+    h.addColorStop(0.8, 'rgba(10,8,16,0)');
+    h.addColorStop(1, 'rgba(10,8,16,.34)');
+    c.fillStyle = h; c.fillRect(0, 0, W, H);
   }
 
   /* ---------- 全体を描く ---------- */
@@ -8702,97 +9243,137 @@ GP.grid = (function () {
     const out = cv.getContext('2d');
     out.imageSmoothingEnabled = false;
     hitBoxes = [];
-    const RV = GP.raceview;
     const order = g2.gridOrder || [];
 
-    // 路面
-    out.fillStyle = '#3c3c44'; out.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 6) {
-      out.fillStyle = y % 12 ? '#3a3a42' : '#38383f';
+    grandstand(out);
+
+    // ---- 路面。奥ほど暗く、手前ほど明るい ----
+    const road = out.createLinearGradient(0, HORIZON, 0, H);
+    road.addColorStop(0, '#3a3a44');
+    road.addColorStop(0.5, '#4e4e5a');
+    road.addColorStop(1, '#57575f');
+    out.fillStyle = road; out.fillRect(0, HORIZON, W, H - HORIZON);
+    // 路面のムラ
+    for (let y = HORIZON; y < H; y += 5) {
+      out.fillStyle = ((y / 5) | 0) % 2 ? 'rgba(255,255,255,.016)' : 'rgba(0,0,0,.020)';
       out.fillRect(0, y, W, 3);
     }
-    // 縁石（左右）
-    for (let y = 0; y < H; y += 16) {
-      out.fillStyle = (y / 16) % 2 ? '#d94a3a' : '#f0efe8';
-      out.fillRect(0, y, 14, 16); out.fillRect(W - 14, y, 14, 16);
-    }
-    // ピットウォール側の白線
-    out.fillStyle = 'rgba(255,255,255,.55)';
-    out.fillRect(18, 0, 3, H); out.fillRect(W - 21, 0, 3, H);
 
-    // スタートライン
-    for (let x = 22; x < W - 22; x += 12) {
-      out.fillStyle = ((x / 12) | 0) % 2 ? '#f0efe8' : '#2a2a32';
-      out.fillRect(x, 26, 12, 8);
-    }
-    gantry(out);
+    // ---- グリッドの白線。奥へ向かうほど細く、間隔も詰まる ----
+    const gridMark = (gy, sc, x, num, mine) => {
+      const w = 52 * sc, h = 8 * sc;
+      out.fillStyle = mine ? 'rgba(255,210,58,.85)' : 'rgba(255,255,255,.55)';
+      out.fillRect(x - w / 2, gy + 2, w, Math.max(1, h * 0.22));
+      out.fillRect(x - w / 2, gy + 2, Math.max(1, h * 0.22), h);
+      out.fillStyle = mine ? '#ffd23a' : 'rgba(255,255,255,.72)';
+      out.font = 'bold ' + Math.round(11 * sc) + 'px monospace';
+      out.fillText(String(num), x - w / 2 + 3, gy + 2 + h + 9 * sc);
+    };
 
-    // グリッドの枠と、並んだマシン
-    for (let i = 0; i < ROWS * 2; i++) {
-      const p = slotPos(i);
-      out.strokeStyle = 'rgba(255,255,255,.60)'; out.lineWidth = 2;
-      out.strokeRect(p.x - SLOT_W / 2, p.y - SLOT_H / 2, SLOT_W, SLOT_H);
+    // ---- 並んだマシン ----
+    // 自分のマシンが必ず視界に入るように、順位のまわりを切り取って見せる
+    const SHOW = 6;
+    let from = 0;
+    const mi = order.findIndex(o => o && o.mine);
+    if (mi >= 0) from = Math.max(0, Math.min(Math.max(0, order.length - SHOW), mi - 2));
+    // 自分のマシンが手前の列（大きく描かれるほう）に来るように、
+    // 切り取りの開始位置の偶奇をそろえる
+    if (mi >= 0 && ((mi - from) % 2)) from = Math.max(0, from - 1);
+    const NEAR_X = [470, 300, 130], FAR_X = [548, 378, 208];
+
+    // ---- いちばん奥。グリッドの続きと、スタートの門 ----
+    // 細かく描かず「まだ先まで車が並んでいる」ことだけ伝える
+    (function () {
+      const dy = 142, ds = 0.42;
+      // 門
+      out.fillStyle = 'rgba(42,42,52,.75)';
+      out.fillRect(96, HORIZON + 2, 5, 26); out.fillRect(494, HORIZON + 2, 5, 26);
+      out.fillRect(94, HORIZON, 408, 8);
+      for (let k = 0; k < 5; k++) {
+        out.fillStyle = 'rgba(180,60,50,.45)';
+        out.fillRect(150 + k * 60, HORIZON + 2, 14, 4);
+      }
+      // 奥に続くマシン
+      const far2 = [70, 200, 330, 460, 560];
+      far2.forEach((x, k) => {
+        const e = order[from + 6 + k];
+        sideCar(out, x, dy, ds, e ? e.color : '#6a6a76', e ? (e.gen || 0) : 0, true);
+      });
+      // スタートライン
+      for (let x = 40; x < W - 40; x += 10) {
+        out.fillStyle = ((x / 10) | 0) % 2 ? 'rgba(240,239,232,.55)' : 'rgba(40,40,50,.45)';
+        out.fillRect(x, HORIZON + 30, 10, 4);
+      }
+    })();
+
+
+    // 奥の列（偶数グリッド）を先に描く
+    for (let j = 0; j < 3; j++) {
+      const i = from + j * 2 + 1;
       const e = order[i];
       if (!e) continue;
-      if (RV && RV.paintCar) RV.paintCar(out, p.x, p.y, -Math.PI / 2, e.color, e.gen || 0, 0.18);
+      sideCar(out, FAR_X[j], FAR.y, FAR.s, e.color, e.gen || 0, true);
+      gridMark(FAR.y, FAR.s, FAR_X[j], i + 1, !!e.mine);
+      if (e.mine) atScale(out, FAR_X[j], FAR.y, FAR.s, () => parasol(out, FAR_X[j] - 36, FAR.y - 2, e.color));
+      else if (j === 1) atScale(out, FAR_X[j], FAR.y, FAR.s,
+        () => boardMan(out, FAR_X[j] + 44, FAR.y, e.color, 'P' + (i + 1)));
+    }
+    // 奥にうっすら空気の層をかけて、距離を感じさせる
+    const haze = out.createLinearGradient(0, HORIZON, 0, NEAR.y - 10);
+    haze.addColorStop(0, 'rgba(176,196,214,.34)');
+    haze.addColorStop(1, 'rgba(176,196,214,0)');
+    out.fillStyle = haze; out.fillRect(0, HORIZON, W, NEAR.y - 10 - HORIZON);
+
+    // 手前の列（奇数グリッド）
+    for (let j = 0; j < 3; j++) {
+      const i = from + j * 2;
+      const e = order[i];
+      if (!e) continue;
+      sideCar(out, NEAR_X[j], NEAR.y, NEAR.s, e.color, e.gen || 0, false);
+      gridMark(NEAR.y, NEAR.s, NEAR_X[j], i + 1, !!e.mine);
+      // マシンのまわりの人と小物
       if (e.mine) {
-        out.strokeStyle = '#fff34d'; out.lineWidth = 2;
-        out.setLineDash([5, 4]);
-        out.strokeRect(p.x - SLOT_W / 2 - 3, p.y - SLOT_H / 2 - 3, SLOT_W + 6, SLOT_H + 6);
-        out.setLineDash([]);
+        parasol(out, NEAR_X[j] - 44, NEAR.y - 2, e.color);
+        crouchMech(out, NEAR_X[j] + 30, NEAR.y, e.color);
+        tyreStack(out, NEAR_X[j] - 52, NEAR.y, e.color);
+      } else if (j === 0) {
+        tvCrew(out, NEAR_X[j] + 52, NEAR.y);
+      } else {
+        crouchMech(out, NEAR_X[j] + 34, NEAR.y, e.color);
       }
-      // マシンのまわりの小物
-      if (i % 2 === 0) tyreStack(out, p.x - 30, p.y + 10, e.color);
-      else crouchMech(out, p.x + 28, p.y + 9, e.color);
-      if (e.mine) parasol(out, p.x - 34, p.y - 2, e.color);
-    }
-    // グリッド番号は、小物より上に出す
-    for (let i = 0; i < ROWS * 2; i++) {
-      const p = slotPos(i);
-      const lx = (i % 2 === 0) ? p.x + SLOT_W / 2 + 6 : p.x - SLOT_W / 2 - 16;
-      out.fillStyle = 'rgba(20,16,12,.72)';
-      out.fillRect(lx - 3, p.y - 8, 18, 14);
-      out.fillStyle = order[i] && order[i].mine ? '#ffd23a' : 'rgba(255,255,255,.85)';
-      out.font = 'bold 10px monospace';
-      out.fillText(String(i + 1), lx, p.y + 3);
     }
 
-    // 観客とTVクルーで、通路の奥を埋める
-    tvCrew(out, 452, 236);
-    boardMan(out, 76, 240, g2.color, 'P' + (order.findIndex(o => o && o.mine) + 1 || 1));
-
-    // 通路（歩ける帯）
-    out.fillStyle = '#43434c'; out.fillRect(0, WALK.y0 - 8, W, H - WALK.y0 + 8);
-    for (let x = 0; x < W; x += 18) {
-      out.fillStyle = 'rgba(255,255,255,.05)';
-      out.fillRect(x, WALK.y0 - 8, 9, H - WALK.y0 + 8);
+    // ---- 歩ける通路 ----
+    out.fillStyle = 'rgba(255,255,255,.30)'; out.fillRect(0, WALK.y0 - 10, W, 2);
+    const lane = out.createLinearGradient(0, WALK.y0 - 8, 0, H);
+    lane.addColorStop(0, '#5c5a62');
+    lane.addColorStop(1, '#454250');
+    out.fillStyle = lane; out.fillRect(0, WALK.y0 - 8, W, H - WALK.y0 + 8);
+    for (let x = 0; x < W; x += 24) {
+      out.fillStyle = 'rgba(255,255,255,.045)';
+      out.fillRect(x, WALK.y0 - 8, 12, H - WALK.y0 + 8);
     }
-    out.fillStyle = 'rgba(255,255,255,.35)'; out.fillRect(0, WALK.y0 - 9, W, 2);
 
-    // 立ち止まれる場所
+    // ---- 立ち止まれる場所 ----
     const py = WALK.y1 - 2;
     people.forEach((q, i) => {
-      const s = SPOTS[i];
-      if (!s) return;
-      if (q.kind === 'car') {
-        // 自分のマシンの脇に立つドライバー
-        if (RV && RV.paintCar) RV.paintCar(out, s.x, py - 26, -Math.PI / 2, q.color, q.gen || 0, 0.1);
-        person(out, s.x + 22, py, q.color, q.done);
-      } else if (q.kind === 'gate') {
-        out.fillStyle = '#241a10'; out.fillRect(s.x - 20, py - 44, 40, 26);
-        out.fillStyle = '#f0e6c8'; out.fillRect(s.x - 18, py - 42, 36, 22);
-        out.fillStyle = '#3a2413'; out.font = 'bold 9px monospace';
-        out.fillText('START', s.x - 15, py - 27);
-        person(out, s.x, py, '#e04a3f', q.done);
+      const s2 = SPOTS[i];
+      if (!s2) return;
+      if (q.kind === 'gate') {
+        out.fillStyle = '#241a10'; out.fillRect(s2.x - 22, py - 48, 44, 28);
+        out.fillStyle = '#f0e6c8'; out.fillRect(s2.x - 20, py - 46, 40, 24);
+        out.fillStyle = '#3a2413'; out.font = 'bold 10px monospace';
+        out.fillText('START', s2.x - 17, py - 30);
       } else if (q.kind === 'look') {
-        parasol(out, s.x, py, '#6a7a8a');
-        person(out, s.x, py, q.color || '#5a6270', q.done);
-      } else {
-        person(out, s.x, py, q.color || '#8a5a2a', q.done);
+        parasol(out, s2.x, py, '#6a7a8a');
       }
-      hitBoxes.push({ key: s.key, x: s.x - 16, y: py - 40, w: 32, h: 42 });
-      sign(out, s.x, py - 50 - (i % 2) * 12, q.label, sel === s.key ? '#e04a3f' : '#3f3a30');
+      person(out, s2.x, py, q.color || '#8a5a2a', q.done);
+      hitBoxes.push({ key: s2.key, x: s2.x - 17, y: py - 42, w: 34, h: 44 });
+      sign(out, s2.x, py - 40 - (i % 2) * 12, q.label, sel === s2.key ? '#e04a3f' : '#3f3a30');
     });
+
+    lighting(out);
+    foreground(out);
   }
 
   function person(c, x, py, suit, done) {
@@ -8840,7 +9421,7 @@ GP.grid = (function () {
     if (actor) GP.base.drawActor(out, actor);
   }
 
-  return { render, scene, drawWith, invalidate, hit, setPeople,
+  return { render, scene, drawWith, invalidate, hit, setPeople, sideCar,
            doorOf, doorPos, clampWalk, WALK, SPOTS, W, H };
 })();
 
@@ -10908,7 +11489,8 @@ window.GP = window.GP || {};
     let body = interiorHTML('market') +
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
-      '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>';
+      '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
+      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。</p>';
 
     if (g.sponsorOffer) {
       const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
@@ -10954,8 +11536,10 @@ window.GP = window.GP || {};
     }
 
     body += '<div class="pick"><button class="pickbtn" data-k="__ad"><span class="pb-ic" style="background:#f0a020">📣</span>' +
-      '<span class="pb-body"><b>プロモーション活動</b><small>ファンを増やし、少し資金も入る</small></span>' +
-      '<span class="pb-cost">+ファン</span></button></div>';
+      '<span class="pb-body"><b>プロモーション活動</b>' +
+      '<small>ファンを増やし、少し資金も入る<br>' +
+      '<b class="warn">この活動だけは1週ぶんのコマンドを使います</b></small></span>' +
+      '<span class="pb-cost">+ファン<br>週を1つ使う</span></button></div>';
     body += '<div class="sub">契約できるスポンサー</div><div class="pick">';
     if (!avail.length) body += '<p class="desc">いまの規模で契約できる相手がいません。' +
       'ファンを増やし、レースで上位に食い込んで注目度を上げましょう。</p>';
@@ -11029,7 +11613,8 @@ window.GP = window.GP || {};
     U.closeModal();
     U.log(g, '🤝 ' + sp.name + ' のオファーを受けた！ 契約金 +' + money(adv) + '万', 'good');
     U.toast('🤝 ' + sp.name + ' と契約成立！', 'good');
-    endWeek();
+    // 判を押すだけなので週は使わない
+    S.save(g); render(); cmdSponsor();
   }
 
   function doSign(name) {
@@ -11038,11 +11623,11 @@ window.GP = window.GP || {};
     g.sponsors.push(Object.assign({}, s));
     const adv = Math.round(s.per * 4);
     g.funds += adv;
-    U.closeModal();
     GP.sound.play('coin');
     U.log(g, '🤝 ' + s.name + ' と契約！ 契約金 +' + money(adv) + '万', 'good');
     U.toast('🤝 ' + s.name + ' と契約成立！', 'good');
-    endWeek();
+    // 契約そのものは週を使わない。使うのはプロモーション活動だけ
+    S.save(g); render(); cmdSponsor();
   }
 
   /* =======================================================
@@ -11514,19 +12099,28 @@ window.GP = window.GP || {};
     // ---- リザーブドライバー ----
     body += '<div class="sub">🪑 リザーブドライバー</div>' +
       '<p class="desc">万一のときに走る控えです。給料は正ドライバーの ' +
-      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入り、' +
-      'いつでも正ドライバーと入れ替えられます。</p><div class="pick">';
+      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入ります。<br>' +
+      '<b>シートが空いていればそのまま正ドライバーに昇格</b>させられますし、' +
+      'いまの正ドライバーと入れ替えることもできます（給料は正ドライバーの額になります）。</p><div class="pick">';
     if (g.reserve) {
       const r = g.reserve;
-      const swaps = g.drivers.map(d =>
-        '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) + 'と交代</button>').join('');
+      const openSeat = g.drivers.length < 2;
+      const full = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
+      const acts = (openSeat
+          ? '<button class="mini good" data-promres="1">⬆ 正ドライバーに昇格</button>'
+          : '') +
+        g.drivers.map(d =>
+          '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) +
+          'と入れ替えて昇格</button>').join('');
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
         '<span class="pb-body"><b>' + esc(r.name) + '</b><small>' + S.nationOf(r).flag + ' 総合 ' +
         Math.round(S.driverRating(r)) + '／' + r.age + '歳／' + S.persOf(r).icon + S.persOf(r).name +
         (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
-        '<br>' + U.skillChips(r) + '</small></span>' +
-        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + swaps +
+        '<br>' + U.skillChips(r) +
+        '<br>昇格すると 週' + money(r.salary) + '万 → <b>週' + money(full) + '万</b>' +
+        (openSeat ? '（いまシートが1つ空いています）' : '') + '</small></span>' +
+        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + acts +
         '<button class="mini danger" data-relres="1">解除</button></span></div>';
     } else {
       body += '<p class="desc">リザーブはいません。下部組織の若手か、市場のドライバーを置けます。</p>';
@@ -11781,6 +12375,17 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-promres]'), b => {
+      b.onclick = () => {
+        const d = S.promoteReserve(g);
+        if (!d) return;
+        GP.sound.play('levelup');
+        U.log(g, '🎉 リザーブの ' + d.name + ' が正ドライバーに昇格！（週' +
+                 money(d.salary) + '万）', 'good');
+        U.toast('🎉 ' + d.name + ' が正ドライバーに！', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
     Array.prototype.forEach.call(body.querySelectorAll('[data-swapres]'), b => {
       b.onclick = () => {
         const r = S.swapReserve(g, b.dataset.swapres);
@@ -11893,6 +12498,27 @@ window.GP = window.GP || {};
       t.country + ' ' + esc(t.name) + '</b>' +
       '<span>' + laps + '周 ／ ' + esc(t.desc) + '</span></div>';
     if (special) body += '<p class="note">' + esc(special.note) + '</p>';
+
+    // ---- この週末に出ていくお金 ----
+    // レースが終わってから請求が来るので、先に見せておく
+    {
+      const ship = S.logiCost(g, t);
+      const pu = S.puOf(g);
+      const willBuy = pu.life - S.puWear(g, t, 1) <= 0 && !pu.pool.some(u => u.life >= 30);
+      const puCost = willBuy ? S.puFreshCost(g) : 0;
+      const weekly = S.finances(g).weekly;
+      const bill = ship + puCost + weekly;
+      const after = g.funds - bill;
+      body += '<div class="billbox' + (after < 0 ? ' bad' : after < bill ? ' warn' : '') + '">' +
+        '<b>🧾 この週末に出ていくお金 ' + money(bill) + '万</b>' +
+        '<small>🚚 輸送 ' + money(ship) + '万' +
+        (puCost ? '／⚙️ 新品PU ' + money(puCost) + '万' : '') +
+        '／🏭 運営 ' + money(weekly) + '万　→　残り <b class="' +
+        (after < 0 ? 'bad' : 'good') + '">' + money(after) + '万</b>' +
+        (after < 0 ? '<br><b class="warn">このままだと資金がマイナスになります。' +
+                     '「🚚 輸送」で運びかたと積荷を落とせば減らせます。</b>' : '') +
+        '</small></div>';
+    }
 
     // ---- 機材の到着 ----
     if (g.logi && g.logi.late) {
@@ -12149,6 +12775,21 @@ window.GP = window.GP || {};
      ======================================================= */
   const PERF_TO_SEC = 0.00092;
 
+  /* ---- 今日の無線 ----
+     レース中は数秒で消えるので、あとから全部読み返せるようにしておく */
+  function radioLog(res) {
+    const list = res.radio || [];
+    if (!list.length) return '';
+    let h = '<div class="sub small">📻 今日のチーム無線</div><div class="radiolog">';
+    list.forEach(r => {
+      h += '<div class="rl' + (r.from === 'pit' ? '' : ' drv') + '">' +
+        '<i>L' + r.lap + '</i>' +
+        '<b>' + (r.from === 'pit' ? '📻 ピット→' + esc(r.name) : '🗣️ ' + esc(r.name)) + '</b>' +
+        '<span>' + esc(r.text) + '</span></div>';
+    });
+    return h + '</div>';
+  }
+
   function raceDebrief(res) {
     const me = res.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
     if (!me || !me.lapTimes || !me.lapTimes.length) return '';
@@ -12343,6 +12984,8 @@ window.GP = window.GP || {};
       if (!res.special) body += stakeBlock(false);
       // なぜその順位だったのかを分解して見せる
       body += raceDebrief(res);
+      // 今日の無線をふり返る
+      body += radioLog(res);
       if (res.fastestLap) {
         const scored = !res.fastestLap.dnf && res.fastestLap.pos <= D.POINTS.length && !res.special;
         body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) +
@@ -12912,9 +13555,10 @@ window.GP = window.GP || {};
     weekFlags();
     U.closeModal();
     g.onGrid = true;
-    // 並び（予選順）を絵のために持っておく
-    g.gridOrder = (prePack ? prePack.grid : []).slice(0, 12).map(e => ({
-      color: e.color, gen: e.gen || 0, mine: !!e.isPlayer
+    // 並び（予選順）を絵のために持っておく。
+    // 後ろのほうに沈んだ週でも自分のマシンが見えるよう、全車ぶん残す
+    g.gridOrder = (prePack ? prePack.grid : []).map(e => ({
+      color: e.color, gen: e.gen || 0, mine: !!e.isPlayer, name: e.driver.name
     }));
     GP.grid.setPeople(gridPeople());
     GP.grid.invalidate();
@@ -14466,6 +15110,7 @@ window.GP = window.GP || {};
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
       cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
+      cGarageO: cmdGarage, cFacilityO: cmdFacility, cFacilityR: cmdFacility,
       cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner,
       cCrunch: cmdCrunch
     };
@@ -14549,7 +15194,10 @@ window.GP = window.GP || {};
       const cost = withChoice(pl.key, g.logi.load, () => S.logiCost(g, nextTrack));
       const risk = withChoice(pl.key, g.logi.load, () => S.logiRisk(g, nextTrack));
       const on = pl.key === cur.key;
-      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="logi:' + pl.key + '">' +
+      // 払えない手配は結べない。赤字のまま次戦に向かわせない
+      const poor = !on && cost > g.funds;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+        '" data-k="logi:' + pl.key + '"' + (poor ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
         '<span class="pb-body"><b>' + pl.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
         '<small>' + pl.desc + '<br>' +
@@ -14557,6 +15205,7 @@ window.GP = window.GP || {};
         'マシンの仕上がり ' + (pl.perf === 1 ? '±0' :
           (pl.perf > 1 ? '+' : '') + ((pl.perf - 1) * 100).toFixed(1) + '%') +
         '／遅延 ' + Math.round(risk * 100) + '%' +
+        (poor ? '<br><b class="warn">いまの資金では手配できません</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pl.note) + '</b></span></button>';
     });
@@ -14569,7 +15218,9 @@ window.GP = window.GP || {};
       const cost = withChoice(g.logi.plan, ld.key, () => S.logiCost(g, nextTrack));
       const risk = withChoice(g.logi.plan, ld.key, () => S.logiRisk(g, nextTrack));
       const on = ld.key === curLoad.key;
-      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="load:' + ld.key + '">' +
+      const poor = !on && cost > g.funds;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+        '" data-k="load:' + ld.key + '"' + (poor ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:' + ld.color + '">' + ld.icon + '</span>' +
         '<span class="pb-body"><b>' + ld.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
         '<small>' + ld.desc + '<br>' +
@@ -14577,6 +15228,7 @@ window.GP = window.GP || {};
                    : '<b class="warn">現場での手当てなし</b>') +
         '／パーツの傷み ×' + ld.wear.toFixed(2) +
         '／遅延 ' + Math.round(risk * 100) + '%' +
+        (poor ? '<br><b class="warn">いまの資金では積めません</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(ld.note) + '</b></span></button>';
     });
@@ -14600,12 +15252,16 @@ window.GP = window.GP || {};
     bindPick(k => {
       const [kind, key] = k.split(':');
       g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
+      const bp = g.logi.plan, bl = g.logi.load;
+      if (kind === 'logi') g.logi.plan = key; else g.logi.load = key;
+      if (S.logiCost(g, nextTrack) > g.funds) {   // 払えないものは結べない
+        g.logi.plan = bp; g.logi.load = bl;
+        return U.toast('その手配は資金が足りません', 'bad');
+      }
       if (kind === 'logi') {
-        g.logi.plan = key;
         const pl = S.logiPlan(g);
         U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
       } else {
-        g.logi.load = key;
         const ld = S.logiLoad(g);
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
       }

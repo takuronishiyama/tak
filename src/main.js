@@ -1031,7 +1031,8 @@ window.GP = window.GP || {};
     let body = interiorHTML('market') +
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
-      '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>';
+      '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
+      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。</p>';
 
     if (g.sponsorOffer) {
       const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
@@ -1077,8 +1078,10 @@ window.GP = window.GP || {};
     }
 
     body += '<div class="pick"><button class="pickbtn" data-k="__ad"><span class="pb-ic" style="background:#f0a020">📣</span>' +
-      '<span class="pb-body"><b>プロモーション活動</b><small>ファンを増やし、少し資金も入る</small></span>' +
-      '<span class="pb-cost">+ファン</span></button></div>';
+      '<span class="pb-body"><b>プロモーション活動</b>' +
+      '<small>ファンを増やし、少し資金も入る<br>' +
+      '<b class="warn">この活動だけは1週ぶんのコマンドを使います</b></small></span>' +
+      '<span class="pb-cost">+ファン<br>週を1つ使う</span></button></div>';
     body += '<div class="sub">契約できるスポンサー</div><div class="pick">';
     if (!avail.length) body += '<p class="desc">いまの規模で契約できる相手がいません。' +
       'ファンを増やし、レースで上位に食い込んで注目度を上げましょう。</p>';
@@ -1152,7 +1155,8 @@ window.GP = window.GP || {};
     U.closeModal();
     U.log(g, '🤝 ' + sp.name + ' のオファーを受けた！ 契約金 +' + money(adv) + '万', 'good');
     U.toast('🤝 ' + sp.name + ' と契約成立！', 'good');
-    endWeek();
+    // 判を押すだけなので週は使わない
+    S.save(g); render(); cmdSponsor();
   }
 
   function doSign(name) {
@@ -1161,11 +1165,11 @@ window.GP = window.GP || {};
     g.sponsors.push(Object.assign({}, s));
     const adv = Math.round(s.per * 4);
     g.funds += adv;
-    U.closeModal();
     GP.sound.play('coin');
     U.log(g, '🤝 ' + s.name + ' と契約！ 契約金 +' + money(adv) + '万', 'good');
     U.toast('🤝 ' + s.name + ' と契約成立！', 'good');
-    endWeek();
+    // 契約そのものは週を使わない。使うのはプロモーション活動だけ
+    S.save(g); render(); cmdSponsor();
   }
 
   /* =======================================================
@@ -1637,19 +1641,28 @@ window.GP = window.GP || {};
     // ---- リザーブドライバー ----
     body += '<div class="sub">🪑 リザーブドライバー</div>' +
       '<p class="desc">万一のときに走る控えです。給料は正ドライバーの ' +
-      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入り、' +
-      'いつでも正ドライバーと入れ替えられます。</p><div class="pick">';
+      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入ります。<br>' +
+      '<b>シートが空いていればそのまま正ドライバーに昇格</b>させられますし、' +
+      'いまの正ドライバーと入れ替えることもできます（給料は正ドライバーの額になります）。</p><div class="pick">';
     if (g.reserve) {
       const r = g.reserve;
-      const swaps = g.drivers.map(d =>
-        '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) + 'と交代</button>').join('');
+      const openSeat = g.drivers.length < 2;
+      const full = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
+      const acts = (openSeat
+          ? '<button class="mini good" data-promres="1">⬆ 正ドライバーに昇格</button>'
+          : '') +
+        g.drivers.map(d =>
+          '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) +
+          'と入れ替えて昇格</button>').join('');
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
         '<span class="pb-body"><b>' + esc(r.name) + '</b><small>' + S.nationOf(r).flag + ' 総合 ' +
         Math.round(S.driverRating(r)) + '／' + r.age + '歳／' + S.persOf(r).icon + S.persOf(r).name +
         (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
-        '<br>' + U.skillChips(r) + '</small></span>' +
-        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + swaps +
+        '<br>' + U.skillChips(r) +
+        '<br>昇格すると 週' + money(r.salary) + '万 → <b>週' + money(full) + '万</b>' +
+        (openSeat ? '（いまシートが1つ空いています）' : '') + '</small></span>' +
+        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + acts +
         '<button class="mini danger" data-relres="1">解除</button></span></div>';
     } else {
       body += '<p class="desc">リザーブはいません。下部組織の若手か、市場のドライバーを置けます。</p>';
@@ -1904,6 +1917,17 @@ window.GP = window.GP || {};
         S.save(g); render(); cmdStaff();
       };
     });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-promres]'), b => {
+      b.onclick = () => {
+        const d = S.promoteReserve(g);
+        if (!d) return;
+        GP.sound.play('levelup');
+        U.log(g, '🎉 リザーブの ' + d.name + ' が正ドライバーに昇格！（週' +
+                 money(d.salary) + '万）', 'good');
+        U.toast('🎉 ' + d.name + ' が正ドライバーに！', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
     Array.prototype.forEach.call(body.querySelectorAll('[data-swapres]'), b => {
       b.onclick = () => {
         const r = S.swapReserve(g, b.dataset.swapres);
@@ -2016,6 +2040,27 @@ window.GP = window.GP || {};
       t.country + ' ' + esc(t.name) + '</b>' +
       '<span>' + laps + '周 ／ ' + esc(t.desc) + '</span></div>';
     if (special) body += '<p class="note">' + esc(special.note) + '</p>';
+
+    // ---- この週末に出ていくお金 ----
+    // レースが終わってから請求が来るので、先に見せておく
+    {
+      const ship = S.logiCost(g, t);
+      const pu = S.puOf(g);
+      const willBuy = pu.life - S.puWear(g, t, 1) <= 0 && !pu.pool.some(u => u.life >= 30);
+      const puCost = willBuy ? S.puFreshCost(g) : 0;
+      const weekly = S.finances(g).weekly;
+      const bill = ship + puCost + weekly;
+      const after = g.funds - bill;
+      body += '<div class="billbox' + (after < 0 ? ' bad' : after < bill ? ' warn' : '') + '">' +
+        '<b>🧾 この週末に出ていくお金 ' + money(bill) + '万</b>' +
+        '<small>🚚 輸送 ' + money(ship) + '万' +
+        (puCost ? '／⚙️ 新品PU ' + money(puCost) + '万' : '') +
+        '／🏭 運営 ' + money(weekly) + '万　→　残り <b class="' +
+        (after < 0 ? 'bad' : 'good') + '">' + money(after) + '万</b>' +
+        (after < 0 ? '<br><b class="warn">このままだと資金がマイナスになります。' +
+                     '「🚚 輸送」で運びかたと積荷を落とせば減らせます。</b>' : '') +
+        '</small></div>';
+    }
 
     // ---- 機材の到着 ----
     if (g.logi && g.logi.late) {
@@ -2272,6 +2317,21 @@ window.GP = window.GP || {};
      ======================================================= */
   const PERF_TO_SEC = 0.00092;
 
+  /* ---- 今日の無線 ----
+     レース中は数秒で消えるので、あとから全部読み返せるようにしておく */
+  function radioLog(res) {
+    const list = res.radio || [];
+    if (!list.length) return '';
+    let h = '<div class="sub small">📻 今日のチーム無線</div><div class="radiolog">';
+    list.forEach(r => {
+      h += '<div class="rl' + (r.from === 'pit' ? '' : ' drv') + '">' +
+        '<i>L' + r.lap + '</i>' +
+        '<b>' + (r.from === 'pit' ? '📻 ピット→' + esc(r.name) : '🗣️ ' + esc(r.name)) + '</b>' +
+        '<span>' + esc(r.text) + '</span></div>';
+    });
+    return h + '</div>';
+  }
+
   function raceDebrief(res) {
     const me = res.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
     if (!me || !me.lapTimes || !me.lapTimes.length) return '';
@@ -2466,6 +2526,8 @@ window.GP = window.GP || {};
       if (!res.special) body += stakeBlock(false);
       // なぜその順位だったのかを分解して見せる
       body += raceDebrief(res);
+      // 今日の無線をふり返る
+      body += radioLog(res);
       if (res.fastestLap) {
         const scored = !res.fastestLap.dnf && res.fastestLap.pos <= D.POINTS.length && !res.special;
         body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) +
@@ -3035,9 +3097,10 @@ window.GP = window.GP || {};
     weekFlags();
     U.closeModal();
     g.onGrid = true;
-    // 並び（予選順）を絵のために持っておく
-    g.gridOrder = (prePack ? prePack.grid : []).slice(0, 12).map(e => ({
-      color: e.color, gen: e.gen || 0, mine: !!e.isPlayer
+    // 並び（予選順）を絵のために持っておく。
+    // 後ろのほうに沈んだ週でも自分のマシンが見えるよう、全車ぶん残す
+    g.gridOrder = (prePack ? prePack.grid : []).map(e => ({
+      color: e.color, gen: e.gen || 0, mine: !!e.isPlayer, name: e.driver.name
     }));
     GP.grid.setPeople(gridPeople());
     GP.grid.invalidate();
@@ -4589,6 +4652,7 @@ window.GP = window.GP || {};
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
       cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
+      cGarageO: cmdGarage, cFacilityO: cmdFacility, cFacilityR: cmdFacility,
       cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner,
       cCrunch: cmdCrunch
     };
@@ -4672,7 +4736,10 @@ window.GP = window.GP || {};
       const cost = withChoice(pl.key, g.logi.load, () => S.logiCost(g, nextTrack));
       const risk = withChoice(pl.key, g.logi.load, () => S.logiRisk(g, nextTrack));
       const on = pl.key === cur.key;
-      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="logi:' + pl.key + '">' +
+      // 払えない手配は結べない。赤字のまま次戦に向かわせない
+      const poor = !on && cost > g.funds;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+        '" data-k="logi:' + pl.key + '"' + (poor ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
         '<span class="pb-body"><b>' + pl.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
         '<small>' + pl.desc + '<br>' +
@@ -4680,6 +4747,7 @@ window.GP = window.GP || {};
         'マシンの仕上がり ' + (pl.perf === 1 ? '±0' :
           (pl.perf > 1 ? '+' : '') + ((pl.perf - 1) * 100).toFixed(1) + '%') +
         '／遅延 ' + Math.round(risk * 100) + '%' +
+        (poor ? '<br><b class="warn">いまの資金では手配できません</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pl.note) + '</b></span></button>';
     });
@@ -4692,7 +4760,9 @@ window.GP = window.GP || {};
       const cost = withChoice(g.logi.plan, ld.key, () => S.logiCost(g, nextTrack));
       const risk = withChoice(g.logi.plan, ld.key, () => S.logiRisk(g, nextTrack));
       const on = ld.key === curLoad.key;
-      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="load:' + ld.key + '">' +
+      const poor = !on && cost > g.funds;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+        '" data-k="load:' + ld.key + '"' + (poor ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:' + ld.color + '">' + ld.icon + '</span>' +
         '<span class="pb-body"><b>' + ld.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
         '<small>' + ld.desc + '<br>' +
@@ -4700,6 +4770,7 @@ window.GP = window.GP || {};
                    : '<b class="warn">現場での手当てなし</b>') +
         '／パーツの傷み ×' + ld.wear.toFixed(2) +
         '／遅延 ' + Math.round(risk * 100) + '%' +
+        (poor ? '<br><b class="warn">いまの資金では積めません</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(ld.note) + '</b></span></button>';
     });
@@ -4723,12 +4794,16 @@ window.GP = window.GP || {};
     bindPick(k => {
       const [kind, key] = k.split(':');
       g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
+      const bp = g.logi.plan, bl = g.logi.load;
+      if (kind === 'logi') g.logi.plan = key; else g.logi.load = key;
+      if (S.logiCost(g, nextTrack) > g.funds) {   // 払えないものは結べない
+        g.logi.plan = bp; g.logi.load = bl;
+        return U.toast('その手配は資金が足りません', 'bad');
+      }
       if (kind === 'logi') {
-        g.logi.plan = key;
         const pl = S.logiPlan(g);
         U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
       } else {
-        g.logi.load = key;
         const ld = S.logiLoad(g);
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
       }

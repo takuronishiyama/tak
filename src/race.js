@@ -26,12 +26,12 @@ GP.race = (function () {
     return l.length ? S.pick(l) : 'コーナー';
   }
   function say(list, v) {
+    let t = S.pick(list);
     v = v || {};
-    return S.pick(list)
-      .replace(/\{A\}/g, v.A == null ? '' : v.A)
-      .replace(/\{B\}/g, v.B == null ? '' : v.B)
-      .replace(/\{C\}/g, v.C == null ? '' : v.C)
-      .replace(/\{P\}/g, v.P == null ? '' : v.P);
+    Object.keys(v).forEach(k => {
+      t = t.split('{' + k + '}').join(v[k] == null ? '' : v[k]);
+    });
+    return t;
   }
 
   const SAY = {
@@ -151,6 +151,206 @@ GP.race = (function () {
     ]
   };
 
+  /* =========================================================
+     チーム無線
+     ピットウォールとドライバーの、その場のやりとり。
+     実況が「外から見た絵」なら、こちらは「中の声」。
+     短い言葉だけを、起きたことに合わせて積んでいく
+     {D}=ドライバー名／{P}=順位／{N}=残り周回／{T}=タイヤ
+     {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
+     ========================================================= */
+  const RADIO = {
+    /* --- ピット → ドライバー --- */
+    box: ['「ボックス、ボックス。{T} に行く」',
+          '「今周ピットだ。{T} を用意してある」',
+          '「入れ。{T}、準備できている」',
+          '「ボックス確認。{T} で最後まで行く」'],
+    gapAhead: ['「前とのギャップ {GA}。まだ削れる」',
+               '「差は {GA}。このペースなら追いつく」',
+               '「前は {GA}。焦らず一定で」',
+               '「ギャップ {GA}、じわじわ来ている。いい流れだ」'],
+    gapBehind: ['「後ろが {GB} まで来ている。ラインは締めておけ」',
+                '「うしろ {GB}。ストレートだけ気をつけろ」',
+                '「{GB} 差まで詰められている。ミスだけはするな」'],
+    clear: ['「前後ともクリア。自分のリズムで行っていい」',
+            '「まわりは空いている。タイヤを労わろう」'],
+    tyre: ['「そのタイヤ、あと {L} 周は持たせたい」',
+           '「タイヤの数字は悪くない。あと {L} 周は行ける」',
+           '「タイヤを労われ。あと {L} 周だ」'],
+    save: ['「ペースを落とせ。タイヤを最後まで持たせる」',
+           '「1周あたり少し捨てていい。終盤に取り返す」',
+           '「いまは我慢だ。仕掛けるのはまだ先」'],
+    push: ['「ここからプッシュ。残り {N} 周、全部使え」',
+           '「行っていい。ペースを上げろ」',
+           '「いまが勝負どころだ。攻めてくれ」'],
+    sc: ['「セーフティカー、セーフティカー。デルタを守れ」',
+         '「イエロー全面。ペースを落として隊列につけ」',
+         '「セーフティカーだ。落ち着いて、デルタ確認」'],
+    vsc: ['「バーチャルセーフティカー。デルタ、デルタ」',
+          '「VSC 発動。指定タイムを外すな」'],
+    rain: ['「3コーナー付近に雨。数周で本格的に来る」',
+           '「レーダーが赤い。すぐ濡れる、備えてくれ」',
+           '「雨が来た。無理はするな、様子を教えてくれ」'],
+    dry: ['「路面が乾いてきた。ドライのタイミングを見ている」',
+          '「雨は上がった。ラインの外はまだ濡れている」'],
+    pen: ['「{S}秒の加算だ。取り返すぞ、まだ終わっていない」',
+          '「裁定が出た。{S}秒。頭を切り替えてくれ」'],
+    ok: ['「大丈夫か？ マシンの状態を教えてくれ」',
+         '「いまのは見えた。ダメージはないか」',
+         '「落ち着いていこう。何が起きた？」'],
+    final: ['「残り {N} 周。このまま持ち帰ってくれ」',
+            '「あと {N} 周。ポジションを守れ」',
+            '「最後の {N} 周だ。ミスなく行こう」'],
+    last: ['「ファイナルラップ。行ってこい」',
+           '「最終ラップだ。全部出しきれ」'],
+    win: ['「P1！ P1だ！ よくやった！！」',
+          '「チェッカー、P1！ 信じられない、最高だ！」'],
+    podium: ['「P{P}！ 表彰台だ！ よくやった！」',
+             '「チェッカー、P{P}。素晴らしい走りだった」'],
+    points: ['「チェッカー、P{P}。ポイントを持ち帰った。よくやった」',
+             '「P{P} でフィニッシュ。悪くない一日だ」'],
+    plain: ['「チェッカー、P{P}。今日はここまでだ。お疲れさま」',
+            '「P{P}。持ち帰れたことをよしとしよう」'],
+    dnfPit: ['「マシンを止めてくれ。安全な場所に寄せろ」',
+             '「今日は終わりだ。ゆっくり降りてくれ」'],
+
+    /* --- ドライバー → ピット --- */
+    roger: ['「了解、入る」', '「コピー、ボックス」', '「わかった、今周入る」'],
+    rogerShort: ['「了解」', '「コピー」', '「わかっている」'],
+    tyreGone: ['「タイヤが終わった。これ以上は保たない」',
+               '「グリップがない。もう滑るだけだ」',
+               '「限界だ、タイヤを替えてくれ」',
+               '「リアが完全に終わっている。入れてくれ」'],
+    under: ['「アンダーがひどい。フロントが入らない」',
+            '「曲がらない。ターン1で毎回はらんでいる」',
+            '「フロントがまるで効かない」'],
+    over: ['「リアが逃げる。乗りにくい」',
+           '「立ち上がりで毎回滑る。押さえきれない」',
+           '「バランスが後ろに寄りすぎている」'],
+    stuck: ['「前が遅い。なんとかしてくれ」',
+            '「後ろにいると曲がらない。離れるしかない」',
+            '「ずっと詰まっている。作戦を変えられないか」'],
+    okBack: ['「問題ない、続ける」',
+             '「大丈夫だ。少し行き過ぎただけ」',
+             '「マシンは無事だ。行ける」'],
+    pushBack: ['「まだ行ける。プッシュする」',
+               '「任せてくれ。ここから上げる」',
+               '「わかった。全部出す」'],
+    rainBack: ['「セクター2、もう濡れている」',
+               '「見えない。前のしぶきで何も見えない」',
+               '「まだドライでいける。もう少し引っぱらせてくれ」'],
+    angry: ['「その作戦は違うだろう！」',
+            '「なぜあそこで入れなかったんだ」',
+            '「こんな加算は納得できない」'],
+    thanks: ['「みんな、ありがとう！ 最高のクルマだった！」',
+             '「やった！ チーム全員のおかげだ！」',
+             '「この一勝は、工場のみんなのものだ」'],
+    thanksOk: ['「ありがとう、いいクルマだった」',
+               '「持ち帰れてよかった。次はもっと行ける」'],
+    sorry: ['「すまない。自分のミスだ」',
+            '「悔しい。次は必ず持ち帰る」',
+            '「マシンは良かった。それだけに残念だ」']
+  };
+
+  /* その周に、自チームのドライバーとどんなやりとりがあったか。
+     優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
+     状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
+  function radioTick(st) {
+    const lap = st.lap, laps = st.laps, radio = st.radio;
+    const run = st.order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+    run.forEach((e, i) => {
+      if (!e.isPlayer) return;
+      e.radioCool = Math.max(0, (e.radioCool || 0) - 1);
+      const ty = tyreOf(e.tyreKey);
+      const ahead = i > 0 ? run[i - 1] : null;
+      const behind = i < run.length - 1 ? run[i + 1] : null;
+      const V = {
+        D: e.driver.name, P: i + 1, N: laps - lap, T: ty.name,
+        L: Math.max(0, Math.round(ty.life - e.tyreAge)),
+        GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
+        GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
+        S: e.penalty || 0
+      };
+      const push = (pool, from, force) => {
+        // 直前と同じ言い回しにならないように、二度までは引き直す
+        let text = say(pool, V);
+        for (let k = 0; k < 2 && radio.length && radio[radio.length - 1].text === text; k++) {
+          text = say(pool, V);
+        }
+        radio.push({ lap: lap, from: from, name: e.driver.name, id: e.id, text: text });
+        if (!force) e.radioCool = 3;
+      };
+      const beat = lap + (e.num || 0);      // 2台の無線が重ならないようにずらす
+      // ---- 起きたことに応じて、優先度の高いものから ----
+      if (e.pitPlan.indexOf(lap + 1) >= 0) {           // 次の周にピット
+        push(RADIO.box, 'pit', true);
+        push(RADIO.roger, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (st.scStart) {                                 // セーフティカーが出た
+        push(st.scVirtual ? RADIO.vsc : RADIO.sc, 'pit', true);
+        push(RADIO.rogerShort, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (st.wxChanged) {                               // 天候が動いた
+        push(st.wxWet ? RADIO.rain : RADIO.dry, 'pit', true);
+        push(RADIO.rainBack, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (e.radioPen === lap) {                         // 加算をもらった
+        e.radioPen = -1;
+        push(RADIO.pen, 'pit', true);
+        push(RADIO.angry, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.radioMiss === lap) {                        // 大きく崩した
+        e.radioMiss = -1;
+        push(RADIO.ok, 'pit', true);
+        push(RADIO.okBack, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.radioCool > 0) return;
+      // ---- ここから先は、間が空いているときだけ ----
+      if (e.tyreAge > ty.life + 1) {                    // タイヤが終わった
+        push(RADIO.tyreGone, 'drv');
+        push(e.pitPlan.some(l => l > lap) ? RADIO.tyre : RADIO.save, 'pit', true);
+        return;
+      }
+      if (lap === laps) { return; }                     // 最終周は結果側で入れる
+      if (lap === laps - 1) { push(RADIO.last, 'pit'); return; }
+      if (laps - lap <= 4) {                            // 残りわずか
+        push(behind && (behind.cum[lap - 1] - e.cum[lap - 1]) < 2.5 ? RADIO.final : RADIO.push, 'pit');
+        push(RADIO.pushBack, 'drv', true);
+        return;
+      }
+      if (e.stuckLaps >= 3 && ahead) {                  // ずっと前に詰まっている
+        e.stuckLaps = 0;
+        push(RADIO.stuck, 'drv');
+        push(RADIO.push, 'pit', true);
+        return;
+      }
+      if (beat % 5 === 2) {                             // 定期的な状況報告
+        const gA = ahead ? e.cum[lap - 1] - ahead.cum[lap - 1] : 99;
+        const gB = behind ? behind.cum[lap - 1] - e.cum[lap - 1] : 99;
+        if (gA < 3.0) push(RADIO.gapAhead, 'pit');
+        else if (gB < 3.0) push(RADIO.gapBehind, 'pit');
+        else if (e.tyreAge > ty.life * 0.7) push(RADIO.save, 'pit');
+        else push(RADIO.clear, 'pit');
+        return;
+      }
+      if (beat % 7 === 4) {                             // ドライバーからの訴え
+        // マシンの性格を、ドライバーの言葉で出す
+        const under = e.stats && e.stats.corner < e.stats.speed;
+        push(under ? RADIO.under : RADIO.over, 'drv');
+      }
+    });
+  }
+
   /* ---------- エントリーリスト作成 ---------- */
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
@@ -234,6 +434,7 @@ GP.race = (function () {
     if (e.cum[lap - 1] != null) e.cum[lap - 1] += P.sec;
     else e.penPending = (e.penPending || 0) + P.sec;
     if (e.isPlayer) {
+      e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
         text: P.icon + ' ' + e.driver.name + ' に' + P.sec + '秒加算 — ' + P.text });
     }
@@ -327,8 +528,10 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
+    let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
     const scInfo = { from: 0, laps: 0, virtual: false };
+    const radio = [];                 // チーム無線。自チームのぶんだけ積む
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
@@ -446,6 +649,7 @@ GP.race = (function () {
         wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
                wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
+        wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
           text: wxTo.icon + ' 天候が変わった！ ' + weather.name + ' → ' + wxTo.name
               + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
@@ -528,6 +732,7 @@ GP.race = (function () {
             t += lost;
             e.tyreAge += big ? 1.6 : 0.5;
             e.misses = (e.misses || 0) + 1;
+            if (big && e.isPlayer) e.radioMiss = lap;
             // 何が原因だったかで、言い回しを変える
             const pool = big ? SAY.missBig
                        : wx.wet && Math.random() < 0.7 ? SAY.missWet
@@ -650,6 +855,7 @@ GP.race = (function () {
             // 成功：前に出る。詰まっていた時間もここで解ける
             atk.cum[lap - 1] = def.cum[lap - 1] - S.rnd(0.08, 0.28);
             atk.passes = (atk.passes || 0) + 1;
+            atk.stuckLaps = 0;
             // 実況。自チームが絡む攻防と、上位の攻防は必ず伝える
             if (atk.isPlayer || def.isPlayer || i <= 3) {
               const v = { A: atk.driver.name, B: def.driver.name, C: lm(track), P: i };
@@ -670,6 +876,7 @@ GP.race = (function () {
             let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
             if (atk.sk('passer')) stuck *= 0.55;
             atk.cum[lap - 1] += stuck;
+            atk.stuckLaps = (atk.stuckLaps || 0) + 1;
             // 抜けなかったことも、たまには言葉にする（毎周だとうるさいので控えめに）
             if ((atk.isPlayer || def.isPlayer) && Math.random() < 0.16) {
               events.push({ lap: lap, type: 'miss', car: atk,
@@ -738,7 +945,7 @@ GP.race = (function () {
       // 隊列が詰まるので、大きなリードも一度リセットされる。
       // ここで入るか引っ張るかが、レースの分かれ目になる。
       if (scPending && !scDone) {
-        scPending = false; scDone = true;
+        scPending = false; scDone = true; scStarted = true;
         // 障害物がコース脇で済むならバーチャル、コース上に残るなら実車が出る。
         // バーチャルは全車が一斉に減速するだけで、差はそのまま残る。
         const virtual = Math.random() < 0.45;
@@ -778,6 +985,12 @@ GP.race = (function () {
         });
       }
 
+      // ---- チーム無線 ----
+      radioTick({ lap: lap, laps: laps, order: order, radio: radio,
+                  scStart: scStarted, scVirtual: scInfo.virtual,
+                  wxChanged: wxChangedThisLap, wxWet: wx.wet });
+      scStarted = false; wxChangedThisLap = false;
+
       // 順位変動の記録
       const newOrder = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
       if (lap > 1) {
@@ -799,12 +1012,27 @@ GP.race = (function () {
     const classified = finishers.concat(retired);
     classified.forEach((e, i) => { e.pos = i + 1; });
 
+    // ---- チェッカー後の無線 ----
+    classified.forEach(e => {
+      if (!e.isPlayer) return;
+      const V = { D: e.driver.name, P: e.pos, N: 0 };
+      const at = e.dnf ? Math.max(1, e.dnfLap) : laps;
+      const pair = e.dnf ? [RADIO.dnfPit, RADIO.sorry]
+                 : e.pos === 1 ? [RADIO.win, RADIO.thanks]
+                 : e.pos <= 3 ? [RADIO.podium, RADIO.thanks]
+                 : e.pos <= D.POINTS.length ? [RADIO.points, RADIO.thanksOk]
+                 : [RADIO.plain, RADIO.thanksOk];
+      radio.push({ lap: at, from: 'pit', name: e.driver.name, id: e.id, text: say(pair[0], V) });
+      radio.push({ lap: at, from: 'drv', name: e.driver.name, id: e.id, text: say(pair[1], V) });
+    });
+    radio.sort((a, b) => a.lap - b.lap);
+
     let fl = null;
     finishers.forEach(e => { if (!fl || e.fastest < fl.fastest) fl = e; });
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      events, radio: radio, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
