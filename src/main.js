@@ -1464,8 +1464,67 @@ window.GP = window.GP || {};
     });
   }
 
+  /* =======================================================
+     本拠地ハブ
+     建物がそのまま入口になる。押すと、その設備の画面が開く。
+     「休養」だけは押した瞬間に1週進むので、建物には割り当てない。
+     ======================================================= */
+  const HUB_DOORS = {
+    factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
+    tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
+    sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
+    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
+    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
+    pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() }
+  };
+
+  function bindHub() {
+    const cv = $('hubCv');
+    if (!cv) return;
+    // レース観戦中はポストエフェクトの裏画面を共有しているので、拠点は描き直さない
+    const racing = () => /\bshow\b/.test($('raceScreen').className);
+    const hint = $('hubHint');
+    let hot = null;                     // いまカーソルが乗っている建物
+
+    const paint = () => { if (!racing()) GP.base.render(cv, g, hot); };
+    paint();
+
+    // 画面上の座標を、キャンバスの座標へ直す
+    const at = ev => {
+      const r = cv.getBoundingClientRect();
+      const t = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+      return GP.base.hit((t.clientX - r.left) * (GP.base.W / r.width),
+                         (t.clientY - r.top) * (GP.base.H / r.height));
+    };
+
+    cv.onmousemove = ev => {
+      const k = at(ev);
+      if (k === hot) return;
+      hot = k;
+      paint();
+      const d = k && HUB_DOORS[k];
+      hint.textContent = d ? d.icon + ' ' + d.label + ' → 「' + d.to + '」の画面を開く'
+                           : '建物を選ぶと、その設備の画面が開きます';
+      hint.classList.toggle('on', !!d);
+      cv.style.cursor = d ? 'pointer' : 'default';
+    };
+    cv.onmouseleave = () => {
+      if (hot === null) return;
+      hot = null; paint();
+      hint.textContent = '建物を選ぶと、その設備の画面が開きます';
+      hint.classList.remove('on');
+    };
+    cv.onclick = ev => {
+      const d = HUB_DOORS[at(ev)];
+      if (!d) return;
+      GP.sound.play('click');
+      d.fn();
+    };
+  }
+
   function render() {
     U.renderAll(g, specialOf(g));
+    bindHub();
     const race = isRaceWeek();
     $('cmdNormal').style.display = race ? 'none' : '';
     $('cmdRace').style.display = race ? '' : 'none';

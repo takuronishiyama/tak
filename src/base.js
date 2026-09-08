@@ -92,6 +92,8 @@ GP.base = (function () {
   function sign(g, x, y, text, color) {
     g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
     const w = g.measureText(text).width + 10;
+    // 端の施設でも文字が切れないよう、看板を画面内に収める
+    x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, x));
     g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, 13);
     g.fillStyle = color; g.fillRect(x - w / 2, y, w, 11);
     g.fillStyle = '#fff8e3'; g.fillText(text, x, y + 8);
@@ -324,7 +326,8 @@ GP.base = (function () {
         bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
         bg.setLineDash([]);
       }
-      signs.push({ x: p.x + bb.w / 2 - 2, y: p.y + 8, text: p.label + ' Lv.' + lv, sel: sel === p.key });
+      signs.push({ x: p.x + bb.w / 2 - 2, y: p.y + 8 + (signs.length % 2) * 13,
+                   text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
     signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
 

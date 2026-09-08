@@ -204,45 +204,109 @@ GP.ui = (function () {
   /* =========================================================
      ドライバーの顔（種から作るドット絵。SVGなので拡大しても崩れない）
      ========================================================= */
-  const SKIN = ['#f2c9a0', '#e0a878', '#c8865a', '#9a6440', '#6e4630', '#f7dcc0'];
-  const HAIR = ['#2b1c12', '#4a2f1a', '#8a5a2a', '#c8a040', '#d8d2c8', '#8a2a2a', '#2a4a8a', '#1c1c1c'];
+  const SKIN  = ['#f2c9a0', '#e0a878', '#c8865a', '#9a6440', '#6e4630', '#f7dcc0'];
+  const HAIR  = ['#2b1c12', '#4a2f1a', '#8a5a2a', '#c8a040', '#d8d2c8', '#8a2a2a', '#2a4a8a', '#1c1c1c'];
+  const EYES  = ['#3a2a18', '#2a4a70', '#2f5a3a', '#5a3a6a', '#1c1c22'];
+  const SUITS = ['#c8362c', '#2f66c0', '#3f9440', '#d8a020', '#9a4fc0', '#2aa0b8'];
 
+  /* ---------- ドライバーの顔 ----------
+     24×24 のドット絵。d.face を種にして、肌・髪・目・髪型・特徴を決める。
+     調子（form）で表情が変わり、レーシングスーツの色で個体差を出す。      */
   function face(d, px) {
     px = px || 34;
     let h = (d.face != null ? d.face : 0) >>> 0;
-    const nx = m => { h = (h * 1103515245 + 12345) >>> 0; return h % m; };
-    const skin = SKIN[nx(SKIN.length)];
-    const hair = HAIR[nx(HAIR.length)];
-    const style = nx(4);           // 髪型
-    const brow = nx(2);
-    const extra = nx(6);           // ヒゲ・そばかす等
+    // 種を撹拌してから使う。そのまま回すと、近い種で似た顔ばかりになる
+    h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0;
+    h ^= h >>> 13; h = Math.imul(h, 3266489917) >>> 0;
+    h ^= h >>> 16;
+    const nx = m => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return (h >>> 8) % m; };
+    const skin  = SKIN[nx(SKIN.length)];
+    const hair  = HAIR[nx(HAIR.length)];
+    const eye   = EYES[nx(EYES.length)];
+    const suit  = SUITS[nx(SUITS.length)];
+    const style = nx(6);           // 髪型
+    const brow  = nx(2);           // 眉の高さ
+    const extra = nx(7);           // ヒゲ・そばかす等
     const f = d.form == null ? 100 : d.form;
+
+    // 肌と髪の陰影を作る
+    const mix = (hex, amt) => {
+      const n = parseInt(hex.slice(1), 16);
+      const c = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+      return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
+    };
+    const skinSh = mix(skin, -0.11), skinHi = mix(skin, 0.09);
+    const hairHi = mix(hair, 0.16),  hairSh = mix(hair, -0.10);
+    const suitSh = mix(suit, -0.14), suitHi = mix(suit, 0.16);
 
     const r = (x, y, w, ht, c) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + ht + '" fill="' + c + '"/>';
     let g = '';
-    g += r(3, 4, 10, 11, skin);                       // 顔
-    g += r(2, 6, 1, 6, skin) + r(13, 6, 1, 6, skin);  // 耳
-    // 髪型
-    if (style === 0) g += r(2, 2, 12, 4, hair) + r(2, 5, 2, 3, hair) + r(12, 5, 2, 3, hair);
-    else if (style === 1) g += r(3, 1, 10, 4, hair) + r(5, 0, 2, 1, hair) + r(9, 0, 2, 1, hair);
-    else if (style === 2) g += r(2, 2, 12, 3, hair) + r(1, 4, 2, 8, hair) + r(13, 4, 2, 8, hair);
-    else g += r(3, 2, 10, 3, hair) + r(2, 3, 1, 3, hair) + r(13, 3, 1, 3, hair) + r(3, 5, 3, 1, hair);
-    // 眉と目（調子で表情が変わる）
-    const eyeY = f < 88 ? 9 : 8;
-    g += r(5, eyeY - 2 + brow, 2, 1, '#3a2418') + r(9, eyeY - 2 + brow, 2, 1, '#3a2418');
-    if (f >= 112) { g += r(5, eyeY, 2, 1, '#222') + r(9, eyeY, 2, 1, '#222'); }
-    else { g += r(5, eyeY, 2, 2, '#222') + r(9, eyeY, 2, 2, '#222'); }
-    // 口
-    if (f >= 108) g += r(6, 12, 4, 1, '#a04030') + r(7, 13, 2, 1, '#a04030');
-    else if (f <= 88) g += r(6, 13, 4, 1, '#8a4038');
-    else g += r(7, 12, 2, 1, '#8a4038');
-    // 個性
-    if (extra === 0) g += r(6, 11, 4, 1, hair);                       // ヒゲ
-    if (extra === 1) g += r(4, 10, 1, 1, '#c88060') + r(11, 10, 1, 1, '#c88060'); // そばかす
-    if (extra === 2) g += r(4, 7, 8, 2, 'rgba(30,30,40,.75)');        // サングラス
 
-    return '<svg class="face" viewBox="0 0 16 16" width="' + px + '" height="' + px + '" shape-rendering="crispEdges">' +
-      '<rect width="16" height="16" fill="#cfe6f5"/>' + g + '</svg>';
+    // ---- 肩とレーシングスーツ ----
+    g += r(2, 19, 20, 5, suitSh);
+    g += r(3, 20, 18, 4, suit);
+    g += r(3, 20, 18, 1, suitHi);                    // 肩の照り
+    g += r(9, 19, 6, 5, mix(suit, -0.22));           // 襟の合わせ
+    g += r(11, 19, 2, 5, '#e8e4d8');                 // ファスナー
+    // ---- 首 ----
+    g += r(9, 16, 6, 4, skinSh);
+    g += r(10, 16, 4, 3, skin);
+
+    // ---- 顔の輪郭 ----
+    g += r(5, 4, 14, 14, skin);
+    g += r(4, 6, 1, 9, skin) + r(19, 6, 1, 9, skin); // 耳
+    g += r(15, 4, 4, 14, skinSh);                    // 右側は影
+    g += r(5, 4, 3, 14, skinHi);                     // 左側に光
+    g += r(5, 16, 14, 2, skinSh);                    // 顎の下
+
+    // ---- 髪型 ----
+    if (style === 0) {                                // 短髪
+      g += r(4, 1, 16, 5, hair) + r(4, 5, 2, 5, hair) + r(18, 5, 2, 5, hair);
+      g += r(5, 1, 8, 2, hairHi);
+    } else if (style === 1) {                         // 立ち上げ
+      g += r(5, 0, 14, 5, hair) + r(7, -1, 3, 2, hair) + r(13, -1, 3, 2, hair);
+      g += r(6, 0, 7, 2, hairHi);
+    } else if (style === 2) {                         // 長髪
+      g += r(4, 1, 16, 5, hair) + r(2, 4, 3, 13, hair) + r(19, 4, 3, 13, hair);
+      g += r(5, 1, 8, 2, hairHi) + r(19, 5, 1, 10, hairSh);
+    } else if (style === 3) {                         // 分け目
+      g += r(4, 1, 16, 4, hair) + r(4, 4, 3, 4, hair) + r(18, 4, 2, 4, hair);
+      g += r(4, 4, 7, 2, hair) + r(5, 1, 6, 2, hairHi);
+    } else if (style === 4) {                         // 坊主／短く刈る
+      g += r(5, 2, 14, 3, hair) + r(4, 4, 2, 3, hair) + r(18, 4, 2, 3, hair);
+      g += r(6, 2, 7, 1, hairHi);
+    } else {                                          // 結んだ髪
+      g += r(4, 1, 16, 5, hair) + r(4, 5, 2, 4, hair) + r(18, 5, 2, 4, hair);
+      g += r(19, 8, 4, 7, hair) + r(20, 9, 2, 5, hairSh) + r(5, 1, 8, 2, hairHi);
+    }
+
+    // ---- 眉と目（調子で表情が変わる）----
+    const ey = f < 88 ? 12 : 11;
+    g += r(7, ey - 3 + brow, 4, 1, hairSh) + r(13, ey - 3 + brow, 4, 1, hairSh);
+    if (f >= 112) {                                   // 好調：目を細めて笑う
+      g += r(7, ey, 4, 1, '#2a2028') + r(13, ey, 4, 1, '#2a2028');
+    } else {
+      g += r(7, ey, 4, 3, '#f4f2ee') + r(13, ey, 4, 3, '#f4f2ee');   // 白目
+      g += r(8, ey + 1, 2, 2, eye) + r(14, ey + 1, 2, 2, eye);       // 虹彩
+      g += r(8, ey + 1, 1, 1, '#ffffff') + r(14, ey + 1, 1, 1, '#ffffff'); // 光
+      g += r(7, ey, 4, 1, mix(skin, -0.20)) + r(13, ey, 4, 1, mix(skin, -0.20)); // まぶたの影
+    }
+    // ---- 鼻と口 ----
+    g += r(11, ey + 3, 2, 2, skinSh);
+    if (f >= 108)      g += r(9, ey + 6, 6, 1, '#8e3a30') + r(10, ey + 7, 4, 1, '#b05a48');
+    else if (f <= 88)  g += r(9, ey + 7, 6, 1, '#7e3a34');
+    else               g += r(10, ey + 6, 4, 1, '#8a4038');
+
+    // ---- 個性 ----
+    if (extra === 0) g += r(8, ey + 5, 8, 3, hairSh) + r(9, ey + 8, 6, 1, hairSh);   // ヒゲ
+    if (extra === 1) g += r(6, ey + 2, 2, 1, mix(skin, -0.16)) + r(16, ey + 2, 2, 1, mix(skin, -0.16)); // そばかす
+    if (extra === 2) g += r(6, ey - 1, 12, 4, 'rgba(26,26,34,.82)') + r(7, ey, 3, 1, 'rgba(255,255,255,.35)'); // サングラス
+    if (extra === 3) g += r(4, 5, 16, 2, '#e8e4d8') + r(4, 5, 16, 1, '#ffffff');     // ハチマキ
+    if (extra === 4) g += r(8, ey + 6, 8, 2, hairSh);                                // 口ひげ
+
+    return '<svg class="face" viewBox="0 0 24 24" width="' + px + '" height="' + px + '" shape-rendering="crispEdges">' +
+      '<rect width="24" height="24" fill="#3f4d61"/>' +
+      '<rect width="24" height="13" fill="#54657e"/>' + g + '</svg>';
   }
 
   function skillChips(d) {
@@ -489,9 +553,21 @@ GP.ui = (function () {
   /* ---------- 全体再描画 ---------- */
   function renderAll(g, special) {
     renderTop(g);
-    $('viewPanel').innerHTML = specialCard(g, special) + nextRaceCard(g) + carCard(g) + driverCards(g);
+    $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
     if (g.nextRace < D.TRACKS.length) drawMini(D.TRACKS[g.nextRace]);
     renderSide(g);
+  }
+
+  /* ---------- 本拠地（ここが操作の起点になる）----------
+     建物を押すと、その設備の画面が開く。何が開くかは main.js が決める。 */
+  function hubCard(g) {
+    const sc = GP.base.scale(g);
+    return '<div class="card hub">' +
+      '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>' +
+      '<div class="pad">' +
+      '<div class="basewrap"><canvas id="hubCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
+      '<div class="hubhint" id="hubHint">建物を選ぶと、その設備の画面が開きます</div>' +
+      '</div></div>';
   }
 
   /* ---------- ログ ---------- */
@@ -544,6 +620,6 @@ GP.ui = (function () {
   }
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, renderTop, renderSide, log, toast, pop, modal, closeModal,
            money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

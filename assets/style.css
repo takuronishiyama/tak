@@ -1013,3 +1013,15 @@ body[data-skin="hd"]{
 [data-skin="hd"] .bad{color:#ff7a6a}
 [data-skin="hd"] .mgeff{color:#7fd0f0}
 [data-skin="hd"] .cmd.sub{color:#f2e4c4}
+
+/* ---------- 本拠地ハブ（メイン画面の入口） ---------- */
+.card.hub .basewrap{margin-bottom:6px}
+#hubCv{display:block;width:100%;height:auto;
+       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+.hubhint{font-size:11px;text-align:center;padding:4px 8px;border-radius:6px;
+         background:var(--trough);border:2px solid var(--ink);transition:background .15s}
+.hubhint.on{background:linear-gradient(#fff4c0,#ffe88a);font-weight:bold}
+[data-skin="hd"] .hubhint{background:var(--trough);border-color:rgba(214,178,106,.34);color:#b9a98f}
+[data-skin="hd"] .hubhint.on{background:linear-gradient(180deg,#6a5220,#3d2e12);
+                             border-color:var(--gold);color:#ffeec0;
+                             box-shadow:0 0 14px rgba(214,178,106,.40)}
