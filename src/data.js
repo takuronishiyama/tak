@@ -324,21 +324,42 @@ GP.data = (function () {
   /* ---------- ロジスティクス ----------
      サーカスをどう運ぶか。安く運べば金は浮くが、クルーが消耗し、
      現地でのセットアップ時間も削られる。                          */
-  const LOGI_BASE = 380;          // 1戦あたりの輸送費の基準
+  const LOGI_BASE = 640;          // 1戦あたりの輸送費の基準
+  /* 運びかた。速さ・確実さ・値段の三すくみ。
+     遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
     { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
-      cost: 2.10, fatigue: -7, perf: 1.006,
+      cost: 2.20, fatigue: -8, perf: 1.008, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2倍' },
     { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
-      cost: 1.00, fatigue: 4, perf: 1.000,
+      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.07,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
     { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
-      cost: 0.38, fatigue: 10, perf: 0.992,
-      desc: '安いが到着がぎりぎりで、セットアップの時間が足りない。積み下ろしでクルーも消耗する',
-      note: '費用は約4割' }
+      cost: 0.34, fatigue: 12, perf: 0.990, delay: 0.20,
+      desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
+      note: '費用は約3割' }
   ];
+  /* 積荷。何をどれだけ持っていくか。
+     予備を置いてくれば安いが、現場で何かあっても手当てができない     */
+  const LOGI_LOADS = [
+    { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
+      cost: 0.70, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
+      desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
+      note: '費用は3割減' },
+    { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
+      cost: 1.00, spares: 1, wear: 1.00, delay: 0, fatigue: 0,
+      desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
+      note: '標準' },
+    { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
+      cost: 1.45, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
+      desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
+      note: '費用は約1.5倍' }
+  ];
+  const LOGI_SPARE_FIX = 5;       // 予備1つで戻せるパーツのコンディション
+  const LOGI_DELAY_COND = 6;      // 荷が遅れたときに落ちるコンディション
+  const LOGI_DELAY_FATIGUE = 7;   // 同・クルーの疲労
   /* クルーの疲労が満タンのときの悪影響 */
   const CREW_FULL = { pit: 2.0, rel: 8, mistake: 0.05 };
 
@@ -689,6 +710,30 @@ GP.data = (function () {
   const PU_LIMIT = 3;              // 1シーズンに使える数
   const PU_PENALTY = 5;            // 超えた1基につき、次戦のグリッド降格数
   const PU_BASE_WEAR = 28;         // 1戦あたりの基本消耗（%）
+  /* 載せ替えの判断を作るための値。
+     ・へたったユニットは出力も信頼性も落ちる（我慢し続けると遅くなる）
+     ・新品は高い。旧ユニットに載せ替え直すのは工賃だけで済む
+     ・降ろしたユニットは残量があれば保管され、あとでまた積める        */
+  const PU_FRESH_COST = 1500;      // 新品1基の代金（万）。世代が進むほど高い
+  const PU_SWAP_COST = 180;        // 保管ユニットへの載せ替え工賃（万）
+  const PU_TIRED_FROM = 70;        // 残りがここを割ると性能が落ちはじめる（%）
+  const PU_TIRED = 0.17;           // 残り0%のとき、PUの出力が落ちる割合
+  const PU_TIRED_REL = 11;         // 同・信頼性の低下
+  const PU_PERF_DROP = 2.6;        // 同・走りの速さで失う量（グリッド2〜3台ぶん）
+  const PU_KEEP_MIN = 8;           // これ未満まで使い切ったユニットは廃棄
+
+  /* ---------- 出力モード ----------
+     同じユニットでも、どこまで回すかは自分で決められる。
+     全開なら速いが一気に寿命を食う。温存すれば遅いが基数を守れる。
+     「どのレースで使い切るか」を組み立てるための操作子              */
+  const PU_MODES = [
+    { key: 'save', name: '温存', icon: '🔋', wear: 0.58, power: 0.970, rel: 3, perf: -0.75,
+      note: '出力を絞って距離を稼ぐ。1台ぶん遅くなるが、ユニットがぐんと長持ちする' },
+    { key: 'std',  name: '標準', icon: '⚙️', wear: 1.00, power: 1.000, rel: 0, perf: 0,
+      note: '決められた範囲でふつうに回す' },
+    { key: 'push', name: '全開', icon: '🔥', wear: 1.70, power: 1.032, rel: -5, perf: 1.15,
+      note: '上まで回して速さを取る。1台ぶん速いが、一気にへたり、壊れやすくもなる' }
+  ];
 
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
@@ -740,7 +785,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

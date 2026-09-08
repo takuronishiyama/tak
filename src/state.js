@@ -209,7 +209,8 @@ GP.state = (function () {
       if (!p) return;
       const ps = partStats(p);
       // コンディションが落ちたパーツは本来の性能を出しきれない
-      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1);
+      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1)
+              * (c.key === 'pu' ? puForm(g) : 1);
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -535,7 +536,8 @@ GP.state = (function () {
   const capLeft = g2 => Math.max(0, costCap(g2) - capSpent(g2));
   /* 上限に対して使った割合（0..1超） */
   const capRatio = g2 => capSpent(g2) / Math.max(1, costCap(g2));
-  /* 開発・設備の支出を記録する。上限を超えた分は返す */
+  /* 開発の支出を記録する。上限を超えた分は返す。
+     輸送費・人件費・設備投資・PUの購入は対象外なのでここを通さない */
   function spendCapped(g2, amount) {
     g2.capSpent = capSpent(g2) + amount;
     return Math.max(0, g2.capSpent - costCap(g2));
@@ -629,7 +631,7 @@ GP.state = (function () {
     });
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
-    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel
+    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
                + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
@@ -642,11 +644,55 @@ GP.state = (function () {
     const k = (g2.logi && g2.logi.plan) || 'std';
     return D.LOGI_PLANS.find(p => p.key === k) || D.LOGI_PLANS[1];
   }
-  /* 1戦ぶんの輸送費。遠いコースほど高い */
+  /* 積荷。何をどれだけ持っていくか */
+  function logiLoad(g2) {
+    const k = (g2.logi && g2.logi.load) || 'std';
+    return D.LOGI_LOADS.find(l => l.key === k) || D.LOGI_LOADS[1];
+  }
+  /* 1戦ぶんの輸送費。遠いコースほど高く、積むほど高い */
   function logiCost(g2, track) {
     const far = (track && track.far) || 1;
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
-    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * (1 - cut));
+    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut));
+  }
+  /* 荷が遅れる確率。遠いコースほど、そして安く運ぶほど高い。
+     ロジスティクス責任者がいると、通関も現地手配も段取りよく進む     */
+  function logiRisk(g2, track) {
+    const far = (track && track.far) || 1;
+    const base = logiPlan(g2).delay + logiLoad(g2).delay;
+    if (base <= 0) return 0;
+    const soft = 1 - Math.min(0.70, mgr(g2, 'logistics') * 0.020 + osk(g2, 'money') * 0.02);
+    return clamp(base * (0.55 + far * 0.55) * soft, 0, 0.60);
+  }
+  /* 実際に遅れたかどうかを1戦ぶん判定する */
+  function rollLogi(g2, track) {
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
+    const late = Math.random() < logiRisk(g2, track);
+    g2.logi.late = late;
+    if (late) {
+      D.PART_CATS.forEach(c => {
+        const p = g2.equipped[c.key];
+        if (p) p.cond = clamp(p.cond - D.LOGI_DELAY_COND, 5, 100);
+      });
+      g2.logi.crew = clamp(crew(g2) + D.LOGI_DELAY_FATIGUE, 0, 100);
+    }
+    return late;
+  }
+  /* レース後、持ってきた予備で機材を手当てする。
+     軽装で来た週は、これができない                                  */
+  function useSpares(g2) {
+    const n = logiLoad(g2).spares;
+    if (n <= 0) return null;
+    const list = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean)
+      .sort((a, b) => a.cond - b.cond).slice(0, n);
+    if (!list.length) return null;
+    let sum = 0;
+    list.forEach(p => {
+      const before = p.cond;
+      p.cond = clamp(p.cond + D.LOGI_SPARE_FIX, 5, 100);
+      sum += p.cond - before;
+    });
+    return sum > 0 ? { n: list.length, gain: Math.round(sum) } : null;
   }
   /* クルーの疲労（0..100） */
   const crew = g2 => clamp((g2.logi && g2.logi.crew) || 0, 0, 100);
@@ -658,44 +704,101 @@ GP.state = (function () {
   }
   /* レースを1戦こなしたぶんの消耗。輸送手段で増減する */
   function tireCrew(g2) {
-    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
-    const d = logiPlan(g2).fatigue - 2;      // レースの合間にいくらかは休める
+    // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
+    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
   function restCrew(g2, amount) {
-    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
-  /* ---------- パワーユニットの使用基数 ---------- */
+  /* ---------- パワーユニットの使用基数と載せ替え ---------- */
   function puOf(g2) {
-    if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0 };
+    if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
+    if (!g2.pu.pool) g2.pu.pool = [];       // 車から降ろして取ってあるユニット
+    if (!g2.pu.n) g2.pu.n = g2.pu.used || 1;  // いま載せているユニットの通し番号
     return g2.pu;
+  }
+  /* へたり具合（0=新品、1=使い切り）。
+     残りが PU_TIRED_FROM を割ってから効きはじめる                    */
+  function puTired(g2) {
+    const pu = puOf(g2);
+    return clamp((D.PU_TIRED_FROM - pu.life) / D.PU_TIRED_FROM, 0, 1);
+  }
+  /* いま選んでいる出力モード */
+  function puMode(g2) {
+    return D.PU_MODES.find(m => m.key === (g2.puMode || 'std')) || D.PU_MODES[1];
+  }
+  function setPuMode(g2, key) {
+    if (D.PU_MODES.some(m => m.key === key)) g2.puMode = key;
+    return puMode(g2);
+  }
+  /* PUの出力にかかる係数。使い込むほど本来の力を出せなくなり、
+     どこまで回すか（出力モード）でも上下する                       */
+  function puForm(g2) { return (1 - D.PU_TIRED * puTired(g2)) * puMode(g2).power; }
+  /* 使い込んだPUが落とす信頼性。全開で回せばさらに落ちる */
+  function puRelDrop(g2) { return D.PU_TIRED_REL * puTired(g2) - puMode(g2).rel; }
+  /* PUの状態が、そのまま走りの速さに乗る量（性能ポイント）。
+     マイナスなら遅い。グリッド1台ぶんがおよそ 1.0 に相当する      */
+  function puPerf(g2) { return puMode(g2).perf - D.PU_PERF_DROP * puTired(g2); }
+  /* 新品1基の値段。世代が進むほど高くつく */
+  function puFreshCost(g2) {
+    return Math.round(D.PU_FRESH_COST * (1 + (g2.carGen || 0) * 0.20));
+  }
+  /* いま載せているユニットを降ろして保管する（残量があれば） */
+  function stowPU(pu) {
+    if (pu.life >= D.PU_KEEP_MIN) pu.pool.push({ n: pu.n, life: pu.life });
+    pu.pool.sort((a, b) => b.life - a.life);
+    if (pu.pool.length > 6) pu.pool.length = 6;
+  }
+  /* 新品を投入する。基数を1つ使い、上限を超えていればグリッド降格 */
+  function fitFreshPU(g2) {
+    const pu = puOf(g2);
+    stowPU(pu);
+    pu.used++; pu.n = pu.used; pu.life = 100;
+    const out = { used: pu.used, over: false, grid: 0, fresh: true };
+    if (pu.used > D.PU_LIMIT) {
+      pu.over++; pu.grid += D.PU_PENALTY;
+      out.over = true; out.grid = D.PU_PENALTY;
+    }
+    return out;
+  }
+  /* 保管してあるユニットに載せ替える。基数は増えないので降格もない */
+  function mountPU(g2, idx) {
+    const pu = puOf(g2);
+    const u = pu.pool[idx];
+    if (!u) return null;
+    pu.pool.splice(idx, 1);
+    stowPU(pu);
+    const from = pu.n;
+    pu.n = u.n; pu.life = u.life;
+    return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
   function puWear(g2, track, pushMul) {
     const laps = (track && track.laps) || 26;
     const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
     const care = 1 - Math.min(0.28, staffBonus(g2, 'mechanic') * 0.06 + g2.facilities.pit * 0.015);
-    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care;
+    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care * puMode(g2).wear;
   }
   /* レースを走り終えたときの処理。使い切ったら次の基数へ */
   function usePU(g2, track, pushMul) {
     const pu = puOf(g2);
     pu.life = Math.max(0, pu.life - puWear(g2, track, pushMul));
-    const out = { swapped: false, used: pu.used, over: false, grid: 0 };
+    const out = { swapped: false, used: pu.used, over: false, grid: 0, reused: 0 };
     if (pu.life <= 0) {
-      pu.used++;
-      pu.life = 100;
-      out.swapped = true;
-      out.used = pu.used;
-      if (pu.used > D.PU_LIMIT) {
-        pu.over++;
-        pu.grid += D.PU_PENALTY;
-        out.over = true;
-        out.grid = D.PU_PENALTY;
+      // 使い切ってしまった。取ってあるユニットが残っていればそれを積む
+      const best = pu.pool.length ? 0 : -1;
+      if (best >= 0 && pu.pool[best].life >= 30) {
+        const m = mountPU(g2, best);
+        out.swapped = true; out.reused = m.to; out.life = m.life;
+      } else {
+        const f = fitFreshPU(g2);
+        out.swapped = true; out.used = f.used; out.over = f.over; out.grid = f.grid;
       }
     }
     return out;
@@ -707,7 +810,16 @@ GP.state = (function () {
     pu.life = clamp(pu.life + amount, 0, 100);
     return Math.round(pu.life - before);
   }
-  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0 }; }
+  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] }; }
+
+  /* このコースはどれだけ追い抜けるか（0..1）。
+     長いストレートがあって、壁が近くないほど抜きやすい。
+     グリッド降格をどのレースで取るか、を考えるための目安        */
+  function overtakeEase(track) {
+    if (!track) return 0.5;
+    const spd = (track.weight && track.weight.speed) || 0.33;
+    return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
+  }
 
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
@@ -959,7 +1071,7 @@ GP.state = (function () {
       history: [],
       carGen: 0,
       body: null,
-      logi: { plan: 'std', crew: 0 },   // 輸送手段とクルーの疲労
+      logi: { plan: 'std', load: 'std', crew: 0, late: false },  // 輸送手段・積荷・クルーの疲労
       focus: 'now',         // 開発リソースの配分
       nextCar: 0,           // 来季マシンに積み上げた開発量
       lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
@@ -1416,8 +1528,11 @@ GP.state = (function () {
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
-      if (!g.logi) g.logi = { plan: 'std', crew: 0 };
-      if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
+      if (!g.logi) g.logi = { plan: 'std', load: 'std', crew: 0 };
+      if (!g.logi.load) g.logi.load = 'std';
+      if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
+      if (!g.pu.pool) g.pu.pool = [];
+      if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
       g.onGrid = false; g.gridOrder = null;   // グリッド散策の途中では再開しない
@@ -1444,8 +1559,9 @@ GP.state = (function () {
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset,
+    puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

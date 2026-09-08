@@ -520,6 +520,8 @@ body.preboot .topbar{visibility:hidden}
 .pb-ic.face-ic .face{width:30px;height:30px}
 .pb-body{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
 .pb-body small{font-size:10px;opacity:.72;font-weight:normal}
+.pb-body small b.warn{color:#8f1f16;opacity:1;font-weight:bold}
+[data-skin="hd"] .pb-body small b.warn{color:#ffb3a4}
 .pb-cost{font-size:11px;text-align:right;white-space:nowrap;line-height:1.3}
 .pb-cost em{font-style:normal;opacity:.65;font-size:9px}
 .mini{background:linear-gradient(#fff8e3,#e8d8ae);border:2px solid var(--ink);
@@ -642,6 +644,7 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-sc{color:#ffd23a;font-weight:bold}
 .rv-ev.rv-weather{color:#7fe4ff;font-weight:bold}
 .rv-ev.rv-penalty{color:#ffb0a0;font-weight:bold}
+.rv-ev.rv-miss{color:#ffcf8a}
 
 /* レース中の急変を、画面いっぱいの帯で知らせる */
 .rv-flash{position:absolute;left:0;right:0;top:15%;padding:10px 8px;text-align:center;
@@ -656,6 +659,8 @@ body.preboot .topbar{visibility:hidden}
   font-size:11px;font-weight:bold;color:#2a1c08;background:#ffd23a;border:2px solid #7a4a10;
   display:none;z-index:6;animation:rvBadge 1s steps(2) infinite}
 .rv-badge.show{display:block}
+.rv-badge.vsc{background:#ffe14a;animation:rvBadgeV 1.2s steps(2) infinite}
+@keyframes rvBadgeV{0%,100%{background:#ffe14a}50%{background:#fff6c8}}
 @keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
@@ -1190,6 +1195,29 @@ body[data-skin="hd"]{
 [data-skin="hd"] .bd-eff b{color:#ffc96a}
 
 /* ---------- ロジスティクス ---------- */
+/* 次戦の見通しと、この先の遠征 */
+.logi-now{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+          background:#fff8e3;color:var(--ink)}
+.logi-now b{display:block;font-size:12px;margin-bottom:3px}
+.logi-now span{display:block;font-size:10px;line-height:1.7;color:var(--ink2)}
+.logi-now span b{display:inline;font-size:11px}
+.logi-now .good{color:#2f7a34}.logi-now .warn{color:#a06a10}.logi-now .bad{color:#b02a20}
+.logi-cal{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.lc{flex:1 1 96px;min-width:92px;padding:5px 7px;border:2px solid var(--ink);border-radius:5px;
+    background:#fff8e3;color:var(--ink);font-size:10px;line-height:1.5}
+.lc b{display:block;font-size:10px}
+.lc em{display:block;font-style:normal;font-size:10px;color:var(--ink2)}
+.lc.on{background:#ffd23a;box-shadow:inset 0 0 0 2px rgba(74,47,26,.45)}
+.lc.far{border-color:#b02a20}
+[data-skin="hd"] .logi-now{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .logi-now span{color:#cbbb9a}
+[data-skin="hd"] .logi-now .good{color:#8ef08e}
+[data-skin="hd"] .logi-now .warn{color:#ffd23a}
+[data-skin="hd"] .logi-now .bad{color:#ff9a8a}
+[data-skin="hd"] .lc{background:#2f2540;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .lc em{color:#cbbb9a}
+[data-skin="hd"] .lc.on{background:#6a4fa0;box-shadow:inset 0 0 0 2px #d9c9ff}
+[data-skin="hd"] .lc.far{border-color:#ff9a8a}
 .logi-crew{margin:0 0 8px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper3);color:var(--ink)}
 .logi-crew b{display:block;font-size:12px;margin-bottom:5px}
@@ -1349,6 +1377,43 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* 載せ替えの選択肢 */
+.puswap{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-top:8px;
+        padding-top:8px;border-top:1px dashed rgba(74,47,26,.35)}
+.puswap>b{width:100%;font-size:11px;margin:0}
+.puopt{flex:1 1 150px;min-width:140px;text-align:left;padding:6px 8px;cursor:pointer;
+       border:2px solid var(--ink);border-radius:5px;background:#fff8e3;color:var(--ink);
+       font-family:inherit;line-height:1.5}
+.puopt i{display:block;font-style:normal;font-weight:bold;font-size:11px}
+.puopt small{display:block;margin-top:2px;font-size:9px;color:var(--ink2)}
+.puopt:hover:not([disabled]){background:#ffe9a8}
+.puopt[disabled]{opacity:.45;cursor:default}
+.puopt.pen{border-color:#b02a20}
+.pupool{display:block;margin-top:6px;font-size:9px;color:var(--ink2)}
+/* 出力モード */
+.pumode{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;
+        border-top:1px dashed rgba(74,47,26,.35)}
+.pumode>b{width:100%;font-size:11px;margin:0}
+.pumbtn{flex:1 1 110px;min-width:104px;text-align:left;padding:5px 7px;cursor:pointer;
+        border:2px solid var(--ink);border-radius:5px;background:#fff8e3;color:var(--ink);
+        font-family:inherit;line-height:1.45}
+.pumbtn i{display:block;font-style:normal;font-weight:bold;font-size:11px}
+.pumbtn small{display:block;margin-top:2px;font-size:9px;color:var(--ink2)}
+.pumbtn:hover{background:#ffe9a8}
+.pumbtn.on{background:#ffd23a;box-shadow:inset 0 0 0 2px rgba(74,47,26,.5)}
+.pumnote{display:block;margin-top:5px;font-size:9px;color:var(--ink2)}
+[data-skin="hd"] .pumode{border-top-color:rgba(239,228,207,.28)}
+[data-skin="hd"] .pumbtn{background:#2f2540;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .pumbtn small{color:#cbbb9a}
+[data-skin="hd"] .pumbtn:hover{background:#3c3054}
+[data-skin="hd"] .pumbtn.on{background:#6a4fa0;box-shadow:inset 0 0 0 2px #d9c9ff}
+[data-skin="hd"] .pumnote{color:#cbbb9a}
+[data-skin="hd"] .puswap{border-top-color:rgba(239,228,207,.28)}
+[data-skin="hd"] .puopt{background:#2f2540;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .puopt small{color:#cbbb9a}
+[data-skin="hd"] .puopt:hover:not([disabled]){background:#3c3054}
+[data-skin="hd"] .puopt.pen{border-color:#ff9a8a}
+[data-skin="hd"] .pupool{color:#cbbb9a}
 
 /* タイトルスポンサー */
 .titlebox{margin:4px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
@@ -2333,21 +2398,42 @@ GP.data = (function () {
   /* ---------- ロジスティクス ----------
      サーカスをどう運ぶか。安く運べば金は浮くが、クルーが消耗し、
      現地でのセットアップ時間も削られる。                          */
-  const LOGI_BASE = 380;          // 1戦あたりの輸送費の基準
+  const LOGI_BASE = 640;          // 1戦あたりの輸送費の基準
+  /* 運びかた。速さ・確実さ・値段の三すくみ。
+     遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
     { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
-      cost: 2.10, fatigue: -7, perf: 1.006,
+      cost: 2.20, fatigue: -8, perf: 1.008, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2倍' },
     { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
-      cost: 1.00, fatigue: 4, perf: 1.000,
+      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.07,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
     { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
-      cost: 0.38, fatigue: 10, perf: 0.992,
-      desc: '安いが到着がぎりぎりで、セットアップの時間が足りない。積み下ろしでクルーも消耗する',
-      note: '費用は約4割' }
+      cost: 0.34, fatigue: 12, perf: 0.990, delay: 0.20,
+      desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
+      note: '費用は約3割' }
   ];
+  /* 積荷。何をどれだけ持っていくか。
+     予備を置いてくれば安いが、現場で何かあっても手当てができない     */
+  const LOGI_LOADS = [
+    { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
+      cost: 0.70, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
+      desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
+      note: '費用は3割減' },
+    { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
+      cost: 1.00, spares: 1, wear: 1.00, delay: 0, fatigue: 0,
+      desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
+      note: '標準' },
+    { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
+      cost: 1.45, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
+      desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
+      note: '費用は約1.5倍' }
+  ];
+  const LOGI_SPARE_FIX = 5;       // 予備1つで戻せるパーツのコンディション
+  const LOGI_DELAY_COND = 6;      // 荷が遅れたときに落ちるコンディション
+  const LOGI_DELAY_FATIGUE = 7;   // 同・クルーの疲労
   /* クルーの疲労が満タンのときの悪影響 */
   const CREW_FULL = { pit: 2.0, rel: 8, mistake: 0.05 };
 
@@ -2698,6 +2784,30 @@ GP.data = (function () {
   const PU_LIMIT = 3;              // 1シーズンに使える数
   const PU_PENALTY = 5;            // 超えた1基につき、次戦のグリッド降格数
   const PU_BASE_WEAR = 28;         // 1戦あたりの基本消耗（%）
+  /* 載せ替えの判断を作るための値。
+     ・へたったユニットは出力も信頼性も落ちる（我慢し続けると遅くなる）
+     ・新品は高い。旧ユニットに載せ替え直すのは工賃だけで済む
+     ・降ろしたユニットは残量があれば保管され、あとでまた積める        */
+  const PU_FRESH_COST = 1500;      // 新品1基の代金（万）。世代が進むほど高い
+  const PU_SWAP_COST = 180;        // 保管ユニットへの載せ替え工賃（万）
+  const PU_TIRED_FROM = 70;        // 残りがここを割ると性能が落ちはじめる（%）
+  const PU_TIRED = 0.17;           // 残り0%のとき、PUの出力が落ちる割合
+  const PU_TIRED_REL = 11;         // 同・信頼性の低下
+  const PU_PERF_DROP = 2.6;        // 同・走りの速さで失う量（グリッド2〜3台ぶん）
+  const PU_KEEP_MIN = 8;           // これ未満まで使い切ったユニットは廃棄
+
+  /* ---------- 出力モード ----------
+     同じユニットでも、どこまで回すかは自分で決められる。
+     全開なら速いが一気に寿命を食う。温存すれば遅いが基数を守れる。
+     「どのレースで使い切るか」を組み立てるための操作子              */
+  const PU_MODES = [
+    { key: 'save', name: '温存', icon: '🔋', wear: 0.58, power: 0.970, rel: 3, perf: -0.75,
+      note: '出力を絞って距離を稼ぐ。1台ぶん遅くなるが、ユニットがぐんと長持ちする' },
+    { key: 'std',  name: '標準', icon: '⚙️', wear: 1.00, power: 1.000, rel: 0, perf: 0,
+      note: '決められた範囲でふつうに回す' },
+    { key: 'push', name: '全開', icon: '🔥', wear: 1.70, power: 1.032, rel: -5, perf: 1.15,
+      note: '上まで回して速さを取る。1台ぶん速いが、一気にへたり、壊れやすくもなる' }
+  ];
 
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
@@ -2749,9 +2859,9 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -3173,7 +3283,8 @@ GP.state = (function () {
       if (!p) return;
       const ps = partStats(p);
       // コンディションが落ちたパーツは本来の性能を出しきれない
-      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1);
+      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1)
+              * (c.key === 'pu' ? puForm(g) : 1);
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -3499,7 +3610,8 @@ GP.state = (function () {
   const capLeft = g2 => Math.max(0, costCap(g2) - capSpent(g2));
   /* 上限に対して使った割合（0..1超） */
   const capRatio = g2 => capSpent(g2) / Math.max(1, costCap(g2));
-  /* 開発・設備の支出を記録する。上限を超えた分は返す */
+  /* 開発の支出を記録する。上限を超えた分は返す。
+     輸送費・人件費・設備投資・PUの購入は対象外なのでここを通さない */
   function spendCapped(g2, amount) {
     g2.capSpent = capSpent(g2) + amount;
     return Math.max(0, g2.capSpent - costCap(g2));
@@ -3593,7 +3705,7 @@ GP.state = (function () {
     });
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
-    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel
+    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
                + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
@@ -3606,11 +3718,55 @@ GP.state = (function () {
     const k = (g2.logi && g2.logi.plan) || 'std';
     return D.LOGI_PLANS.find(p => p.key === k) || D.LOGI_PLANS[1];
   }
-  /* 1戦ぶんの輸送費。遠いコースほど高い */
+  /* 積荷。何をどれだけ持っていくか */
+  function logiLoad(g2) {
+    const k = (g2.logi && g2.logi.load) || 'std';
+    return D.LOGI_LOADS.find(l => l.key === k) || D.LOGI_LOADS[1];
+  }
+  /* 1戦ぶんの輸送費。遠いコースほど高く、積むほど高い */
   function logiCost(g2, track) {
     const far = (track && track.far) || 1;
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
-    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * (1 - cut));
+    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut));
+  }
+  /* 荷が遅れる確率。遠いコースほど、そして安く運ぶほど高い。
+     ロジスティクス責任者がいると、通関も現地手配も段取りよく進む     */
+  function logiRisk(g2, track) {
+    const far = (track && track.far) || 1;
+    const base = logiPlan(g2).delay + logiLoad(g2).delay;
+    if (base <= 0) return 0;
+    const soft = 1 - Math.min(0.70, mgr(g2, 'logistics') * 0.020 + osk(g2, 'money') * 0.02);
+    return clamp(base * (0.55 + far * 0.55) * soft, 0, 0.60);
+  }
+  /* 実際に遅れたかどうかを1戦ぶん判定する */
+  function rollLogi(g2, track) {
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
+    const late = Math.random() < logiRisk(g2, track);
+    g2.logi.late = late;
+    if (late) {
+      D.PART_CATS.forEach(c => {
+        const p = g2.equipped[c.key];
+        if (p) p.cond = clamp(p.cond - D.LOGI_DELAY_COND, 5, 100);
+      });
+      g2.logi.crew = clamp(crew(g2) + D.LOGI_DELAY_FATIGUE, 0, 100);
+    }
+    return late;
+  }
+  /* レース後、持ってきた予備で機材を手当てする。
+     軽装で来た週は、これができない                                  */
+  function useSpares(g2) {
+    const n = logiLoad(g2).spares;
+    if (n <= 0) return null;
+    const list = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean)
+      .sort((a, b) => a.cond - b.cond).slice(0, n);
+    if (!list.length) return null;
+    let sum = 0;
+    list.forEach(p => {
+      const before = p.cond;
+      p.cond = clamp(p.cond + D.LOGI_SPARE_FIX, 5, 100);
+      sum += p.cond - before;
+    });
+    return sum > 0 ? { n: list.length, gain: Math.round(sum) } : null;
   }
   /* クルーの疲労（0..100） */
   const crew = g2 => clamp((g2.logi && g2.logi.crew) || 0, 0, 100);
@@ -3622,44 +3778,101 @@ GP.state = (function () {
   }
   /* レースを1戦こなしたぶんの消耗。輸送手段で増減する */
   function tireCrew(g2) {
-    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
-    const d = logiPlan(g2).fatigue - 2;      // レースの合間にいくらかは休める
+    // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
+    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
   function restCrew(g2, amount) {
-    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
-  /* ---------- パワーユニットの使用基数 ---------- */
+  /* ---------- パワーユニットの使用基数と載せ替え ---------- */
   function puOf(g2) {
-    if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0 };
+    if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
+    if (!g2.pu.pool) g2.pu.pool = [];       // 車から降ろして取ってあるユニット
+    if (!g2.pu.n) g2.pu.n = g2.pu.used || 1;  // いま載せているユニットの通し番号
     return g2.pu;
+  }
+  /* へたり具合（0=新品、1=使い切り）。
+     残りが PU_TIRED_FROM を割ってから効きはじめる                    */
+  function puTired(g2) {
+    const pu = puOf(g2);
+    return clamp((D.PU_TIRED_FROM - pu.life) / D.PU_TIRED_FROM, 0, 1);
+  }
+  /* いま選んでいる出力モード */
+  function puMode(g2) {
+    return D.PU_MODES.find(m => m.key === (g2.puMode || 'std')) || D.PU_MODES[1];
+  }
+  function setPuMode(g2, key) {
+    if (D.PU_MODES.some(m => m.key === key)) g2.puMode = key;
+    return puMode(g2);
+  }
+  /* PUの出力にかかる係数。使い込むほど本来の力を出せなくなり、
+     どこまで回すか（出力モード）でも上下する                       */
+  function puForm(g2) { return (1 - D.PU_TIRED * puTired(g2)) * puMode(g2).power; }
+  /* 使い込んだPUが落とす信頼性。全開で回せばさらに落ちる */
+  function puRelDrop(g2) { return D.PU_TIRED_REL * puTired(g2) - puMode(g2).rel; }
+  /* PUの状態が、そのまま走りの速さに乗る量（性能ポイント）。
+     マイナスなら遅い。グリッド1台ぶんがおよそ 1.0 に相当する      */
+  function puPerf(g2) { return puMode(g2).perf - D.PU_PERF_DROP * puTired(g2); }
+  /* 新品1基の値段。世代が進むほど高くつく */
+  function puFreshCost(g2) {
+    return Math.round(D.PU_FRESH_COST * (1 + (g2.carGen || 0) * 0.20));
+  }
+  /* いま載せているユニットを降ろして保管する（残量があれば） */
+  function stowPU(pu) {
+    if (pu.life >= D.PU_KEEP_MIN) pu.pool.push({ n: pu.n, life: pu.life });
+    pu.pool.sort((a, b) => b.life - a.life);
+    if (pu.pool.length > 6) pu.pool.length = 6;
+  }
+  /* 新品を投入する。基数を1つ使い、上限を超えていればグリッド降格 */
+  function fitFreshPU(g2) {
+    const pu = puOf(g2);
+    stowPU(pu);
+    pu.used++; pu.n = pu.used; pu.life = 100;
+    const out = { used: pu.used, over: false, grid: 0, fresh: true };
+    if (pu.used > D.PU_LIMIT) {
+      pu.over++; pu.grid += D.PU_PENALTY;
+      out.over = true; out.grid = D.PU_PENALTY;
+    }
+    return out;
+  }
+  /* 保管してあるユニットに載せ替える。基数は増えないので降格もない */
+  function mountPU(g2, idx) {
+    const pu = puOf(g2);
+    const u = pu.pool[idx];
+    if (!u) return null;
+    pu.pool.splice(idx, 1);
+    stowPU(pu);
+    const from = pu.n;
+    pu.n = u.n; pu.life = u.life;
+    return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
   function puWear(g2, track, pushMul) {
     const laps = (track && track.laps) || 26;
     const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
     const care = 1 - Math.min(0.28, staffBonus(g2, 'mechanic') * 0.06 + g2.facilities.pit * 0.015);
-    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care;
+    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care * puMode(g2).wear;
   }
   /* レースを走り終えたときの処理。使い切ったら次の基数へ */
   function usePU(g2, track, pushMul) {
     const pu = puOf(g2);
     pu.life = Math.max(0, pu.life - puWear(g2, track, pushMul));
-    const out = { swapped: false, used: pu.used, over: false, grid: 0 };
+    const out = { swapped: false, used: pu.used, over: false, grid: 0, reused: 0 };
     if (pu.life <= 0) {
-      pu.used++;
-      pu.life = 100;
-      out.swapped = true;
-      out.used = pu.used;
-      if (pu.used > D.PU_LIMIT) {
-        pu.over++;
-        pu.grid += D.PU_PENALTY;
-        out.over = true;
-        out.grid = D.PU_PENALTY;
+      // 使い切ってしまった。取ってあるユニットが残っていればそれを積む
+      const best = pu.pool.length ? 0 : -1;
+      if (best >= 0 && pu.pool[best].life >= 30) {
+        const m = mountPU(g2, best);
+        out.swapped = true; out.reused = m.to; out.life = m.life;
+      } else {
+        const f = fitFreshPU(g2);
+        out.swapped = true; out.used = f.used; out.over = f.over; out.grid = f.grid;
       }
     }
     return out;
@@ -3671,7 +3884,16 @@ GP.state = (function () {
     pu.life = clamp(pu.life + amount, 0, 100);
     return Math.round(pu.life - before);
   }
-  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0 }; }
+  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] }; }
+
+  /* このコースはどれだけ追い抜けるか（0..1）。
+     長いストレートがあって、壁が近くないほど抜きやすい。
+     グリッド降格をどのレースで取るか、を考えるための目安        */
+  function overtakeEase(track) {
+    if (!track) return 0.5;
+    const spd = (track.weight && track.weight.speed) || 0.33;
+    return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
+  }
 
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
@@ -3923,7 +4145,7 @@ GP.state = (function () {
       history: [],
       carGen: 0,
       body: null,
-      logi: { plan: 'std', crew: 0 },   // 輸送手段とクルーの疲労
+      logi: { plan: 'std', load: 'std', crew: 0, late: false },  // 輸送手段・積荷・クルーの疲労
       focus: 'now',         // 開発リソースの配分
       nextCar: 0,           // 来季マシンに積み上げた開発量
       lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
@@ -4380,8 +4602,11 @@ GP.state = (function () {
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
-      if (!g.logi) g.logi = { plan: 'std', crew: 0 };
-      if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
+      if (!g.logi) g.logi = { plan: 'std', load: 'std', crew: 0 };
+      if (!g.logi.load) g.logi.load = 'std';
+      if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
+      if (!g.pu.pool) g.pu.pool = [];
+      if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
       g.onGrid = false; g.gridOrder = null;   // グリッド散策の途中では再開しない
@@ -4408,8 +4633,9 @@ GP.state = (function () {
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset,
+    puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -4438,6 +4664,143 @@ GP.race = (function () {
     safe:    { name: '安全第一', icon: '🛡️', pace: -0.006, risk: 0.55, tyre: 0.80 },
     balance: { name: 'バランス', icon: '⚖️', pace: 0.000,  risk: 1.00, tyre: 1.00 },
     attack:  { name: '攻める',   icon: '🔥', pace: 0.009,  risk: 1.85, tyre: 1.25 }
+  };
+
+  /* =========================================================
+     実況のことば
+     同じ出来事でも、毎回ちがう言い回しで出てくるようにする。
+     ところどころ、そのコースの名物コーナーの名前を混ぜて
+     「どこで何が起きたのか」が絵として浮かぶようにしている
+     {A}=仕掛けた側／{B}=やられた側／{C}=コーナー名／{P}=順位
+     ========================================================= */
+  function lm(track) {
+    const l = (track && track.landmarks) || [];
+    return l.length ? S.pick(l) : 'コーナー';
+  }
+  function say(list, v) {
+    v = v || {};
+    return S.pick(list)
+      .replace(/\{A\}/g, v.A == null ? '' : v.A)
+      .replace(/\{B\}/g, v.B == null ? '' : v.B)
+      .replace(/\{C\}/g, v.C == null ? '' : v.C)
+      .replace(/\{P\}/g, v.P == null ? '' : v.P);
+  }
+
+  const SAY = {
+    /* ストレートで抜いた */
+    passStraight: [
+      '{A} ストレートで {B} を刺した！',
+      '{A}、スリップから抜け出して {B} の前へ！',
+      '{A} が {B} を並ぶ間もなく置き去りに！',
+      '{A}、DRSを開けて一気に {B} をかわす！',
+      '{A} と {B}、真横に並んだまま——先に前に出たのは {A}！',
+      '{A} が {B} の真後ろから飛び出した！ 完璧な仕掛け！',
+      '{A}、加速で勝った！ {B} は成す術なし！',
+      '{A} が {B} をブレーキングで仕留めた！'
+    ],
+    /* コーナーで抜いた */
+    passCorner: [
+      '{A} {C} で {B} の内に飛び込んだ！',
+      '{A}、{C} の立ち上がりで {B} をとらえた！',
+      '{A} が {C} で外から並んだ——そのまま前へ！',
+      '{A}、{C} でひとつ深く突っ込んで {B} を攻略！',
+      '{A} が {B} のわずかな乱れを見逃さない！ {C} で前へ！',
+      '{A}、{C} を一段速いラインで抜けて {B} をパス！',
+      '{A} と {B}、{C} で並走——競り勝ったのは {A}！',
+      '{A} が {C} で強引に鼻をねじ込んだ！'
+    ],
+    /* 抜いてトップに立った */
+    passLead: [
+      '{A} が {B} をとらえた！ ついにトップ！',
+      '{A}、{B} を抜いて首位に立つ！ レースが動いた！',
+      '先頭が入れ替わった！ {A} が {B} の前へ！',
+      '{A} がついに {B} を仕留めた——ここからは自分のレースだ！'
+    ],
+    /* 終盤の抜き */
+    passLate: [
+      '残りわずか、{A} が {B} を抜いた！ この一撃は大きい！',
+      '土壇場！ {A} が {B} をかわして {P}位に浮上！',
+      '最後の最後で {A}！ {B} は守りきれなかった！'
+    ],
+    /* 抜けずに詰まった */
+    stuck: [
+      '{A}、{B} の背後に貼りつくが前に出られない…',
+      '{A} が何度も顔を出すが、{B} が閉める！',
+      '{A}、{C} で並びかけたが押し戻された…',
+      '{A} は {B} の乱気流に苦しんでいる。近づくほど曲がらない',
+      '{A}、仕掛けどころを探しているが糸口がない…',
+      '{B} のブロックが巧い。{A} はまた1周を失う'
+    ],
+    /* 小さなミス */
+    miss: [
+      '{A} {C} で膨らんだ！ タイムをロス…',
+      '{A}、{C} の入口でわずかに乱れた…',
+      '{A} が一瞬アンダーステアに苦しむ！',
+      '{A}、縁石に乗りすぎてマシンが跳ねた！',
+      '{A} がブレーキを残しすぎた…立ち上がりが鈍い',
+      '{A}、シフトを一段まちがえた！ もったいない',
+      '{A} が {C} でラインを外した！'
+    ],
+    /* タイヤが終わっているときのミス */
+    missTyre: [
+      '{A} {C} でフロントをロックさせた！ 白煙が上がる！',
+      '{A}、タイヤが音を上げている。{C} で止まりきれない！',
+      '{A} が {C} でずるりと滑った——タイヤの限界だ',
+      '{A}、リアが出た！ タイヤはもう終わっている',
+      '{A} が必死にカウンターを当てる！ グリップがない！'
+    ],
+    /* 雨でのミス */
+    missWet: [
+      '{A} {C} で水たまりに乗った！ 大きくスライド！',
+      '{A}、視界がない中で {C} をオーバーラン！',
+      '{A} が白線に乗ってヒヤリ！ よく立て直した！',
+      '{A}、リアが流れた！ 雨がじわじわ効いてくる',
+      '{A} が {C} でハイドロプレーニング！ 肝が冷える！'
+    ],
+    /* 攻めすぎたときのミス */
+    missPush: [
+      '{A}、攻めすぎた！ {C} で完全に行き過ぎた！',
+      '{A} が突っ込みすぎてコースを外れた！',
+      '{A}、限界を超えた！ {C} で大きくはらんだ！',
+      '{A} が無理な体勢から立て直す！ 危ない！'
+    ],
+    /* 大きなミス（スピン級） */
+    missBig: [
+      '{A} スピン！ {C} でコマのように回った！',
+      '{A} がコースを飛び出した！ 砂煙が上がる！',
+      '{A}、完全に姿勢を失った！ グラベルまで運ばれる！',
+      '{A} スピンターン！ なんとかコースには戻ったが大きなロス…',
+      '{A} が {C} でグラベルへ！ 順位を大きく落とす！'
+    ],
+    /* 機械の故障でリタイア */
+    dnfMech: [
+      '{A} が{B}でリタイア…',
+      '{A}、{B}！ 白煙とともにマシンを止める…',
+      '{A} のマシンが力を失った——{B}だ',
+      '{A}、{B}でストップ。ガレージが沈黙する…',
+      '{A} が路肩にマシンを寄せる。{B}——今日はここまで'
+    ],
+    /* クラッシュでリタイア */
+    dnfCrash: [
+      '{A} が{B}！ ここでレースを終える…',
+      '{A}、{B}！ マシンは大きなダメージ…',
+      '{A} が{B}でストップ！ 無線に応答はない…',
+      '{A}、{B}——一瞬の出来事だった',
+      '{A} が {C} で{B}！ 週末が終わってしまった…'
+    ],
+    /* ピットイン */
+    pit: [
+      '{A} ピットイン！ {B}に交換 ({P}秒)',
+      '{A} が動いた！ {B}を履いて送り出す ({P}秒)',
+      '{A} ピットへ。{B}に履き替えて再スタート ({P}秒)',
+      '{A}、タイヤ交換！ {B}で残りを走りきる ({P}秒)'
+    ],
+    /* 手間取ったピット */
+    pitSlow: [
+      '{A} ピットイン！ …作業が止まった！ {B}に交換 ({P}秒)',
+      '{A} ピットイン、しかしタイヤがはまらない！ {B} ({P}秒)',
+      '{A} ピットで痛恨のロス！ {B}に交換 ({P}秒)'
+    ]
   };
 
   /* ---------- エントリーリスト作成 ---------- */
@@ -4477,8 +4840,12 @@ GP.race = (function () {
         // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
         const bd0 = t.isPlayer ? myBody : evenBody;
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
+        // パワーユニットの状態と出力モードは、そのまま走りの速さに出る。
+        // へたったユニットで我慢するほど、じわじわ順位を落としていく
         const perf = (t.car * 0.60 + drv * 0.40) * form[ti]
-                   * (t.isPlayer ? S.logiPlan(g).perf * ((strategy && strategy.setup) || 1) : 1);
+                   * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
+                                 * ((strategy && strategy.setup) || 1) : 1)
+                   + (t.isPlayer ? S.puPerf(g) : 0);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
@@ -4613,7 +4980,7 @@ GP.race = (function () {
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
     const bestSectorBy = [null, null, null];
-    const scInfo = { from: 0, laps: 0 };
+    const scInfo = { from: 0, laps: 0, virtual: false };
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
@@ -4791,21 +5158,65 @@ GP.race = (function () {
         const jitter = (e.sk('precise') ? 0.45 : 1) * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.42);
         t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
 
+        // ---- ドライバーのミス ----
+        // 終わったタイヤ、濡れた路面、攻めすぎ、切れた集中——
+        // どれかが噛み合うと、ふっと足元をすくわれる。
+        // 乗りやすいマシン（ドライバビリティ）ほど、これが起きにくい
+        if (lap > 1) {
+          const tyreOver = Math.max(0, e.tyreAge - ty.life);
+          let mp = 0.0090
+                 * (1 + (e.st.risk - 1) * 0.50)
+                 * (1.55 - e.driver.mental / 190)
+                 * (1 + tyreOver * 0.075)
+                 * (0.55 + wx.chaos * 0.45)
+                 * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
+                 * (e.sk('precise') ? 0.58 : 1)
+                 * (e.driver.hurt ? 1.35 : 1);
+          if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
+          if (Math.random() < mp) {
+            // 大きく崩したか、こらえたか
+            const big = Math.random() < 0.16 + (e.st.risk - 1) * 0.10;
+            const lost = big ? S.rnd(4.5, 11.0) : S.rnd(0.4, 2.4);
+            t += lost;
+            e.tyreAge += big ? 1.6 : 0.5;
+            e.misses = (e.misses || 0) + 1;
+            // 何が原因だったかで、言い回しを変える
+            const pool = big ? SAY.missBig
+                       : wx.wet && Math.random() < 0.7 ? SAY.missWet
+                       : tyreOver > 0 ? SAY.missTyre
+                       : e.st.risk > 1.4 && Math.random() < 0.6 ? SAY.missPush
+                       : SAY.miss;
+            if (e.isPlayer || big || Math.random() < 0.22) {
+              events.push({ lap: lap, type: 'miss', car: e,
+                text: say(pool, { A: e.driver.name, C: lm(track) }) +
+                      '（-' + lost.toFixed(1) + '秒）' });
+            }
+            // 大きく外れたまま順位を保っていると、審査が入る
+            if (big && Math.random() < 0.18) givePenalty(e, 'limits', lap, events, laps);
+          }
+        }
+
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
         // セーフティカー中は全車そろって流す。差はほとんど開かない
         const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
         if (underSC) {
-          t = track.base * 1.34 + S.rnd(-0.15, 0.15);
-          e.tyreAge = Math.max(0, e.tyreAge - 0.35);      // 流している間はタイヤも保つ
+          if (scInfo.virtual) {
+            // バーチャル：全車が同じ割合で落とすので、差はそのまま残る
+            t *= 1.26;
+            e.tyreAge = Math.max(0, e.tyreAge - 0.2);
+          } else {
+            t = track.base * 1.34 + S.rnd(-0.15, 0.15);
+            e.tyreAge = Math.max(0, e.tyreAge - 0.35);    // 流している間はタイヤも保つ
+          }
         }
 
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
           // セーフティカー中は隊列が遅いので、失う時間が小さい
-          const scCheap = underSC ? 0.42 : 1;
+          const scCheap = underSC ? (scInfo.virtual ? 0.68 : 0.42) : 1;
           const miss = e.isPlayer ? 0.035 + cw.mistake : 0.035;
           const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < miss ? S.rnd(3, 9) : 0)) * scCheap;
           t += loss;
@@ -4826,7 +5237,8 @@ GP.race = (function () {
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             events.push({ lap, type: 'pit', car: e,
-              text: e.driver.name + ' ピットイン！ ' + nt.name + 'に交換 (' + loss.toFixed(1) + '秒)' });
+              text: say(loss > e.pitLoss + 3 ? SAY.pitSlow : SAY.pit,
+                { A: e.driver.name, B: nt.name, P: loss.toFixed(1) }) });
           }
         }
         e.pitTime[lap - 1] = pitAdd;
@@ -4890,11 +5302,13 @@ GP.race = (function () {
             // 成功：前に出る。詰まっていた時間もここで解ける
             atk.cum[lap - 1] = def.cum[lap - 1] - S.rnd(0.08, 0.28);
             atk.passes = (atk.passes || 0) + 1;
-            if (atk.isPlayer || def.isPlayer) {
-              events.push({ lap: lap, type: 'pass', car: atk,
-                text: atk.driver.name + (onStraight
-                  ? ' ストレートで ' + def.driver.name + ' を刺した！'
-                  : ' コーナーで ' + def.driver.name + ' の内に飛び込んだ！') });
+            // 実況。自チームが絡む攻防と、上位の攻防は必ず伝える
+            if (atk.isPlayer || def.isPlayer || i <= 3) {
+              const v = { A: atk.driver.name, B: def.driver.name, C: lm(track), P: i };
+              const pool = i === 1 ? SAY.passLead
+                         : lap > laps * 0.85 ? SAY.passLate
+                         : onStraight ? SAY.passStraight : SAY.passCorner;
+              events.push({ lap: lap, type: 'pass', car: atk, text: say(pool, v) });
             }
             // 強引に決めた一撃は、あとで咎められることがある
             // グリッドで審査の基準を聞いてきた週は、咎められにくい
@@ -4908,14 +5322,19 @@ GP.race = (function () {
             let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
             if (atk.sk('passer')) stuck *= 0.55;
             atk.cum[lap - 1] += stuck;
+            // 抜けなかったことも、たまには言葉にする（毎周だとうるさいので控えめに）
+            if ((atk.isPlayer || def.isPlayer) && Math.random() < 0.16) {
+              events.push({ lap: lap, type: 'miss', car: atk,
+                text: say(SAY.stuck, { A: atk.driver.name, B: def.driver.name, C: lm(track) }) });
+            }
             if (!onStraight && Math.random() < 0.05 + (atk.st ? (atk.st.risk - 1) * 0.05 : 0)) {
               const miss = S.rnd(0.7, 2.3);
               atk.cum[lap - 1] += miss;
               atk.tyreAge += 0.6;                     // 無理をするとタイヤも傷む
               if (atk.isPlayer) {
                 events.push({ lap: lap, type: 'miss', car: atk,
-                  text: atk.driver.name + ' 仕掛けきれずにコースを外れかけた…（-' +
-                        miss.toFixed(1) + '秒）' });
+                  text: say(SAY.missPush, { A: atk.driver.name, C: lm(track) }) +
+                        '（-' + miss.toFixed(1) + '秒）' });
               }
               // はみ出したまま順位を保っていると、審査が入る
               if (Math.random() < 0.24 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) givePenalty(atk, 'limits', lap, events, laps);
@@ -4953,10 +5372,12 @@ GP.race = (function () {
         const r = Math.random();
         if (r < mech) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
-          events.push({ lap, type: 'dnf', car: e, text: e.driver.name + ' が' + e.dnfReason + 'でリタイア…' });
+          events.push({ lap, type: 'dnf', car: e,
+            text: say(SAY.dnfMech, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
         } else if (r < mech + crash) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['クラッシュ', 'コースアウト', '接触']);
-          events.push({ lap, type: 'dnf', car: e, text: e.driver.name + ' が' + e.dnfReason + '！ ここでレースを終える…' });
+          events.push({ lap, type: 'dnf', car: e,
+            text: say(SAY.dnfCrash, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
           // マシンがコース上に止まると、セーフティカーが入ることがある
           if (scLaps <= 0 && lap < laps - 2 && e.dnfReason !== 'コースアウト' &&
               Math.random() < 0.62 + track.risk * 0.18) {
@@ -4970,20 +5391,29 @@ GP.race = (function () {
       // ここで入るか引っ張るかが、レースの分かれ目になる。
       if (scPending && !scDone) {
         scPending = false; scDone = true;
-        scLaps = S.rint(3, 5);
+        // 障害物がコース脇で済むならバーチャル、コース上に残るなら実車が出る。
+        // バーチャルは全車が一斉に減速するだけで、差はそのまま残る。
+        const virtual = Math.random() < 0.45;
+        scLaps = virtual ? S.rint(2, 3) : S.rint(3, 5);
         scFrom = lap + 1;
-        scInfo.from = scFrom; scInfo.laps = scLaps;
+        scInfo.from = scFrom; scInfo.laps = scLaps; scInfo.virtual = virtual;
         const run = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
-        const lead = run.length ? run[0].cum[lap - 1] : 0;
-        run.forEach((e, i) => {
-          // 先頭のすぐ後ろに一列に並び直す
-          e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
-          e.scBunched = true;
-        });
+        if (!virtual) {
+          const lead = run.length ? run[0].cum[lap - 1] : 0;
+          run.forEach((e, i) => {
+            // 先導車の後ろに一列に並び直す
+            e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
+            e.scBunched = true;
+          });
+        }
         events.push({ lap: lap, type: 'sc',
-          text: '🚨 セーフティカー！ 隊列が一列に詰まる（' + scLaps + '周）' });
-        // セーフティカー中はピットの損失が小さい。作戦が動く
+          text: virtual
+            ? '🟡 バーチャルセーフティカー！ 全車が一斉にペースを落とす（' + scLaps + '周）'
+            : '🚨 セーフティカー出動！ 先導車の後ろに一列に詰まる（' + scLaps + '周）' });
+        // 隊列が遅いあいだはピットの損失が小さい。作戦が動く
+        // （バーチャルは全車が同じだけ遅いので、得は小さい）
         run.forEach(e => {
+          if (virtual && Math.random() < 0.55) return;
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
           // 予定が遠くても、安いピットなら前倒しする価値がある
@@ -5184,28 +5614,49 @@ GP.race = (function () {
       notes.push('🩹 ' + d.name + ' が復帰しました。');
     });
 
-    // パーツの消耗
-    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
+    // パーツの消耗。予備もツールも置いてきた週は、現場で手当てができない
+    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
+    // 持ってきた予備で、いちばん傷んだところを直しておく
+    const fixed = S.useSpares(g);
+    if (fixed) {
+      notes.push('🧰 積んできた予備で ' + fixed.n + '点を手当てした（コンディション +' +
+        fixed.gain + '）。');
+    } else if (S.logiLoad(g).spares <= 0) {
+      notes.push('🎒 軽装で来たため、傷んだ機材はそのまま持ち帰るしかなかった。');
+    }
     // パワーユニットの消耗。攻める作戦ほど早く傷む
     const pushMul = res.classified.filter(e => e.isPlayer)
       .reduce((a, e) => Math.max(a, e.st ? e.st.risk : 1), 1) * (sp ? sp.wear * 0.4 + 0.6 : 1);
     if (g.pu) g.pu.grid = 0;                     // 前回の降格ぶんは消化済み
     const puRes = S.usePU(g, res.track, 0.55 + pushMul * 0.45);
     if (puRes.swapped) {
-      if (puRes.over) {
-        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入。使用基数の上限（' +
-          D.PU_LIMIT + '基）を超えたため、次戦は ' + puRes.grid + 'グリッド降格。');
+      if (puRes.reused) {
+        notes.push('⚙️ パワーユニットを使い切ったので、取ってあった ' + puRes.reused +
+          '基目（残り ' + puRes.life + '%）に載せ替えた。基数は増えていない。');
       } else {
-        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（今季あと ' +
-          Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+        // 新品は買うもの。走り切ってしまったぶんも、ちゃんと請求が来る
+        const puCost = S.puFreshCost(g);
+        g.funds -= puCost;
+        if (puRes.over) {
+          notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入（' + puCost +
+            '万）。使用基数の上限（' + D.PU_LIMIT + '基）を超えたため、次戦は ' +
+            puRes.grid + 'グリッド降格。');
+        } else {
+          notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（' + puCost +
+            '万／今季あと ' + Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+        }
       }
-    } else if (S.puOf(g).life < 25) {
-      notes.push('⚙️ パワーユニットの残りが ' + Math.round(S.puOf(g).life) +
-        '%。そろそろ載せ替えが要る（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）。');
+    } else if (S.puOf(g).life < 40) {
+      const pu2 = S.puOf(g);
+      notes.push('⚙️ パワーユニットの残りが ' + Math.round(pu2.life) +
+        '%。出力が ' + Math.round((1 - S.puForm(g)) * 100) + '%、信頼性が ' +
+        Math.round(S.puRelDrop(g)) + ' 落ちている（今季あと ' +
+        Math.max(0, D.PU_LIMIT - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
     }
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);
     g.funds -= ship;
+    if (g.logi) g.logi.late = false;      // 今回の遅延は消化した
     const crewBefore = S.crewPenalty(g).level;
     S.tireCrew(g);
     const crewNow = S.crewPenalty(g).level;
@@ -6102,6 +6553,19 @@ GP.raceview = (function () {
       emit(e, pt2, vel, o.out, wet);
       drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel, pt2.steer);
     }
+    // ---- セーフティカー本体 ----
+    // 実車が出ているあいだだけ、隊列の先頭のさらに前を走らせる
+    const sc = res.safetyCar;
+    if (sc && !sc.virtual) {
+      const lead = ord.filter(o => !o.out)[0];
+      if (lead) {
+        const lLap = lapInfo(lead.e, t).lap;
+        if (lLap >= sc.from && lLap < sc.from + sc.laps) {
+          const p2 = placeInLap(lead.e, lead.p + 0.014);
+          drawSafetyCar(p2.x, p2.y, p2.ang, t);
+        }
+      }
+    }
     GP.fx.drawParticles(ctx);
     ctx.restore();
 
@@ -6185,6 +6649,48 @@ GP.raceview = (function () {
      上から見たF1の形をそのまま組む。寸法は実車比（全長5.6m×全幅2.0m）を
      1m≒5.5px で置いたもの。世代が上がるほど部品が増えていく。
      前方が +x、車体の右が +y。光は車体の前左（-y側）から当たっている前提。   */
+  /* セーフティカー。市販車然としたシルエットに、屋根の回転灯 */
+  function drawSafetyCar(x, y, ang, t) {
+    const on = ((t * 5) | 0) % 2 === 0;      // 回転灯の明滅
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang);
+    // 影
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.fillRect(-13, -6, 27, 14);
+    // タイヤ
+    ctx.fillStyle = '#15151a';
+    ctx.fillRect(-10, -9, 6, 3); ctx.fillRect(-10, 6, 6, 3);
+    ctx.fillRect(5, -9, 6, 3);   ctx.fillRect(5, 6, 6, 3);
+    // 車体（黒い縁取りをつけて、路面から浮かせる）
+    ctx.fillStyle = '#15151a'; ctx.fillRect(-14, -8, 28, 16);
+    ctx.fillStyle = '#e8e8ec'; ctx.fillRect(-13, -7, 26, 14);
+    ctx.fillStyle = '#fbfbfd'; ctx.fillRect(-13, -7, 26, 4);
+    ctx.fillStyle = '#c2c2ca'; ctx.fillRect(-13, 4, 26, 3);
+    // 側面の帯（赤／黄のツートン）
+    ctx.fillStyle = '#e04a3f'; ctx.fillRect(-13, -1, 26, 2);
+    ctx.fillStyle = '#ffc93c'; ctx.fillRect(-13, 1, 26, 1);
+    // 窓（前後）と屋根
+    ctx.fillStyle = '#243040'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
+    ctx.fillStyle = '#3d5068'; ctx.fillRect(3, -5, 6, 3);
+    ctx.fillStyle = '#c6c6ce'; ctx.fillRect(-13, -6, 4, 12);    // トランク
+    ctx.fillStyle = '#d2d2da'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
+    // ルーフの回転灯。小さく映っても分かるように、屋根の幅いっぱいに置く
+    ctx.fillStyle = '#2a2410'; ctx.fillRect(-3, -6, 5, 12);
+    ctx.fillStyle = on ? '#ffe14a' : '#6e6018'; ctx.fillRect(-3, -6, 5, 6);
+    ctx.fillStyle = on ? '#6e6018' : '#ffe14a'; ctx.fillRect(-3, 0, 5, 6);
+    // 前後の識別灯
+    ctx.fillStyle = on ? '#fff6c8' : '#8a7a20';
+    ctx.fillRect(12, -6, 2, 3); ctx.fillRect(12, 3, 2, 3);
+    // ボンネットの SC
+    ctx.fillStyle = '#15151a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('SC', -9, 2);
+    ctx.textAlign = 'left';
+    ctx.restore();
+    // 回転灯の光を、あとから乗せる光にも登録する
+    emissive.push({ x: x - 6, y: y - 6 + (on ? 0 : 6), w: 12, h: 6,
+                    c: 'rgba(255,225,74,0.60)' });
+  }
+
   function drawCar(x, y, ang, color, isPlayer, out, gen, vel, steer) {
     gen = Math.max(0, Math.min(5, gen | 0));
     vel = vel == null ? 1 : vel;
@@ -6472,8 +6978,8 @@ GP.raceview = (function () {
     if (badge) {
       const sc = res.safetyCar;
       const on = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
-      badge.textContent = '🚨 SAFETY CAR';
-      badge.className = 'rv-badge' + (on ? ' show' : '');
+      badge.textContent = sc && sc.virtual ? '🟡 VIRTUAL SC' : '🚨 SAFETY CAR';
+      badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
     }
 
     const box = document.getElementById('rvOrder');
@@ -6512,7 +7018,6 @@ GP.raceview = (function () {
     if (!el) return;
     el.textContent = text;
     el.className = 'rv-flash show' + (wet ? ' wet' : '');
-    wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => { el.className = 'rv-flash' + (wet ? ' wet' : ''); }, 2600);
   }
@@ -6523,11 +7028,19 @@ GP.raceview = (function () {
     while (shownEvents < res.events.length) {
       const ev = res.events[shownEvents];
       if (!all && ev.lap > lapNow) break;
+      if (ev.type === 'weather' && res.weatherChange) {
+        // 早送りでも、いまの天候はそろえておく
+        wetNow = res.weatherChange.to === '雨' || res.weatherChange.to === '大雨';
+      }
       if (!all) {
         if (ev.type === 'pass') GP.sound.play('pass', 140);
         else if (ev.type === 'pit') GP.sound.play('pit', 140);
         else if (ev.type === 'dnf') GP.sound.play('dnf', 300);
-        else if (ev.type === 'sc') { GP.sound.play('dnf', 260); flash('🚨 SAFETY CAR', false); }
+        else if (ev.type === 'sc') {
+          const v = res.safetyCar && res.safetyCar.virtual;
+          GP.sound.play('dnf', 260);
+          flash(v ? '🟡 VIRTUAL SAFETY CAR' : '🚨 SAFETY CAR', false);
+        }
         else if (ev.type === 'weather') {
           GP.sound.play('pit', 240);
           const wet = res.weatherChange && (res.weatherChange.to === '雨' || res.weatherChange.to === '大雨');
@@ -6669,6 +7182,7 @@ GP.raceview = (function () {
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
     vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
@@ -6763,7 +7277,7 @@ GP.raceview = (function () {
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
   return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, paintCar,
-           _drawCar: drawCar, _drawPitCrew: drawPitCrew };
+           _drawCar: drawCar, _drawPitCrew: drawPitCrew, _drawSafetyCar: drawSafetyCar };
 })();
 
 </script>
@@ -9795,7 +10309,8 @@ window.GP = window.GP || {};
       '<span class="skbar big"><i class="' + (overCap ? 'f2' : capPct > 80 ? 'f1' : 'f0') +
         '" style="width:' + Math.min(100, capPct) + '%"></i></span>' +
       '<em>' + Math.round(capPct) + '%</em>' +
-      '<small>開発・設計・合成・施設に使える1シーズンの上限です。' +
+      '<small><b>対象</b>：車体開発・パーツの設計／改良／合成・現場の応援要員。<br>' +
+      '<b>対象外</b>：輸送費、スタッフとマネジメントの人件費、設備投資、パワーユニットの購入。<br>' +
       (overCap
         ? '<b class="warn">超過分の' + Math.round(D.COST_CAP_FINE * 100) + '%が罰金になり、翌年の風洞時間も削られます。</b>'
         : '残り ' + money(S.capLeft(g)) + '万。超えても止まりませんが、罰金と翌年の開発時間削減が待っています。') +
@@ -10563,7 +11078,15 @@ window.GP = window.GP || {};
       body += '</div>';
     }
 
+    // ---- パワーユニット（基数と載せ替え）----
+    body += '<div class="sub">パワーユニット</div>' +
+      '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
+      '新品は基数を1つ使い、上限（' + D.PU_LIMIT + '基）を超えると次のレースがグリッド降格になります。<br>' +
+      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。</p>' +
+      puBoxHTML(null);
+
     U.modal('🏎️ マシン', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    bindPuBox(cmdGarage);
     bindAct('data-swap', k => openSwap(k));
     bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
     bindAct('data-fuse', id => openFuse(id));
@@ -10584,6 +11107,125 @@ window.GP = window.GP || {};
   function bindAct(attr, fn) {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[' + attr + ']'), b => {
       b.onclick = () => fn(b.getAttribute(attr));
+    });
+  }
+
+  /* =======================================================
+     パワーユニットの載せ替え
+     使い込んだユニットは出力も信頼性も落ちる。新品を入れれば速いが
+     基数を1つ食い、上限を超えるとグリッド降格。降ろしたユニットは
+     残量があるかぎり取っておけるので、あとでまた積める        */
+  function puBoxHTML(t) {
+    const pu = S.puOf(g);
+    const wear = t ? S.puWear(g, t, 1) : 0;
+    const left = Math.max(0, D.PU_LIMIT - pu.used);
+    const willSwap = !!t && pu.life - wear <= 0;
+    const cost = S.puFreshCost(g);
+    // へたり具合は出力モードとは切り離して見せる（新品を「へたっている」と言わないため）
+    const tired = S.puTired(g);
+    const drop = Math.round(D.PU_TIRED * tired * 100);
+    const relDrop = Math.round(D.PU_TIRED_REL * tired);
+    const perfDrop = D.PU_PERF_DROP * tired;
+
+    let h = '<div class="pubox' + (pu.grid ? ' pen' : willSwap && left <= 0 ? ' warn' : '') + '">' +
+      '<b>⚙️ パワーユニット ' + pu.n + '基目／今季 ' + pu.used + '基（あと ' + left + '基）</b>' +
+      '<span class="skbar big"><i class="' + (pu.life < 25 ? 'f2' : pu.life < 50 ? 'f1' : 'f0') +
+        '" style="width:' + Math.round(pu.life) + '%"></i></span>' +
+      '<em>残り ' + Math.round(pu.life) + '%</em>' +
+      '<small>' +
+      (tired > 0.02
+        ? '<b class="warn">へたってきています。グリッド ' + perfDrop.toFixed(1) +
+          '台ぶん遅く、出力 -' + drop + '%／信頼性 -' + relDrop + '。</b> '
+        : 'まだ本来の出力が出ています。 ') +
+      (t ? 'このコースを走ると、およそ ' + Math.round(wear) + '% 減ります。' : '') +
+      (willSwap ? (left > 0 ? 'このレース中に自動で載せ替えになります。'
+                            : '<b class="warn">上限を超えるため、その次の戦は ' + D.PU_PENALTY + 'グリッド降格になります。</b>')
+                : '') +
+      (pu.grid ? '<br><b class="warn">次のレースは基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
+      '</small>';
+
+    // ---- 出力モード ----
+    // どこまで回すか。速さと寿命の交換レート。ここが毎週の判断になる
+    const mode = S.puMode(g);
+    h += '<div class="pumode"><b>出力モード</b>';
+    // いまのコース（マシン画面なら平均的なコース）で1戦あたり何%減るか。
+    // モードごとの見込みは、いま選んでいるモードの消耗から比例で出す
+    const refT = t || D.TRACKS[Math.min(g.nextRace || 0, D.TRACKS.length - 1)];
+    const wearOne = S.puWear(g, refT, 1) / Math.max(0.01, mode.wear);
+    D.PU_MODES.forEach(m => {
+      const per = wearOne * m.wear;
+      const races = Math.max(0, Math.floor(pu.life / Math.max(0.1, per)));
+      h += '<button class="pumbtn' + (m.key === mode.key ? ' on' : '') + '" data-pumode="' + m.key + '"' +
+        ' title="' + esc(m.note) + '">' +
+        '<i>' + m.icon + ' ' + m.name + '</i>' +
+        '<small>速さ ' + (m.perf === 0 ? '±0' :
+          (m.perf > 0 ? '+' : '−') + Math.abs(m.perf).toFixed(1) + '台') +
+        '／1戦 -' + Math.round(per) + '%<br>いまのユニットであと約' + races + '戦</small></button>';
+    });
+    h += '</div><small class="pumnote">' + esc(mode.note) +
+      '<br>「◯台」はグリッドでおよそ何台ぶん速い／遅いか。' +
+      'へたったユニットは、これとは別に最大 ' + D.PU_PERF_DROP.toFixed(1) + '台ぶん遅くなります。</small>';
+
+    // ---- 降格を取るなら、どのコースか ----
+    if (t) {
+      const ease = S.overtakeEase(t);
+      h += '<small class="pupool">🏁 ' + esc(t.name) + ' は、' +
+        (ease > 0.62 ? '<b>追い抜きやすい</b>コースです。降格を取るならここは向いています。'
+         : ease < 0.38 ? '<b>追い抜きにくい</b>コースです。降格を取るのは避けたいところ。'
+         : '追い抜きは並のコースです。') + '</small>';
+    }
+
+    // ---- 載せ替えの選択肢 ----
+    h += '<div class="puswap"><b>載せ替える</b>';
+    const overNext = pu.used + 1 > D.PU_LIMIT;
+    h += '<button class="puopt' + (overNext ? ' pen' : '') + '" data-pufresh="1"' +
+      (g.funds < cost ? ' disabled' : '') + '>' +
+      '<i>🆕 新品を投入</i><small>' + money(cost) + '万／残り100%' +
+      (overNext ? '<br><b class="warn">+' + D.PU_PENALTY + 'グリッド降格</b>' : '<br>今季の基数を1つ使う') +
+      '</small></button>';
+    pu.pool.forEach((u, i) => {
+      h += '<button class="puopt" data-pumount="' + i + '"' +
+        (g.funds < D.PU_SWAP_COST ? ' disabled' : '') + '>' +
+        '<i>📦 ' + u.n + '基目に戻す</i><small>' + money(D.PU_SWAP_COST) + '万／残り ' +
+        Math.round(u.life) + '%<br>基数は増えない</small></button>';
+    });
+    h += '</div>';
+    if (!pu.pool.length) {
+      h += '<small class="pupool">まだ取ってあるユニットはありません。' +
+           '残量のあるうちに新品へ替えれば、降ろしたユニットは保管されます。</small>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  /* ボックスの中のボタンを繋ぐ。after は画面を作り直す関数 */
+  function bindPuBox(after) {
+    bindAct('data-pumode', k => {
+      S.setPuMode(g, k);
+      S.save(g); render(); if (after) after();
+    });
+    bindAct('data-pufresh', () => {
+      const cost = S.puFreshCost(g);
+      if (g.funds < cost) return U.toast('資金が足りません', 'bad');
+      g.funds -= cost;                 // PUは供給元から買うもので、上限の対象外
+      const r = S.fitFreshPU(g);
+      U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
+        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      GP.sound.play('buy');
+      S.save(g); render(); if (after) after();
+    });
+    bindAct('data-pumount', i => {
+      if (g.funds < D.PU_SWAP_COST) return U.toast('資金が足りません', 'bad');
+      const m = S.mountPU(g, +i);
+      if (!m) return;
+      g.funds -= D.PU_SWAP_COST; capSpend(D.PU_SWAP_COST);   // 工賃は現場の費用
+      U.log(g, '⚙️ ' + m.from + '基目を降ろし、取ってあった ' + m.to + '基目（残り ' + m.life +
+        '%）に載せ替えた（工賃 ' + money(D.PU_SWAP_COST) + '万）。');
+      U.toast('⚙️ ' + m.to + '基目に載せ替えた');
+      GP.sound.play('buy');
+      S.save(g); render(); if (after) after();
     });
   }
 
@@ -10739,7 +11381,8 @@ window.GP = window.GP || {};
     if (up) up.onclick = () => {
       const c = facilityCost(baseSel);
       if (g.funds < c || g.facilities[baseSel] >= 10) return;
-      g.funds -= c; capSpend(c); g.facilities[baseSel]++;
+      // 設備投資は上限の対象外（建物や設備は開発費とは別枠で扱われる）
+      g.funds -= c; g.facilities[baseSel]++;
       const fa = D.FACILITIES.find(x => x.key === baseSel);
       GP.sound.play('build');
       U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
@@ -11224,6 +11867,12 @@ window.GP = window.GP || {};
     if (g.drivers.length === 0) return U.toast('ドライバーがいません！', 'bad');
     // レース週の朝。体調を崩して走れない人が出ることがある
     if (!raceCtx || raceCtx.trackIndex !== trackIndex || !raceCtx.rolled) {
+      // 機材が現地に着いたか。安く運んだ週ほど、荷は遅れる
+      if (S.rollLogi(g, t)) {
+        U.log(g, '📦 ' + t.name + ' への機材が通関で止まった。金曜の走行がまるまる潰れ、' +
+          'マシンは仕上げきれないまま週末に入る。', 'bad');
+        U.toast('📦 機材の到着が遅れた！', 'bad');
+      }
       S.rollAbsence(g).forEach(d => {
         const cover = g.reserve && S.canDrive(g.reserve);
         U.log(g, '🤒 ' + d.name + ' が体調不良で今週は走れない。' +
@@ -11245,23 +11894,17 @@ window.GP = window.GP || {};
       '<span>' + laps + '周 ／ ' + esc(t.desc) + '</span></div>';
     if (special) body += '<p class="note">' + esc(special.note) + '</p>';
 
-    // ---- パワーユニットの状態 ----
-    const pu = S.puOf(g);
-    const wear = S.puWear(g, t, 1);
-    const left = Math.max(0, D.PU_LIMIT - pu.used);
-    const willSwap = pu.life - wear <= 0;
-    body += '<div class="pubox' + (pu.grid ? ' pen' : willSwap && left <= 0 ? ' warn' : '') + '">' +
-      '<b>⚙️ パワーユニット ' + pu.used + '基目／今季あと ' + left + '基</b>' +
-      '<span class="skbar big"><i class="' + (pu.life < 25 ? 'f2' : pu.life < 50 ? 'f1' : 'f0') +
-        '" style="width:' + Math.round(pu.life) + '%"></i></span>' +
-      '<em>残り ' + Math.round(pu.life) + '%</em>' +
-      '<small>このコースを走ると、およそ ' + Math.round(wear) + '% 減ります。' +
-      (willSwap
-        ? (left > 0 ? 'このレースで載せ替えになります。'
-                    : '<b class="warn">上限を超えるため、次戦は ' + D.PU_PENALTY + 'グリッド降格になります。</b>')
-        : '「🛠️ 整備」で少し延命できます。') +
-      (pu.grid ? '<br><b class="warn">今回は基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
-      '</small></div>';
+    // ---- 機材の到着 ----
+    if (g.logi && g.logi.late) {
+      body += '<div class="pubox pen"><b>📦 機材の到着が遅れた</b>' +
+        '<small>通関で止まり、金曜の走行がほとんど使えませんでした。' +
+        'セットアップの効果は半分以下、パーツのコンディションも -' + D.LOGI_DELAY_COND +
+        '、クルーの疲労も増えています。<br>' +
+        '「🚚 輸送」で運びかたと積荷を見直せます。</small></div>';
+    }
+
+    // ---- パワーユニットの状態と載せ替え ----
+    body += puBoxHTML(t);
 
     const subs = lineup.filter(d => d.standIn || d.hurt);
     if (subs.length) {
@@ -11341,6 +11984,19 @@ window.GP = window.GP || {};
       { label: '🔧 フリー走行へ', cls: 'primary', fn: cmdPractice },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
     ]);
+
+    // PUの載せ替えは、決めた作戦を残したままボックスだけ差し替える
+    (function () {
+      const redraw = () => {
+        const box = $('modalBody').querySelector('.pubox');
+        if (!box) return;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = puBoxHTML(t);
+        box.parentNode.replaceChild(tmp.firstChild, box);
+        bindPuBox(redraw);
+      };
+      bindPuBox(redraw);
+    })();
 
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.stratbtn'), b => {
       b.onclick = () => {
@@ -11445,9 +12101,12 @@ window.GP = window.GP || {};
   function doPractice(i) {
     const x = PRACTICE[i];
     if (!x || (x.avail && !x.avail())) return;
-    pendingStrategy.setup = x.setup;
+    // 荷が遅れた週は、走れる時間そのものが足りない
+    const late = !!(g.logi && g.logi.late);
+    pendingStrategy.setup = late ? 1 + (x.setup - 1) * 0.4 : x.setup;
     const msg = x.run();
     if (msg) { U.log(g, x.icon + ' ' + msg); U.toast(x.icon + ' ' + msg, 'good'); }
+    if (late) U.log(g, '⏳ 機材の到着が遅れたぶん、走行時間が足りなかった（効果は半分以下）。', 'warn');
     GP.sound.play('confirm');
     S.save(g);
     U.closeModal();
@@ -11777,7 +12436,14 @@ window.GP = window.GP || {};
         gap: (me && win && lap(me) && lap(win)) ? Math.round((lap(me) - lap(win)) * 100) / 100 : 0,
         pits: (me.pits || []).length,
         pen: me.penalty || 0,
-        laps: laps
+        laps: laps,
+        // 反省会でのひとことを、その日の中身に合わせるための材料
+        misses: me.misses || 0,
+        passes: me.passes || 0,
+        reason: me.dnfReason || '',
+        rain: !!(currentRes.weather && currentRes.weather.wet),
+        sc: !!currentRes.safetyCar,
+        started: me.grid || 0
       } : null;
       g.debrief = 2;                 // endWeek で1つ減り、次の週に反省会ができる
     }
@@ -13155,21 +13821,64 @@ window.GP = window.GP || {};
       .find(x => x.isPlayer).drivers;
     // ドライバーの言い分は二人で重ならないようにする
     const POOL = {
+      win: ['「勝ちました。ここまで来られたのは、全員のおかげです」',
+            '「最後の数周は、うしろを見ないようにしていました」',
+            '「クルマが完璧でした。これを続けましょう」',
+            '「表彰台のいちばん高いところは、やっぱり景色が違いますね」',
+            '「ずっとこの日を待っていました。次も勝ちます」'],
       dnf: ['「途中で終わってしまった。次は必ず持ち帰ります」',
             '「あそこは避けられました。自分の責任です」',
-            '「マシンは悪くなかった。それだけに悔しい」'],
+            '「マシンは悪くなかった。それだけに悔しい」',
+            '「手応えはあっただけに、最後まで走りたかった」',
+            '「歩いて戻る道が、いちばん長く感じます」',
+            '「悔やんでも仕方ない。次の週末に切り替えます」'],
+      broke: ['「止まる直前、いつもと違う音がしていました」',
+              '「マシンを信じて踏んでいただけに、残念です」',
+              '「壊れたものは仕方ない。原因を潰しましょう」',
+              '「ペースは良かった。あれで走り切れていたら…」'],
+      crash: ['「自分のミスです。言い訳はしません」',
+              '「あそこは行くべきではなかった。次に活かします」',
+              '「相手も引かなかった。ああなると避けようがない」',
+              '「一瞬でした。気づいたら壁が来ていました」'],
       good: ['「マシンは良かった。あと少しで、もっと上に行けます」',
              '「今日は全部つながりました。この形を続けたい」',
-             '「タイヤの使い方がはまりました」'],
+             '「タイヤの使い方がはまりました」',
+             '「表彰台に上がると、また欲が出ますね」',
+             '「クルマが素直でした。行きたいところに行ってくれる」',
+             '「あと1周あれば、前を捕まえられていました」'],
       far: ['「コーナーの入口で我慢が利かない。そこが直れば違います」',
             '「ストレートで並ばれると、もう抵抗できません」',
             '「クルマがまだ言うことを聞いてくれない感じがします」',
-            '「前の車について行くと、すぐタイヤが終わってしまう」'],
+            '「前の車について行くと、すぐタイヤが終わってしまう」',
+            '「正直、今日は何をしても届かなかったと思います」',
+            '「乗り方でごまかせる範囲を、もう超えています」',
+            '「速い車の後ろで、勉強させてもらいました」',
+            '「立ち上がりで置いていかれる。そこが全部です」'],
       near: ['「悪くない感触でした。あとは細かいところです」',
              '「あと少しの詰めだと思います。方向は合っています」',
-             '「ピットのタイミング次第では、もう一つ前に行けました」']
+             '「ピットのタイミング次第では、もう一つ前に行けました」',
+             '「あと0.2秒。そこに全部が詰まっています」',
+             '「戦えている実感はあります。もう一押しです」',
+             '「今日の順位は、いまの実力どおりだと思います」'],
+      rain: ['「あの路面では、誰もが手探りでした」',
+             '「見えないんです。前の車のしぶきで、本当に何も」',
+             '「雨は嫌いじゃありません。差を詰められる日ですから」'],
+      messy: ['「今日は自分が乱れました。集中を切らさないようにします」',
+              '「何度も飛び出しかけました。限界の見極めが甘かった」',
+              '「あれだけミスをして、この順位なら上出来かもしれません」'],
+      charge: ['「後ろから来る日は、走っていて楽しいですね」',
+               '「抜けるクルマでした。それがいちばんの収穫です」',
+               '「前が詰まっていたので、隙を探し続けました」']
     };
-    const bucket = lr.dnf ? 'dnf' : lr.pos <= 3 ? 'good' : lr.gap > 1.2 ? 'far' : 'near';
+    // その日いちばん語るべきことを選ぶ。ミスの多い日、雨の日、追い上げた日…
+    const bucket = lr.dnf ? (['クラッシュ', 'コースアウト', '接触'].indexOf(lr.reason) >= 0
+                             ? (Math.random() < 0.6 ? 'crash' : 'dnf')
+                             : (Math.random() < 0.6 ? 'broke' : 'dnf'))
+                 : lr.pos === 1 ? 'win'
+                 : lr.misses >= 2 && Math.random() < 0.5 ? 'messy'
+                 : lr.rain && Math.random() < 0.45 ? 'rain'
+                 : lr.started - lr.pos >= 5 && Math.random() < 0.55 ? 'charge'
+                 : lr.pos <= 3 ? 'good' : lr.gap > 1.2 ? 'far' : 'near';
     const used = [];
     lineup.forEach(d => {
       const p = S.persOf(d);
@@ -13179,23 +13888,55 @@ window.GP = window.GP || {};
       said.push({ icon: p.icon, who: d.name + '（ドライバー）', text: t, face: d });
     });
     if (eng) {
+      const gapTxt = lr.gap.toFixed(2);
       said.push({ icon: '👷', who: eng.name + '（' +
         (D.STAFF_TYPES.find(x => x.key === eng.type) || {}).name + '）',
-        text: lr.gap > 0.05
-          ? '「優勝車とは1周 ' + lr.gap.toFixed(2) + '秒。どこで失っているかは、だいたい見えました」'
-          : '「タイムの出方は良好です。この方向で詰めましょう」' });
+        text: lr.gap > 1.2
+          ? S.pick(['「優勝車とは1周 ' + gapTxt + '秒。これは乗り方では埋まりません」',
+                    '「1周 ' + gapTxt + '秒。素性のところで負けています。設計から見直しましょう」',
+                    '「差は ' + gapTxt + '秒。どこか一つではなく、全部が少しずつ足りていません」'])
+          : lr.gap > 0.05
+            ? S.pick(['「優勝車とは1周 ' + gapTxt + '秒。どこで失っているかは、だいたい見えました」',
+                      '「1周あたり ' + gapTxt + '秒。中速コーナーの立ち上がりに集約されています」',
+                      '「差は ' + gapTxt + '秒。ここまで来れば、詰められる数字です」',
+                      '「' + gapTxt + '秒。データを見るかぎり、あと一段は残っています」'])
+            : S.pick(['「タイムの出方は良好です。この方向で詰めましょう」',
+                      '「今日のデータはきれいです。狙いどおりに出ています」',
+                      '「速さは足りています。あとは週末の運び方の問題です」']) });
     }
     if (strat) {
       said.push({ icon: '🧠', who: strat.name + '（ストラテジスト）',
-        text: lr.pen ? '「' + lr.pen + '秒の加算が痛かった。仕掛けどころを整理します」'
-             : lr.pits >= 2 ? '「' + lr.pits + 'ストップでした。1回に減らせた可能性はあります」'
-             : '「' + lr.pits + 'ストップ。読みは当たっていました」' });
+        text: lr.pen
+              ? S.pick(['「' + lr.pen + '秒の加算が痛かった。仕掛けどころを整理します」',
+                        '「裁定で ' + lr.pen + '秒。あの場面は引く判断もありました」',
+                        '「' + lr.pen + '秒は、順位そのものです。次は線を越えないように」'])
+              : lr.sc
+                ? S.pick(['「セーフティカーで作戦が一度壊れました。次はもう一枚用意しておきます」',
+                          '「隊列が詰まったところで、選択肢が限られました」',
+                          '「あのタイミングで入れたのは正解でした」'])
+                : lr.pits >= 3
+                  ? S.pick(['「' + lr.pits + '回は多い。ピットで失った時間が響きました」',
+                            '「刻みすぎました。次はもう少し引っぱります」'])
+                  : lr.pits >= 2
+                    ? S.pick(['「' + lr.pits + 'ストップでした。1回に減らせた可能性はあります」',
+                              '「' + lr.pits + '回。悪くはないですが、最適だったかは微妙です」'])
+                    : S.pick(['「' + lr.pits + 'ストップ。読みは当たっていました」',
+                              '「引っぱりきりました。タイヤの使い方が良かった」']) });
     }
     if (mech) {
       const pu = S.puOf(g);
+      const spare = pu.pool.length;
+      const leftU = Math.max(0, D.PU_LIMIT - pu.used);
       said.push({ icon: '🔩', who: mech.name + '（メカニック）',
-        text: pu.life < 30 ? '「パワーユニットが残り' + Math.round(pu.life) + '%。載せ替えの週が要ります」'
-             : '「マシンは無事です。消耗品だけ替えておきます」' });
+        text: pu.life < 30
+              ? (spare
+                 ? '「PUが残り' + Math.round(pu.life) + '%。棚に' + spare + '基取ってあります、積み替えますか」'
+                 : leftU > 0
+                   ? '「PUが残り' + Math.round(pu.life) + '%。出力が落ちています。新品はあと' + leftU + '基使えます」'
+                   : '「PUが残り' + Math.round(pu.life) + '%。これ以上替えると降格です。だましだまし行きましょう」')
+              : pu.life < 60
+                ? '「PUは残り' + Math.round(pu.life) + '%。まだ持ちますが、そろそろ替え時を決めてください」'
+                : '「マシンは無事です。消耗品だけ替えておきます」' });
     }
 
     const FOCUS = [
@@ -13782,15 +14523,31 @@ window.GP = window.GP || {};
       '／作業ミス +' + (cw.mistake * 100).toFixed(1) + '%<br>' +
       '「☕ 休養」で回復します。オフシーズンには抜けます。</small></div>';
 
-    body += '<div class="sub">次戦 ' + nextTrack.country + ' ' + esc(nextTrack.name) +
-      ' への輸送</div><div class="pick">';
+    g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
+    const curLoad = S.logiLoad(g);
+    // 選択肢を試したときの数字を、実際の関数から出す
+    const withChoice = (plan, load, fn) => {
+      const bp = g.logi.plan, bl = g.logi.load;
+      g.logi.plan = plan; g.logi.load = load;
+      const v = fn();
+      g.logi.plan = bp; g.logi.load = bl;
+      return v;
+    };
+    const nowCost = S.logiCost(g, nextTrack);
+    const nowRisk = S.logiRisk(g, nextTrack);
+
+    body += '<div class="logi-now"><b>🌍 次戦 ' + nextTrack.country + ' ' + esc(nextTrack.name) +
+      '</b><span>距離 ' + (nextTrack.far >= 1.35 ? '★★★ 遠い' :
+        nextTrack.far >= 1.0 ? '★★ ふつう' : '★ 近い') +
+      '（費用 ×' + nextTrack.far.toFixed(2) + '）</span>' +
+      '<span>いまの手配なら <b>💰' + money(nowCost) + '万</b>／遅延の危険 <b class="' +
+      (nowRisk > 0.18 ? 'bad' : nowRisk > 0.08 ? 'warn' : 'good') + '">' +
+      Math.round(nowRisk * 100) + '%</b></span></div>';
+
+    body += '<div class="sub">運びかた</div><div class="pick">';
     D.LOGI_PLANS.forEach(pl => {
-      const save = { plan: (g.logi || {}).plan };
-      g.logi = g.logi || { plan: 'std', crew: 0 };
-      const before = g.logi.plan;
-      g.logi.plan = pl.key;
-      const cost = S.logiCost(g, nextTrack);
-      g.logi.plan = before;
+      const cost = withChoice(pl.key, g.logi.load, () => S.logiCost(g, nextTrack));
+      const risk = withChoice(pl.key, g.logi.load, () => S.logiRisk(g, nextTrack));
       const on = pl.key === cur.key;
       body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="logi:' + pl.key + '">' +
         '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
@@ -13799,19 +14556,60 @@ window.GP = window.GP || {};
         'クルーの疲労 ' + (pl.fatigue > 0 ? '+' + pl.fatigue : pl.fatigue) + '／' +
         'マシンの仕上がり ' + (pl.perf === 1 ? '±0' :
           (pl.perf > 1 ? '+' : '') + ((pl.perf - 1) * 100).toFixed(1) + '%') +
+        '／遅延 ' + Math.round(risk * 100) + '%' +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pl.note) + '</b></span></button>';
     });
-    body += '</div><p class="desc">遠いコースほど輸送費は高くつきます。' +
-      'ロジスティクス責任者を雇うと、費用も疲労も抑えられます。</p>';
+    body += '</div>';
+
+    body += '<div class="sub">積荷</div>' +
+      '<p class="desc">予備とツールをどれだけ持っていくか。' +
+      '積むほど現場で直せますが、重いぶん高くつき、クルーも消耗します。</p><div class="pick">';
+    D.LOGI_LOADS.forEach(ld => {
+      const cost = withChoice(g.logi.plan, ld.key, () => S.logiCost(g, nextTrack));
+      const risk = withChoice(g.logi.plan, ld.key, () => S.logiRisk(g, nextTrack));
+      const on = ld.key === curLoad.key;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="load:' + ld.key + '">' +
+        '<span class="pb-ic" style="background:' + ld.color + '">' + ld.icon + '</span>' +
+        '<span class="pb-body"><b>' + ld.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+        '<small>' + ld.desc + '<br>' +
+        (ld.spares ? 'レース後に ' + ld.spares + '点を手当て（+' + D.LOGI_SPARE_FIX + '）'
+                   : '<b class="warn">現場での手当てなし</b>') +
+        '／パーツの傷み ×' + ld.wear.toFixed(2) +
+        '／遅延 ' + Math.round(risk * 100) + '%' +
+        '</small></span>' +
+        '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(ld.note) + '</b></span></button>';
+    });
+    body += '</div>';
+
+    // ---- この先のコースと、かかる費用の見通し ----
+    body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
+    for (let k = 0; k < 4; k++) {
+      const idx = (g.nextRace + k) % D.TRACKS.length;
+      const tk = D.TRACKS[idx];
+      const c = S.logiCost(g, tk);
+      body += '<span class="lc' + (k === 0 ? ' on' : '') + (tk.far >= 1.35 ? ' far' : '') + '">' +
+        tk.country + '<b>' + esc(tk.name.slice(0, 7)) + '</b>' +
+        '<em>💰' + money(c) + '</em></span>';
+    }
+    body += '</div><p class="desc">遠いコースほど輸送費も遅延の危険も上がります。' +
+      '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
+      'ロジスティクス責任者を雇うと、費用も疲労も遅延も抑えられます。</p>';
+
     U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
     bindPick(k => {
-      const key = k.split(':')[1];
-      g.logi = g.logi || { plan: 'std', crew: 0 };
-      g.logi.plan = key;
-      const pl = S.logiPlan(g);
+      const [kind, key] = k.split(':');
+      g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
+      if (kind === 'logi') {
+        g.logi.plan = key;
+        const pl = S.logiPlan(g);
+        U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
+      } else {
+        g.logi.load = key;
+        const ld = S.logiLoad(g);
+        U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
+      }
       GP.sound.play('confirm');
-      U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
       S.save(g); render(); cmdLogi();
     });
   }
@@ -14129,9 +14927,10 @@ window.GP = window.GP || {};
       '<span>🔧 ピット作業 <b>' + (20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
         - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5 + cw.pit).toFixed(1) + '秒</b></span>' +
       '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
-      '<span>⚙️ PU ' + S.puOf(g).used + '基目 <b class="' +
+      '<span>⚙️ PU ' + S.puOf(g).n + '基目 <b class="' +
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +
-        '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）</span>' +
+        '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基／保管 ' +
+        S.puOf(g).pool.length + '基）</span>' +
       '<span>👷 開発の厚み <b>' + (S.staffBonus(g, 'engineer') * 100 / 3).toFixed(0) + '</b></span>' +
       '<span>🧾 今季の予算 <b class="' + (S.capSpent(g) > S.costCap(g) ? 'bad' : '') + '">' +
         money(S.capSpent(g)) + '/' + money(S.costCap(g)) + '万</b></span>' +

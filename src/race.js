@@ -14,6 +14,143 @@ GP.race = (function () {
     attack:  { name: '攻める',   icon: '🔥', pace: 0.009,  risk: 1.85, tyre: 1.25 }
   };
 
+  /* =========================================================
+     実況のことば
+     同じ出来事でも、毎回ちがう言い回しで出てくるようにする。
+     ところどころ、そのコースの名物コーナーの名前を混ぜて
+     「どこで何が起きたのか」が絵として浮かぶようにしている
+     {A}=仕掛けた側／{B}=やられた側／{C}=コーナー名／{P}=順位
+     ========================================================= */
+  function lm(track) {
+    const l = (track && track.landmarks) || [];
+    return l.length ? S.pick(l) : 'コーナー';
+  }
+  function say(list, v) {
+    v = v || {};
+    return S.pick(list)
+      .replace(/\{A\}/g, v.A == null ? '' : v.A)
+      .replace(/\{B\}/g, v.B == null ? '' : v.B)
+      .replace(/\{C\}/g, v.C == null ? '' : v.C)
+      .replace(/\{P\}/g, v.P == null ? '' : v.P);
+  }
+
+  const SAY = {
+    /* ストレートで抜いた */
+    passStraight: [
+      '{A} ストレートで {B} を刺した！',
+      '{A}、スリップから抜け出して {B} の前へ！',
+      '{A} が {B} を並ぶ間もなく置き去りに！',
+      '{A}、DRSを開けて一気に {B} をかわす！',
+      '{A} と {B}、真横に並んだまま——先に前に出たのは {A}！',
+      '{A} が {B} の真後ろから飛び出した！ 完璧な仕掛け！',
+      '{A}、加速で勝った！ {B} は成す術なし！',
+      '{A} が {B} をブレーキングで仕留めた！'
+    ],
+    /* コーナーで抜いた */
+    passCorner: [
+      '{A} {C} で {B} の内に飛び込んだ！',
+      '{A}、{C} の立ち上がりで {B} をとらえた！',
+      '{A} が {C} で外から並んだ——そのまま前へ！',
+      '{A}、{C} でひとつ深く突っ込んで {B} を攻略！',
+      '{A} が {B} のわずかな乱れを見逃さない！ {C} で前へ！',
+      '{A}、{C} を一段速いラインで抜けて {B} をパス！',
+      '{A} と {B}、{C} で並走——競り勝ったのは {A}！',
+      '{A} が {C} で強引に鼻をねじ込んだ！'
+    ],
+    /* 抜いてトップに立った */
+    passLead: [
+      '{A} が {B} をとらえた！ ついにトップ！',
+      '{A}、{B} を抜いて首位に立つ！ レースが動いた！',
+      '先頭が入れ替わった！ {A} が {B} の前へ！',
+      '{A} がついに {B} を仕留めた——ここからは自分のレースだ！'
+    ],
+    /* 終盤の抜き */
+    passLate: [
+      '残りわずか、{A} が {B} を抜いた！ この一撃は大きい！',
+      '土壇場！ {A} が {B} をかわして {P}位に浮上！',
+      '最後の最後で {A}！ {B} は守りきれなかった！'
+    ],
+    /* 抜けずに詰まった */
+    stuck: [
+      '{A}、{B} の背後に貼りつくが前に出られない…',
+      '{A} が何度も顔を出すが、{B} が閉める！',
+      '{A}、{C} で並びかけたが押し戻された…',
+      '{A} は {B} の乱気流に苦しんでいる。近づくほど曲がらない',
+      '{A}、仕掛けどころを探しているが糸口がない…',
+      '{B} のブロックが巧い。{A} はまた1周を失う'
+    ],
+    /* 小さなミス */
+    miss: [
+      '{A} {C} で膨らんだ！ タイムをロス…',
+      '{A}、{C} の入口でわずかに乱れた…',
+      '{A} が一瞬アンダーステアに苦しむ！',
+      '{A}、縁石に乗りすぎてマシンが跳ねた！',
+      '{A} がブレーキを残しすぎた…立ち上がりが鈍い',
+      '{A}、シフトを一段まちがえた！ もったいない',
+      '{A} が {C} でラインを外した！'
+    ],
+    /* タイヤが終わっているときのミス */
+    missTyre: [
+      '{A} {C} でフロントをロックさせた！ 白煙が上がる！',
+      '{A}、タイヤが音を上げている。{C} で止まりきれない！',
+      '{A} が {C} でずるりと滑った——タイヤの限界だ',
+      '{A}、リアが出た！ タイヤはもう終わっている',
+      '{A} が必死にカウンターを当てる！ グリップがない！'
+    ],
+    /* 雨でのミス */
+    missWet: [
+      '{A} {C} で水たまりに乗った！ 大きくスライド！',
+      '{A}、視界がない中で {C} をオーバーラン！',
+      '{A} が白線に乗ってヒヤリ！ よく立て直した！',
+      '{A}、リアが流れた！ 雨がじわじわ効いてくる',
+      '{A} が {C} でハイドロプレーニング！ 肝が冷える！'
+    ],
+    /* 攻めすぎたときのミス */
+    missPush: [
+      '{A}、攻めすぎた！ {C} で完全に行き過ぎた！',
+      '{A} が突っ込みすぎてコースを外れた！',
+      '{A}、限界を超えた！ {C} で大きくはらんだ！',
+      '{A} が無理な体勢から立て直す！ 危ない！'
+    ],
+    /* 大きなミス（スピン級） */
+    missBig: [
+      '{A} スピン！ {C} でコマのように回った！',
+      '{A} がコースを飛び出した！ 砂煙が上がる！',
+      '{A}、完全に姿勢を失った！ グラベルまで運ばれる！',
+      '{A} スピンターン！ なんとかコースには戻ったが大きなロス…',
+      '{A} が {C} でグラベルへ！ 順位を大きく落とす！'
+    ],
+    /* 機械の故障でリタイア */
+    dnfMech: [
+      '{A} が{B}でリタイア…',
+      '{A}、{B}！ 白煙とともにマシンを止める…',
+      '{A} のマシンが力を失った——{B}だ',
+      '{A}、{B}でストップ。ガレージが沈黙する…',
+      '{A} が路肩にマシンを寄せる。{B}——今日はここまで'
+    ],
+    /* クラッシュでリタイア */
+    dnfCrash: [
+      '{A} が{B}！ ここでレースを終える…',
+      '{A}、{B}！ マシンは大きなダメージ…',
+      '{A} が{B}でストップ！ 無線に応答はない…',
+      '{A}、{B}——一瞬の出来事だった',
+      '{A} が {C} で{B}！ 週末が終わってしまった…'
+    ],
+    /* ピットイン */
+    pit: [
+      '{A} ピットイン！ {B}に交換 ({P}秒)',
+      '{A} が動いた！ {B}を履いて送り出す ({P}秒)',
+      '{A} ピットへ。{B}に履き替えて再スタート ({P}秒)',
+      '{A}、タイヤ交換！ {B}で残りを走りきる ({P}秒)'
+    ],
+    /* 手間取ったピット */
+    pitSlow: [
+      '{A} ピットイン！ …作業が止まった！ {B}に交換 ({P}秒)',
+      '{A} ピットイン、しかしタイヤがはまらない！ {B} ({P}秒)',
+      '{A} ピットで痛恨のロス！ {B}に交換 ({P}秒)'
+    ]
+  };
+
   /* ---------- エントリーリスト作成 ---------- */
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
@@ -51,8 +188,12 @@ GP.race = (function () {
         // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
         const bd0 = t.isPlayer ? myBody : evenBody;
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
+        // パワーユニットの状態と出力モードは、そのまま走りの速さに出る。
+        // へたったユニットで我慢するほど、じわじわ順位を落としていく
         const perf = (t.car * 0.60 + drv * 0.40) * form[ti]
-                   * (t.isPlayer ? S.logiPlan(g).perf * ((strategy && strategy.setup) || 1) : 1);
+                   * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
+                                 * ((strategy && strategy.setup) || 1) : 1)
+                   + (t.isPlayer ? S.puPerf(g) : 0);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
@@ -187,7 +328,7 @@ GP.race = (function () {
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
     const bestSectorBy = [null, null, null];
-    const scInfo = { from: 0, laps: 0 };
+    const scInfo = { from: 0, laps: 0, virtual: false };
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
@@ -365,21 +506,65 @@ GP.race = (function () {
         const jitter = (e.sk('precise') ? 0.45 : 1) * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.42);
         t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
 
+        // ---- ドライバーのミス ----
+        // 終わったタイヤ、濡れた路面、攻めすぎ、切れた集中——
+        // どれかが噛み合うと、ふっと足元をすくわれる。
+        // 乗りやすいマシン（ドライバビリティ）ほど、これが起きにくい
+        if (lap > 1) {
+          const tyreOver = Math.max(0, e.tyreAge - ty.life);
+          let mp = 0.0090
+                 * (1 + (e.st.risk - 1) * 0.50)
+                 * (1.55 - e.driver.mental / 190)
+                 * (1 + tyreOver * 0.075)
+                 * (0.55 + wx.chaos * 0.45)
+                 * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
+                 * (e.sk('precise') ? 0.58 : 1)
+                 * (e.driver.hurt ? 1.35 : 1);
+          if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
+          if (Math.random() < mp) {
+            // 大きく崩したか、こらえたか
+            const big = Math.random() < 0.16 + (e.st.risk - 1) * 0.10;
+            const lost = big ? S.rnd(4.5, 11.0) : S.rnd(0.4, 2.4);
+            t += lost;
+            e.tyreAge += big ? 1.6 : 0.5;
+            e.misses = (e.misses || 0) + 1;
+            // 何が原因だったかで、言い回しを変える
+            const pool = big ? SAY.missBig
+                       : wx.wet && Math.random() < 0.7 ? SAY.missWet
+                       : tyreOver > 0 ? SAY.missTyre
+                       : e.st.risk > 1.4 && Math.random() < 0.6 ? SAY.missPush
+                       : SAY.miss;
+            if (e.isPlayer || big || Math.random() < 0.22) {
+              events.push({ lap: lap, type: 'miss', car: e,
+                text: say(pool, { A: e.driver.name, C: lm(track) }) +
+                      '（-' + lost.toFixed(1) + '秒）' });
+            }
+            // 大きく外れたまま順位を保っていると、審査が入る
+            if (big && Math.random() < 0.18) givePenalty(e, 'limits', lap, events, laps);
+          }
+        }
+
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
         // セーフティカー中は全車そろって流す。差はほとんど開かない
         const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
         if (underSC) {
-          t = track.base * 1.34 + S.rnd(-0.15, 0.15);
-          e.tyreAge = Math.max(0, e.tyreAge - 0.35);      // 流している間はタイヤも保つ
+          if (scInfo.virtual) {
+            // バーチャル：全車が同じ割合で落とすので、差はそのまま残る
+            t *= 1.26;
+            e.tyreAge = Math.max(0, e.tyreAge - 0.2);
+          } else {
+            t = track.base * 1.34 + S.rnd(-0.15, 0.15);
+            e.tyreAge = Math.max(0, e.tyreAge - 0.35);    // 流している間はタイヤも保つ
+          }
         }
 
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
           // セーフティカー中は隊列が遅いので、失う時間が小さい
-          const scCheap = underSC ? 0.42 : 1;
+          const scCheap = underSC ? (scInfo.virtual ? 0.68 : 0.42) : 1;
           const miss = e.isPlayer ? 0.035 + cw.mistake : 0.035;
           const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < miss ? S.rnd(3, 9) : 0)) * scCheap;
           t += loss;
@@ -400,7 +585,8 @@ GP.race = (function () {
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             events.push({ lap, type: 'pit', car: e,
-              text: e.driver.name + ' ピットイン！ ' + nt.name + 'に交換 (' + loss.toFixed(1) + '秒)' });
+              text: say(loss > e.pitLoss + 3 ? SAY.pitSlow : SAY.pit,
+                { A: e.driver.name, B: nt.name, P: loss.toFixed(1) }) });
           }
         }
         e.pitTime[lap - 1] = pitAdd;
@@ -464,11 +650,13 @@ GP.race = (function () {
             // 成功：前に出る。詰まっていた時間もここで解ける
             atk.cum[lap - 1] = def.cum[lap - 1] - S.rnd(0.08, 0.28);
             atk.passes = (atk.passes || 0) + 1;
-            if (atk.isPlayer || def.isPlayer) {
-              events.push({ lap: lap, type: 'pass', car: atk,
-                text: atk.driver.name + (onStraight
-                  ? ' ストレートで ' + def.driver.name + ' を刺した！'
-                  : ' コーナーで ' + def.driver.name + ' の内に飛び込んだ！') });
+            // 実況。自チームが絡む攻防と、上位の攻防は必ず伝える
+            if (atk.isPlayer || def.isPlayer || i <= 3) {
+              const v = { A: atk.driver.name, B: def.driver.name, C: lm(track), P: i };
+              const pool = i === 1 ? SAY.passLead
+                         : lap > laps * 0.85 ? SAY.passLate
+                         : onStraight ? SAY.passStraight : SAY.passCorner;
+              events.push({ lap: lap, type: 'pass', car: atk, text: say(pool, v) });
             }
             // 強引に決めた一撃は、あとで咎められることがある
             // グリッドで審査の基準を聞いてきた週は、咎められにくい
@@ -482,14 +670,19 @@ GP.race = (function () {
             let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
             if (atk.sk('passer')) stuck *= 0.55;
             atk.cum[lap - 1] += stuck;
+            // 抜けなかったことも、たまには言葉にする（毎周だとうるさいので控えめに）
+            if ((atk.isPlayer || def.isPlayer) && Math.random() < 0.16) {
+              events.push({ lap: lap, type: 'miss', car: atk,
+                text: say(SAY.stuck, { A: atk.driver.name, B: def.driver.name, C: lm(track) }) });
+            }
             if (!onStraight && Math.random() < 0.05 + (atk.st ? (atk.st.risk - 1) * 0.05 : 0)) {
               const miss = S.rnd(0.7, 2.3);
               atk.cum[lap - 1] += miss;
               atk.tyreAge += 0.6;                     // 無理をするとタイヤも傷む
               if (atk.isPlayer) {
                 events.push({ lap: lap, type: 'miss', car: atk,
-                  text: atk.driver.name + ' 仕掛けきれずにコースを外れかけた…（-' +
-                        miss.toFixed(1) + '秒）' });
+                  text: say(SAY.missPush, { A: atk.driver.name, C: lm(track) }) +
+                        '（-' + miss.toFixed(1) + '秒）' });
               }
               // はみ出したまま順位を保っていると、審査が入る
               if (Math.random() < 0.24 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) givePenalty(atk, 'limits', lap, events, laps);
@@ -527,10 +720,12 @@ GP.race = (function () {
         const r = Math.random();
         if (r < mech) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
-          events.push({ lap, type: 'dnf', car: e, text: e.driver.name + ' が' + e.dnfReason + 'でリタイア…' });
+          events.push({ lap, type: 'dnf', car: e,
+            text: say(SAY.dnfMech, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
         } else if (r < mech + crash) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['クラッシュ', 'コースアウト', '接触']);
-          events.push({ lap, type: 'dnf', car: e, text: e.driver.name + ' が' + e.dnfReason + '！ ここでレースを終える…' });
+          events.push({ lap, type: 'dnf', car: e,
+            text: say(SAY.dnfCrash, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
           // マシンがコース上に止まると、セーフティカーが入ることがある
           if (scLaps <= 0 && lap < laps - 2 && e.dnfReason !== 'コースアウト' &&
               Math.random() < 0.62 + track.risk * 0.18) {
@@ -544,20 +739,29 @@ GP.race = (function () {
       // ここで入るか引っ張るかが、レースの分かれ目になる。
       if (scPending && !scDone) {
         scPending = false; scDone = true;
-        scLaps = S.rint(3, 5);
+        // 障害物がコース脇で済むならバーチャル、コース上に残るなら実車が出る。
+        // バーチャルは全車が一斉に減速するだけで、差はそのまま残る。
+        const virtual = Math.random() < 0.45;
+        scLaps = virtual ? S.rint(2, 3) : S.rint(3, 5);
         scFrom = lap + 1;
-        scInfo.from = scFrom; scInfo.laps = scLaps;
+        scInfo.from = scFrom; scInfo.laps = scLaps; scInfo.virtual = virtual;
         const run = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
-        const lead = run.length ? run[0].cum[lap - 1] : 0;
-        run.forEach((e, i) => {
-          // 先頭のすぐ後ろに一列に並び直す
-          e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
-          e.scBunched = true;
-        });
+        if (!virtual) {
+          const lead = run.length ? run[0].cum[lap - 1] : 0;
+          run.forEach((e, i) => {
+            // 先導車の後ろに一列に並び直す
+            e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
+            e.scBunched = true;
+          });
+        }
         events.push({ lap: lap, type: 'sc',
-          text: '🚨 セーフティカー！ 隊列が一列に詰まる（' + scLaps + '周）' });
-        // セーフティカー中はピットの損失が小さい。作戦が動く
+          text: virtual
+            ? '🟡 バーチャルセーフティカー！ 全車が一斉にペースを落とす（' + scLaps + '周）'
+            : '🚨 セーフティカー出動！ 先導車の後ろに一列に詰まる（' + scLaps + '周）' });
+        // 隊列が遅いあいだはピットの損失が小さい。作戦が動く
+        // （バーチャルは全車が同じだけ遅いので、得は小さい）
         run.forEach(e => {
+          if (virtual && Math.random() < 0.55) return;
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
           // 予定が遠くても、安いピットなら前倒しする価値がある
@@ -758,28 +962,49 @@ GP.race = (function () {
       notes.push('🩹 ' + d.name + ' が復帰しました。');
     });
 
-    // パーツの消耗
-    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
+    // パーツの消耗。予備もツールも置いてきた週は、現場で手当てができない
+    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
+    // 持ってきた予備で、いちばん傷んだところを直しておく
+    const fixed = S.useSpares(g);
+    if (fixed) {
+      notes.push('🧰 積んできた予備で ' + fixed.n + '点を手当てした（コンディション +' +
+        fixed.gain + '）。');
+    } else if (S.logiLoad(g).spares <= 0) {
+      notes.push('🎒 軽装で来たため、傷んだ機材はそのまま持ち帰るしかなかった。');
+    }
     // パワーユニットの消耗。攻める作戦ほど早く傷む
     const pushMul = res.classified.filter(e => e.isPlayer)
       .reduce((a, e) => Math.max(a, e.st ? e.st.risk : 1), 1) * (sp ? sp.wear * 0.4 + 0.6 : 1);
     if (g.pu) g.pu.grid = 0;                     // 前回の降格ぶんは消化済み
     const puRes = S.usePU(g, res.track, 0.55 + pushMul * 0.45);
     if (puRes.swapped) {
-      if (puRes.over) {
-        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入。使用基数の上限（' +
-          D.PU_LIMIT + '基）を超えたため、次戦は ' + puRes.grid + 'グリッド降格。');
+      if (puRes.reused) {
+        notes.push('⚙️ パワーユニットを使い切ったので、取ってあった ' + puRes.reused +
+          '基目（残り ' + puRes.life + '%）に載せ替えた。基数は増えていない。');
       } else {
-        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（今季あと ' +
-          Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+        // 新品は買うもの。走り切ってしまったぶんも、ちゃんと請求が来る
+        const puCost = S.puFreshCost(g);
+        g.funds -= puCost;
+        if (puRes.over) {
+          notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入（' + puCost +
+            '万）。使用基数の上限（' + D.PU_LIMIT + '基）を超えたため、次戦は ' +
+            puRes.grid + 'グリッド降格。');
+        } else {
+          notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（' + puCost +
+            '万／今季あと ' + Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+        }
       }
-    } else if (S.puOf(g).life < 25) {
-      notes.push('⚙️ パワーユニットの残りが ' + Math.round(S.puOf(g).life) +
-        '%。そろそろ載せ替えが要る（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）。');
+    } else if (S.puOf(g).life < 40) {
+      const pu2 = S.puOf(g);
+      notes.push('⚙️ パワーユニットの残りが ' + Math.round(pu2.life) +
+        '%。出力が ' + Math.round((1 - S.puForm(g)) * 100) + '%、信頼性が ' +
+        Math.round(S.puRelDrop(g)) + ' 落ちている（今季あと ' +
+        Math.max(0, D.PU_LIMIT - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
     }
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);
     g.funds -= ship;
+    if (g.logi) g.logi.late = false;      // 今回の遅延は消化した
     const crewBefore = S.crewPenalty(g).level;
     S.tireCrew(g);
     const crewNow = S.crewPenalty(g).level;

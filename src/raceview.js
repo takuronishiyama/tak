@@ -833,6 +833,19 @@ GP.raceview = (function () {
       emit(e, pt2, vel, o.out, wet);
       drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel, pt2.steer);
     }
+    // ---- セーフティカー本体 ----
+    // 実車が出ているあいだだけ、隊列の先頭のさらに前を走らせる
+    const sc = res.safetyCar;
+    if (sc && !sc.virtual) {
+      const lead = ord.filter(o => !o.out)[0];
+      if (lead) {
+        const lLap = lapInfo(lead.e, t).lap;
+        if (lLap >= sc.from && lLap < sc.from + sc.laps) {
+          const p2 = placeInLap(lead.e, lead.p + 0.014);
+          drawSafetyCar(p2.x, p2.y, p2.ang, t);
+        }
+      }
+    }
     GP.fx.drawParticles(ctx);
     ctx.restore();
 
@@ -916,6 +929,48 @@ GP.raceview = (function () {
      上から見たF1の形をそのまま組む。寸法は実車比（全長5.6m×全幅2.0m）を
      1m≒5.5px で置いたもの。世代が上がるほど部品が増えていく。
      前方が +x、車体の右が +y。光は車体の前左（-y側）から当たっている前提。   */
+  /* セーフティカー。市販車然としたシルエットに、屋根の回転灯 */
+  function drawSafetyCar(x, y, ang, t) {
+    const on = ((t * 5) | 0) % 2 === 0;      // 回転灯の明滅
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang);
+    // 影
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.fillRect(-13, -6, 27, 14);
+    // タイヤ
+    ctx.fillStyle = '#15151a';
+    ctx.fillRect(-10, -9, 6, 3); ctx.fillRect(-10, 6, 6, 3);
+    ctx.fillRect(5, -9, 6, 3);   ctx.fillRect(5, 6, 6, 3);
+    // 車体（黒い縁取りをつけて、路面から浮かせる）
+    ctx.fillStyle = '#15151a'; ctx.fillRect(-14, -8, 28, 16);
+    ctx.fillStyle = '#e8e8ec'; ctx.fillRect(-13, -7, 26, 14);
+    ctx.fillStyle = '#fbfbfd'; ctx.fillRect(-13, -7, 26, 4);
+    ctx.fillStyle = '#c2c2ca'; ctx.fillRect(-13, 4, 26, 3);
+    // 側面の帯（赤／黄のツートン）
+    ctx.fillStyle = '#e04a3f'; ctx.fillRect(-13, -1, 26, 2);
+    ctx.fillStyle = '#ffc93c'; ctx.fillRect(-13, 1, 26, 1);
+    // 窓（前後）と屋根
+    ctx.fillStyle = '#243040'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
+    ctx.fillStyle = '#3d5068'; ctx.fillRect(3, -5, 6, 3);
+    ctx.fillStyle = '#c6c6ce'; ctx.fillRect(-13, -6, 4, 12);    // トランク
+    ctx.fillStyle = '#d2d2da'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
+    // ルーフの回転灯。小さく映っても分かるように、屋根の幅いっぱいに置く
+    ctx.fillStyle = '#2a2410'; ctx.fillRect(-3, -6, 5, 12);
+    ctx.fillStyle = on ? '#ffe14a' : '#6e6018'; ctx.fillRect(-3, -6, 5, 6);
+    ctx.fillStyle = on ? '#6e6018' : '#ffe14a'; ctx.fillRect(-3, 0, 5, 6);
+    // 前後の識別灯
+    ctx.fillStyle = on ? '#fff6c8' : '#8a7a20';
+    ctx.fillRect(12, -6, 2, 3); ctx.fillRect(12, 3, 2, 3);
+    // ボンネットの SC
+    ctx.fillStyle = '#15151a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('SC', -9, 2);
+    ctx.textAlign = 'left';
+    ctx.restore();
+    // 回転灯の光を、あとから乗せる光にも登録する
+    emissive.push({ x: x - 6, y: y - 6 + (on ? 0 : 6), w: 12, h: 6,
+                    c: 'rgba(255,225,74,0.60)' });
+  }
+
   function drawCar(x, y, ang, color, isPlayer, out, gen, vel, steer) {
     gen = Math.max(0, Math.min(5, gen | 0));
     vel = vel == null ? 1 : vel;
@@ -1203,8 +1258,8 @@ GP.raceview = (function () {
     if (badge) {
       const sc = res.safetyCar;
       const on = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
-      badge.textContent = '🚨 SAFETY CAR';
-      badge.className = 'rv-badge' + (on ? ' show' : '');
+      badge.textContent = sc && sc.virtual ? '🟡 VIRTUAL SC' : '🚨 SAFETY CAR';
+      badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
     }
 
     const box = document.getElementById('rvOrder');
@@ -1243,7 +1298,6 @@ GP.raceview = (function () {
     if (!el) return;
     el.textContent = text;
     el.className = 'rv-flash show' + (wet ? ' wet' : '');
-    wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => { el.className = 'rv-flash' + (wet ? ' wet' : ''); }, 2600);
   }
@@ -1254,11 +1308,19 @@ GP.raceview = (function () {
     while (shownEvents < res.events.length) {
       const ev = res.events[shownEvents];
       if (!all && ev.lap > lapNow) break;
+      if (ev.type === 'weather' && res.weatherChange) {
+        // 早送りでも、いまの天候はそろえておく
+        wetNow = res.weatherChange.to === '雨' || res.weatherChange.to === '大雨';
+      }
       if (!all) {
         if (ev.type === 'pass') GP.sound.play('pass', 140);
         else if (ev.type === 'pit') GP.sound.play('pit', 140);
         else if (ev.type === 'dnf') GP.sound.play('dnf', 300);
-        else if (ev.type === 'sc') { GP.sound.play('dnf', 260); flash('🚨 SAFETY CAR', false); }
+        else if (ev.type === 'sc') {
+          const v = res.safetyCar && res.safetyCar.virtual;
+          GP.sound.play('dnf', 260);
+          flash(v ? '🟡 VIRTUAL SAFETY CAR' : '🚨 SAFETY CAR', false);
+        }
         else if (ev.type === 'weather') {
           GP.sound.play('pit', 240);
           const wet = res.weatherChange && (res.weatherChange.to === '雨' || res.weatherChange.to === '大雨');
@@ -1400,6 +1462,7 @@ GP.raceview = (function () {
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
     vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
@@ -1494,5 +1557,5 @@ GP.raceview = (function () {
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
   return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, paintCar,
-           _drawCar: drawCar, _drawPitCrew: drawPitCrew };
+           _drawCar: drawCar, _drawPitCrew: drawPitCrew, _drawSafetyCar: drawSafetyCar };
 })();
