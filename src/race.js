@@ -687,7 +687,10 @@ GP.race = (function () {
       }
       e.stops = stops;
 
-      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.4;
+      /* 予定の周をどれだけ散らすか。等分ちょうどを外さないこと自体に
+         値打ちはないので、ここは全チーム同じ。読みの差は「路面がどうなるかを
+         当てて、いつ履き替えるかを決める」ほうに出る                    */
+      const blur = 1.4;
       const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
@@ -835,10 +838,32 @@ GP.race = (function () {
           if (e.dnf || lap >= laps - 1) return;
           // いま履いているもので大きく損をしないなら、慌てて入らない
           if (wetLoss(tyreOf(e.tyreKey), wetTarget, e) < 0.02) return;
-          // 読みの速いチームほど早く動ける
-          // 読みの鋭いチームほど、動き出しが早い
-          const delay = S.clamp(Math.round(3.4 - e.react * 2.8 - (e.foresight || 0.4) * 1.8
-                                           + S.rnd(-0.5, 1.4)), 1, 6);
+          /* ---- いつ入るのが正解か ----
+             路面はこれから何周かかけて wetTarget に向かって動くので、
+             降りはじめに飛び込むのが常に正しいわけではない。早すぎれば
+             まだ乾いた路面をウェットで走ることになるし、遅すぎれば
+             合わないタイヤのまま何周も損をする。
+             読みが利くチームほど、その「ちょうどの周」を当てられる      */
+          const cur = tyreOf(e.tyreKey);
+          const left = laps - lap;
+          const scoreAt = k => {
+            let w2 = wetAvg(), tot = 0, want = null;
+            for (let j = 1; j <= left; j++) {
+              w2 += (wetTarget - w2) * 0.31;            // 3セクターのならしたところ
+              if (j <= k) { tot += wetLoss(cur, w2, e); continue; }
+              if (!want) {
+                const dry = pickTyre(Math.max(3, left - k), weather, null, e.tyreBias);
+                want = tyreOf(bestWetTyre(w2, dry, e));
+              }
+              tot += wetLoss(want, w2, e);
+            }
+            return tot;
+          };
+          let ideal = 1, bestLoss = Infinity;
+          for (let k = 1; k <= 6; k++) { const v = scoreAt(k); if (v < bestLoss) { bestLoss = v; ideal = k; } }
+          // 読みが浅いほど、その周を外す
+          const fo = e.foresight == null ? 0.5 : e.foresight;
+          const delay = S.clamp(Math.round(ideal + S.rnd(-2.8, 2.8) * (1 - fo)), 1, 6);
           const at = Math.min(laps - 1, lap + delay);
           e.pitPlan = e.pitPlan.filter(p => p > at + 3);
           e.pitPlan.push(at);

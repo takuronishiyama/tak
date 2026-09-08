@@ -646,7 +646,9 @@ GP.state = (function () {
      レース中の判断（どのタイヤをいつ履くか）を決める値。
      画面でも同じ数字を出したいので、ここに置いて race.js と共有する  */
   function foresightOf(g2) {
-    return clamp(0.18 + staffBonus(g2, 'strategist') * 0.16 + osk(g2, 'call') * 0.08, 0.10, 0.92);
+    // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
+    // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
+    return clamp(0.20 + staffBonus(g2, 'strategist') * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;

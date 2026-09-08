@@ -3980,7 +3980,9 @@ GP.state = (function () {
      レース中の判断（どのタイヤをいつ履くか）を決める値。
      画面でも同じ数字を出したいので、ここに置いて race.js と共有する  */
   function foresightOf(g2) {
-    return clamp(0.18 + staffBonus(g2, 'strategist') * 0.16 + osk(g2, 'call') * 0.08, 0.10, 0.92);
+    // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
+    // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
+    return clamp(0.20 + staffBonus(g2, 'strategist') * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -5709,7 +5711,10 @@ GP.race = (function () {
       }
       e.stops = stops;
 
-      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.4;
+      /* 予定の周をどれだけ散らすか。等分ちょうどを外さないこと自体に
+         値打ちはないので、ここは全チーム同じ。読みの差は「路面がどうなるかを
+         当てて、いつ履き替えるかを決める」ほうに出る                    */
+      const blur = 1.4;
       const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
@@ -5857,10 +5862,32 @@ GP.race = (function () {
           if (e.dnf || lap >= laps - 1) return;
           // いま履いているもので大きく損をしないなら、慌てて入らない
           if (wetLoss(tyreOf(e.tyreKey), wetTarget, e) < 0.02) return;
-          // 読みの速いチームほど早く動ける
-          // 読みの鋭いチームほど、動き出しが早い
-          const delay = S.clamp(Math.round(3.4 - e.react * 2.8 - (e.foresight || 0.4) * 1.8
-                                           + S.rnd(-0.5, 1.4)), 1, 6);
+          /* ---- いつ入るのが正解か ----
+             路面はこれから何周かかけて wetTarget に向かって動くので、
+             降りはじめに飛び込むのが常に正しいわけではない。早すぎれば
+             まだ乾いた路面をウェットで走ることになるし、遅すぎれば
+             合わないタイヤのまま何周も損をする。
+             読みが利くチームほど、その「ちょうどの周」を当てられる      */
+          const cur = tyreOf(e.tyreKey);
+          const left = laps - lap;
+          const scoreAt = k => {
+            let w2 = wetAvg(), tot = 0, want = null;
+            for (let j = 1; j <= left; j++) {
+              w2 += (wetTarget - w2) * 0.31;            // 3セクターのならしたところ
+              if (j <= k) { tot += wetLoss(cur, w2, e); continue; }
+              if (!want) {
+                const dry = pickTyre(Math.max(3, left - k), weather, null, e.tyreBias);
+                want = tyreOf(bestWetTyre(w2, dry, e));
+              }
+              tot += wetLoss(want, w2, e);
+            }
+            return tot;
+          };
+          let ideal = 1, bestLoss = Infinity;
+          for (let k = 1; k <= 6; k++) { const v = scoreAt(k); if (v < bestLoss) { bestLoss = v; ideal = k; } }
+          // 読みが浅いほど、その周を外す
+          const fo = e.foresight == null ? 0.5 : e.foresight;
+          const delay = S.clamp(Math.round(ideal + S.rnd(-2.8, 2.8) * (1 - fo)), 1, 6);
           const at = Math.min(laps - 1, lap + delay);
           e.pitPlan = e.pitPlan.filter(p => p > at + 3);
           e.pitPlan.push(at);
@@ -13415,8 +13442,12 @@ window.GP = window.GP || {};
           : '<b class="warn">ストラテジストがいません。</b>') +
         '路面がこれからどうなるかを、どこまで織り込んでタイヤを選べるかです。' +
         '読みが浅いと、いまの路面に合わせてしまい、次の周にはもう外しています。<br>' +
-        '雨が絡むレースで、合わないタイヤで走る周が減ります' +
-        '（読み20→3.6周／読み47→3.3周／読み77→3.1周）。</small>' +
+        'ひとつは<b>合わないタイヤで走る周</b>が減ること' +
+        '（読み20→1.5周／読み46→1.2周／読み61→1.1周）。<br>' +
+        'もうひとつは<b>天候が急変したとき、何周後に入るか</b>。飛び込むのが' +
+        '早すぎればまだ乾いた路面をウェットで走り、遅すぎれば合わないまま何周も損をします。' +
+        '読みが利くほど、その「ちょうどの周」を当てられます' +
+        '（急変したレースの平均順位 読み20→4.6位／読み46→4.1位／読み61→4.0位）。</small>' +
         '<div class="wetdrv">' + lineup.map(d => {
           const ws = S.wetSkillOf(d), ts = S.tyreSkillOf(d);
           return '<span><b>' + esc(d.name) + '</b>' +
