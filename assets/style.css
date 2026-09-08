@@ -171,7 +171,7 @@ table.rank.grid td.dim{opacity:.35}
 .baseinfo b{font-size:14px;color:var(--yellow)}
 .basewrap{border:3px solid var(--ink);border-radius:10px;overflow:hidden;background:#8fbf62;
           box-shadow:0 3px 0 rgba(74,47,26,.5)}
-#baseCv{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:pointer}
+#baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
 .lvbar i b{flex:1;height:12px;background:#e9dcbc;border:2px solid var(--ink);border-radius:3px}
@@ -257,7 +257,7 @@ table.rank.grid td.dim{opacity:.35}
 .drv.empty{display:flex;flex-direction:column;justify-content:center;align-items:center;
            color:#a08868;font-size:12px;text-align:center;border-style:dashed}
 .drv-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-.face{border:2px solid var(--ink);border-radius:5px;flex-shrink:0;image-rendering:pixelated;
+.face{border:2px solid var(--ink);border-radius:5px;flex-shrink:0;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
       background:#cfe6f5;box-shadow:0 2px 0 rgba(74,47,26,.35)}
 .drv-id{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .drv-nm{font-size:13px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -342,7 +342,7 @@ body.preboot .cmdbar,
 body.preboot .topbar{visibility:hidden}
 
 /* ================= モーダル ================= */
-#modal{position:fixed;inset:0;background:rgba(40,24,10,.6);display:none;
+#modal{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;background:rgba(40,24,10,.6);display:none;
        align-items:center;justify-content:center;z-index:50;
        padding:calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
                calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
@@ -448,7 +448,7 @@ body.preboot .topbar{visibility:hidden}
       padding:4px 7px;margin-bottom:4px;line-height:1.5}
 
 /* ================= レース画面 ================= */
-#raceScreen{position:fixed;inset:0;background:rgba(30,18,8,.86);display:none;
+#raceScreen{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;background:rgba(30,18,8,.86);display:none;
             align-items:center;justify-content:center;z-index:60;
             padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
                     calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
@@ -461,7 +461,7 @@ body.preboot .topbar{visibility:hidden}
 .rv-head b{flex:1}
 .rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
-#raceCanvas{border:3px solid var(--ink);border-radius:8px;image-rendering:pixelated;
+#raceCanvas{border:3px solid var(--ink);border-radius:8px;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
             flex-shrink:0;max-width:100%;background:#7fbf5a}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
          border-radius:8px;overflow:hidden;background:#fffdf3;min-width:150px}
@@ -496,8 +496,21 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-pit{color:#8ecfff}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
+/* ---------- エラー表示 ---------- */
+#fatalBox{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:200;
+          background:rgba(40,20,10,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+.fatal-inner{max-width:560px;width:100%;background:var(--paper);border:4px solid var(--red);
+             border-radius:12px;padding:14px;box-shadow:0 6px 0 rgba(0,0,0,.4)}
+.fatal-inner b{font-size:16px;display:block;margin-bottom:6px}
+.fatal-inner p{font-size:12px;margin-bottom:8px}
+.fatal-inner code{display:block;background:#2b1c0e;color:#ffd8a8;border-radius:8px;padding:8px;
+                  font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:38vh;overflow:auto;
+                  -webkit-user-select:text;user-select:text}
+#fatalClose{margin-top:10px;width:100%;background:linear-gradient(#fff8e3,#e8d8ae);
+            border:3px solid var(--ink);border-radius:8px;padding:8px;font-weight:bold}
+
 /* ================= トースト・ポップ ================= */
-#toastLayer{position:fixed;inset:0;pointer-events:none;z-index:80;
+#toastLayer{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;pointer-events:none;z-index:80;
   display:flex;flex-direction:column;align-items:center;gap:5px;
   padding-top:calc(60px + env(safe-area-inset-top))}
 .toast{
@@ -522,7 +535,7 @@ body.preboot .topbar{visibility:hidden}
   20%{opacity:1}100%{transform:translateY(-46px);opacity:0}}
 
 /* ================= レスポンシブ ================= */
-@media (max-width:860px){
+@media (max-width:860px), (hover:none) and (pointer:coarse){
   html,body{overflow:auto}
   #app{height:auto;min-height:100%}
   .main{display:block}
@@ -531,8 +544,8 @@ body.preboot .topbar{visibility:hidden}
   .tabbody{max-height:52vh}
   .drvwrap{grid-template-columns:1fr 1fr}
   .gp-tm{display:none}
-  .topbar{position:sticky;top:0;z-index:20}
-  .cmdbar{position:sticky;bottom:0;z-index:20;padding-top:6px;
+  .topbar{position:-webkit-sticky;position:sticky;top:0;z-index:20}
+  .cmdbar{position:-webkit-sticky;position:sticky;bottom:0;z-index:20;padding-top:6px;
           padding-bottom:env(safe-area-inset-bottom);
           background:linear-gradient(transparent,rgba(201,168,106,.9) 30%)}
   .cmd{min-height:52px}

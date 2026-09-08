@@ -1189,9 +1189,14 @@ window.GP = window.GP || {};
     const paint = () => { btn.textContent = GP.sound.isOn() ? '🔊' : '🔇'; btn.classList.toggle('off', !GP.sound.isOn()); };
     paint();
     btn.onclick = () => { GP.sound.setOn(!GP.sound.isOn()); paint(); };
-    // ブラウザの制限があるので、最初のタップで音を使えるようにしておく
-    const unlock = () => { GP.sound.unlock(); document.removeEventListener('pointerdown', unlock); };
-    document.addEventListener('pointerdown', unlock);
+    // ブラウザの制限があるので、最初の操作で音を使えるようにしておく。
+    // Safari は pointerdown だけでは解除されないことがあるため、複数の操作で受ける
+    const gestures = ['pointerdown', 'touchend', 'click', 'keydown'];
+    const unlock = () => {
+      GP.sound.unlock();
+      gestures.forEach(g2 => document.removeEventListener(g2, unlock));
+    };
+    gestures.forEach(g2 => document.addEventListener(g2, unlock));
     // ボタン類には共通のクリック音を付ける
     document.addEventListener('pointerdown', ev => {
       const t = ev.target.closest && ev.target.closest('button');
@@ -1303,6 +1308,32 @@ window.GP = window.GP || {};
     });
     showDiff('normal');
   }
+
+  /* ---------- エラーの可視化 ----------
+     手元で再現できない環境（別ブラウザ・別端末）で問題が起きたとき、
+     何が起きたのか画面上で分かるようにしておく                        */
+  function showFatal(msg, where) {
+    if (document.getElementById('fatalBox')) return;
+    const box = document.createElement('div');
+    box.id = 'fatalBox';
+    box.innerHTML =
+      '<div class="fatal-inner"><b>⚠️ エラーが発生しました</b>' +
+      '<p>この内容を伝えていただければ原因を特定できます。</p>' +
+      '<code></code>' +
+      '<button id="fatalClose">閉じる</button></div>';
+    box.querySelector('code').textContent =
+      String(msg) + (where ? '\n' + where : '') +
+      '\n' + navigator.userAgent;
+    document.body.appendChild(box);
+    box.querySelector('#fatalClose').onclick = () => box.remove();
+  }
+
+  window.addEventListener('error', ev => {
+    showFatal(ev.message, (ev.filename || '') + ':' + (ev.lineno || '') + ':' + (ev.colno || ''));
+  });
+  window.addEventListener('unhandledrejection', ev => {
+    showFatal((ev.reason && ev.reason.message) || ev.reason, '');
+  });
 
   /* ---------- Service Worker（オフライン対応）----------
      file:// で直接開いた場合は登録できないが、その場合も普通に遊べる    */
