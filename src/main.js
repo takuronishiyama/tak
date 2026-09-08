@@ -277,6 +277,17 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
+    // ---- 規則変更の予告 ----
+    if (S.regulationNext(g)) {
+      body += '<div class="regwarn">' +
+        '<b>📜 今季が終わると、レギュレーションが変わります</b>' +
+        '<small>いま積み上げているパーツと車体は、来季には白紙に戻ります。' +
+        'ただし<b>設計のレアリティ</b>と<b>保管しているパーツ</b>、そして' +
+        '<b>「来季に回した開発」</b>は新しい規則にそのまま持ち越せます。<br>' +
+        '今季を捨てて来季に振るなら、開発リソースの配分を「来季優先」寄りに。' +
+        '設計したパーツは売らずに保管しておくと、次の規則の土台になります。</small></div>';
+    }
+
     // ---- 今季の予算 ----
     const capPct = Math.min(140, S.capRatio(g) * 100);
     const overCap = S.capSpent(g) > S.costCap(g);
@@ -2477,11 +2488,16 @@ window.GP = window.GP || {};
     U.toast('🚩 シーズン' + g.season + ' 開幕！', 'good');
     S.save(g); render();
     if (regChange) {
+      const lg = g.legacy;
       U.modal('📜 レギュレーション変更',
         '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
         '<div class="rewardbox">' +
         '<div>パーツ・車体 <b>白紙から</b><small>積んだ知見のぶんだけ、ゼロよりは良い所から。レアリティ（到達できる上限）は引き継ぎます</small></div>' +
-        '<div>保管パーツ・PU供給 <b>使えない</b><small>旧規則のものは保管庫ごと失われます</small></div>' +
+        (lg && lg.count
+          ? '<div>🧰 保管パーツ <b>遺産になった</b><small>' + lg.count + '個をばらして解析。研究P +' + lg.rp +
+            (lg.up.length ? '／' + lg.up.map(x => x.cat + ' のレアリティが ★' + x.from + '→★' + x.to).join('、') : '') +
+            '</small></div>'
+          : '<div>保管パーツ <b>なし</b><small>持っていれば解析して次の規則に活かせました</small></div>') +
         '<div>施設・スタッフ・ドライバー・ファン・資金・オーナー <b>そのまま</b><small>積み上げたチーム力は失われません</small></div>' +
         '</div>' +
         '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
@@ -2634,10 +2650,18 @@ window.GP = window.GP || {};
         desc: 'どこでも戦えるが、飛び抜けはしない' }
     ];
     const cur = g.plan || null;
+    const stock = g.nextCar || 0;
     let body = '<p class="lead">来季のマシンをどの方向で作るか決めます。</p>' +
       '<p class="desc">決めた方向の開発は来季ずっと <b>+22%</b> 伸びやすくなり、' +
-      '他の方向は少しだけ伸びが鈍ります。オフのうちにしか決められません。</p>' +
-      '<div class="pick">';
+      '他の方向は少しだけ伸びが鈍ります。オフのうちにしか決められません。</p>';
+    if (stock > 0) {
+      body += '<div class="stockbox"><b>🌱 積んである来季ぶりの開発：' +
+        Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
+        '<small>方針を決めると、この仕込みが<b>いまここでマシンに落とし込まれます</b>。' +
+        '決めた方向のパーツと車体に厚く配られます。<br>' +
+        '<em class="warn">オフのうちに決めないと、来季へ持ち越すあいだに2割が失われます。</em></small></div>';
+    }
+    body += '<div class="pick">';
     DIRS.forEach(d => {
       body += '<button class="pickbtn' + (cur === d.k ? ' on' : '') + '" data-k="plan:' + d.k + '">' +
         '<span class="pb-ic" style="background:' + d.color + '">' + d.icon + '</span>' +
@@ -2650,12 +2674,22 @@ window.GP = window.GP || {};
       if (k.indexOf('plan:') !== 0) return;
       g.plan = k.slice(5);
       offMark('plan');
-      S.save(g);
       const d = DIRS.find(x => x.k === g.plan);
+      // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む
+      const got = S.applyStock(g, g.plan === 'balance' ? null : g.plan);
+      S.save(g);
       U.closeModal();
       U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');
       U.log(g, '📋 来季のマシン方針を「' + d.name + '」に決めた。');
-      GP.sound.play('good');
+      if (got) {
+        const top = got.parts.concat(got.body).sort((a, b) => b.gain - a.gain).slice(0, 3)
+          .map(x => x.name + ' +' + x.gain).join('、');
+        U.log(g, '🌱 積んでいた開発が来季のマシンに乗った（' + top + ' ほか）。', 'good');
+        U.toast('🌱 仕込みがマシンに乗った！', 'good');
+        GP.sound.play('crit');
+      } else {
+        GP.sound.play('good');
+      }
       render();
     });
   }

@@ -1357,3 +1357,21 @@ body[data-skin="hd"]{
 [data-skin="hd"] .capbox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .capbox small{color:#cbbb9a}
 [data-skin="hd"] .capbox small b.warn{color:#ff9a8a}
+
+/* 来季ぶんの仕込み */
+.stockbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-left:6px solid #4ea63f;
+  border-radius:6px;background:var(--paper3);color:var(--ink)}
+.stockbox b{font-size:12px}
+.stockbox small{display:block;margin-top:4px;font-size:10px;line-height:1.6;color:var(--ink2)}
+.stockbox small em.warn{font-style:normal;color:#b02a20;font-weight:bold}
+[data-skin="hd"] .stockbox{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .stockbox small{color:#cbbb9a}
+[data-skin="hd"] .stockbox small em.warn{color:#ff9a8a}
+
+/* レギュレーション変更の予告 */
+.regwarn{margin:6px 0 10px;padding:8px 10px;border:2px solid #b02a20;border-left:6px solid #b02a20;
+  border-radius:6px;background:var(--paper3);color:var(--ink)}
+.regwarn b{font-size:12px}
+.regwarn small{display:block;margin-top:4px;font-size:10px;line-height:1.6;color:var(--ink2)}
+[data-skin="hd"] .regwarn{background:#2e1c22;color:#efe4cf}
+[data-skin="hd"] .regwarn small{color:#e8c8bc}

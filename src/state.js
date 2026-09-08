@@ -310,6 +310,41 @@ GP.state = (function () {
     };
   }
 
+  /* 積み上げた「来季ぶんの開発」を、いまのマシンに落とし込む。
+     オフに方針を決めたときと、規則が変わって作り直すときに使う。
+     dir を渡すと、その方向のパーツに厚く配る                        */
+  function applyStock(g2, dir) {
+    const stock = g2.nextCar || 0;
+    if (stock <= 0) return null;
+    const total = stock * D.CARRY_TO_NEXT;
+    const out = { parts: [], body: [], total: Math.round(total * 10) / 10 };
+    // 半分をパーツへ、半分を車体へ
+    const toParts = total * 0.5, toBody = total * 0.5;
+    // 方向に合うパーツほど厚く
+    const w = D.PART_CATS.map(c => 1 + ((dir && c.gain && c.gain[dir]) || 0) * 1.8);
+    const wSum = w.reduce((a, b) => a + b, 0);
+    D.PART_CATS.forEach((c, i) => {
+      const p = g2.equipped[c.key];
+      if (!p) return;
+      const cap = partCap(g2, p);
+      const add = toParts * (w[i] / wSum);
+      const before = p.power;
+      p.power = Math.round(Math.min(cap, p.power + add) * 10) / 10;
+      if (p.power > before) out.parts.push({ name: p.name, gain: Math.round((p.power - before) * 10) / 10 });
+    });
+    const bw = D.BODY_ATTRS.map(a => 1 + ((dir && a.gain && a.gain[dir]) || 0) * 1.8);
+    const bSum = bw.reduce((a, b) => a + b, 0);
+    const bcap = bodyCap(g2);
+    D.BODY_ATTRS.forEach((a, i) => {
+      const add = toBody * (bw[i] / bSum);
+      const before = g2.body[a.key] || 0;
+      g2.body[a.key] = Math.round(Math.min(bcap, before + add) * 10) / 10;
+      if (g2.body[a.key] > before) out.body.push({ name: a.name, gain: Math.round((g2.body[a.key] - before) * 10) / 10 });
+    });
+    g2.nextCar = 0;
+    return out;
+  }
+
   /* 来季マシンの仕上がり具合（0-100%）。次の車体の初期値に乗る */
   function nextCarProgress(g2) {
     const cap = Math.round(D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen + 1)].cap * D.BODY_CAP_RATIO);
@@ -416,24 +451,53 @@ GP.state = (function () {
     return g2.season > 1 && ((g2.season - 1) % REG_EVERY === 0);
   }
 
+  /* 今季が終わったら規則が変わるか（＝いま作っているマシンが白紙になる年か） */
+  function regulationNext(g2) {
+    return (g2.season % REG_EVERY) === 0;
+  }
+
   function applyRegulation(g2) {
     g2.reg = (g2.reg || 0) + 1;
+    // ---- 保管していたパーツは「遺産」になる ----
+    // 旧規則のまま走らせることはできないが、そこに詰まっている知見は残る。
+    // ばらして解析すれば研究の材料になり、良いものを持っていたチームは
+    // 新しい規則でも良いところから始められる
+    const legacy = { count: 0, rp: 0, power: 0, up: [] };
+    const bestRar = {};
+    (g2.inventory || []).forEach(p => {
+      legacy.count++;
+      legacy.power += p.power;
+      bestRar[p.cat] = Math.max(bestRar[p.cat] || 0, p.rarity);
+    });
+    legacy.rp = Math.round(legacy.power * 0.55);
+    g2.rp += legacy.rp;
+
     // 自チーム：パーツと車体を新規則のものに置き換える
     g2.carGen = 0;
     D.PART_CATS.forEach(c => {
       const old2 = g2.equipped[c.key];
       // 積んできた知見のぶんだけ、ゼロよりは良いところから始まる
       const carry = old2 ? Math.min(14, old2.power * 0.18) : 0;
+      // 保管していた同じ種類のパーツぶんの上乗せ
+      const spare = Math.min(8, legacy.power * 0.012);
       // 規則が変わってもチームの設計力までは失われない。
-      // レアリティ（＝到達できる上限）は引き継ぎ、性能だけが白紙に戻る
-      const rar = old2 ? old2.rarity : 1;
-      g2.equipped[c.key] = makePart(c.key, 0, rar, { power: 10 + carry, traits: old2 ? old2.traits : [] });
+      // レアリティ（＝到達できる上限）は引き継ぎ、性能だけが白紙に戻る。
+      // 保管庫により良いものがあれば、そこまで引き上げられる
+      const rar = Math.max(old2 ? old2.rarity : 1, bestRar[c.key] || 1);
+      if (old2 && rar > old2.rarity) {
+        legacy.up.push({ cat: c.name, from: old2.rarity, to: rar });
+      }
+      g2.equipped[c.key] = makePart(c.key, 0, rar,
+        { power: 10 + carry + spare, traits: old2 ? old2.traits : [] });
     });
-    // 旧規則のパーツは使えなくなる。保管庫も空になる
+    // 旧規則のパーツそのものは使えなくなる
     // （ここが inventory ではなく stock になっていて、保管しておけば
     //   規則変更をまるごと回避できてしまっていた）
     g2.inventory = [];
-    g2.body = makeBody(g2, null);
+    g2.legacy = legacy;
+    // 新しい規則に向けて積んでいた開発は、そのまま新型の出発点になる。
+    // 規則が変わる前の年に来季へ振っておくことに、はっきり意味を持たせている
+    g2.body = makeBody(g2, null, g2.nextCar || 0);
     g2.nextCar = 0;
     // 供給を受けていたエンジンも新規則では使えない
     g2.engine = null;
@@ -1370,10 +1434,10 @@ GP.state = (function () {
     hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
-    REG_EVERY, regulationDue, applyRegulation,
+    REG_EVERY, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
