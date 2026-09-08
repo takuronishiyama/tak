@@ -1469,6 +1469,19 @@ window.GP = window.GP || {};
      建物がそのまま入口になる。押すと、その設備の画面が開く。
      「休養」だけは押した瞬間に1週進むので、建物には割り当てない。
      ======================================================= */
+  /* パドックで立ち寄れる場所。レースウィークだけこちらを使う */
+  const PADDOCK_DOORS = {
+    garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
+    drivers: { icon: '🧑‍✈️', label: 'ドライバーの控え', to: 'ドライバー',
+               fn: () => { hrTab = 'drivers'; cmdStaff(); } },
+    timing:  { icon: '📊', label: 'タイミングブース', to: '情報',   fn: () => cmdInfo() },
+    gate:    { icon: '🏁', label: 'コースへの出口',   to: 'レース', fn: () => cmdRace() }
+  };
+
+  /* いま歩いている場所（本拠地／パドック）と、その入口一覧 */
+  function hubMap() { return isRaceWeek() ? GP.paddock : GP.base; }
+  function hubDoors() { return isRaceWeek() ? PADDOCK_DOORS : HUB_DOORS; }
+
   const HUB_DOORS = {
     factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
@@ -1524,8 +1537,8 @@ window.GP = window.GP || {};
     const len = Math.hypot(dx, dy) || 1;
     actor.moving = !!(dx || dy);
     if (actor.moving) {
-      const p = GP.base.clampWalk(actor.x + (dx / len) * WALK_SPEED * dt,
-                                  actor.y + (dy / len) * WALK_SPEED * dt);
+      const p = hubMap().clampWalk(actor.x + (dx / len) * WALK_SPEED * dt,
+                                   actor.y + (dy / len) * WALK_SPEED * dt);
       actor.x = p.x; actor.y = p.y;
       actor.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right')
                                               : (dy < 0 ? 'up' : 'down');
@@ -1535,28 +1548,29 @@ window.GP = window.GP || {};
     }
 
     // 入口の判定と案内
-    const door = GP.base.doorOf(actor.x, g);
+    const door = hubMap().doorOf(actor.x, g);
     const key = door ? door.key : null;
     if (key !== hubDoor) {
       hubDoor = key;
-      const d = key && HUB_DOORS[key];
+      const d = key && hubDoors()[key];
       const hint = $('hubHint');
       if (hint) {
-        hint.textContent = d ? d.icon + ' ' + d.label + ' — ここで「入る」' : HUB_IDLE_HINT;
+        hint.textContent = d ? d.icon + ' ' + d.label + ' — ここで「入る」'
+                             : (isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT);
         hint.classList.toggle('on', !!d);
       }
       const btn = $('hubEnter');
-      if (btn) { btn.disabled = !key; btn.textContent = key ? '▲ ' + HUB_DOORS[key].to + 'へ入る' : '▲ 入る'; }
+      if (btn) { btn.disabled = !key; btn.textContent = key ? '▲ ' + hubDoors()[key].to + 'へ' : '▲ 入る'; }
       if (key) GP.sound.play('tap', 30);
     }
 
-    GP.base.drawWith(cv, g, hubDoor, actor);
+    hubMap().drawWith(cv, g, hubDoor, actor);
     hubRaf = requestAnimationFrame(hubStep);
   }
 
   function hubEnter() {
     if (!hubDoor || hubBusy) return;
-    const d = HUB_DOORS[hubDoor];
+    const d = hubDoors()[hubDoor];
     if (!d) return;
     hubBusy = true;
     GP.sound.play('click');
@@ -1566,13 +1580,15 @@ window.GP = window.GP || {};
   }
 
   const HUB_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」';
+  const PADDOCK_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。ガレージや出口の下で「入る」';
 
   function bindHub() {
     const cv = $('hubCv');
     if (!cv) { stopHub(); return; }
     GP.base.invalidate();          // 施設を広げた直後などに背景を作り直す
+    GP.paddock.invalidate();
     actor.color = g.color || '#e04a3f';
-    const p = GP.base.clampWalk(actor.x, actor.y);
+    const p = hubMap().clampWalk(actor.x, actor.y);
     actor.x = p.x; actor.y = p.y;
     hubDoor = null;
 
@@ -1580,19 +1596,19 @@ window.GP = window.GP || {};
     const at = ev => {
       const r = cv.getBoundingClientRect();
       const t = (ev.changedTouches && ev.changedTouches[0]) || ev;
-      return { x: (t.clientX - r.left) * (GP.base.W / r.width),
-               y: (t.clientY - r.top) * (GP.base.H / r.height) };
+      return { x: (t.clientX - r.left) * (hubMap().W / r.width),
+               y: (t.clientY - r.top) * (hubMap().H / r.height) };
     };
 
     // 建物を押したら、その入口まで歩いていく。地面を押したらそこへ歩く
     cv.onclick = ev => {
       const q = at(ev);
-      const k = GP.base.hit(q.x, q.y);
-      if (k && HUB_DOORS[k]) {
-        const dp = GP.base.doorPos(k, g);
+      const k = hubMap().hit(q.x, q.y);
+      if (k && hubDoors()[k]) {
+        const dp = hubMap().doorPos(k, g);
         if (dp) { hubGoal = dp; return; }
       }
-      hubGoal = GP.base.clampWalk(q.x, q.y);
+      hubGoal = hubMap().clampWalk(q.x, q.y);
     };
     cv.ondblclick = () => hubEnter();
 

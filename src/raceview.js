@@ -199,23 +199,114 @@ GP.raceview = (function () {
       g.drawImage(pl, 0, 0);
     }
 
-    // ランオフ／コース
+    // ---- ランオフ ----
+    strokeOn(g, 34, shade(th.edge, -0.06));
     strokeOn(g, 30, th.edge);
-    strokeOn(g, 22, wet ? shade(th.road, -0.18) : th.road);
-    strokeOn(g, 2, 'rgba(255,255,255,.30)', [6, 10]);
+    // ランオフの砂利／アスファルトの粒
+    g.save();
+    g.beginPath();
+    g.lineWidth = 30; g.lineJoin = 'round'; g.lineCap = 'round';
+    g.moveTo(poly.pts[0][0], poly.pts[0][1]);
+    for (let i = 1; i < poly.n; i++) g.lineTo(poly.pts[i][0], poly.pts[i][1]);
+    g.closePath();
+    g.clip();
+    const rn2 = seeded(res.track.name + 'runoff');
+    for (let i = 0; i < 900; i++) {
+      const x = rn2() * c.width, y = rn2() * c.height;
+      g.fillStyle = rn2() > 0.5 ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.10)';
+      g.fillRect(x, y, 2, 2);
+    }
+    g.restore();
 
-    // 縁石（コーナー区間の内外両側）
+    // ---- 路面 ----
+    strokeOn(g, 24, shade(th.road, -0.22));                 // 路肩の締まり
+    strokeOn(g, 22, wet ? shade(th.road, -0.18) : th.road);
+    // コース幅を示す白線。ここで先に引いておく
+    // （レーシングラインより後に引くと、路面色で塗り潰してしまう）
+    strokeOn(g, 20.5, 'rgba(255,255,255,.40)');
+    strokeOn(g, 19, wet ? shade(th.road, -0.18) : th.road);
+
+    // アスファルトの粒。同じ模様が続かないよう、路面の内側だけに散らす
+    g.save();
+    g.beginPath();
+    g.lineWidth = 21; g.lineJoin = 'round'; g.lineCap = 'round';
+    g.moveTo(poly.pts[0][0], poly.pts[0][1]);
+    for (let i = 1; i < poly.n; i++) g.lineTo(poly.pts[i][0], poly.pts[i][1]);
+    g.closePath();
+    g.clip();
+    const rn3 = seeded(res.track.name + 'asphalt');
+    for (let i = 0; i < 2600; i++) {
+      const x = rn3() * c.width, y = rn3() * c.height;
+      const v = rn3();
+      g.fillStyle = v > 0.62 ? 'rgba(255,255,255,.055)'
+                 : v > 0.30 ? 'rgba(0,0,0,.07)' : 'rgba(120,130,150,.05)';
+      g.fillRect(x, y, 2, 2);
+    }
+    // 補修跡（つぎはぎ）
+    for (let i = 0; i < 14; i++) {
+      const t = rn3(), idx = Math.floor(t * poly.n), nm = normalAt(idx);
+      g.save();
+      g.translate(nm.x, nm.y); g.rotate(Math.atan2(nm.dy, nm.dx));
+      g.fillStyle = 'rgba(20,22,28,.16)';
+      g.fillRect(-6 - rn3() * 10, -9, 12 + rn3() * 20, 18);
+      g.restore();
+    }
+    g.restore();
+
+    // ---- レーシングライン ----
+    // 何周も走ると、走行ラインにタイヤのゴムが乗って黒い筋になる。
+    // コーナーではイン側へ寄るので、旋回の向きに合わせて線をずらす。
+    const off = new Array(poly.n);
+    for (let i = 0; i < poly.n; i++) {
+      const a = poly.pts[(i - 3 + poly.n) % poly.n], b = poly.pts[i], d = poly.pts[(i + 3) % poly.n];
+      const cross = (b[0] - a[0]) * (d[1] - b[1]) - (b[1] - a[1]) * (d[0] - b[0]);
+      const k = (res.geo.kappa && res.geo.kappa[i]) || 0;
+      off[i] = (cross > 0 ? -1 : 1) * Math.min(6.5, k * 9);
+    }
+    // 実際の走行ラインは滑らかなので、前後をならす
+    const soff = new Array(poly.n);
+    for (let i = 0; i < poly.n; i++) {
+      let sum = 0;
+      for (let d = -14; d <= 14; d++) sum += off[(i + d + poly.n) % poly.n];
+      soff[i] = sum / 29;
+    }
+    for (const [w, alpha] of [[10, 0.13], [6, 0.17], [3, 0.14]]) {
+      g.strokeStyle = 'rgba(24,22,26,' + alpha + ')';
+      g.lineWidth = w; g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath();
+      for (let i = 0; i <= poly.n; i++) {
+        const j = i % poly.n, nm = normalAt(j);
+        const x = nm.x + nm.nx * soff[j], y = nm.y + nm.ny * soff[j];
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.closePath(); g.stroke();
+    }
+
+    // ---- 中央の破線 ----
+    strokeOn(g, 2, 'rgba(255,255,255,.24)', [6, 10]);
+
+    // ---- 縁石（コーナー区間の内外両側）----
+    // 平らな赤白だと板に見えるので、下に影・内側に段差・上面に照りを入れて
+    // 「路面から盛り上がっている」ように見せる。
     (res.geo.corners || []).forEach(cn => {
       let i = cn.from, steps = 0;
       const span = (cn.to - cn.from + poly.n) % poly.n;
       while (steps <= span && steps < poly.n) {
         const nm = normalAt(i);
-        g.fillStyle = (steps >> 1) % 2 === 0 ? '#e8402c' : '#f4f0e0';
+        const red = (steps >> 1) % 2 === 0;
         for (const sgn of [1, -1]) {
           g.save();
           g.translate(nm.x + nm.nx * sgn * 12, nm.y + nm.ny * sgn * 12);
           g.rotate(Math.atan2(nm.dy, nm.dx));
-          g.fillRect(-1.5, -2.5, 4, 5);
+          g.fillStyle = 'rgba(0,0,0,.34)';                     // 落ち影
+          g.fillRect(-1.5, -2.8 + sgn * 0.8, 4.4, 6);
+          g.fillStyle = red ? '#b32b1c' : '#c9c2ad';           // 側面（段差）
+          g.fillRect(-1.5, -2.8, 4.2, 6);
+          g.fillStyle = red ? '#e8402c' : '#f6f2e4';           // 上面
+          g.fillRect(-1.5, -2.8, 4.2, 4.4);
+          g.fillStyle = red ? 'rgba(255,150,120,.55)'          // 上面の照り
+                            : 'rgba(255,255,255,.65)';
+          g.fillRect(-1.5, -2.8, 4.2, 1.2);
           g.restore();
         }
         i = (i + 1) % poly.n; steps++;
@@ -249,14 +340,54 @@ GP.raceview = (function () {
     // ピットレーン：スタート地点を含む最長ストレートの内側に収める
     const pit = pitSpan();
     if (pit) {
-      g.strokeStyle = '#6d7078'; g.lineWidth = 9; g.lineCap = 'butt';
-      g.beginPath();
-      for (let k = 0; k <= pit.len; k++) {
+      // ピットレーンに沿った線を引くための道具
+      const lane = (dist, width, color, dash) => {
+        g.strokeStyle = color; g.lineWidth = width;
+        g.lineJoin = 'round'; g.lineCap = 'butt';
+        g.setLineDash(dash || []);
+        g.beginPath();
+        for (let k = 0; k <= pit.len; k++) {
+          const nm = normalAt((pit.from + k) % poly.n);
+          const x = nm.x + nm.nx * pit.side * dist, y = nm.y + nm.ny * pit.side * dist;
+          if (k === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        g.stroke();
+        g.setLineDash([]);
+      };
+
+      lane(20, 13, '#4c4f56');                       // 縁の締まり
+      lane(20, 11, '#6d7078');                       // 路面
+      lane(20, 11.5, 'rgba(255,255,255,.42)');       // いったん白で塗り
+      lane(20, 10, '#6d7078');                       //   中を戻して両端に白線を残す
+      lane(20, 1.2, 'rgba(255,255,255,.30)', [4, 5]);// 中央の破線
+
+      // ピットボックス（各チームの作業区画）
+      for (let k = 4; k < pit.len - 3; k += 7) {
         const nm = normalAt((pit.from + k) % poly.n);
-        const x = nm.x + nm.nx * pit.side * 20, y = nm.y + nm.ny * pit.side * 20;
-        if (k === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        g.save();
+        g.translate(nm.x + nm.nx * pit.side * 25, nm.y + nm.ny * pit.side * 25);
+        g.rotate(Math.atan2(nm.dy, nm.dx));
+        g.fillStyle = 'rgba(255,255,255,.34)';       // 区画の枠線
+        g.fillRect(-3.4, -4.5, 6.8, 0.9);
+        g.fillRect(-3.4, 3.6, 6.8, 0.9);
+        g.fillRect(-3.4, -4.5, 0.9, 9);
+        g.restore();
       }
-      g.stroke();
+
+      // ピットウォール（コース側の壁）。上面に照りを入れて立たせる
+      lane(14, 2.6, '#8d8578');
+      lane(13.4, 1.2, '#d8d2c0');
+
+      // 入口と出口の白線
+      [0, pit.len].forEach(k => {
+        const nm = normalAt((pit.from + k) % poly.n);
+        g.save();
+        g.translate(nm.x + nm.nx * pit.side * 20, nm.y + nm.ny * pit.side * 20);
+        g.rotate(Math.atan2(nm.dy, nm.dx));
+        g.fillStyle = 'rgba(255,255,255,.60)';
+        g.fillRect(-1, -5.5, 2, 11);
+        g.restore();
+      });
       for (let k = 5; k < pit.len - 4; k += 7) {
         const nm = normalAt((pit.from + k) % poly.n);
         g.save();
@@ -683,18 +814,9 @@ GP.raceview = (function () {
         const li = lapInfo(e, t);
         const pt = (e.pitTime || [])[li.lap - 1] || 1;
         const left = Math.max(0, li.lapTime - li.into);
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(ang);
-        // タイヤを換えるクルー（4隅で動く）
-        for (let c2 = 0; c2 < 4; c2++) {
-          const sx = (c2 < 2 ? -5 : 5), sy = (c2 % 2 ? 7 : -7);
-          const bob = Math.sin(t * 14 + c2) * 1.4;
-          ctx.fillStyle = '#2b2b33'; ctx.fillRect(sx - 2, sy + bob - 2, 4, 5);
-          ctx.fillStyle = e.color; ctx.fillRect(sx - 2, sy + bob - 4, 4, 2);
-        }
-        ctx.fillStyle = '#2b2b33'; ctx.fillRect(-11, -3, 4, 6);   // ジャッキ担当
-        ctx.restore();
+        // 作業の進み具合 0..1。これで手順のどこにいるかを決める
+        const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pt)));
+        drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
         ctx.save();
         ctx.translate(px, py - 13);
         ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
@@ -940,6 +1062,102 @@ GP.raceview = (function () {
       ctx.fill(); ctx.stroke();
       ctx.restore();
     }
+  }
+
+  /* ---------- ピット作業 ----------
+     実際の手順どおりに進める。
+       0.00-0.18  車が停まり、ジャッキが入る
+       0.18-0.45  ホイールガンでナットを外し、古いタイヤを引き抜く
+       0.45-0.72  新しいタイヤを差し込んで締める
+       0.72-0.90  ジャッキを下ろす
+       0.90-1.00  ロリポップが上がり、発進を待つ
+     クルーはチームカラーのつなぎを着ている。                        */
+  function drawPitCrew(px, py, ang, e, prog, t, tyre) {
+    const col = e.color;
+    const dark = shade(col, -0.18);
+    const SUIT = col, HELM = shade(col, 0.28), SKIN = '#e8b98e';
+    const jackUp = prog > 0.16 && prog < 0.86;          // 車が持ち上がっている区間
+    const off = prog < 0.45 ? Math.min(1, (prog - 0.18) / 0.27)     // 旧タイヤを外す進み
+              : 0;
+    const on = prog >= 0.45 && prog < 0.72 ? (prog - 0.45) / 0.27 : (prog >= 0.72 ? 1 : 0);
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(ang);
+
+    // 持ち上がっているあいだは、車の下に隙間の影を落とす。
+    // 車体そのものは drawCar が先に描いているので、ここで覆わないよう細くする。
+    if (jackUp) {
+      ctx.fillStyle = 'rgba(0,0,0,.34)';
+      ctx.fillRect(-8, 2.6, 18, 1.8);
+    }
+
+    const person = (x, y, face, busy) => {
+      const bob = busy ? Math.sin(t * 22 + x * 3 + y) * 0.9 : 0;
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x - 2.4, y + 2.6, 5, 1.6);
+      ctx.fillStyle = dark;  ctx.fillRect(x - 2.4, y - 2.4 + bob, 5, 5.2);   // つなぎ
+      ctx.fillStyle = SUIT;  ctx.fillRect(x - 2.4, y - 2.4 + bob, 5, 2.4);
+      ctx.fillStyle = SKIN;  ctx.fillRect(x - 1, y + 0.4 + bob, 2, 1.4);     // 手
+      ctx.fillStyle = HELM;  ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 2.4);   // ヘルメット
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 0.8);
+      if (face) {                                                            // ホイールガン
+        ctx.fillStyle = '#2b2e36';
+        ctx.fillRect(x + face * 2.2, y - 0.6 + bob, 2.6 * face, 1.6);
+        if (prog > 0.18 && prog < 0.72) {                                    // 回転の火花
+          ctx.fillStyle = 'rgba(255,210,120,' + (0.4 + Math.random() * 0.5).toFixed(2) + ')';
+          ctx.fillRect(x + face * 4.6, y - 1.4 + bob + Math.random() * 3, 1.2, 1.2);
+        }
+      }
+    };
+
+    // 4輪それぞれに、ガン担当とタイヤ担当が付く
+    const CORNERS = [[7.4, -6.6, -1], [7.4, 6.6, -1], [-6.6, -6.6, 1], [-6.6, 6.6, 1]];
+    CORNERS.forEach((c2, i) => {
+      const [cx, cy, face] = c2;
+      const sy = cy < 0 ? -1 : 1;
+      // 外したタイヤを地面に置く／新品を運んでくる
+      const tc = tyre ? (GP.data.TYRES[tyre] || {}).color : null;
+      if (off > 0) {                                    // 外した古いタイヤ
+        ctx.fillStyle = '#17181c';
+        ctx.fillRect(cx - 2, cy + sy * (4 + off * 5), 4, 2.6);
+      }
+      if (on > 0 && on < 1) {                           // 運んでくる新品
+        ctx.fillStyle = '#17181c';
+        ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 2.6);
+        if (tc) { ctx.fillStyle = tc; ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 0.9); }
+      }
+      person(cx, cy + sy * 4.4, face, prog > 0.18 && prog < 0.72);     // ガン担当
+      person(cx + face * 3.4, cy + sy * 7.6, 0, prog < 0.72);          // タイヤ担当
+    });
+
+    // 前後のジャッキ担当
+    ctx.fillStyle = '#3a3d46';
+    if (jackUp) {
+      ctx.fillRect(12.5, -1.6, 4.5, 3.2);      // 前ジャッキ
+      ctx.fillRect(-13, -1.6, 4.5, 3.2);       // 後ジャッキ
+    }
+    person(16.5, 0, 0, false);
+    person(-16, 0, 0, false);
+
+    // ロリポップ（発進の合図）。最後に上がって緑になる
+    const goSign = prog >= 0.9;
+    ctx.save();
+    ctx.translate(0, -12 - (goSign ? 5 : 0));
+    ctx.fillStyle = '#6a6a72'; ctx.fillRect(-0.7, 0, 1.4, 9);
+    ctx.fillStyle = goSign ? '#3fd44a' : '#e8402c';
+    ctx.beginPath(); ctx.arc(0, -1.5, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.beginPath(); ctx.arc(-1, -2.6, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (goSign) {
+      GP.fx.addLight(function (lg) {
+        lg.save(); camTransform(lg); lg.translate(px, py); lg.rotate(ang);
+        lg.fillStyle = '#3fd44a';
+        lg.beginPath(); lg.arc(0, -18.5, 3.4, 0, Math.PI * 2); lg.fill();
+        lg.restore();
+      });
+    }
+    ctx.restore();
   }
 
   /* ---------- ループ ---------- */
@@ -1228,5 +1446,5 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, setCamMode, _drawCar: drawCar };
+  return { start, setSpeed, skip, stop, setCamMode, _drawCar: drawCar, _drawPitCrew: drawPitCrew };
 })();

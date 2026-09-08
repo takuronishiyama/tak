@@ -634,8 +634,12 @@ GP.ui = (function () {
      建物を押すと、その設備の画面が開く。何が開くかは main.js が決める。 */
   function hubCard(g) {
     const sc = GP.base.scale(g);
-    return '<div class="card hub">' +
-      '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>' +
+    // レースウィークは、本拠地ではなくサーキットのパドックを歩く
+    const race = g.nextRace < D.TRACKS.length && g.week === GP.state.raceWeek(g.nextRace);
+    const head = race
+      ? '<div class="card-h">🏁 パドック <b class="hubrank">' + esc(D.TRACKS[g.nextRace].name) + '</b></div>'
+      : '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>';
+    return '<div class="card hub">' + head +
       '<div class="pad">' +
       '<div class="basewrap"><canvas id="hubCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
       '<div class="hubbar">' +
