@@ -650,7 +650,10 @@ GP.race = (function () {
        走るぶんだけが安くなり、止まるぶんは変わらずかかる。            */
     const pitLane = track.pitLane || 18;
     const myPit = S.pitCrew(g);
-    const strategist = S.staffBonus(g, 'strategist');
+    /* 読み（何をすべきか分かる）と、現場の余力（実際に動ける）は別もの。
+       疲れきったクルーでは、正しい指示も間に合わない                  */
+    const strategist = S.readPower(g);
+    const ready = S.org(g).ready;
     // ライバルのクルーの腕は、そのチームの地力なりに揃っている
     const carRef = entries.reduce((a, e) => a + e.carScore, 0) / Math.max(1, entries.length);
 
@@ -671,7 +674,7 @@ GP.race = (function () {
         const want = e.stopPlan;
         if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
         e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
-        e.react = 0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06;
+        e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
         const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
@@ -1563,7 +1566,7 @@ GP.race = (function () {
     // どんなときも残ってくれる人たちがいる
     if (fanDelta < 0) fanDelta = Math.max(fanDelta, -Math.round(g.fans * 0.12) - 20);
     g.fans = Math.max(120, g.fans + fanDelta);
-    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
+    g.rp += (sp ? sp.rp : 8) + Math.round(S.analystPower(g) * 2) + sponsorRp;
 
     res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, notes };
     if (!sp) g.results.push({

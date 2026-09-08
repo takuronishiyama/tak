@@ -592,14 +592,14 @@ GP.data = (function () {
      効果はすべて実際の計算に掛かる                                  */
   const MANAGERS = [
     { key: 'principal', name: 'チームプリンシパル', icon: '👔', salary: 180,
-      desc: 'チームの顔。スポンサー収入と注目度が上がり、スタッフも育ちやすくなる',
-      effect: '収入 +0.6%／技能1、注目度 +0.4%／技能1' },
+      desc: 'チームの顔。スポンサー収入と注目度が上がり、育成部門もこの人が見る',
+      effect: '収入 +0.6%／技能1、注目度 +0.4%／技能1、育成部門 +0.6%／技能1' },
     { key: 'technical', name: '開発責任者',       icon: '🔬', salary: 150,
-      desc: '技術部門の統括。開発の伸びと、設計するパーツのレアリティが上がる',
-      effect: '開発 +0.8%／技能1、レアリティ抽選に加算' },
+      desc: '技術部門（エンジニア・デザイナー・アナリスト）の統括。部下の出す力そのものを引き上げる',
+      effect: '技術部門の効き +0.6%／技能1（部下がいなければ空回り）' },
     { key: 'pitchief',  name: 'ピットクルーチーフ', icon: '🔧', salary: 130,
-      desc: 'ピット作業を仕切る。停止時間が短くなり、マシンの信頼性も上がる',
-      effect: 'ピット -0.06秒／技能1、信頼性 +0.15／技能1' },
+      desc: '現場（メカニック・ストラテジスト）を仕切る。ピットウォールごと底上げする',
+      effect: '現場部門の効き +0.6%／技能1（部下がいなければ空回り）' },
     { key: 'logistics', name: 'ロジスティクス責任者', icon: '🚚', salary: 85,
       desc: '遠征と運営の効率化。週ごとの固定費が下がる（大所帯ほど効く）',
       effect: '固定費 -1.0%／技能1（最大35%）' }
@@ -622,19 +622,39 @@ GP.data = (function () {
   /* ---------- スタッフ ---------- */
   /* 職能。promote は、経験を積んだときに就ける首脳陣の役職 */
   const STAFF_TYPES = [
-    { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60,
+    { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる（データが回るほど効く）', salary: 60,
       promote: ['technical'] },
     { key: 'designer',   name: 'デザイナー',     icon: '🎨', desc: '設計するパーツのレアリティが上がる', salary: 62,
       promote: ['technical'] },
-    { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: '信頼性とピット作業が上がる',   salary: 50,
+    { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: 'ピットの静止時間が縮み、信頼性と整備も上がる', salary: 50,
       promote: ['pitchief'] },
-    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピットのタイミングが正確になり、作業も速くなる', salary: 65,
+    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: '路面の読みが上がり、いつ入るかを当てられる', salary: 65,
       promote: ['pitchief', 'principal'] },
-    { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増える',         salary: 55,
+    { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増え、開発・作戦・育成の効きも底上げする', salary: 55,
       promote: ['technical', 'logistics'] },
     { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45,
       promote: ['principal', 'logistics'] }
   ];
+
+  /* ---------- 組織のかみ合い ----------
+     部門はそれぞれ独立した足し算ではない。
+       ・首脳陣は「自分の部門の人」を伸ばす乗数。部下がいなければ空回りする
+       ・アナリストは自分では何も作らないが、集めたデータが開発・読み・育成の
+         効きを底上げする。回す先が無ければ、やはり意味がない
+       ・現場（クルー）が疲れきっていれば、読めていても打つ手が出ない
+     どこか一つを厚くするより、噛み合わせるほうが伸びる、という形にする   */
+  const ORG = {
+    lead: 0.0060,       // 首脳陣の技能1あたり、その部門の効きを何倍にするか
+    dataHalf: 3.5,      // アナリストの厚みがこの値で、データの効きが半分まわる
+    dataGain: 0.45,     // データが回りきったときの底上げ
+    readyFloor: 0.58,   // クルーが疲れきったとき、作戦をどこまで打てるか
+    // 誰がどの部門を見るか
+    DEPT: {
+      engineer: 'technical', designer: 'technical', analyst: 'technical',
+      mechanic: 'pitchief',  strategist: 'pitchief',
+      trainer:  'principal'
+    }
+  };
 
   /* ---------- 職種ごとのキャリア ----------
      技能が上がると肩書きが変わる。見習いから始まり、チーフまで来れば
@@ -853,5 +873,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

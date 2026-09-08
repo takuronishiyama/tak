@@ -75,7 +75,7 @@ GP.state = (function () {
   /* 設計時のレアリティ抽選（デザイナーの腕で上振れする） */
   function rollRarity(g) {
     // グリッドで他所のマシンを間近に見てきたぶんは、次の設計に効く
-    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35 + mgr(g, 'technical') * 0.06
+    const dz = designPower(g) + g.facilities.factory * 0.35
              + (g.designEdge || 0) * 1.4;
     const w = [
       Math.max(6, 58 - dz * 5),
@@ -648,7 +648,7 @@ GP.state = (function () {
   function foresightOf(g2) {
     // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
-    return clamp(0.20 + staffBonus(g2, 'strategist') * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
+    return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -675,7 +675,7 @@ GP.state = (function () {
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
-               + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
+               + g.facilities.pit * 2.5 + pitPower(g) * 1.4, 5, 99);
   }
 
   /* =======================================================
@@ -746,6 +746,38 @@ GP.state = (function () {
     return { pit: r * D.CREW_FULL.pit, rel: r * D.CREW_FULL.rel,
              mistake: r * D.CREW_FULL.mistake, level: crew(g2) };
   }
+  /* ---------- 組織のかみ合い ----------
+     各部門の「実際に効いている厚み」を一度に出す。
+       dept …… その職種の腕 × 部門を見る首脳陣の乗数
+                （部下がいない首脳陣は、掛ける相手がいないので空回りする）
+       dataMul … アナリストが集めたデータの底上げ。開発・読み・育成にかかる
+                （回す先が無ければ、やはり何も増えない）
+       ready …… 現場の余力。クルーが疲れきっていると、読めていても動けない
+     どこかを厚くするより、噛み合わせるほうが伸びる                     */
+  function org(g2) {
+    const raw = {}, dept = {}, lead = {};
+    D.STAFF_TYPES.forEach(t => { raw[t.key] = staffBonus(g2, t.key); });
+    D.MANAGERS.forEach(m => { lead[m.key] = 1 + mgr(g2, m.key) * D.ORG.lead; });
+    D.STAFF_TYPES.forEach(t => {
+      const boss = D.ORG.DEPT[t.key] || 'principal';
+      dept[t.key] = raw[t.key] * lead[boss];
+    });
+    const data = dept.analyst / (dept.analyst + D.ORG.dataHalf);
+    return {
+      raw: raw, dept: dept, lead: lead,
+      data: data,
+      dataMul: 1 + data * D.ORG.dataGain,
+      ready: 1 - (1 - D.ORG.readyFloor) * (crew(g2) / 100)
+    };
+  }
+  /* 各部門が実際に出している力。式のあちこちはこれを見る */
+  function devPower(g2)   { const o = org(g2); return o.dept.engineer * o.dataMul; }
+  function designPower(g2){ return org(g2).dept.designer; }
+  function pitPower(g2)   { return org(g2).dept.mechanic; }
+  function readPower(g2)  { const o = org(g2); return o.dept.strategist * o.dataMul; }
+  function trainPower(g2) { const o = org(g2); return o.dept.trainer * o.dataMul; }
+  function analystPower(g2){ return org(g2).dept.analyst; }
+
   /* タイヤをどれだけ長持ちさせられるか（小さいほど持つ）。
      技術のあるドライバーほど、同じタイヤで長く走れる            */
   function tyreWear(d) { return (hasSkill(d, 'tyre') ? 0.55 : 1) * (1 - d.technique / 420); }
@@ -762,8 +794,7 @@ GP.state = (function () {
      ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
      腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
   function pitCrew(g2) {
-    const skill = g2.facilities.pit * 0.55 + staffBonus(g2, 'mechanic')
-                + mgr(g2, 'pitchief') * 0.06 + osk(g2, 'call') * 0.5;
+    const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
     const cw = crewPenalty(g2);
     const stand = D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
                 / (1 + skill * D.PIT_STAND_CURVE) + cw.pit;
@@ -852,7 +883,7 @@ GP.state = (function () {
   function puWear(g2, track, pushMul) {
     const laps = (track && track.laps) || 26;
     const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
-    const care = 1 - Math.min(0.28, staffBonus(g2, 'mechanic') * 0.06 + g2.facilities.pit * 0.015);
+    const care = 1 - Math.min(0.28, pitPower(g2) * 0.06 + g2.facilities.pit * 0.015);
     return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care * puMode(g2).wear;
   }
   /* レースを走り終えたときの処理。使い切ったら次の基数へ */
@@ -1407,7 +1438,7 @@ GP.state = (function () {
   /* 毎週の成長。才能とアカデミーのレベルで伸びが変わる */
   function growYouth(g2) {
     const lv = (g2.facilities && g2.facilities.youth) || 1;
-    const trainer = staffBonus(g2, 'trainer');
+    const trainer = trainPower(g2);
     const grown = [];
     (g2.youth || []).forEach(d => {
       // 若いうちほど伸びる。24歳を過ぎるとほとんど伸びなくなる
@@ -1673,7 +1704,7 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, tyreWear, naturalStops, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

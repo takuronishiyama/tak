@@ -1514,6 +1514,30 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 部門のかみ合い */
+.orgbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+        background:#fff8e3;color:var(--ink)}
+.orgbox>b{font-size:12px}
+.orgbox small{display:block;margin-top:4px;font-size:10px;line-height:1.65;color:var(--ink2)}
+.orglist{margin-top:6px;display:flex;flex-direction:column;gap:3px}
+.orgrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.or-nm{flex:0 0 74px;font-size:10.5px;font-weight:bold}
+.or-bar{flex:1 1 90px;min-width:70px;height:9px;border:2px solid var(--ink);border-radius:3px;
+        background:#e7d7ad;overflow:hidden}
+.or-bar i{display:block;height:100%;background:#3a7ad9}
+.or-out{flex:0 0 42px;text-align:right;font-size:11px}
+.or-chain{flex:0 0 auto;font-size:9px;color:var(--ink2);white-space:nowrap}
+.or-chain em{font-style:normal;opacity:.65;padding:0 1px}
+.orgnote{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.orgnote span{flex:1 1 200px;padding:3px 7px;font-size:9.5px;border:2px solid var(--ink);
+              border-radius:5px;background:#f6ecc9}
+[data-skin="hd"] .orgbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .orgbox small{color:#cbbb9a}
+[data-skin="hd"] .or-bar{background:#382c4a;border-color:#5b4a74}
+[data-skin="hd"] .or-bar i{background:#6f9cf0}
+[data-skin="hd"] .or-chain{color:#cbbb9a}
+[data-skin="hd"] .orgnote span{background:#2f2540;border-color:#5b4a74}
+
 /* ピットのロス：走るぶんと止まるぶん */
 .pitsplit{display:flex;gap:3px;margin-top:6px}
 .pitsplit span{display:flex;align-items:center;justify-content:center;min-width:0;

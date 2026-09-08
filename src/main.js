@@ -29,7 +29,7 @@ window.GP = window.GP || {};
     const up = S.tryAdvanceGen(g);
     if (up) announceGen(up);
     // 研究ポイントの自然増
-    g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
+    g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
     // 下部組織の若手が育つ
@@ -444,7 +444,7 @@ window.GP = window.GP || {};
     // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
     const bodyStep = a => {
       const facBonus = 1 + g.facilities.factory * 0.10;
-      const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+      const engBonus = 1 + S.devPower(g) * 0.14;
       const drvBonus = 1 + g.drivers.reduce((x, d) => x + S.persOf(d).dev, 0);
       let gain = 3.4 * facBonus * engBonus * drvBonus * planMul(a.gain) * S.devRate(g);
       if (((g.body && g.body[a.key]) || 0) >= cap) gain *= 0.30;
@@ -564,7 +564,7 @@ window.GP = window.GP || {};
       g.funds -= cost; g.rp -= 8; capSpend(cost);
     }
     const facBonus = 1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06;
-    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
+    const engBonus = 1 + S.devPower(g) * 0.12;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
     let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.devRate(g);
@@ -676,7 +676,7 @@ window.GP = window.GP || {};
     const fc = S.focusOf(g);
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((c.key === 'aero' || c.key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
-    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+    const engBonus = 1 + S.devPower(g) * 0.14;
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
     if (p.power >= cap) gain *= 0.30;
@@ -714,7 +714,7 @@ window.GP = window.GP || {};
 
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
-    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+    const engBonus = 1 + S.devPower(g) * 0.14;
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
@@ -831,7 +831,7 @@ window.GP = window.GP || {};
       '<div class="pick">' +
       '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">🔬</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
-      '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
+      '<span class="pb-cost">+' + Math.round(12 + S.analystPower(g) * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
 
     body += '<div class="sub">マシンの世代</div>';
     body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>' +
@@ -971,7 +971,7 @@ window.GP = window.GP || {};
   }
 
   function doResearchGain() {
-    const gain = Math.round((12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2
+    const gain = Math.round((12 + S.analystPower(g) * 4 + g.facilities.sim * 2
                             + S.osk(g, 'eye') + S.rnd(-2, 6)) * crunchMul());   // 技術眼
     g.rp += gain;
     U.closeModal();
@@ -1001,12 +1001,12 @@ window.GP = window.GP || {};
   }
   function doMaintain(cost) {
     g.funds -= cost;
-    const mech = 1 + S.staffBonus(g, 'mechanic') * 0.2 + g.facilities.pit * 0.08;
+    const mech = 1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
     });
-    const puGain = S.nursePU(g, S.rnd(8, 16) * (1 + S.staffBonus(g, 'mechanic') * 0.18));
+    const puGain = S.nursePU(g, S.rnd(8, 16) * (1 + S.pitPower(g) * 0.18));
     U.closeModal();
     staffExp('mechanic', 12);
     U.log(g, '🛠️ 分解整備を行った。信頼性 ' + Math.round(S.reliability(g)) + '%' +
@@ -1097,7 +1097,7 @@ window.GP = window.GP || {};
     g.funds -= cost;
 
     // トレーナーと施設が良いほど候補から複数回引き、良いスキルを引き当てやすい
-    const tries = 1 + Math.min(3, Math.floor(S.staffBonus(g, 'trainer') * 0.8 + g.facilities.sim * 0.3));
+    const tries = 1 + Math.min(3, Math.floor(S.trainPower(g) * 0.8 + g.facilities.sim * 0.3));
     let best = null;
     for (let i = 0; i < tries; i++) {
       const pick = S.pick(cand);
@@ -1118,7 +1118,7 @@ window.GP = window.GP || {};
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = (1 + g.facilities.sim * 0.14 + S.staffBonus(g, 'trainer') * 0.16) * S.persOf(d).train;
+    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16) * S.persOf(d).train;
     let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
@@ -1876,7 +1876,7 @@ window.GP = window.GP || {};
   function hrStaff() {
     const q = teamQuality();
     let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
-      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>';
+      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>' + orgBoxHTML();
     body += '<div class="sub">在籍スタッフ（' + g.staff.length + '人）</div><div class="pick">';
     if (!g.staff.length) body += '<p class="desc">スタッフがいません。</p>';
     // 職種ごとの合計効果も見えるようにする
@@ -1947,20 +1947,26 @@ window.GP = window.GP || {};
      こうしないと「誰を据えるべきか」が比べられない            */
   function mgrEffect(role, skill) {
     const n = Math.max(0, skill || 0);
+    const o = S.org(g);
     const pc = v => (v >= 0 ? '+' : '') + v.toFixed(v < 10 ? 1 : 0) + '%';
+    // 部門長は「部下の力を何割増しにするか」。掛ける相手がいなければ空回りする
+    const lift = n * D.ORG.lead * 100;
+    const under = keys => keys.reduce((a, k) => a + o.raw[k], 0);
+    const deptRows = (keys, label) => {
+      const have = under(keys);
+      return [
+        [label + 'の効き', pc(lift)],
+        ['いまの部下', have.toFixed(1) + (have < 1.0 ? '（ほぼ空回り）' : '')],
+        ['実際の上乗せ', '+' + (have * lift / 100).toFixed(2)]
+      ];
+    };
     if (role === 'principal') return [
       ['スポンサー収入', pc(n * 0.6)],
       ['注目度の伸び', pc(n * 0.4)],
-      ['広報の成果', '+' + (n * 0.6).toFixed(0)]
+      ['育成部門の効き', pc(lift)]
     ];
-    if (role === 'technical') return [
-      ['開発の伸び', pc(n * 0.8)],
-      ['設計のレアリティ', '+' + (n * 0.06).toFixed(1)]
-    ];
-    if (role === 'pitchief') return [
-      ['ピット作業', '-' + (n * 0.06).toFixed(2) + '秒'],
-      ['マシンの信頼性', '+' + (n * 0.15).toFixed(1)]
-    ];
+    if (role === 'technical') return deptRows(['engineer', 'designer', 'analyst'], '技術部門');
+    if (role === 'pitchief') return deptRows(['mechanic', 'strategist'], '現場部門');
     if (role === 'logistics') return [
       ['週の運営費', '-' + Math.min(45, n * 1.0).toFixed(0) + '%'],
       ['輸送費', '-' + Math.min(45, n * 1.2).toFixed(0) + '%'],
@@ -1972,10 +1978,60 @@ window.GP = window.GP || {};
   const effChips = (role, skill) => '<span class="mgeffs">' +
     mgrEffect(role, skill).map(e => '<em>' + e[0] + ' <b>' + e[1] + '</b></em>').join('') + '</span>';
 
+  /* ---- 部門のかみ合い ----
+     どの部門も、単体の足し算では出せない力を出している。
+     何が何に掛かっているのかを、そのまま数字で見せる            */
+  function orgBoxHTML() {
+    const o = S.org(g);
+    const D2 = D.ORG.DEPT;
+    const bossOf = k => D.MANAGERS.find(m => m.key === (D2[k] || 'principal')) || {};
+    const rows = [
+      { k: 'engineer',   nm: '開発',   ic: '👷', out: S.devPower(g),   data: true },
+      { k: 'designer',   nm: '設計',   ic: '🎨', out: S.designPower(g), data: false },
+      { k: 'mechanic',   nm: 'ピット', ic: '🔩', out: S.pitPower(g),   data: false },
+      { k: 'strategist', nm: '作戦',   ic: '🧠', out: S.readPower(g),  data: true },
+      { k: 'trainer',    nm: '育成',   ic: '💪', out: S.trainPower(g), data: true },
+      { k: 'analyst',    nm: 'データ', ic: '📊', out: S.analystPower(g), data: false }
+    ];
+    const top = Math.max.apply(null, rows.map(r => r.out).concat([1]));
+    // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
+    const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
+    let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
+      '<small>部門はそれぞれ独立していません。<b>上司は部下に掛かり</b>、' +
+      '<b>データは開発・作戦・育成に掛かり</b>、<b>現場の疲れは作戦の実行力を削り</b>ます。' +
+      '同じ人件費でも、噛み合わせ次第で出る力が変わります。</small>' +
+      '<div class="orglist">';
+    rows.forEach(r => {
+      const boss = bossOf(r.k);
+      const lead = o.lead[D2[r.k] || 'principal'];
+      h += '<div class="orgrow">' +
+        '<span class="or-nm">' + r.ic + ' ' + r.nm + '</span>' +
+        '<span class="or-bar"><i style="width:' +
+          Math.round(Math.max(3, r.out / top * 100)) + '%"></i></span>' +
+        '<b class="or-out">' + r.out.toFixed(1) + '</b>' +
+        '<span class="or-chain">' + o.raw[r.k].toFixed(1) +
+          ' <em>×</em> ' + boss.icon + (lead).toFixed(2) +
+          (r.data ? ' <em>×</em> 📊' + o.dataMul.toFixed(2) : '') +
+        '</span></div>';
+    });
+    h += '</div>' +
+      '<div class="orgnote">' +
+        '<span>📊 データが回っている <b>' + Math.round(o.data * 100) + '%</b>' +
+          '（開発・作戦・育成 <b>×' + o.dataMul.toFixed(2) + '</b>）</span>' +
+        '<span>🧑‍🔧 現場の余力 <b>' + Math.round(o.ready * 100) + '%</b>' +
+          '（作戦をどれだけ実際に打てるか）</span>' +
+      '</div>' +
+      '<small>いま細いのは <b>' + thin.ic + ' ' + thin.nm + '</b>。' +
+      'ここを厚くすると、掛かっている先までまとめて伸びます。</small>' +
+      '</div>';
+    return h;
+  }
+
   function hrManagement() {
-    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。<br>' +
+    let body = '<p class="lead">役職は1人ずつ。据えると<b>その部門の人が出す力に掛かります</b>。<br>' +
       '各役職に、<b>自前のスタッフからの昇進</b>と<b>外からの招聘</b>を並べてあります。' +
-      '数字は「その技能なら実際にどれだけ効くか」です。</p>';
+      '数字は「その技能なら、いまの部下に対して実際にどれだけ効くか」です。</p>' +
+      orgBoxHTML();
 
     D.MANAGERS.forEach(m => {
       const cur = g.managers && g.managers[m.key];
@@ -2543,7 +2599,7 @@ window.GP = window.GP || {};
     { k: 'long', icon: '📊', label: 'ロングランでデータを取る', setup: 1.005,
       note: '走り込んでデータを集める。研究ポイントが入る',
       run: () => {
-        const rp = Math.max(4, Math.round(6 + S.staffBonus(g, 'analyst') * 2.4 + S.osk(g, 'eye') * 1.5));
+        const rp = Math.max(4, Math.round(6 + S.analystPower(g) * 2.4 + S.osk(g, 'eye') * 1.5));
         g.rp += rp;
         staffExp('analyst', 12);
         return 'ロングランのデータが取れた（研究P +' + rp + '）';
@@ -3470,7 +3526,7 @@ window.GP = window.GP || {};
     const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
     const mine = S.carScoreOf(S.carStats(g), t);
     const ahead = (g.rivals || []).filter(r => S.carScoreOf(r.stats, t) > mine);
-    const analyst = S.staffBonus(g, 'analyst');
+    const analyst = S.analystPower(g);
     const eye = S.osk(g, 'eye');
     const edge = ahead.reduce((a, r) => a + (S.carScoreOf(r.stats, t) - mine), 0) / Math.max(1, ahead.length);
     const rp = Math.max(2, Math.round((edge * 0.22 + analyst * 0.6 + S.rnd(1, 3)) * (1 + eye * 0.25)));
@@ -3840,7 +3896,7 @@ window.GP = window.GP || {};
         [{ label: '戻る', fn: U.closeModal }]);
     }
     // 来季に向けた仕込み。研究ポイントで返ってくる
-    const gain = Math.round(10 + S.staffBonus(g, 'analyst') * 2 + S.mgr(g, 'principal') * 0.6 + S.rnd(0, 6));
+    const gain = Math.round(10 + S.analystPower(g) * 2 + S.mgr(g, 'principal') * 0.6 + S.rnd(0, 6));
     g.rp += gain;
     offMark('mgr');
     S.save(g); U.renderTop(g);
@@ -4084,7 +4140,7 @@ window.GP = window.GP || {};
         '<p class="desc">同じチームからは、レースウィークごとに一度しか学べません。</p>',
         [{ label: '戻る', fn: U.closeModal }]);
     }
-    const analyst = S.staffBonus(g, 'analyst');
+    const analyst = S.analystPower(g);
     // 差がそのまま学びになる。自分のほうが速ければ得るものは少ない
     const edge = Math.max(0, theirs - mine);
     const eye = S.osk(g, 'eye');
@@ -5481,7 +5537,7 @@ window.GP = window.GP || {};
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +
         '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基／保管 ' +
         S.puOf(g).pool.length + '基）</span>' +
-      '<span>👷 開発の厚み <b>' + (S.staffBonus(g, 'engineer') * 100 / 3).toFixed(0) + '</b></span>' +
+      '<span>👷 開発の厚み <b>' + (S.devPower(g) * 100 / 3).toFixed(0) + '</b></span>' +
       '<span>🧾 今季の予算 <b class="' + (S.capSpent(g) > S.costCap(g) ? 'bad' : '') + '">' +
         money(S.capSpent(g)) + '/' + money(S.costCap(g)) + '万</b></span>' +
       '<span>💹 1戦の収支 <b class="' + (fin.net >= 0 ? 'good' : 'bad') + '">' +
