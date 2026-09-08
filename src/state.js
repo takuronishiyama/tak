@@ -940,6 +940,7 @@ GP.state = (function () {
       reserve: null,        // リザーブドライバー（1人）
       title: null,          // タイトルスポンサー（冠）
       capSpent: 0,          // 今季ここまでの開発・設備への支出
+      yardDone: [],         // 今週すでに声をかけた相手
       capPenalty: false,    // 前季に予算上限を超えたか
       managers: {},         // 役職（空席から始まる）
       fans: 500,

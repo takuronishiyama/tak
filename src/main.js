@@ -42,6 +42,9 @@ window.GP = window.GP || {};
     g.fans = Math.max(120, g.fans - Math.round(g.fans * 0.006));
     S.addHype(g, -(g.hype || 0) * 0.035);
 
+    g.yardDone = [];             // 週が変われば、また声をかけて回れる
+    GP.base.setYard(isRaceWeek() || g.offseason ? [] : yardPeople());
+    GP.base.invalidate();
     g.week++;
     g.special = null;
     randomEvent();
@@ -2942,7 +2945,14 @@ window.GP = window.GP || {};
   /* パドックの入口一覧。ライバルのガレージと人はゲームの状態から作る */
   function hubDoors() {
     if (g.offseason) return offDoors();
-    if (!isRaceWeek()) return HUB_DOORS;
+    if (!isRaceWeek()) {
+      if (g.offseason) return HUB_DOORS;
+      const m = {};
+      Object.keys(HUB_DOORS).forEach(k => { m[k] = HUB_DOORS[k]; });
+      const yd = yardDoors();
+      Object.keys(yd).forEach(k => { m[k] = yd[k]; });
+      return m;
+    }
     weekFlags();
     const map = {};
     Object.keys(PADDOCK_DOORS).forEach(k => { map[k] = PADDOCK_DOORS[k]; });
@@ -3219,6 +3229,165 @@ window.GP = window.GP || {};
       ]);
   }
 
+  /* =======================================================
+     敷地に出ている人（平常週）
+     コマンドとコマンドのあいだに、歩いて声をかけて回れる。
+     週は消費しないが、一人につき週1回まで。
+     ======================================================= */
+  function yardPeople() {
+    const done = g.yardDone || [];
+    const list = [];
+    (g.drivers || []).slice(0, 2).forEach((d, i) => {
+      list.push({ key: 'yd:drv' + i, label: d.name, color: g.color,
+                  hair: '#3a2718', face: '#f0c49a', done: done.indexOf('yd:drv' + i) >= 0 });
+    });
+    const eng = (g.staff || []).slice().sort((a, b) => b.skill - a.skill)[0];
+    if (eng) {
+      list.push({ key: 'yd:eng', label: eng.name, color: '#5a6270',
+                  hair: '#2b1d12', face: '#e8bd94', hat: '#c9a86a',
+                  done: done.indexOf('yd:eng') >= 0 });
+    }
+    list.push({ key: 'yd:crew', label: 'ピットクルー', color: '#3f8a4a',
+                hair: '#4a3018', face: '#f2cba4', hat: '#e8c24a',
+                done: done.indexOf('yd:crew') >= 0 });
+    list.push({ key: 'yd:press', label: '記者', color: '#8a5a2a',
+                hair: '#241c14', face: '#e2b48e', done: done.indexOf('yd:press') >= 0 });
+    if ((g.youth || []).length) {
+      list.push({ key: 'yd:youth', label: g.youth[0].name + '（若手）', color: '#b06fd0',
+                  hair: '#3a2718', face: '#f0c49a', done: done.indexOf('yd:youth') >= 0 });
+    }
+    return list;
+  }
+  const yardDone = k => (g.yardDone || []).indexOf(k) >= 0;
+  function yardMark(k) {
+    g.yardDone = (g.yardDone || []).concat([k]);
+    GP.base.setYard(yardPeople());     // 話した人は薄く描かれる
+    GP.base.invalidate();
+  }
+
+  /* 敷地の人に話しかけたときの中身 */
+  function yardDoors() {
+    const m = {};
+    yardPeople().forEach(q => {
+      const dn = q.done;
+      if (q.key.indexOf('yd:drv') === 0) {
+        const i = +q.key.slice(6);
+        m[q.key] = { icon: '🧑‍✈️', label: q.label, to: dn ? '話した' : '話す',
+                     fn: () => dn ? yardAgain(q.label) : doYardDriver(i) };
+      } else if (q.key === 'yd:eng') {
+        m[q.key] = { icon: '👷', label: q.label, to: dn ? '話した' : '技術の話',
+                     fn: () => dn ? yardAgain(q.label) : doYardEngineer() };
+      } else if (q.key === 'yd:crew') {
+        m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', to: dn ? '話した' : 'ねぎらう',
+                     fn: () => dn ? yardAgain('ピットクルー') : doYardCrew() };
+      } else if (q.key === 'yd:press') {
+        m[q.key] = { icon: '📰', label: '記者', to: dn ? '話した' : '取材を受ける',
+                     fn: () => dn ? yardAgain('記者') : doYardPress() };
+      } else if (q.key === 'yd:youth') {
+        m[q.key] = { icon: '🎓', label: q.label, to: dn ? '話した' : '激励する',
+                     fn: () => dn ? yardAgain(q.label) : doYardYouth() };
+      }
+    });
+    return m;
+  }
+
+  function yardAgain(name) {
+    U.toast('🗨️ ' + name + ' とは今週もう話した', '');
+    GP.sound.play('tap');
+  }
+
+  function yardResult(title, body, note) {
+    U.modal(title, '<p class="lead">' + body + '</p>' +
+      (note ? '<p class="note">' + note + '</p>' : ''),
+      [{ label: '戻る', cls: 'primary', fn: U.closeModal }]);
+  }
+
+  function doYardDriver(i) {
+    const d = (g.drivers || [])[i];
+    if (!d) return;
+    yardMark('yd:drv' + i);
+    const up = S.rnd(4, 9) * S.persOf(d).rest;
+    d.form = S.clamp(d.form + up, 62, 122);
+    const p = S.persOf(d);
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const w = t.weight;
+    const best = w.speed >= w.corner && w.speed >= w.accel ? '最高速'
+               : w.corner >= w.accel ? 'コーナー' : '加速';
+    yardResult('🧑‍✈️ ' + esc(d.name) + 'と話す',
+      p.icon + '「' + esc(t.name) + 'は' + best + 'が効きます。そこを煮詰めてもらえれば、あとは自分がやります」',
+      '調子 +' + up.toFixed(0) + '（いま ' + Math.round(d.form) + '）');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  function doYardEngineer() {
+    const st = (g.staff || []).slice().sort((a, b) => b.skill - a.skill)[0];
+    if (!st) return;
+    yardMark('yd:eng');
+    const rp = Math.round(4 + st.skill * 0.22 + S.osk(g, 'eye'));
+    g.rp += rp;
+    staffExp(st.type, 8);
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    yardResult('👷 ' + esc(st.name) + 'と技術の話',
+      '「いま気になっているのは' + esc(t.name === 'エンジニア' ? '車体のねじれ' : t.desc) +
+      'のあたりです。少し数字を持ってきました」',
+      '研究P +' + rp + '／' + esc(st.name) + 'にも経験が入った');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  function doYardCrew() {
+    yardMark('yd:crew');
+    const before = S.crewPenalty(g).level;
+    S.restCrew(g, S.rnd(6, 12));
+    const now = S.crewPenalty(g).level;
+    yardResult('🧑‍🔧 ピットクルーをねぎらう',
+      '「オーナーが顔を出してくれると、こっちも張り合いが出ますよ」',
+      'クルーの疲労 ' + Math.round(before) + ' → ' + Math.round(now));
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  function doYardPress() {
+    yardMark('yd:press');
+    const good = Math.random() < 0.72 + S.osk(g, 'fame') * 0.05;
+    if (good) {
+      const h = S.rnd(1.6, 4.0) * (1 + S.mgr(g, 'principal') * 0.006);
+      const f = Math.round(30 + g.fans * 0.012);
+      S.addHype(g, h);
+      g.fans += f;
+      yardResult('📰 取材を受ける',
+        '「今季の手応えは？」——うまく答えられた。記事は好意的に出そうだ。',
+        '注目度 +' + h.toFixed(1) + '／ファン +' + money(f));
+      GP.sound.play('good');
+    } else {
+      S.addHype(g, 1.0);
+      const d = (g.drivers || [])[0];
+      if (d) d.form = S.clamp(d.form - S.rnd(1, 4), 62, 122);
+      yardResult('📰 取材を受ける',
+        '「今季の手応えは？」——言葉を選び損ねた。少し波風が立ちそうだ。',
+        '注目度 +1.0／チームの空気が少し重くなった');
+      GP.sound.play('tap');
+    }
+    S.save(g); render();
+  }
+
+  function doYardYouth() {
+    const d = (g.youth || [])[0];
+    if (!d) return;
+    yardMark('yd:youth');
+    const keys = ['speed', 'technique', 'stamina', 'mental'];
+    const k = S.pick(keys);
+    const up = S.rnd(1.2, 3.0) * S.potOf(d).growth;
+    d[k] = S.clamp(d[k] + up, 1, 199);
+    const nm = { speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k];
+    yardResult('🎓 ' + esc(d.name) + 'を激励する',
+      '「いつか、あの車に乗せてください」',
+      nm + ' +' + up.toFixed(1) + '（' + S.potOf(d).name + '）');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
   const HUB_DOORS = {
     factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
@@ -3270,7 +3439,11 @@ window.GP = window.GP || {};
     else if (hubGoal) {                              // タップした場所へ向かう
       const gx = hubGoal.x - actor.x, gy = hubGoal.y - actor.y;
       const d = Math.hypot(gx, gy);
-      if (d < 3.0) {
+      // 目的地にぴったり着けなくても、その入口が反応する所まで来ていれば着いたとみなす。
+      // （壁ぎわなど、座標にわずかでも届かないと永久に入れない場所があった）
+      const nearDoor = hubAutoEnter && d < 14 &&
+        ((hubMap().doorOf(actor.x, actor.y, g) || {}).key === hubAutoEnter);
+      if (d < 3.0 || nearDoor) {
         hubGoal = null;
         // 建物を押して向かってきた場合は、着いたらそのまま入る。
         // 「押したのに入れない」と感じさせないための扱い。
@@ -3280,7 +3453,14 @@ window.GP = window.GP || {};
           actor.moving = false;
           hubDoor = want;
           hubMap().drawWith(cv, g, hubDoor, actor);
-          setTimeout(() => { if (hubDoor === want) hubEnter(); }, 120);
+          // 着いた先の入口をそのまま開ける。
+          // ここで hubDoor を照合していたため、判定の縁に立ったときに
+          // 入口が別のものに切り替わってしまい、入れないことがあった
+          setTimeout(() => {
+            if (hubKeys.left || hubKeys.right || hubKeys.up || hubKeys.down) return;
+            hubDoor = want;
+            hubEnter();
+          }, 120);
           hubRaf = requestAnimationFrame(hubStep);
           return;
         }
@@ -3338,6 +3518,8 @@ window.GP = window.GP || {};
   function bindHub() {
     const cv = $('hubCv');
     if (!cv) { stopHub(); return; }
+    // 平常週は、敷地に出ている人を用意する
+    GP.base.setYard((isRaceWeek() || g.offseason) ? [] : yardPeople());
     GP.base.invalidate();          // 施設を広げた直後などに背景を作り直す
     GP.paddock.invalidate();
     actor.color = g.color || '#e04a3f';

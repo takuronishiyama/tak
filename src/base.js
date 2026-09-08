@@ -28,6 +28,11 @@ GP.base = (function () {
      建物より奥へは行けないので、キャラは常に建物より手前に描けばよい。 */
   const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
 
+  /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
+  const YARD_X = [58, 148, 262, 352, 442, 528];
+  let yard = [];             // [{key,label,color,hair,face,hat,done}]
+  function setYard(list) { yard = list || []; }
+
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
     { key: 'off:drv0',    x: 40,  kind: 'person' },
@@ -54,6 +59,14 @@ GP.base = (function () {
       return best;
     }
     let best = null, bd = 1e9;
+    // 敷地に出ている人。手前寄りに立っているので、下側にいるときだけ拾う
+    if (y > WALK.y0 + 20) {
+      yard.forEach((q, i) => {
+        const d = Math.abs(x - YARD_X[i]);
+        if (d < 22 && d < bd) { bd = d; best = { key: q.key, x: YARD_X[i] }; }
+      });
+      if (best) return best;
+    }
     PLOTS.forEach(p => {
       const s = tierOf(g2.facilities[p.key] || 1);
       const cx = p.x + s.w / 2;
@@ -69,6 +82,8 @@ GP.base = (function () {
       const s2 = OFF_SPOTS.find(q => q.key === key);
       return s2 ? { x: s2.x, y: WALK.y1 - 6 } : null;
     }
+    const yi = yard.findIndex(q => q.key === key);
+    if (yi >= 0) return { x: YARD_X[yi], y: WALK.y1 - 6 };
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const s = tierOf(g2.facilities[key] || 1);
@@ -539,6 +554,17 @@ GP.base = (function () {
 
     drawCrowd(bg, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
 
+    // ---- 平常週に敷地へ出ている人 ----
+    if (!off && yard.length) {
+      const py = WALK.y1 - 2;
+      yard.forEach((q, i) => {
+        const x = YARD_X[i];
+        person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
+        hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
+        sign(bg, x, py - 44 - (i % 2) * 12, q.label, sel === q.key ? '#e04a3f' : '#3f3a30');
+      });
+    }
+
     // チーム旗
     bg.fillStyle = '#7a6a52'; bg.fillRect(24, 116, 3, 54);
     bg.fillStyle = g2.color; bg.fillRect(27, 116, 26, 16);
@@ -692,6 +718,24 @@ GP.base = (function () {
     return null;
   }
 
+  /* 敷地に立っている人。オフ期間の描き方と同じ形にそろえてある */
+  function person(bg, x, py, suit, hair, faceC, hat, done) {
+    bg.globalAlpha = done ? 0.45 : 1;
+    bg.fillStyle = 'rgba(0,0,0,.30)';
+    bg.beginPath(); bg.ellipse(x, py, 7, 2.6, 0, 0, Math.PI * 2); bg.fill();
+    bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(x - 5, py - 21, 10, 21);
+    bg.fillStyle = suit;                  bg.fillRect(x - 5, py - 21, 10, 8);
+    bg.fillStyle = 'rgba(255,255,255,.24)'; bg.fillRect(x - 5, py - 21, 10, 2);
+    bg.fillStyle = '#2c3140'; bg.fillRect(x - 5, py - 9, 4, 9);
+    bg.fillRect(x + 1, py - 9, 4, 9);
+    bg.fillStyle = faceC; bg.fillRect(x - 4, py - 29, 8, 8);
+    bg.fillStyle = hair;  bg.fillRect(x - 4, py - 30, 8, 4);
+    bg.fillStyle = '#2a2028'; bg.fillRect(x - 3, py - 26, 2, 2);
+    bg.fillRect(x + 1, py - 26, 2, 2);
+    if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
+    bg.globalAlpha = 1;
+  }
+
   /* チームの規模（施設・ファン・タイトルの総合）*/
   function scale(g2) {
     const fac = GP.data.FACILITIES.reduce((a, f) => a + (g2.facilities[f.key] || 1), 0);
@@ -707,6 +751,6 @@ GP.base = (function () {
     return { value: Math.round(v), rank: r ? r[1] : '伝説のチーム' };
   }
 
-  return { render, scene, drawWith, invalidate, hit, scale,
+  return { render, scene, drawWith, invalidate, hit, scale, setYard,
            drawActor, doorOf, doorPos, clampWalk, WALK, W, H };
 })();
