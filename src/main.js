@@ -411,6 +411,8 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
+    body = techReport() + body;
+
     // ---- 規則変更の予告 ----
     if (S.regulationNext(g)) {
       body += '<div class="regwarn">' +
@@ -4162,6 +4164,113 @@ window.GP = window.GP || {};
       U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
       S.save(g); render(); cmdLogi();
     });
+  }
+
+  /* =======================================================
+     技術責任者からの報告
+     いまのマシンとシーズンの残りを見て、チームが何を求めているかを言う。
+     「今季は勝ちにいける」のか「来季に振るべき」なのかを、はっきり伝える。
+     ======================================================= */
+  function techVoice() {
+    const m = g.managers && g.managers.technical;
+    if (m) return { name: m.name, role: '開発責任者', icon: '🔬' };
+    const eng = (g.staff || []).filter(x => x.type === 'engineer' || x.type === 'designer')
+      .sort((a, b) => b.skill - a.skill)[0];
+    if (eng) return { name: eng.name, role: 'エンジニア', icon: '👷' };
+    return { name: '技術チーム', role: '', icon: '🔧' };
+  }
+
+  function techVerdict() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const mineCar = S.carScoreOf(S.carStats(g), track);
+    const rivals = (g.rivals || []).map(r => S.carScoreOf(r.stats, track));
+    const carRank = rivals.filter(v => v > mineCar).length + 1;
+    const n = rivals.length + 1;
+    const left = Math.max(0, D.TRACKS.length - (g.nextRace || 0));
+    const st = S.championshipStake(g);
+    const prog = S.nextCarProgress(g);
+    const fc = S.focusOf(g);
+    const regSoon = S.regulationNext(g);
+    const capR = S.capRatio(g);
+    const atr = S.atrOf(g);
+    // 車体とパーツの厚みの差（車体だけ置いていかれていないか）
+    const bodyAvg = D.BODY_ATTRS.reduce((a, x) => a + S.bodyRatio(g, x.key), 0) / D.BODY_ATTRS.length;
+    const partAvg = D.PART_CATS.reduce((a, c) => {
+      const p = g.equipped[c.key];
+      return a + (p ? Math.min(1, p.power / S.partCap(g, p)) : 0);
+    }, 0) / D.PART_CATS.length;
+
+    const V = [];
+    // 上から順に、いちばん差し迫っているものを1つ選ぶ
+    if (regSoon && prog < 0.35) {
+      V.push({ tone: 'bad', head: 'このままでは来季、戦えません',
+        text: '今季かぎりでレギュレーションが変わります。いま積んでいるパーツと車体は白紙に戻る。' +
+              '来季ぶんの仕込みが <b>' + Math.round(prog * 100) + '%</b> では、開幕から周回遅れです。',
+        ask: '開発リソースの配分を「来季優先」寄りに振ってください。' +
+             '設計したパーツも売らずに保管を。次の規則の土台になります。' });
+    }
+    if (regSoon && prog >= 0.35) {
+      V.push({ tone: 'good', head: '来季の下地はできています',
+        text: '規則の変わる年に向けて、仕込みは <b>' + Math.round(prog * 100) + '%</b> まで来ました。' +
+              '今季の順位は多少落としても構いません。',
+        ask: 'このまま来季に厚く振り続けてください。' });
+    }
+    if (capR >= 0.95) {
+      V.push({ tone: 'bad', head: '予算がもう限界です',
+        text: '今季の上限に対して <b>' + Math.round(capR * 100) + '%</b> を使いました。' +
+              'これ以上は超過分の罰金と、来季の風洞時間の削減がついてきます。',
+        ask: '残りは金のかからない手で凌ぎましょう。整備と練習で持たせます。' });
+    }
+    if (bodyAvg + 0.22 < partAvg) {
+      V.push({ tone: 'warn', head: '車体が置いていかれています',
+        text: 'パーツは <b>' + Math.round(partAvg * 100) + '%</b> まで来ているのに、' +
+              '車体は <b>' + Math.round(bodyAvg * 100) + '%</b>。' +
+              '速さはあっても、壊れやすく、タイヤも保たず、ピットも遅いままです。',
+        ask: '数週は車体の熟成に回してください。速さより、走りきる力が足りていません。' });
+    }
+    if (carRank <= 2 && left >= 3 && st.rank <= 3) {
+      V.push({ tone: 'good', head: '今季、勝ちにいきましょう',
+        text: 'マシンは <b>' + n + 'チーム中 ' + carRank + '番目</b>。選手権も <b>' + st.rank + '位</b>で、' +
+              '残り <b>' + left + '戦</b>あります。ここで手を緩める理由がありません。',
+        ask: st.rank === 1
+          ? '開発は今季に全振りを。首位を守りきれば ' + money(st.prizeNow) + '万と、タイトルが手に入ります。'
+          : '開発は今季に全振りを。1つ順位を上げるだけで ' + money(st.upGain) + '万が動きます。' });
+    }
+    if (carRank >= 7 && left <= 5 && left > 0) {
+      V.push({ tone: 'warn', head: '今季の巻き返しは、正直むずかしい',
+        text: 'マシンは <b>' + n + 'チーム中 ' + carRank + '番目</b>。残り <b>' + left + '戦</b>で' +
+              'この差を埋めるより、来季のマシンに手を入れたほうが実りがあります。',
+        ask: '配分を来季寄りに。今季は完走と入賞を拾って、賞金だけ確保しましょう。' });
+    }
+    if (atr < 0.92) {
+      V.push({ tone: 'warn', head: '使える開発時間が少ない',
+        text: '昨季の順位で風洞・CFDの使用時間が <b>×' + atr.toFixed(2) + '</b> に絞られています。' +
+              '同じ手数でも、伸びは他所より小さい。',
+        ask: '狙いを1つに絞りましょう。あちこち手を出すと、どれも届きません。' });
+    }
+    if (left === 0 && !g.offseason) {
+      V.push({ tone: 'good', head: '今季は走りきりました',
+        text: 'あとはオフの使い方です。仕込みは <b>' + Math.round(prog * 100) + '%</b>。',
+        ask: 'オフに「来季のマシン方針」を決めてください。積んだ仕込みがそこで乗ります。' });
+    }
+    if (!V.length) {
+      V.push({ tone: '', head: '悪くない進み方です',
+        text: 'マシンは <b>' + n + 'チーム中 ' + carRank + '番目</b>、選手権は <b>' + st.rank + '位</b>。' +
+              '今季の配分は「' + fc.icon + fc.name + '」です。',
+        ask: 'このまま積み上げていきましょう。' });
+    }
+    return V[0];
+  }
+
+  function techReport() {
+    const v = techVerdict();
+    const who = techVoice();
+    return '<div class="techrep ' + v.tone + '">' +
+      '<div class="tr-head">' + who.icon + ' ' + esc(who.name) +
+      (who.role ? '<em>' + who.role + '</em>' : '') + '</div>' +
+      '<b>' + v.head + '</b>' +
+      '<p>' + v.text + '</p>' +
+      '<p class="tr-ask">▶ ' + v.ask + '</p></div>';
   }
 
   /* ---- チーム診断：いま何が足を引っぱっているのか ---- */

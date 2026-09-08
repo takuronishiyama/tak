@@ -1391,3 +1391,26 @@ body[data-skin="hd"]{
 [data-skin="hd"] .brief-head{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .brief-list{background:#241c30}
 [data-skin="hd"] .brief-row{color:#efe4cf;border-bottom-color:rgba(255,225,160,.14)}
+
+/* ---------- 技術責任者からの報告 ---------- */
+.techrep{margin:0 0 10px;padding:9px 11px;border:2px solid var(--ink);border-left:6px solid var(--ink2);
+  border-radius:6px;background:var(--paper3);color:var(--ink)}
+.techrep.good{border-left-color:#2e7a2e}
+.techrep.warn{border-left-color:#c98b10}
+.techrep.bad{border-left-color:#b02a20}
+.tr-head{font-size:10px;opacity:.8;margin-bottom:3px}
+.tr-head em{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:8px;
+  background:#e6d8b6;color:#4a3a22;font-size:9px}
+.techrep>b{display:block;font-size:14px;line-height:1.4}
+.techrep.good>b{color:#2e7a2e}
+.techrep.warn>b{color:#a86a10}
+.techrep.bad>b{color:#b02a20}
+.techrep p b{display:inline;font-size:inherit;color:inherit}
+.techrep p{margin:5px 0 0;font-size:11px;line-height:1.65}
+.techrep .tr-ask{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(74,47,26,.30);font-weight:bold}
+[data-skin="hd"] .techrep{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .tr-head em{background:#3a3050;color:#d8c8a4}
+[data-skin="hd"] .techrep.good>b{color:#8ee08a}
+[data-skin="hd"] .techrep.warn>b{color:#ffcf6a}
+[data-skin="hd"] .techrep.bad>b{color:#ff9a8a}
+[data-skin="hd"] .techrep .tr-ask{border-top-color:rgba(255,225,160,.26)}
