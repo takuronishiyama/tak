@@ -30,12 +30,16 @@ GP.base = (function () {
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
-    { key: 'off:drv0',  x: 90  },
-    { key: 'off:drv1',  x: 150 },
-    { key: 'off:staff', x: 250 },
-    { key: 'off:youth', x: 360 },
-    { key: 'off:mgr',   x: 450 },
-    { key: 'off:next',  x: 545 }     // 来季への出発
+    { key: 'off:drv0',    x: 40,  kind: 'person' },
+    { key: 'off:drv1',    x: 96,  kind: 'person' },
+    { key: 'off:staff',   x: 152, kind: 'person' },
+    { key: 'off:youth',   x: 208, kind: 'person' },
+    { key: 'off:mgr',     x: 264, kind: 'person' },
+    { key: 'off:test',    x: 322, kind: 'prop' },    // 合同テスト
+    { key: 'off:plan',    x: 380, kind: 'prop' },    // 来季のマシン方針
+    { key: 'off:sponsor', x: 438, kind: 'prop' },    // スポンサー交渉
+    { key: 'off:scout',   x: 496, kind: 'prop' },    // 若手のスカウト
+    { key: 'off:next',    x: 556, kind: 'gate' }     // 来季への出発
   ];
 
   /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
@@ -45,7 +49,7 @@ GP.base = (function () {
       let best = null, bd = 1e9;
       OFF_SPOTS.forEach(s2 => {
         const d = Math.abs(x - s2.x);
-        if (d < 26 && d < bd) { bd = d; best = { key: s2.key, x: s2.x }; }
+        if (d < 24 && d < bd) { bd = d; best = { key: s2.key, x: s2.x }; }
       });
       return best;
     }
@@ -575,8 +579,61 @@ GP.base = (function () {
       stand(OFF_SPOTS[4].x, '#3a3f52', '#241c14', '#e2b48e', null);           // 首脳陣
       names.push([OFF_SPOTS[4].x, '首脳陣']); box(4);
 
+      // ---- オフにしかできないこと ----
+      // 合同テスト：テスト用のマシンが1台停まっている
+      (function () {
+        const x = OFF_SPOTS[5].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.30)'; bg.fillRect(x - 15, y - 4, 30, 4);
+        bg.fillStyle = shadeHex(g2.color, -0.20); bg.fillRect(x - 15, y - 14, 30, 10);
+        bg.fillStyle = g2.color; bg.fillRect(x - 13, y - 14, 26, 7);
+        bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 13, y - 14, 26, 2);
+        bg.fillStyle = '#17181c';
+        bg.fillRect(x - 14, y - 8, 7, 5); bg.fillRect(x + 7, y - 8, 7, 5);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 18, y - 12, 4, 3);
+        bg.fillRect(x + 14, y - 13, 5, 4);
+        // 計測用のパイロン
+        bg.fillStyle = '#e88a2a'; bg.fillRect(x - 24, y - 5, 4, 5);
+        bg.fillRect(x + 20, y - 5, 4, 5);
+        names.push([x, '合同テスト']); box(5);
+      })();
+      // 来季の方針：ホワイトボード
+      (function () {
+        const x = OFF_SPOTS[6].x, y = py;
+        bg.fillStyle = '#241a10'; bg.fillRect(x - 17, y - 40, 34, 32);
+        bg.fillStyle = dusk ? '#dcd6c4' : '#f6f2e4'; bg.fillRect(x - 15, y - 38, 30, 28);
+        bg.fillStyle = '#3a7ad9'; bg.fillRect(x - 12, y - 34, 20, 2);
+        bg.fillStyle = '#e04a3f'; bg.fillRect(x - 12, y - 29, 14, 2);
+        bg.fillStyle = '#4ea63f'; bg.fillRect(x - 12, y - 24, 22, 2);
+        bg.fillStyle = '#5c5548'; bg.fillRect(x - 3, y - 10, 6, 10);
+        bg.fillRect(x - 12, y - 2, 24, 2);
+        names.push([x, '来季の方針']); box(6);
+      })();
+      // スポンサー交渉：応接のテーブル
+      (function () {
+        const x = OFF_SPOTS[7].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 14, y - 3, 28, 3);
+        bg.fillStyle = '#4a4034'; bg.fillRect(x - 14, y - 14, 28, 11);
+        bg.fillStyle = '#5e5344'; bg.fillRect(x - 14, y - 14, 28, 3);
+        // 書類とペン
+        bg.fillStyle = '#f6f2e4'; bg.fillRect(x - 9, y - 18, 10, 5);
+        bg.fillStyle = '#c8a53a'; bg.fillRect(x + 3, y - 17, 7, 3);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x + 4, y - 20, 2, 4);
+        names.push([x, 'スポンサー交渉']); box(7);
+      })();
+      // 若手のスカウト：カートと看板
+      (function () {
+        const x = OFF_SPOTS[8].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 12, y - 3, 24, 3);
+        bg.fillStyle = '#17181c';
+        bg.fillRect(x - 12, y - 10, 6, 6); bg.fillRect(x + 6, y - 10, 6, 6);
+        bg.fillStyle = '#3f8a4a'; bg.fillRect(x - 9, y - 15, 18, 7);
+        bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 9, y - 15, 18, 2);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 3, y - 19, 6, 5);
+        names.push([x, '若手のスカウト']); box(8);
+      })();
+
       // 来季への出発地点
-      const nx = OFF_SPOTS[5].x;
+      const nx = OFF_SPOTS[9].x;
       bg.fillStyle = '#241a10'; bg.fillRect(nx - 24, py - 62, 48, 14);
       bg.fillStyle = dusk ? '#5c4a24' : '#e8dcc0'; bg.fillRect(nx - 23, py - 61, 46, 12);
       bg.font = 'bold 9px sans-serif'; bg.textAlign = 'center';
@@ -587,7 +644,7 @@ GP.base = (function () {
       bg.fillStyle = 'rgba(255,255,255,.40)';
       for (let k = 0; k < 3; k++) bg.fillRect(nx - 8, py - 30 + k * 9, 16, 3);
       names.push([nx, '来季へ']);
-      hitBoxes.push({ key: OFF_SPOTS[5].key, x: nx - 26, y: py - 64, w: 52, h: 66 });
+      hitBoxes.push({ key: OFF_SPOTS[9].key, x: nx - 26, y: py - 64, w: 52, h: 66 });
 
       // 名札
       names.forEach((n, i) => sign(bg, n[0], py - 44 - (i % 2) * 12, n[1],

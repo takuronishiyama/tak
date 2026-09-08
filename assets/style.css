@@ -1116,3 +1116,29 @@ body[data-skin="hd"]{
 [data-skin="hd"] .trow.me{background:linear-gradient(90deg,#5b4a24,#332a1a);
                           border-color:var(--gold);color:#ffeec0}
 [data-skin="hd"] .t-grew.up{color:#6ee06a}
+
+/* ---------- 開発の手応え ---------- */
+.devres{padding:4px 2px}
+.dv-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.dv-ic{width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+       border:3px solid var(--ink);border-radius:9px;overflow:hidden;flex-shrink:0}
+.dv-nm{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.dv-nm b{font-size:15px}
+.dv-nm small{font-size:11px;opacity:.75}
+.dv-gain{font-size:14px;color:var(--green)}
+.dv-gain b{font-size:24px}
+.dv-bar{position:relative;height:22px;background:var(--trough);border:3px solid var(--ink);
+        border-radius:8px;overflow:hidden}
+.dv-bar i{position:absolute;top:0;left:0;height:100%;display:block}
+/* 既存ぶんを手前に置き、その先だけが緑で伸びる＝増えた量が見える */
+.dv-bar .dv-old{background:linear-gradient(#8d94a0,#6a707d);z-index:1}
+.dv-bar .dv-new{background:linear-gradient(#8ede6a,#4ea63f);transition:none;z-index:0}
+.dv-bar b{position:absolute;top:0;left:0;right:0;text-align:center;line-height:22px;
+          font-size:12px;text-shadow:0 1px 0 rgba(0,0,0,.35);color:#fffdf3}
+.dv-bar u{text-decoration:none;font-size:15px}
+.devres.crit .dv-bar .dv-new{background:linear-gradient(#ffe98a,var(--yellow))}
+.dv-crit{margin-top:8px;text-align:center;font-size:14px;font-weight:bold;color:#a06000;
+         background:linear-gradient(90deg,#fff0a0,#ffd76a);border:2px solid var(--ink);
+         border-radius:7px;padding:4px;animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
+[data-skin="hd"] .dv-gain{color:#6ee06a}
+[data-skin="hd"] .dv-crit{color:#3a2a10}

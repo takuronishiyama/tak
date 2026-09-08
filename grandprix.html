@@ -1132,6 +1132,32 @@ body[data-skin="hd"]{
                           border-color:var(--gold);color:#ffeec0}
 [data-skin="hd"] .t-grew.up{color:#6ee06a}
 
+/* ---------- 開発の手応え ---------- */
+.devres{padding:4px 2px}
+.dv-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.dv-ic{width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+       border:3px solid var(--ink);border-radius:9px;overflow:hidden;flex-shrink:0}
+.dv-nm{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.dv-nm b{font-size:15px}
+.dv-nm small{font-size:11px;opacity:.75}
+.dv-gain{font-size:14px;color:var(--green)}
+.dv-gain b{font-size:24px}
+.dv-bar{position:relative;height:22px;background:var(--trough);border:3px solid var(--ink);
+        border-radius:8px;overflow:hidden}
+.dv-bar i{position:absolute;top:0;left:0;height:100%;display:block}
+/* 既存ぶんを手前に置き、その先だけが緑で伸びる＝増えた量が見える */
+.dv-bar .dv-old{background:linear-gradient(#8d94a0,#6a707d);z-index:1}
+.dv-bar .dv-new{background:linear-gradient(#8ede6a,#4ea63f);transition:none;z-index:0}
+.dv-bar b{position:absolute;top:0;left:0;right:0;text-align:center;line-height:22px;
+          font-size:12px;text-shadow:0 1px 0 rgba(0,0,0,.35);color:#fffdf3}
+.dv-bar u{text-decoration:none;font-size:15px}
+.devres.crit .dv-bar .dv-new{background:linear-gradient(#ffe98a,var(--yellow))}
+.dv-crit{margin-top:8px;text-align:center;font-size:14px;font-weight:bold;color:#a06000;
+         background:linear-gradient(90deg,#fff0a0,#ffd76a);border:2px solid var(--ink);
+         border-radius:7px;padding:4px;animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
+[data-skin="hd"] .dv-gain{color:#6ee06a}
+[data-skin="hd"] .dv-crit{color:#3a2a10}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -1204,6 +1230,7 @@ body[data-skin="hd"]{
       <button class="cmd" id="cTrain"><span>💪</span>練習</button>
       <button class="cmd" id="cSponsor"><span>📣</span>営業</button>
       <button class="cmd" id="cRest"><span>☕</span>休養</button>
+      <button class="cmd" id="cCrunch" title="次の1コマンドが2回ぶんになるが、疲れが残る"><span>🌙</span>徹夜</button>
       <span class="cmd-sep"></span>
       <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
@@ -5364,12 +5391,16 @@ GP.base = (function () {
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
-    { key: 'off:drv0',  x: 90  },
-    { key: 'off:drv1',  x: 150 },
-    { key: 'off:staff', x: 250 },
-    { key: 'off:youth', x: 360 },
-    { key: 'off:mgr',   x: 450 },
-    { key: 'off:next',  x: 545 }     // 来季への出発
+    { key: 'off:drv0',    x: 40,  kind: 'person' },
+    { key: 'off:drv1',    x: 96,  kind: 'person' },
+    { key: 'off:staff',   x: 152, kind: 'person' },
+    { key: 'off:youth',   x: 208, kind: 'person' },
+    { key: 'off:mgr',     x: 264, kind: 'person' },
+    { key: 'off:test',    x: 322, kind: 'prop' },    // 合同テスト
+    { key: 'off:plan',    x: 380, kind: 'prop' },    // 来季のマシン方針
+    { key: 'off:sponsor', x: 438, kind: 'prop' },    // スポンサー交渉
+    { key: 'off:scout',   x: 496, kind: 'prop' },    // 若手のスカウト
+    { key: 'off:next',    x: 556, kind: 'gate' }     // 来季への出発
   ];
 
   /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
@@ -5379,7 +5410,7 @@ GP.base = (function () {
       let best = null, bd = 1e9;
       OFF_SPOTS.forEach(s2 => {
         const d = Math.abs(x - s2.x);
-        if (d < 26 && d < bd) { bd = d; best = { key: s2.key, x: s2.x }; }
+        if (d < 24 && d < bd) { bd = d; best = { key: s2.key, x: s2.x }; }
       });
       return best;
     }
@@ -5909,8 +5940,61 @@ GP.base = (function () {
       stand(OFF_SPOTS[4].x, '#3a3f52', '#241c14', '#e2b48e', null);           // 首脳陣
       names.push([OFF_SPOTS[4].x, '首脳陣']); box(4);
 
+      // ---- オフにしかできないこと ----
+      // 合同テスト：テスト用のマシンが1台停まっている
+      (function () {
+        const x = OFF_SPOTS[5].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.30)'; bg.fillRect(x - 15, y - 4, 30, 4);
+        bg.fillStyle = shadeHex(g2.color, -0.20); bg.fillRect(x - 15, y - 14, 30, 10);
+        bg.fillStyle = g2.color; bg.fillRect(x - 13, y - 14, 26, 7);
+        bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 13, y - 14, 26, 2);
+        bg.fillStyle = '#17181c';
+        bg.fillRect(x - 14, y - 8, 7, 5); bg.fillRect(x + 7, y - 8, 7, 5);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 18, y - 12, 4, 3);
+        bg.fillRect(x + 14, y - 13, 5, 4);
+        // 計測用のパイロン
+        bg.fillStyle = '#e88a2a'; bg.fillRect(x - 24, y - 5, 4, 5);
+        bg.fillRect(x + 20, y - 5, 4, 5);
+        names.push([x, '合同テスト']); box(5);
+      })();
+      // 来季の方針：ホワイトボード
+      (function () {
+        const x = OFF_SPOTS[6].x, y = py;
+        bg.fillStyle = '#241a10'; bg.fillRect(x - 17, y - 40, 34, 32);
+        bg.fillStyle = dusk ? '#dcd6c4' : '#f6f2e4'; bg.fillRect(x - 15, y - 38, 30, 28);
+        bg.fillStyle = '#3a7ad9'; bg.fillRect(x - 12, y - 34, 20, 2);
+        bg.fillStyle = '#e04a3f'; bg.fillRect(x - 12, y - 29, 14, 2);
+        bg.fillStyle = '#4ea63f'; bg.fillRect(x - 12, y - 24, 22, 2);
+        bg.fillStyle = '#5c5548'; bg.fillRect(x - 3, y - 10, 6, 10);
+        bg.fillRect(x - 12, y - 2, 24, 2);
+        names.push([x, '来季の方針']); box(6);
+      })();
+      // スポンサー交渉：応接のテーブル
+      (function () {
+        const x = OFF_SPOTS[7].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 14, y - 3, 28, 3);
+        bg.fillStyle = '#4a4034'; bg.fillRect(x - 14, y - 14, 28, 11);
+        bg.fillStyle = '#5e5344'; bg.fillRect(x - 14, y - 14, 28, 3);
+        // 書類とペン
+        bg.fillStyle = '#f6f2e4'; bg.fillRect(x - 9, y - 18, 10, 5);
+        bg.fillStyle = '#c8a53a'; bg.fillRect(x + 3, y - 17, 7, 3);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x + 4, y - 20, 2, 4);
+        names.push([x, 'スポンサー交渉']); box(7);
+      })();
+      // 若手のスカウト：カートと看板
+      (function () {
+        const x = OFF_SPOTS[8].x, y = py;
+        bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 12, y - 3, 24, 3);
+        bg.fillStyle = '#17181c';
+        bg.fillRect(x - 12, y - 10, 6, 6); bg.fillRect(x + 6, y - 10, 6, 6);
+        bg.fillStyle = '#3f8a4a'; bg.fillRect(x - 9, y - 15, 18, 7);
+        bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 9, y - 15, 18, 2);
+        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 3, y - 19, 6, 5);
+        names.push([x, '若手のスカウト']); box(8);
+      })();
+
       // 来季への出発地点
-      const nx = OFF_SPOTS[5].x;
+      const nx = OFF_SPOTS[9].x;
       bg.fillStyle = '#241a10'; bg.fillRect(nx - 24, py - 62, 48, 14);
       bg.fillStyle = dusk ? '#5c4a24' : '#e8dcc0'; bg.fillRect(nx - 23, py - 61, 46, 12);
       bg.font = 'bold 9px sans-serif'; bg.textAlign = 'center';
@@ -5921,7 +6005,7 @@ GP.base = (function () {
       bg.fillStyle = 'rgba(255,255,255,.40)';
       for (let k = 0; k < 3; k++) bg.fillRect(nx - 8, py - 30 + k * 9, 16, 3);
       names.push([nx, '来季へ']);
-      hitBoxes.push({ key: OFF_SPOTS[5].key, x: nx - 26, y: py - 64, w: 52, h: 66 });
+      hitBoxes.push({ key: OFF_SPOTS[9].key, x: nx - 26, y: py - 64, w: 52, h: 66 });
 
       // 名札
       names.forEach((n, i) => sign(bg, n[0], py - 44 - (i % 2) * 12, n[1],
@@ -7507,6 +7591,7 @@ window.GP = window.GP || {};
   function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week === S.raceWeek(g.nextRace); }
 
   function endWeek() {
+    crunchConsume(true);
     // 固定費
     const cost = S.weeklyCost(g);
     g.funds -= cost;
@@ -7767,7 +7852,7 @@ window.GP = window.GP || {};
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus;
+    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul();
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     if (v >= cap) gain *= 0.14;
@@ -7795,6 +7880,73 @@ window.GP = window.GP || {};
     return true;
   }
 
+  /* ---- 徹夜 ----
+     その週の開発・研究・整備・練習を「2回ぶん」の効きにする代わりに、
+     ドライバーとスタッフに疲れが残り、マシンのコンディションも落ちる。
+     使いどころを選ばせたいので、連続で使うほど反動が大きくなる。      */
+  function crunchOn() { return !!g.crunch; }
+
+  function crunchMul() { return crunchOn() ? 2 : 1; }
+
+  function cmdCrunch() {
+    if (crunchOn()) {
+      return U.modal('🌙 徹夜',
+        '<p class="lead">今週はすでに徹夜態勢だ。</p>' +
+        '<p class="desc">このまま開発・研究・整備・練習のどれかを実行すると、' +
+        '2回ぶんの効きになります。</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const row = (g.crunchRow || 0);
+    const cost = Math.round(300 + row * 260 + g.staff.length * 40);
+    const formHit = 6 + row * 5;
+    const condHit = 5 + row * 4;
+    U.modal('🌙 徹夜',
+      '<p class="lead">工場に明かりを点けたまま、今週を走り切ります。</p>' +
+      '<div class="bigbox">この週の 開発・研究・整備・練習 が <b>2回ぶん</b></div>' +
+      '<p class="desc">代償として、ドライバーの調子 <b>-' + formHit + '</b>、' +
+      'マシンのコンディション <b>-' + condHit + '</b>、費用 <b>💰' + money(cost) + '万</b>。<br>' +
+      (row > 0 ? '<b class="bad">連続 ' + row + ' 週目なので反動が大きくなっています。</b>'
+               : '休養を挟むと反動は戻ります。') + '</p>',
+      [
+        { label: '🌙 徹夜する', cls: 'primary', disabled: g.funds < cost,
+          fn: () => {
+            g.funds -= cost;
+            g.crunch = true;
+            g.drivers.forEach(d => { d.form = S.clamp(d.form - formHit, 62, 122); });
+            D.PART_CATS.forEach(c => {
+              const p2 = g.equipped[c.key];
+              if (p2) p2.cond = S.clamp(p2.cond - condHit, 10, 100);
+            });
+            S.save(g);
+            U.closeModal();
+            U.toast('🌙 徹夜態勢。次の1コマンドが2回ぶん', 'good');
+            U.log(g, '🌙 徹夜で作業した。次の1コマンドが2回ぶんになる。');
+            GP.sound.play('confirm');
+            render();
+          } },
+        { label: 'やめる', fn: U.closeModal }
+      ]);
+  }
+
+  /* 徹夜を使い切ったときの後始末。endWeek から呼ぶ */
+  function crunchConsume(used) {
+    if (!g.crunch) { g.crunchRow = 0; return; }
+    g.crunch = false;
+    g.crunchRow = (g.crunchRow || 0) + (used ? 1 : 0);
+  }
+
+  /* 来季のマシン方針。オフに決めた方向は伸びやすく、外れた方向は少し鈍る。
+     'balance' はどこも少しだけ底上げする。                          */
+  function planMul(gainVec) {
+    const p = g.plan;
+    if (!p) return 1;
+    if (p === 'balance') return 1.06;
+    const w = (gainVec && gainVec[p]) || 0;
+    if (w >= 0.5) return 1.22;
+    if (w <= 0.15) return 0.92;
+    return 1;
+  }
+
   function doImprove(key) {
     const c = D.PART_CATS.find(x => x.key === key);
     const p = g.equipped[key];
@@ -7812,7 +7964,7 @@ window.GP = window.GP || {};
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus;
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul();
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     if (p.power >= cap) gain *= 0.16;
@@ -7824,14 +7976,62 @@ window.GP = window.GP || {};
     p.power = Math.round((p.power + gain) * 10) / 10;
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
 
-    U.closeModal();
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
     U.log(g, msg, crit ? 'good' : '');
-    U.pop('+' + gain.toFixed(1), crit ? 'crit' : 'good');
     GP.sound.play(crit ? 'crit' : 'confirm');
-    if (crit) U.toast('✨ ひらめいた！ 開発が大成功！', 'good');
     if (p.power >= cap) U.toast('このパーツは限界です。新型マシンか、より高レアなパーツが必要です。', 'warn');
-    endWeek();
+    // 手を入れた実感が出るように、伸びを見せてから週を進める
+    showDevResult({
+      icon: U.partIcon(c.key, 44, p.rar), color: c.color,
+      title: p.name, sub: c.name,
+      from: p.power - gain, to: p.power, cap: cap, gain: gain, crit: crit,
+      next: toNext > 0.05 ? toNext : 0
+    }, endWeek);
+  }
+
+  /* ---- 開発の手応え ----
+     数字だけだと何をしたのか分からないので、ゲージが伸びるところを見せる。
+     大成功なら派手に。来季へ回ったぶんも併せて出す。                */
+  function showDevResult(r, done) {
+    const pct = v => Math.max(0, Math.min(100, v / Math.max(1, r.cap) * 100));
+    const body =
+      '<div class="devres' + (r.crit ? ' crit' : '') + '">' +
+        '<div class="dv-head"><span class="dv-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
+          '<span class="dv-nm"><b>' + esc(r.title) + '</b><small>' + esc(r.sub) + '</small></span>' +
+          '<span class="dv-gain">+<b id="dvNum">0.0</b></span></div>' +
+        '<div class="dv-bar"><i class="dv-old" style="width:' + pct(r.from).toFixed(1) + '%"></i>' +
+          '<i class="dv-new" id="dvNew" style="width:' + pct(r.from).toFixed(1) + '%"></i>' +
+          '<b>' + Math.round(r.from) + ' → <u id="dvVal">' + Math.round(r.from) + '</u> / ' + r.cap + '</b></div>' +
+        (r.crit ? '<div class="dv-crit">✨ ひらめいた！ 開発が大成功！</div>' : '') +
+        (r.next ? '<p class="desc">来季のマシンへ <b>+' + r.next.toFixed(1) + '</b> 積み上げた。</p>' : '') +
+      '</div>';
+    // 「次へ」でも ✕ でも、必ず一度だけ週を進める。
+    // ✕ で閉じられると週を消費せずに開発できてしまうため。
+    let settled = false;
+    const x = $('modalClose');
+    const prev = x ? x.onclick : null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (x) x.onclick = prev;          // ✕ の役目を必ず元に戻す
+      U.closeModal();
+      if (done) done();
+    };
+    U.modal('🔧 開発', body, [{ label: '次へ', cls: 'primary', fn: finish }]);
+    if (x) x.onclick = finish;
+    // ゲージと数字を動かす
+    const el = $('dvNew'), num = $('dvNum'), val = $('dvVal');
+    if (!el) { return; }
+    const t0 = performance.now(), dur = r.crit ? 900 : 620;
+    const step = (ts) => {
+      const k = Math.min(1, (ts - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);           // 最後にゆっくり止まる
+      el.style.width = pct(r.from + r.gain * e).toFixed(1) + '%';
+      if (num) num.textContent = (r.gain * e).toFixed(1);
+      if (val) val.textContent = Math.round(r.from + r.gain * e);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   function doDesign(key) {
@@ -8001,8 +8201,8 @@ window.GP = window.GP || {};
   }
 
   function doResearchGain() {
-    const gain = Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2
-                            + S.osk(g, 'eye') + S.rnd(-2, 6));   // 技術眼
+    const gain = Math.round((12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2
+                            + S.osk(g, 'eye') + S.rnd(-2, 6)) * crunchMul());   // 技術眼
     g.rp += gain;
     U.closeModal();
     U.log(g, '🔬 データ解析を行った。研究P +' + gain);
@@ -9362,8 +9562,216 @@ window.GP = window.GP || {};
     'off:staff': { icon: '👥', label: 'スタッフのみんな', to: '労う', fn: doOffStaff },
     'off:youth': { icon: '🎓', label: '下部組織の若手', to: '激励', fn: doOffYouth },
     'off:mgr':   { icon: '👔', label: '首脳陣', to: '来季の話', fn: doOffMgr },
-    'off:next':  { icon: '🌱', label: '来季へ', to: '出発', fn: doOffNext }
+    'off:test':    { icon: '🏁', label: '合同テスト',     to: '走る',   fn: doOffTest },
+    'off:plan':    { icon: '📋', label: '来季のマシン方針', to: '決める', fn: doOffPlan },
+    'off:sponsor': { icon: '🤝', label: 'スポンサー交渉',  to: '交渉',   fn: doOffSponsor },
+    'off:scout':   { icon: '🔍', label: '若手のスカウト',  to: '探す',   fn: doOffScout },
+    'off:next':    { icon: '🌱', label: '来季へ', to: '出発', fn: doOffNext }
   };
+
+  /* ---- 合同テスト ----
+     オフにしかできない走り込み。ドライバーが仕上がり、
+     マシンのデータも取れる。走るほど良いが、費用がかかる。        */
+  function doOffTest() {
+    if (offDone('test')) {
+      return U.modal('🏁 合同テスト',
+        '<p class="lead">今オフのテストは終えた。</p>', [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const plans = [
+      { d: 1, name: '1日', cost: 900,  form: [4, 8],   rp: [4, 8],   sk: 0.15 },
+      { d: 3, name: '3日', cost: 2400, form: [9, 16],  rp: [10, 18], sk: 0.35 },
+      { d: 5, name: '5日', cost: 4200, form: [15, 24], rp: [18, 30], sk: 0.60 }
+    ];
+    let body = '<p class="lead">オフのサーキットを借りて走り込みます。' +
+      'ドライバーが仕上がり、マシンのデータも取れます。</p>' +
+      '<p class="desc">長く走るほど得るものは大きいですが、そのぶん費用がかかります。' +
+      'いまの資金は ' + money(g.funds) + '万。</p><div class="pick">';
+    plans.forEach(pl => {
+      body += '<button class="pickbtn" data-k="test:' + pl.d + '"' +
+        (g.funds >= pl.cost ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#4ea63f">🏁</span>' +
+        '<span class="pb-body"><b>' + pl.name + 'のテスト</b>' +
+        '<small>調子 +' + pl.form[0] + '〜' + pl.form[1] +
+        '／研究P +' + pl.rp[0] + '〜' + pl.rp[1] +
+        '／スキルが伸びることも</small></span>' +
+        '<span class="pb-cost">💰' + money(pl.cost) + '</span></button>';
+    });
+    body += '</div>';
+    U.modal('🏁 合同テスト', body, [{ label: 'やめる', fn: U.closeModal }]);
+    bindPick(k => {
+      const pl = plans.find(x => 'test:' + x.d === k);
+      if (!pl || g.funds < pl.cost) return;
+      g.funds -= pl.cost;
+      const rp = Math.round(S.rnd(pl.rp[0], pl.rp[1]) * (1 + S.osk(g, 'eye') * 0.25));
+      g.rp += rp;
+      const notes = [];
+      g.drivers.forEach(d => {
+        const up = Math.round(S.rnd(pl.form[0], pl.form[1]) * S.persOf(d).rest);
+        d.form = S.clamp(d.form + up, 62, 122);
+        notes.push(esc(d.name) + ' 調子 +' + up);
+        // 走り込みで技術が伸びることがある
+        if (Math.random() < pl.sk) {
+          const k2 = S.pick(['speed', 'technique', 'stamina', 'mental']);
+          const g2 = Math.round(S.rnd(1, 3));
+          d[k2] = S.clamp(d[k2] + g2, 1, 199);
+          notes.push(esc(d.name) + ' ' + ({speed:'速さ',technique:'技術',stamina:'体力',mental:'精神'}[k2]) + ' +' + g2);
+        }
+      });
+      offMark('test');
+      S.save(g); U.renderTop(g);
+      U.modal('🏁 合同テスト',
+        '<p class="lead">' + pl.name + '走り込んだ。</p>' +
+        '<div class="rewardbox"><div>研究ポイント <b>+' + rp + '</b></div></div>' +
+        '<p class="desc">' + notes.join('／') + '</p>',
+        [{ label: '手応えあり', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+      GP.sound.play('good');
+    });
+  }
+
+  /* ---- 来季のマシン方針 ----
+     どの性能を軸に作るかを決める。決めた方向は来季の開発で伸びやすくなる。 */
+  function doOffPlan() {
+    const DIRS = [
+      { k: 'speed',  name: '最高速に振る', icon: '🚀', color: '#e04a3f',
+        desc: 'ストレートの長いコースで戦える。抜きやすくもなる' },
+      { k: 'corner', name: 'コーナーに振る', icon: '🌀', color: '#3a7ad9',
+        desc: '低速コーナーの多いコースで効く。市街地に強い' },
+      { k: 'accel',  name: '加速に振る',   icon: '⚡', color: '#4ea63f',
+        desc: 'ストップ＆ゴーのコースと、スタートで効く' },
+      { k: 'balance', name: 'バランス',    icon: '⚖️', color: '#8a8578',
+        desc: 'どこでも戦えるが、飛び抜けはしない' }
+    ];
+    const cur = g.plan || null;
+    let body = '<p class="lead">来季のマシンをどの方向で作るか決めます。</p>' +
+      '<p class="desc">決めた方向の開発は来季ずっと <b>+22%</b> 伸びやすくなり、' +
+      '他の方向は少しだけ伸びが鈍ります。オフのうちにしか決められません。</p>' +
+      '<div class="pick">';
+    DIRS.forEach(d => {
+      body += '<button class="pickbtn' + (cur === d.k ? ' on' : '') + '" data-k="plan:' + d.k + '">' +
+        '<span class="pb-ic" style="background:' + d.color + '">' + d.icon + '</span>' +
+        '<span class="pb-body"><b>' + d.name + '</b><small>' + d.desc + '</small></span>' +
+        (cur === d.k ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
+    });
+    body += '</div>';
+    U.modal('📋 来季のマシン方針', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindPick(k => {
+      if (k.indexOf('plan:') !== 0) return;
+      g.plan = k.slice(5);
+      offMark('plan');
+      S.save(g);
+      const d = DIRS.find(x => x.k === g.plan);
+      U.closeModal();
+      U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');
+      U.log(g, '📋 来季のマシン方針を「' + d.name + '」に決めた。');
+      GP.sound.play('good');
+      render();
+    });
+  }
+
+  /* ---- オフのスポンサー交渉 ----
+     シーズン中より良い条件で結べる。枠が空いていれば増やせる。   */
+  function doOffSponsor() {
+    if (offDone('sponsor')) {
+      return U.modal('🤝 スポンサー交渉',
+        '<p class="lead">今オフの交渉は済ませた。</p>', [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const slots = 2 + g.facilities.market;
+    const have = g.sponsors.map(sp => sp.name);
+    const avail = D.SPONSORS.filter(sp => S.sponsorOpen(g, sp) && have.indexOf(sp.name) < 0);
+    const boost = 1.18 + S.osk(g, 'nego') * 0.04;      // オフは条件が良い
+    let body = '<p class="lead">オフはじっくり話ができるぶん、条件が良くなります。</p>' +
+      '<p class="desc">枠 ' + g.sponsors.length + ' / ' + slots +
+      '　オフの上乗せ <b>×' + boost.toFixed(2) + '</b>（交渉術で伸びます）</p>';
+    if (g.sponsors.length >= slots) {
+      body += '<p class="note">枠が埋まっています。マーケティング室を広げると増えます。</p>';
+    } else if (!avail.length) {
+      body += '<p class="note">いまの規模で新たに組める相手がいません。</p>';
+    } else {
+      body += '<div class="pick">';
+      avail.slice(0, 4).forEach(sp => {
+        const per = Math.round((sp.per || 0) * boost);
+        const rp = Math.round((sp.rp || 0) * boost);
+        body += '<button class="pickbtn" data-k="osp:' + esc(sp.name) + '">' +
+          '<span class="pb-ic" style="background:' + (D.SPONSOR_KINDS[sp.kind] || {}).color + '">' +
+            ((D.SPONSOR_KINDS[sp.kind] || {}).icon || '📣') + '</span>' +
+          '<span class="pb-body"><b>' + esc(sp.name) + '</b>' +
+          '<small>毎戦 💰' + money(per) + (rp ? '＋🔬' + rp : '') + '</small></span>' +
+          '</button>';
+      });
+      body += '</div>';
+    }
+    U.modal('🤝 スポンサー交渉', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindPick(k => {
+      if (k.indexOf('osp:') !== 0) return;
+      const sp = avail.find(x => x.name === k.slice(4));
+      if (!sp || g.sponsors.length >= slots) return;
+      const signed = JSON.parse(JSON.stringify(sp));
+      signed.per = Math.round((sp.per || 0) * boost);
+      signed.rp = Math.round((sp.rp || 0) * boost);
+      signed.hits = 0;
+      g.sponsors.push(signed);
+      offMark('sponsor');
+      S.save(g);
+      U.closeModal();
+      U.toast('🤝 ' + sp.name + 'と契約', 'good');
+      U.log(g, '🤝 オフの交渉で ' + sp.name + ' と好条件で結んだ。', 'good');
+      GP.sound.play('good');
+      render();
+    });
+  }
+
+  /* ---- オフの若手スカウト ----
+     シーズン中より広く見て回れるので、良い素材に当たりやすい。   */
+  function doOffScout() {
+    if (offDone('scout')) {
+      return U.modal('🔍 若手のスカウト',
+        '<p class="lead">今オフはもう見て回った。</p>', [{ label: '戻る', fn: U.closeModal }]);
+    }
+    const slots = S.youthSlots(g);
+    if ((g.youth || []).length >= slots) {
+      return U.modal('🔍 若手のスカウト',
+        '<p class="lead">下部組織がいっぱいです（' + g.youth.length + ' / ' + slots + '）。</p>' +
+        '<p class="desc">ユースアカデミーを広げるか、誰かを昇格させると空きます。</p>',
+        [{ label: '戻る', fn: U.closeModal }]);
+    }
+    // オフは3人まで見られる。才能はシーズン中より良く出る
+    const cands = [0, 1, 2].map(() => {
+      const y = S.makeYouth(g);
+      if (Math.random() < 0.45) y.pot = Math.min(4, (y.pot || 0) + 1);   // オフの上振れ
+      return y;
+    });
+    const cost = Math.round(600 + g.facilities.youth * 120);
+    let body = '<p class="lead">オフは各地をゆっくり見て回れます。' +
+      '良い素材に当たりやすい。</p>' +
+      '<p class="desc">枠 ' + (g.youth || []).length + ' / ' + slots +
+      '　契約金 💰' + money(cost) + '万（いまの資金 ' + money(g.funds) + '万）</p><div class="pick">';
+    cands.forEach((y, i) => {
+      const pot = D.POTENTIAL[Math.min(D.POTENTIAL.length - 1, y.pot || 0)];
+      body += '<button class="pickbtn" data-k="oyo:' + i + '"' +
+        (g.funds >= cost ? '' : ' disabled') + '>' +
+        '<span class="pb-ic face-ic">' + U.face(y, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(y.name) + '</b>' +
+        '<small>' + y.age + '歳／総合 ' + Math.round(S.driverRating(y)) +
+        '／才能 ' + (pot ? pot.stars : '★') + '</small></span>' +
+        '<span class="pb-cost">💰' + money(cost) + '</span></button>';
+    });
+    body += '</div>';
+    U.modal('🔍 若手のスカウト', body, [{ label: 'やめる', fn: U.closeModal }]);
+    bindPick(k => {
+      if (k.indexOf('oyo:') !== 0) return;
+      const y = cands[parseInt(k.slice(4), 10)];
+      if (!y || g.funds < cost) return;
+      g.funds -= cost;
+      g.youth = (g.youth || []).concat([y]);
+      offMark('scout');
+      S.save(g);
+      U.closeModal();
+      U.toast('🔍 ' + y.name + ' が加入', 'good');
+      U.log(g, '🔍 オフのスカウトで ' + y.name + ' を下部組織に迎えた。', 'good');
+      GP.sound.play('good');
+      render();
+    });
+  }
 
   function offDoors() {
     const m = {};
@@ -9464,12 +9872,17 @@ window.GP = window.GP || {};
   }
 
   function doOffNext() {
-    const left = ['drv0', 'drv1', 'staff', 'youth', 'mgr']
+    const LABEL = { drv0: 'ドライバー', drv1: 'ドライバー', staff: 'スタッフ',
+                    youth: '下部組織', mgr: '首脳陣', test: '合同テスト',
+                    plan: '来季の方針', sponsor: 'スポンサー交渉', scout: '若手のスカウト' };
+    const left = Object.keys(LABEL)
       .filter(k => !offDone(k) && (k.indexOf('drv') !== 0 || g.drivers[parseInt(k.slice(3), 10)]));
     const body = left.length
-      ? '<p class="lead">まだ挨拶していない相手がいます。</p>' +
-        '<p class="desc">オフのうちにしか話せません。残り <b>' + left.length + '</b> 人。</p>'
-      : '<p class="lead">みんなに挨拶を済ませた。来季へ向かおう。</p>';
+      ? '<p class="lead">オフのうちにしかできないことが残っています。</p>' +
+        '<div class="bigbox">残り <b>' + left.length + '</b> 件' +
+        '<small>' + left.map(k => LABEL[k]).join('／') + '</small></div>' +
+        '<p class="desc">来季を始めると、これらはもうできません。</p>'
+      : '<p class="lead">オフにやるべきことは全部済ませた。来季へ向かおう。</p>';
     U.modal('🌱 来季へ', body, [
       { label: '🌱 来季を始める', cls: 'primary', fn: nextSeason },
       { label: 'もう少し回る', fn: U.closeModal }
@@ -10037,7 +10450,8 @@ window.GP = window.GP || {};
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
       cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
-      cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner
+      cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner,
+      cCrunch: cmdCrunch
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
@@ -10062,6 +10476,7 @@ window.GP = window.GP || {};
   }
 
   function cmdRest() {
+    g.crunchRow = 0;                 // 休むと徹夜の反動が抜ける
     g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(6, 14) * S.persOf(d).rest, 62, 122); });
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
