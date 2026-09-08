@@ -1081,6 +1081,57 @@ body[data-skin="hd"]{
 .pb-ic.engic{background:#e8e2d2;border-width:3px;color:#1c1526}
 [data-skin="hd"] .pb-ic.engic{background:#efe6d0}
 
+/* ---------- オーナー画面 ---------- */
+.ownerhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ownerhead .orank{font-size:30px;line-height:1}
+.ownerhead .oinfo{flex:1;display:flex;flex-direction:column;line-height:1.3}
+.ownerhead .oinfo b{font-size:15px}
+.ownerhead .oinfo small{font-size:11px;opacity:.8}
+.ownerhead .osp{display:flex;flex-direction:column;align-items:center;font-size:10px;
+                background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:2px 9px}
+.ownerhead .osp b{font-size:17px}
+.oskills{display:flex;flex-direction:column;gap:6px}
+.oskill{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.osk-h{display:flex;align-items:center;gap:7px}
+.osk-h b{flex:0 0 auto;font-size:13px}
+.osk-ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+        border:2px solid var(--ink);border-radius:5px;font-size:12px;color:#1c1526}
+.osk-lv{flex:1;font-style:normal;letter-spacing:2px;font-size:12px;color:var(--yellow)}
+.oskill small{display:block;font-size:10px;opacity:.78;margin-top:3px}
+.osk-eff{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.osk-eff span{font-size:9px;background:var(--trough);border:1px solid var(--ink);
+              border-radius:4px;padding:0 5px}
+[data-skin="hd"] .oskill{background:linear-gradient(180deg,#2c2340,#211a2f);
+                         border-color:rgba(214,178,106,.30)}
+[data-skin="hd"] .ownerhead .osp{background:linear-gradient(180deg,#2c2340,#211a2f);
+                                 border-color:rgba(214,178,106,.30)}
+[data-skin="hd"] .osk-eff span{background:var(--trough);border-color:rgba(214,178,106,.24);color:#c9bda4}
+
+/* ---------- ライバルの動向 ---------- */
+.trends{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+.trow{display:flex;align-items:center;gap:6px;font-size:11px;
+      background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.trow.me{background:linear-gradient(90deg,#fff2c4,#ffe9a8);font-weight:bold}
+.t-pos{width:18px;text-align:right;opacity:.7}
+.t-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-nm em{font-style:normal;font-size:9px;opacity:.75}
+.t-bar{position:relative;width:96px;height:12px;background:var(--trough);
+       border:1px solid var(--ink);border-radius:4px;overflow:hidden;flex-shrink:0}
+.t-bar i{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
+.t-bar b{position:absolute;top:0;left:0;right:0;text-align:center;font-size:9px;line-height:12px}
+.t-mix{display:flex;width:66px;height:8px;border:1px solid var(--ink);border-radius:3px;
+       overflow:hidden;flex-shrink:0}
+.t-mix u{display:block;height:100%;text-decoration:none}
+.t-mix u.sp{background:#e04a3f}.t-mix u.co{background:#3a7ad9}.t-mix u.ac{background:#4ea63f}
+.t-grew{width:44px;text-align:right;font-size:10px;opacity:.75}
+.t-grew.up{color:#2e8b30;opacity:1;font-weight:bold}
+[data-skin="hd"] .trow{background:linear-gradient(180deg,#2c2340,#211a2f);
+                       border-color:rgba(214,178,106,.28);color:#e8dcc4}
+/* 半透明だと下地との合成に頼ることになるので、不透明の色で置く */
+[data-skin="hd"] .trow.me{background:linear-gradient(90deg,#5b4a24,#332a1a);
+                          border-color:var(--gold);color:#ffeec0}
+[data-skin="hd"] .t-grew.up{color:#6ee06a}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -1158,18 +1209,21 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
       <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
+      <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
     </div>
     <div id="cmdRace" class="cmdset" style="display:none">
       <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
       <span class="cmd-sep"></span>
       <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
+      <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
     </div>
     <div id="cmdOff" class="cmdset" style="display:none">
       <button class="cmd big" id="cOffGo"><span>🌱</span>来季を始める</button>
       <span class="cmd-sep"></span>
       <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
       <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
+      <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
     </div>
   </nav>
 </div>
@@ -1734,6 +1788,58 @@ GP.data = (function () {
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
   ];
 
+  /* ---------- オーナー（プレイヤー自身） ----------
+     元ドライバーがチームを率いて世界一を目指す、という立ち位置。
+     実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
+  const OWNER_RANKS = [
+    { need: 0,     name: '無名のオーナー',   icon: '🥚' },
+    { need: 120,   name: '駆け出しのオーナー', icon: '🐣' },
+    { need: 400,   name: '一人前のオーナー',  icon: '🧑‍💼' },
+    { need: 1000,  name: '名の知れたオーナー', icon: '🎩' },
+    { need: 2200,  name: '辣腕オーナー',     icon: '💼' },
+    { need: 4200,  name: '名門の主',        icon: '🏛️' },
+    { need: 7500,  name: '伝説のオーナー',   icon: '👑' }
+  ];
+
+  /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
+  const OWNER_SKILLS = [
+    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
+      desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
+      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'] },
+    { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
+      desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
+      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'] },
+    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
+      desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
+      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'] },
+    { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
+      desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
+      eff: ['ピット時間 -0.5秒/Lv', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
+    { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
+      desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
+      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'] }
+  ];
+  const OWNER_SKILL_MAX = 5;
+
+  /* 元ドライバーとしての経歴。オーナーの初期スキルに反映される */
+  const OWNER_PASTS = [
+    { key: 'champ', name: '元王者',     icon: '👑',
+      desc: '頂点を知っている。人が集まり、名前が売れる',
+      skills: { nego: 1, fame: 1 }, funds: -2500 },
+    { key: 'iron',  name: '鉄人',       icon: '💪',
+      desc: '長く走り続けた。現場を知り、采配に活きる',
+      skills: { call: 2 }, funds: 0 },
+    { key: 'tech',  name: 'テストの鬼', icon: '🔧',
+      desc: '開発ドライバーとして生きた。マシンを見る目がある',
+      skills: { eye: 2 }, funds: 0 },
+    { key: 'star',  name: '人気者',     icon: '🌟',
+      desc: '速さより愛された。スポンサーと客がついてくる',
+      skills: { fame: 1, money: 1 }, funds: 1500 },
+    { key: 'privateer', name: '雑草',   icon: '🌱',
+      desc: '金のないところから這い上がった。台所事情に強い',
+      skills: { money: 2 }, funds: 3000 }
+  ];
+
   /* ---------- チームごとの作戦の性格 ----------
      シーズンを通して変わらないので、「あのチームは引っ張る」と覚えられる。
      stopBias  ストップ回数の増減
@@ -1871,23 +1977,24 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルも控えめで、開発チケットも早めに届きます。',
-      rivalPower: 0.88, rivalGrow: 0.82, funds: 1.45, prize: 1.15, sponsor: 1.15,
+            'ライバルはシーズン中もあまりマシンを煮詰めてこないので、追い抜きやすい。',
+      rivalPower: 0.88, rivalGrow: 0.60, funds: 1.45, prize: 1.15, sponsor: 1.15,
       ticket: 3, oilSponsor: true
     },
     {
       key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
       short: '標準のバランス',
-      desc: '弱小チームから這い上がる、基本の難易度です。',
+      desc: '弱小チームから這い上がる、基本の難易度です。' +
+            'ライバルもシーズン中に少しずつ速くなります。',
       rivalPower: 1.00, rivalGrow: 1.00, funds: 1.00, prize: 1.00, sponsor: 1.00,
       ticket: 4, oilSponsor: false
     },
     {
       key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
       short: '周りが速い',
-      desc: 'ライバルが強く、しかも毎年ぐんぐん伸びます。' +
-            '資金も賞金も渋いので、一手一手が重くなります。',
-      rivalPower: 1.12, rivalGrow: 1.20, funds: 0.82, prize: 0.88, sponsor: 0.88,
+      desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
+            '手を止めるとすぐ置いていかれ、資金も賞金も渋い。',
+      rivalPower: 1.12, rivalGrow: 1.50, funds: 0.82, prize: 0.88, sponsor: 0.88,
       ticket: 5, oilSponsor: false
     }
   ];
@@ -2155,7 +2262,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { SPONSOR_BONUS_CAP, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
@@ -2648,6 +2755,138 @@ GP.state = (function () {
     };
   }
 
+  /* =======================================================
+     オーナー（プレイヤー自身）
+     実績で名声が貯まり、ランクが上がるとスキルポイントが手に入る。
+     スキルは各系統0..5で、ゲームのあちこちに効く。
+     ======================================================= */
+  function makeOwner(name, pastKey) {
+    const past = D.OWNER_PASTS.find(p => p.key === pastKey) || D.OWNER_PASTS[1];
+    const sk = {};
+    D.OWNER_SKILLS.forEach(s2 => { sk[s2.key] = 0; });
+    Object.keys(past.skills || {}).forEach(k => { sk[k] = past.skills[k]; });
+    return {
+      name: name || 'あなた',
+      past: past.key,
+      fame: 0,          // 名声（ランクの元）
+      rank: 0,
+      sp: 0,            // 未使用のスキルポイント
+      skills: sk
+    };
+  }
+
+  /* スキルの段位。保存が古くてオーナーが無い場合でも 0 を返す */
+  function osk(g2, key) {
+    return (g2 && g2.owner && g2.owner.skills && g2.owner.skills[key]) || 0;
+  }
+
+  function ownerRank(g2) {
+    const f = (g2 && g2.owner ? g2.owner.fame : 0) || 0;
+    let i = 0;
+    for (let k = 0; k < D.OWNER_RANKS.length; k++) if (f >= D.OWNER_RANKS[k].need) i = k;
+    return i;
+  }
+
+  /* 次のランクまでの進み具合（表示用） */
+  function ownerProgress(g2) {
+    const i = ownerRank(g2);
+    const cur = D.OWNER_RANKS[i], nx = D.OWNER_RANKS[i + 1];
+    const f = (g2.owner ? g2.owner.fame : 0) || 0;
+    if (!nx) return { i: i, cur: cur, next: null, pct: 100, need: 0 };
+    const span = nx.need - cur.need;
+    return { i: i, cur: cur, next: nx,
+             pct: Math.max(0, Math.min(100, Math.round((f - cur.need) / span * 100))),
+             need: nx.need - f };
+  }
+
+  /* 名声を足す。ランクが上がったらスキルポイントを配る。
+     上がった段数を返すので、呼び出し側で演出できる。              */
+  function addFame(g2, n) {
+    if (!g2.owner) g2.owner = makeOwner();
+    const before = ownerRank(g2);
+    g2.owner.fame = Math.max(0, Math.round((g2.owner.fame || 0) + n));
+    const after = ownerRank(g2);
+    if (after > before) {
+      g2.owner.sp += (after - before) * 2;      // 1段につき2ポイント
+      g2.owner.rank = after;
+      return after - before;
+    }
+    g2.owner.rank = after;
+    return 0;
+  }
+
+  function learnOwnerSkill(g2, key) {
+    if (!g2.owner || g2.owner.sp <= 0) return false;
+    const cur = g2.owner.skills[key] || 0;
+    if (cur >= D.OWNER_SKILL_MAX) return false;
+    // 上の段ほど、解放にランクが要る
+    if (cur + 1 > ownerRank(g2) + 1) return false;
+    g2.owner.skills[key] = cur + 1;
+    g2.owner.sp--;
+    return true;
+  }
+
+  /* ---------- レギュレーション変更 ----------
+     4シーズンに一度、マシンの規則が変わる。パーツと車体は白紙に戻り、
+     マシン世代も最初から。ただし施設・スタッフ・ファン・資金・オーナーは残るので、
+     積み上げてきたチーム力そのものは無駄にならない。
+     ライバルも同じだけ戻るので、上位と下位の差が一度リセットされる。       */
+  const REG_EVERY = 4;
+
+  function regulationDue(g2) {
+    return g2.season > 1 && ((g2.season - 1) % REG_EVERY === 0);
+  }
+
+  function applyRegulation(g2) {
+    g2.reg = (g2.reg || 0) + 1;
+    // 自チーム：パーツと車体を新規則のものに置き換える
+    g2.carGen = 0;
+    D.PART_CATS.forEach(c => {
+      const old2 = g2.equipped[c.key];
+      // 積んできた知見のぶんだけ、ゼロよりは良いところから始まる
+      const carry = old2 ? Math.min(14, old2.power * 0.18) : 0;
+      g2.equipped[c.key] = makePart(c.key, 0, 1, { power: 10 + carry });
+    });
+    g2.stock = [];
+    g2.body = makeBody(g2, null);
+    g2.nextCar = 0;
+    // 供給を受けていたエンジンも新規則では使えない
+    g2.engine = null;
+    g2.engineStash = null;
+    // ライバルも同じだけ戻す
+    (g2.rivals || []).forEach(r => {
+      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      const base = 18 * power + rnd(-3, 3);
+      ['speed', 'corner', 'accel'].forEach(k => {
+        // 元の強さを完全には失わない（強豪はやはり強い）
+        r.stats[k] = base * 3 * 0.55 + r.stats[k] * 0.22;
+      });
+    });
+    return g2.reg;
+  }
+
+  /* ---------- ライバルのシーズン中の開発 ----------
+     これが無いと、プレイヤーだけが毎週伸びて途中から一方的になる。
+     強いチームほど開発が速く、下位はゆっくり。難易度でも変わる。
+     ただしプレイヤーほどは伸びないので、手を入れただけ前に出られる。 */
+  function developRivals(g2) {
+    const diff = diffOf(g2);
+    (g2.rivals || []).forEach(r => {
+      // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
+      if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
+      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      // 1週あたりの伸び。season が進むほど全体の水準も上がる。
+      // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
+      // 遅いとシーズン半ばで一方的になる。
+      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * (1 + g2.season * 0.06);
+      ['speed', 'corner', 'accel'].forEach(k => {
+        r.stats[k] = r.stats[k] + step * (0.8 + Math.random() * 0.5);
+      });
+      // 信頼性も少しずつ上がる
+      r.rel = clamp(r.rel + 0.012 * (diff.rivalGrow || 1), 40, 98);
+    });
+  }
+
   /* ---------- マシン信頼性（0-100）---------- */
   function reliability(g) {
     let sum = 0, bonus = 0, n = 0;
@@ -2700,6 +2939,8 @@ GP.state = (function () {
   }
 
   function addHype(g2, v) {
+    // 知名度が高いオーナーほど、同じ結果でも話題になりやすい
+    if (v > 0) v = v * (1 + osk(g2, 'fame') * 0.20);
     g2.hype = clamp((g2.hype || 0) + v, 0, 100);
     return g2.hype;
   }
@@ -2740,13 +2981,15 @@ GP.state = (function () {
     const other = 150;
     const raw = staff + mgrs + drivers + youth + facilities + engine + other;
     // ロジスティクス責任者は運営全体の費用を下げる
-    const cut = Math.min(0.35, mgr(g2, 'logistics') * 0.010);
+    // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
+    const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
     const weekly = Math.round(raw * (1 - cut));
 
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
-    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor;
+    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
+                * (1 + osk(g2, 'money') * 0.06);   // 商才
     const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
     const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
@@ -2822,6 +3065,9 @@ GP.state = (function () {
       nextRace: 0,                  // 次のレースのindex
       points: 0,                    // 今季コンストラクターズポイント
       titles: { drivers: 0, teams: 0 },
+      // オーナー（プレイヤー自身）。元ドライバーの経歴で初期スキルが変わる
+      owner: null,
+      reg: 0,                       // レギュレーション世代（4シーズンごとに変わる）
       history: [],
       carGen: 0,
       body: null,
@@ -2834,6 +3080,7 @@ GP.state = (function () {
       trainedThisWeek: false
     };
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1, { power: 10, cond: 92, traits: [] }); });
+    g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
     g.body = makeBody(g, null);
     D.FACILITIES.forEach(f => { g.facilities[f.key] = 1; });
 
@@ -2926,8 +3173,10 @@ GP.state = (function () {
   function renegotiate(g2, rank) {
     const scale = D.FACILITIES.reduce((a, f) => a + (g2.facilities[f.key] || 1), 0);
     // チームが大きく、順位が良いほど要求は強くなる
-    const teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
-                       + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    let teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
+                     + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    // 交渉術のあるオーナーは、上げ幅を抑えられる
+    teamPull = 1 + (teamPull - 1) * Math.max(0.4, 1 - osk(g2, 'nego') * 0.04 * 4);
     const notes = [];
     g2.drivers.forEach(d => {
       // 本人の成績ぶん
@@ -3022,9 +3271,11 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
+    makeDriver, makeStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
+    makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
+    REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     bodyCap, makeBody, bodyStats, bodyVal, focusOf, nextCarProgress,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
@@ -3164,7 +3415,8 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4 - S.mgr(g, 'pitchief') * 0.06;
+    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
+                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5;   // 采配
     const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略とタイヤの割り当て
@@ -3181,7 +3433,7 @@ GP.race = (function () {
         const want = e.stopPlan;
         if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
         e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
-        e.react = 0.5 + strategist * 0.12;
+        e.react = 0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
         const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
@@ -3359,6 +3611,7 @@ GP.race = (function () {
           if (atk.sk('passer')) p += 0.12;
           if (def.sk('heart')) p -= 0.08;             // 勝負強い相手は簡単には譲らない
           if (atk.st && atk.st.push) p += (atk.st.push - 1) * 0.10;
+          if (atk.isPlayer) p += S.osk(g, 'call') * 0.08;    // 采配
           // コースの抜きやすさで全体を大きく上下させる。
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
           p *= 0.18 + passEase * 1.24;
@@ -3587,6 +3840,8 @@ GP.race = (function () {
     }
 
     g.funds += prize + sponsorIncome;
+    // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
+    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08));
     g.fans = Math.max(0, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
 
@@ -7262,6 +7517,8 @@ window.GP = window.GP || {};
     }
     // 研究ポイントの自然増
     g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
+    // ライバルも毎週マシンを煮詰めている
+    S.developRivals(g);
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -7744,7 +8001,8 @@ window.GP = window.GP || {};
   }
 
   function doResearchGain() {
-    const gain = Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2 + S.rnd(-2, 6));
+    const gain = Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2
+                            + S.osk(g, 'eye') + S.rnd(-2, 6));   // 技術眼
     g.rp += gain;
     U.closeModal();
     U.log(g, '🔬 データ解析を行った。研究P +' + gain);
@@ -8763,10 +9021,179 @@ window.GP = window.GP || {};
 
   function afterRace() {
     U.closeModal();
+    // ---- 負けたレースからは学ぶ ----
+    // 前を走るマシンを見ていれば、こちらのほうが遅いぶんだけ持ち帰るものがある。
+    // 勝っているうちは学ぶものが少ない。下位のときほど効く救済。
+    if (currentRes) {
+      const track = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+      const mine = S.carScoreOf(S.carStats(g), track);
+      let learn = 0;
+      currentRes.entries.filter(e => e.isPlayer).forEach(e => {
+        // 自分より前でゴールしたマシンのうち、こちらより速いもの
+        const ahead = currentRes.entries.filter(o => !o.isPlayer && !o.dnf && o.pos < e.pos);
+        ahead.forEach(o => {
+          const theirs = S.carScoreOf(o.stats, track);
+          if (theirs > mine) learn += Math.min(3.2, (theirs - mine) * 0.06);
+        });
+      });
+      if (learn > 0) {
+        const eye = S.osk(g, 'eye');
+        const gain = Math.max(1, Math.round(learn * (1 + eye * 0.25)));
+        g.rp += gain;
+        U.log(g, '🔬 前を走るマシンから学んだ。研究P +' + gain);
+        U.pop('🔬+' + gain, 'good');
+      }
+    }
+
+    // 名声：上位でゴールするほどオーナーの名が売れる
+    if (currentRes) {
+      let f = 0;
+      currentRes.entries.filter(e => e.isPlayer && !e.dnf).forEach(e => {
+        f += Math.max(0, 22 - e.pos) * 1.6;          // 順位ぶん
+        if (e.pos === 1) f += 40;
+        else if (e.pos <= 3) f += 18;
+      });
+      if (f > 0) grantFame(Math.round(f), 'レースの結果');
+    }
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
     g.drivers.forEach(d => levelCheck(d));
     endWeek();
+  }
+
+  /* =======================================================
+     ライバルの動向
+     どのチームがどれだけ伸びたか、どの方向に開発しているかを見る。
+     ライバルが毎週マシンを煮詰めているのを、見えるようにする。
+     ======================================================= */
+  function rivalTrends() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const table = S.constructorTable(g);
+    const rows = [];
+    const mineStats = S.carStats(g);
+    rows.push({ name: g.team, color: g.color, mine: true,
+                stats: mineStats, base0: null,
+                car: S.carScoreOf(mineStats, track),
+                style: null,
+                pts: g.points });
+    (g.rivals || []).forEach(r => {
+      rows.push({ name: r.name, color: r.color, mine: false,
+                  stats: r.stats, base0: r.base0 || null,
+                  car: S.carScoreOf(r.stats, track),
+                  style: r.style, pts: r.points });
+    });
+    rows.sort((a, b) => b.car - a.car);
+    const top = rows[0].car || 1;
+
+    let h = '<p class="desc">' + esc(track.name) + ' でのマシン評価と、' +
+      'シーズン開始からの伸びです。開発の方向は、3性能のうちどこを厚くしているかを表します。</p>' +
+      '<div class="trends">';
+    rows.forEach((r, i) => {
+      const tot = Math.max(1, r.stats.speed + r.stats.corner + r.stats.accel);
+      const sh = k => Math.round(r.stats[k] / tot * 100);
+      // シーズン開始からの伸び
+      let grew = null;
+      if (r.base0) {
+        const b = r.base0.speed + r.base0.corner + r.base0.accel;
+        grew = Math.round((tot / Math.max(1, b) - 1) * 100);
+      }
+      const st = r.style ? D.STRAT_STYLES[r.style] : null;
+      h += '<div class="trow' + (r.mine ? ' me' : '') + '">' +
+        '<span class="t-pos">' + (i + 1) + '</span>' +
+        '<span class="rk-chip" style="background:' + r.color + '"></span>' +
+        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') + '</span>' +
+        '<span class="t-bar"><i style="width:' + Math.round(r.car / top * 100) + '%"></i>' +
+          '<b>' + Math.round(r.car) + '</b></span>' +
+        '<span class="t-mix" title="最高速／コーナー／加速">' +
+          '<u class="sp" style="width:' + sh('speed') + '%"></u>' +
+          '<u class="co" style="width:' + sh('corner') + '%"></u>' +
+          '<u class="ac" style="width:' + sh('accel') + '%"></u></span>' +
+        '<span class="t-grew' + (grew > 0 ? ' up' : '') + '">' +
+          (grew == null ? '—' : (grew >= 0 ? '+' : '') + grew + '%') + '</span>' +
+        '</div>';
+    });
+    h += '</div>' +
+      '<div class="seclegend"><span><i style="background:#e04a3f"></i>最高速</span>' +
+      '<span><i style="background:#3a7ad9"></i>コーナー</span>' +
+      '<span><i style="background:#4ea63f"></i>加速</span>' +
+      '<em>右端はシーズン開始からの伸び</em></div>';
+    return h;
+  }
+
+  /* =======================================================
+     オーナー画面
+     ランクと名声、スキルの振り分け。
+     ======================================================= */
+  function cmdOwner() {
+    if (!g.owner) g.owner = S.makeOwner();
+    const o = g.owner;
+    const pr = S.ownerProgress(g);
+    const past = D.OWNER_PASTS.find(p2 => p2.key === o.past) || D.OWNER_PASTS[1];
+
+    let body =
+      '<div class="ownerhead">' +
+        '<span class="orank">' + pr.cur.icon + '</span>' +
+        '<span class="oinfo"><b>' + esc(o.name) + '</b>' +
+          '<small>' + pr.cur.name + ' ／ ' + past.icon + past.name + '（元ドライバー）</small></span>' +
+        '<span class="osp">スキルP<b>' + o.sp + '</b></span>' +
+      '</div>' +
+      '<div class="reqrow"><span>名声</span><i><b style="width:' + pr.pct + '%"></b></i>' +
+        '<em>' + money(o.fame) + '</em></div>' +
+      '<p class="desc">' +
+        (pr.next ? '次のランク「' + pr.next.icon + pr.next.name + '」まで あと ' +
+                   money(pr.need) + '。上がるごとにスキルポイントが2つ手に入ります。'
+                 : '最高ランクに到達しています。') +
+      '</p>' +
+      '<p class="desc">名声は、レースで上位に入るほど、そしてシーズンの結果で貯まります。</p>' +
+      '<div class="sub">スキル</div>' +
+      '<p class="desc">段位は現在のランク＋1まで伸ばせます（いまは最大 ' +
+        Math.min(D.OWNER_SKILL_MAX, pr.i + 1) + ' 段）。</p>' +
+      '<div class="oskills">';
+
+    D.OWNER_SKILLS.forEach(sk => {
+      const lv = o.skills[sk.key] || 0;
+      const capped = lv >= D.OWNER_SKILL_MAX;
+      const locked = lv + 1 > pr.i + 1;
+      const can = o.sp > 0 && !capped && !locked;
+      body += '<div class="oskill">' +
+        '<div class="osk-h"><span class="osk-ic" style="background:' + sk.color + '">' + sk.icon + '</span>' +
+          '<b>' + sk.name + '</b>' +
+          '<i class="osk-lv">' + '●'.repeat(lv) + '○'.repeat(D.OWNER_SKILL_MAX - lv) + '</i>' +
+          '<button class="mini' + (can ? ' primary' : '') + '" data-osk="' + sk.key + '"' +
+            (can ? '' : ' disabled') + '>' +
+            (capped ? 'MAX' : locked ? 'ランク不足' : '+1') + '</button></div>' +
+        '<small>' + esc(sk.desc) + '</small>' +
+        '<div class="osk-eff">' + sk.eff.map(e => '<span>' + esc(e) + '</span>').join('') + '</div>' +
+        '</div>';
+    });
+    body += '</div>';
+
+    U.modal('🎩 オーナー', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-osk]'), b => {
+      b.onclick = () => {
+        if (S.learnOwnerSkill(g, b.dataset.osk)) {
+          GP.sound.play('good');
+          S.save(g);
+          cmdOwner();            // 画面を作り直して段位を反映
+          U.renderTop(g);
+        }
+      };
+    });
+  }
+
+  /* 名声を足し、ランクが上がったら知らせる */
+  function grantFame(n, why) {
+    if (!n) return;
+    const up = S.addFame(g, n);
+    if (up > 0) {
+      const pr = S.ownerProgress(g);
+      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + (up * 2), 'good');
+      U.log(g, pr.cur.icon + ' オーナーランクが上がった：' + pr.cur.name +
+               '（スキルポイント +' + (up * 2) + '）', 'good');
+      GP.sound.play('win');
+    } else if (why) {
+      U.log(g, '⭐ 名声 +' + n + '（' + why + '）');
+    }
   }
 
   /* =======================================================
@@ -8775,12 +9202,17 @@ window.GP = window.GP || {};
   function seasonEnd() {
     const table = S.constructorTable(g);
     const rank = table.findIndex(r => r.isPlayer) + 1;
-    const prize = D.PRIZE[Math.min(D.PRIZE.length - 1, rank - 1)];
+    const prize = Math.round(D.PRIZE[Math.min(D.PRIZE.length - 1, rank - 1)]
+                             * (1 + S.osk(g, 'money') * 0.05));   // 商才
     const dTable = S.driverTable(g);
     const champ = dTable[0];
     const myChamp = g.drivers.find(d => d.name === champ.name);
+    const myChampPre = !!myChamp;
 
     g.funds += prize;
+    // シーズンの結果は大きな名声になる
+    grantFame(Math.round(Math.max(0, 12 - rank) * 26 + (rank === 1 ? 400 : 0)), 'シーズンの結果');
+    if (myChampPre) grantFame(300, 'ドライバーズタイトル');
     GP.sound.play(rank <= 3 ? 'win' : 'podium');
     if (rank === 1) { g.titles.teams++; g.fans += Math.round(g.fans * 0.3) + 2000; }
     if (myChamp) { g.titles.drivers++; g.fans += Math.round(g.fans * 0.2) + 1500; }
@@ -8813,6 +9245,9 @@ window.GP = window.GP || {};
     g.season++;
     g.week = 1;
     g.nextRace = 0;
+    // 4シーズンに一度、マシンの規則が変わる
+    const regChange = S.regulationDue(g);
+    if (regChange) S.applyRegulation(g);
     g.points = 0;
     g.results = [];
     // ドライバーの加齢
@@ -8859,6 +9294,19 @@ window.GP = window.GP || {};
     GP.sound.play('confirm');
     U.toast('🚩 シーズン' + g.season + ' 開幕！', 'good');
     S.save(g); render();
+    if (regChange) {
+      U.modal('📜 レギュレーション変更',
+        '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        '<div class="rewardbox">' +
+        '<div>マシン <b>白紙から</b><small>積んだ知見のぶんだけ、ゼロよりは良い所から</small></div>' +
+        '<div>施設・スタッフ・ファン・資金 <b>そのまま</b><small>チーム力は失われません</small></div>' +
+        '</div>' +
+        '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
+        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>',
+        [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+      U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
+      GP.sound.play('light');
+    }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
@@ -9101,7 +9549,8 @@ window.GP = window.GP || {};
     const table = S.constructorTable(g);
     const theirRank = Math.max(1, table.findIndex(t => t.name === team.name) + 1);
     // 強い選手ほど、上位チームに所属しているほど高い
-    return Math.round(rating * 62 + (12 - theirRank) * 180 + 600);
+    return Math.round((rating * 62 + (12 - theirRank) * 180 + 600)
+                      * Math.max(0.55, 1 - S.osk(g, 'nego') * 0.06));   // 交渉術
   }
 
   function doPoach(d, team) {
@@ -9140,7 +9589,8 @@ window.GP = window.GP || {};
         label: '🤝 話をする', cls: d.interest >= 60 ? '' : 'primary',
         fn: () => {
           // 自分のほうが上位なら心証は上がりやすい。下位だと響かない
-          const up = S.clamp(6 + info.rankPull + S.rnd(-2, 5) + S.hypeBonus(g) * 4 - 4, -3, 22);
+          const up = S.clamp((6 + info.rankPull + S.rnd(-2, 5) + S.hypeBonus(g) * 4 - 4)
+                             * (1 + S.osk(g, 'nego') * 0.12), -3, 26);   // 交渉術
           d.interest = S.clamp(d.interest + up, 0, 100);
           g.talked.push(key);
           S.save(g);
@@ -9226,7 +9676,9 @@ window.GP = window.GP || {};
     const analyst = S.staffBonus(g, 'analyst');
     // 差がそのまま学びになる。自分のほうが速ければ得るものは少ない
     const edge = Math.max(0, theirs - mine);
-    const gain = Math.max(1, Math.round(edge * 0.30 + analyst * 0.5 + S.rnd(0, 1.5)));
+    const eye = S.osk(g, 'eye');
+    const gain = Math.max(1, Math.round((edge * 0.30 + analyst * 0.5 + S.rnd(0, 1.5))
+                                        * (1 + eye * 0.25)));   // 技術眼
     g.rp += gain;
     g.scouted.push(r.name);
     GP.paddock.invalidate();
@@ -9304,7 +9756,7 @@ window.GP = window.GP || {};
       label: label, cls: hype > 6 ? 'primary' : '',
       fn: () => {
         // 上位にいるときの強気は効く。下位で大口を叩くと空回りする
-        const mul = strong ? 1 : 0.45;
+        const mul = (strong ? 1 : 0.45) * (1 + S.osk(g, 'fame') * 0.25);   // 知名度
         const h = Math.round(hype * mul);
         S.addHype(g, h);
         g.fans = Math.max(0, Math.round(g.fans * (1 + fan * mul / 100)));
@@ -9584,7 +10036,8 @@ window.GP = window.GP || {};
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
-      cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo
+      cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
+      cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
@@ -9621,6 +10074,7 @@ window.GP = window.GP || {};
 
   function cmdInfo() {
     let body = U.finance(g);
+    body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
     body += U.standings(g);
     body += '<div class="sub">今季のレース結果</div>';
     if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';

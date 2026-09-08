@@ -26,6 +26,8 @@ window.GP = window.GP || {};
     }
     // 研究ポイントの自然増
     g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
+    // ライバルも毎週マシンを煮詰めている
+    S.developRivals(g);
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -508,7 +510,8 @@ window.GP = window.GP || {};
   }
 
   function doResearchGain() {
-    const gain = Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2 + S.rnd(-2, 6));
+    const gain = Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2
+                            + S.osk(g, 'eye') + S.rnd(-2, 6));   // 技術眼
     g.rp += gain;
     U.closeModal();
     U.log(g, '🔬 データ解析を行った。研究P +' + gain);
@@ -1527,10 +1530,179 @@ window.GP = window.GP || {};
 
   function afterRace() {
     U.closeModal();
+    // ---- 負けたレースからは学ぶ ----
+    // 前を走るマシンを見ていれば、こちらのほうが遅いぶんだけ持ち帰るものがある。
+    // 勝っているうちは学ぶものが少ない。下位のときほど効く救済。
+    if (currentRes) {
+      const track = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+      const mine = S.carScoreOf(S.carStats(g), track);
+      let learn = 0;
+      currentRes.entries.filter(e => e.isPlayer).forEach(e => {
+        // 自分より前でゴールしたマシンのうち、こちらより速いもの
+        const ahead = currentRes.entries.filter(o => !o.isPlayer && !o.dnf && o.pos < e.pos);
+        ahead.forEach(o => {
+          const theirs = S.carScoreOf(o.stats, track);
+          if (theirs > mine) learn += Math.min(3.2, (theirs - mine) * 0.06);
+        });
+      });
+      if (learn > 0) {
+        const eye = S.osk(g, 'eye');
+        const gain = Math.max(1, Math.round(learn * (1 + eye * 0.25)));
+        g.rp += gain;
+        U.log(g, '🔬 前を走るマシンから学んだ。研究P +' + gain);
+        U.pop('🔬+' + gain, 'good');
+      }
+    }
+
+    // 名声：上位でゴールするほどオーナーの名が売れる
+    if (currentRes) {
+      let f = 0;
+      currentRes.entries.filter(e => e.isPlayer && !e.dnf).forEach(e => {
+        f += Math.max(0, 22 - e.pos) * 1.6;          // 順位ぶん
+        if (e.pos === 1) f += 40;
+        else if (e.pos <= 3) f += 18;
+      });
+      if (f > 0) grantFame(Math.round(f), 'レースの結果');
+    }
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
     g.drivers.forEach(d => levelCheck(d));
     endWeek();
+  }
+
+  /* =======================================================
+     ライバルの動向
+     どのチームがどれだけ伸びたか、どの方向に開発しているかを見る。
+     ライバルが毎週マシンを煮詰めているのを、見えるようにする。
+     ======================================================= */
+  function rivalTrends() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const table = S.constructorTable(g);
+    const rows = [];
+    const mineStats = S.carStats(g);
+    rows.push({ name: g.team, color: g.color, mine: true,
+                stats: mineStats, base0: null,
+                car: S.carScoreOf(mineStats, track),
+                style: null,
+                pts: g.points });
+    (g.rivals || []).forEach(r => {
+      rows.push({ name: r.name, color: r.color, mine: false,
+                  stats: r.stats, base0: r.base0 || null,
+                  car: S.carScoreOf(r.stats, track),
+                  style: r.style, pts: r.points });
+    });
+    rows.sort((a, b) => b.car - a.car);
+    const top = rows[0].car || 1;
+
+    let h = '<p class="desc">' + esc(track.name) + ' でのマシン評価と、' +
+      'シーズン開始からの伸びです。開発の方向は、3性能のうちどこを厚くしているかを表します。</p>' +
+      '<div class="trends">';
+    rows.forEach((r, i) => {
+      const tot = Math.max(1, r.stats.speed + r.stats.corner + r.stats.accel);
+      const sh = k => Math.round(r.stats[k] / tot * 100);
+      // シーズン開始からの伸び
+      let grew = null;
+      if (r.base0) {
+        const b = r.base0.speed + r.base0.corner + r.base0.accel;
+        grew = Math.round((tot / Math.max(1, b) - 1) * 100);
+      }
+      const st = r.style ? D.STRAT_STYLES[r.style] : null;
+      h += '<div class="trow' + (r.mine ? ' me' : '') + '">' +
+        '<span class="t-pos">' + (i + 1) + '</span>' +
+        '<span class="rk-chip" style="background:' + r.color + '"></span>' +
+        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') + '</span>' +
+        '<span class="t-bar"><i style="width:' + Math.round(r.car / top * 100) + '%"></i>' +
+          '<b>' + Math.round(r.car) + '</b></span>' +
+        '<span class="t-mix" title="最高速／コーナー／加速">' +
+          '<u class="sp" style="width:' + sh('speed') + '%"></u>' +
+          '<u class="co" style="width:' + sh('corner') + '%"></u>' +
+          '<u class="ac" style="width:' + sh('accel') + '%"></u></span>' +
+        '<span class="t-grew' + (grew > 0 ? ' up' : '') + '">' +
+          (grew == null ? '—' : (grew >= 0 ? '+' : '') + grew + '%') + '</span>' +
+        '</div>';
+    });
+    h += '</div>' +
+      '<div class="seclegend"><span><i style="background:#e04a3f"></i>最高速</span>' +
+      '<span><i style="background:#3a7ad9"></i>コーナー</span>' +
+      '<span><i style="background:#4ea63f"></i>加速</span>' +
+      '<em>右端はシーズン開始からの伸び</em></div>';
+    return h;
+  }
+
+  /* =======================================================
+     オーナー画面
+     ランクと名声、スキルの振り分け。
+     ======================================================= */
+  function cmdOwner() {
+    if (!g.owner) g.owner = S.makeOwner();
+    const o = g.owner;
+    const pr = S.ownerProgress(g);
+    const past = D.OWNER_PASTS.find(p2 => p2.key === o.past) || D.OWNER_PASTS[1];
+
+    let body =
+      '<div class="ownerhead">' +
+        '<span class="orank">' + pr.cur.icon + '</span>' +
+        '<span class="oinfo"><b>' + esc(o.name) + '</b>' +
+          '<small>' + pr.cur.name + ' ／ ' + past.icon + past.name + '（元ドライバー）</small></span>' +
+        '<span class="osp">スキルP<b>' + o.sp + '</b></span>' +
+      '</div>' +
+      '<div class="reqrow"><span>名声</span><i><b style="width:' + pr.pct + '%"></b></i>' +
+        '<em>' + money(o.fame) + '</em></div>' +
+      '<p class="desc">' +
+        (pr.next ? '次のランク「' + pr.next.icon + pr.next.name + '」まで あと ' +
+                   money(pr.need) + '。上がるごとにスキルポイントが2つ手に入ります。'
+                 : '最高ランクに到達しています。') +
+      '</p>' +
+      '<p class="desc">名声は、レースで上位に入るほど、そしてシーズンの結果で貯まります。</p>' +
+      '<div class="sub">スキル</div>' +
+      '<p class="desc">段位は現在のランク＋1まで伸ばせます（いまは最大 ' +
+        Math.min(D.OWNER_SKILL_MAX, pr.i + 1) + ' 段）。</p>' +
+      '<div class="oskills">';
+
+    D.OWNER_SKILLS.forEach(sk => {
+      const lv = o.skills[sk.key] || 0;
+      const capped = lv >= D.OWNER_SKILL_MAX;
+      const locked = lv + 1 > pr.i + 1;
+      const can = o.sp > 0 && !capped && !locked;
+      body += '<div class="oskill">' +
+        '<div class="osk-h"><span class="osk-ic" style="background:' + sk.color + '">' + sk.icon + '</span>' +
+          '<b>' + sk.name + '</b>' +
+          '<i class="osk-lv">' + '●'.repeat(lv) + '○'.repeat(D.OWNER_SKILL_MAX - lv) + '</i>' +
+          '<button class="mini' + (can ? ' primary' : '') + '" data-osk="' + sk.key + '"' +
+            (can ? '' : ' disabled') + '>' +
+            (capped ? 'MAX' : locked ? 'ランク不足' : '+1') + '</button></div>' +
+        '<small>' + esc(sk.desc) + '</small>' +
+        '<div class="osk-eff">' + sk.eff.map(e => '<span>' + esc(e) + '</span>').join('') + '</div>' +
+        '</div>';
+    });
+    body += '</div>';
+
+    U.modal('🎩 オーナー', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-osk]'), b => {
+      b.onclick = () => {
+        if (S.learnOwnerSkill(g, b.dataset.osk)) {
+          GP.sound.play('good');
+          S.save(g);
+          cmdOwner();            // 画面を作り直して段位を反映
+          U.renderTop(g);
+        }
+      };
+    });
+  }
+
+  /* 名声を足し、ランクが上がったら知らせる */
+  function grantFame(n, why) {
+    if (!n) return;
+    const up = S.addFame(g, n);
+    if (up > 0) {
+      const pr = S.ownerProgress(g);
+      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + (up * 2), 'good');
+      U.log(g, pr.cur.icon + ' オーナーランクが上がった：' + pr.cur.name +
+               '（スキルポイント +' + (up * 2) + '）', 'good');
+      GP.sound.play('win');
+    } else if (why) {
+      U.log(g, '⭐ 名声 +' + n + '（' + why + '）');
+    }
   }
 
   /* =======================================================
@@ -1539,12 +1711,17 @@ window.GP = window.GP || {};
   function seasonEnd() {
     const table = S.constructorTable(g);
     const rank = table.findIndex(r => r.isPlayer) + 1;
-    const prize = D.PRIZE[Math.min(D.PRIZE.length - 1, rank - 1)];
+    const prize = Math.round(D.PRIZE[Math.min(D.PRIZE.length - 1, rank - 1)]
+                             * (1 + S.osk(g, 'money') * 0.05));   // 商才
     const dTable = S.driverTable(g);
     const champ = dTable[0];
     const myChamp = g.drivers.find(d => d.name === champ.name);
+    const myChampPre = !!myChamp;
 
     g.funds += prize;
+    // シーズンの結果は大きな名声になる
+    grantFame(Math.round(Math.max(0, 12 - rank) * 26 + (rank === 1 ? 400 : 0)), 'シーズンの結果');
+    if (myChampPre) grantFame(300, 'ドライバーズタイトル');
     GP.sound.play(rank <= 3 ? 'win' : 'podium');
     if (rank === 1) { g.titles.teams++; g.fans += Math.round(g.fans * 0.3) + 2000; }
     if (myChamp) { g.titles.drivers++; g.fans += Math.round(g.fans * 0.2) + 1500; }
@@ -1577,6 +1754,9 @@ window.GP = window.GP || {};
     g.season++;
     g.week = 1;
     g.nextRace = 0;
+    // 4シーズンに一度、マシンの規則が変わる
+    const regChange = S.regulationDue(g);
+    if (regChange) S.applyRegulation(g);
     g.points = 0;
     g.results = [];
     // ドライバーの加齢
@@ -1623,6 +1803,19 @@ window.GP = window.GP || {};
     GP.sound.play('confirm');
     U.toast('🚩 シーズン' + g.season + ' 開幕！', 'good');
     S.save(g); render();
+    if (regChange) {
+      U.modal('📜 レギュレーション変更',
+        '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        '<div class="rewardbox">' +
+        '<div>マシン <b>白紙から</b><small>積んだ知見のぶんだけ、ゼロよりは良い所から</small></div>' +
+        '<div>施設・スタッフ・ファン・資金 <b>そのまま</b><small>チーム力は失われません</small></div>' +
+        '</div>' +
+        '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
+        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>',
+        [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+      U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
+      GP.sound.play('light');
+    }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
@@ -1865,7 +2058,8 @@ window.GP = window.GP || {};
     const table = S.constructorTable(g);
     const theirRank = Math.max(1, table.findIndex(t => t.name === team.name) + 1);
     // 強い選手ほど、上位チームに所属しているほど高い
-    return Math.round(rating * 62 + (12 - theirRank) * 180 + 600);
+    return Math.round((rating * 62 + (12 - theirRank) * 180 + 600)
+                      * Math.max(0.55, 1 - S.osk(g, 'nego') * 0.06));   // 交渉術
   }
 
   function doPoach(d, team) {
@@ -1904,7 +2098,8 @@ window.GP = window.GP || {};
         label: '🤝 話をする', cls: d.interest >= 60 ? '' : 'primary',
         fn: () => {
           // 自分のほうが上位なら心証は上がりやすい。下位だと響かない
-          const up = S.clamp(6 + info.rankPull + S.rnd(-2, 5) + S.hypeBonus(g) * 4 - 4, -3, 22);
+          const up = S.clamp((6 + info.rankPull + S.rnd(-2, 5) + S.hypeBonus(g) * 4 - 4)
+                             * (1 + S.osk(g, 'nego') * 0.12), -3, 26);   // 交渉術
           d.interest = S.clamp(d.interest + up, 0, 100);
           g.talked.push(key);
           S.save(g);
@@ -1990,7 +2185,9 @@ window.GP = window.GP || {};
     const analyst = S.staffBonus(g, 'analyst');
     // 差がそのまま学びになる。自分のほうが速ければ得るものは少ない
     const edge = Math.max(0, theirs - mine);
-    const gain = Math.max(1, Math.round(edge * 0.30 + analyst * 0.5 + S.rnd(0, 1.5)));
+    const eye = S.osk(g, 'eye');
+    const gain = Math.max(1, Math.round((edge * 0.30 + analyst * 0.5 + S.rnd(0, 1.5))
+                                        * (1 + eye * 0.25)));   // 技術眼
     g.rp += gain;
     g.scouted.push(r.name);
     GP.paddock.invalidate();
@@ -2068,7 +2265,7 @@ window.GP = window.GP || {};
       label: label, cls: hype > 6 ? 'primary' : '',
       fn: () => {
         // 上位にいるときの強気は効く。下位で大口を叩くと空回りする
-        const mul = strong ? 1 : 0.45;
+        const mul = (strong ? 1 : 0.45) * (1 + S.osk(g, 'fame') * 0.25);   // 知名度
         const h = Math.round(hype * mul);
         S.addHype(g, h);
         g.fans = Math.max(0, Math.round(g.fans * (1 + fan * mul / 100)));
@@ -2348,7 +2545,8 @@ window.GP = window.GP || {};
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
-      cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo
+      cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
+      cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
@@ -2385,6 +2583,7 @@ window.GP = window.GP || {};
 
   function cmdInfo() {
     let body = U.finance(g);
+    body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
     body += U.standings(g);
     body += '<div class="sub">今季のレース結果</div>';
     if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';

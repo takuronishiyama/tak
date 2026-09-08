@@ -115,6 +115,58 @@ GP.data = (function () {
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
   ];
 
+  /* ---------- オーナー（プレイヤー自身） ----------
+     元ドライバーがチームを率いて世界一を目指す、という立ち位置。
+     実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
+  const OWNER_RANKS = [
+    { need: 0,     name: '無名のオーナー',   icon: '🥚' },
+    { need: 120,   name: '駆け出しのオーナー', icon: '🐣' },
+    { need: 400,   name: '一人前のオーナー',  icon: '🧑‍💼' },
+    { need: 1000,  name: '名の知れたオーナー', icon: '🎩' },
+    { need: 2200,  name: '辣腕オーナー',     icon: '💼' },
+    { need: 4200,  name: '名門の主',        icon: '🏛️' },
+    { need: 7500,  name: '伝説のオーナー',   icon: '👑' }
+  ];
+
+  /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
+  const OWNER_SKILLS = [
+    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
+      desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
+      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'] },
+    { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
+      desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
+      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'] },
+    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
+      desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
+      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'] },
+    { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
+      desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
+      eff: ['ピット時間 -0.5秒/Lv', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
+    { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
+      desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
+      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'] }
+  ];
+  const OWNER_SKILL_MAX = 5;
+
+  /* 元ドライバーとしての経歴。オーナーの初期スキルに反映される */
+  const OWNER_PASTS = [
+    { key: 'champ', name: '元王者',     icon: '👑',
+      desc: '頂点を知っている。人が集まり、名前が売れる',
+      skills: { nego: 1, fame: 1 }, funds: -2500 },
+    { key: 'iron',  name: '鉄人',       icon: '💪',
+      desc: '長く走り続けた。現場を知り、采配に活きる',
+      skills: { call: 2 }, funds: 0 },
+    { key: 'tech',  name: 'テストの鬼', icon: '🔧',
+      desc: '開発ドライバーとして生きた。マシンを見る目がある',
+      skills: { eye: 2 }, funds: 0 },
+    { key: 'star',  name: '人気者',     icon: '🌟',
+      desc: '速さより愛された。スポンサーと客がついてくる',
+      skills: { fame: 1, money: 1 }, funds: 1500 },
+    { key: 'privateer', name: '雑草',   icon: '🌱',
+      desc: '金のないところから這い上がった。台所事情に強い',
+      skills: { money: 2 }, funds: 3000 }
+  ];
+
   /* ---------- チームごとの作戦の性格 ----------
      シーズンを通して変わらないので、「あのチームは引っ張る」と覚えられる。
      stopBias  ストップ回数の増減
@@ -252,23 +304,24 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルも控えめで、開発チケットも早めに届きます。',
-      rivalPower: 0.88, rivalGrow: 0.82, funds: 1.45, prize: 1.15, sponsor: 1.15,
+            'ライバルはシーズン中もあまりマシンを煮詰めてこないので、追い抜きやすい。',
+      rivalPower: 0.88, rivalGrow: 0.60, funds: 1.45, prize: 1.15, sponsor: 1.15,
       ticket: 3, oilSponsor: true
     },
     {
       key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
       short: '標準のバランス',
-      desc: '弱小チームから這い上がる、基本の難易度です。',
+      desc: '弱小チームから這い上がる、基本の難易度です。' +
+            'ライバルもシーズン中に少しずつ速くなります。',
       rivalPower: 1.00, rivalGrow: 1.00, funds: 1.00, prize: 1.00, sponsor: 1.00,
       ticket: 4, oilSponsor: false
     },
     {
       key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
       short: '周りが速い',
-      desc: 'ライバルが強く、しかも毎年ぐんぐん伸びます。' +
-            '資金も賞金も渋いので、一手一手が重くなります。',
-      rivalPower: 1.12, rivalGrow: 1.20, funds: 0.82, prize: 0.88, sponsor: 0.88,
+      desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
+            '手を止めるとすぐ置いていかれ、資金も賞金も渋い。',
+      rivalPower: 1.12, rivalGrow: 1.50, funds: 0.82, prize: 0.88, sponsor: 0.88,
       ticket: 5, oilSponsor: false
     }
   ];
@@ -536,7 +589,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { SPONSOR_BONUS_CAP, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

@@ -122,7 +122,8 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4 - S.mgr(g, 'pitchief') * 0.06;
+    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
+                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5;   // 采配
     const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略とタイヤの割り当て
@@ -139,7 +140,7 @@ GP.race = (function () {
         const want = e.stopPlan;
         if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
         e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
-        e.react = 0.5 + strategist * 0.12;
+        e.react = 0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
         const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
@@ -317,6 +318,7 @@ GP.race = (function () {
           if (atk.sk('passer')) p += 0.12;
           if (def.sk('heart')) p -= 0.08;             // 勝負強い相手は簡単には譲らない
           if (atk.st && atk.st.push) p += (atk.st.push - 1) * 0.10;
+          if (atk.isPlayer) p += S.osk(g, 'call') * 0.08;    // 采配
           // コースの抜きやすさで全体を大きく上下させる。
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
           p *= 0.18 + passEase * 1.24;
@@ -545,6 +547,8 @@ GP.race = (function () {
     }
 
     g.funds += prize + sponsorIncome;
+    // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
+    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08));
     g.fans = Math.max(0, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
 

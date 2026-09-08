@@ -1065,3 +1065,54 @@ body[data-skin="hd"]{
    チームカラーは枠に回す（暗い下地に暗い絵文字が乗るのを避ける）*/
 .pb-ic.engic{background:#e8e2d2;border-width:3px;color:#1c1526}
 [data-skin="hd"] .pb-ic.engic{background:#efe6d0}
+
+/* ---------- オーナー画面 ---------- */
+.ownerhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ownerhead .orank{font-size:30px;line-height:1}
+.ownerhead .oinfo{flex:1;display:flex;flex-direction:column;line-height:1.3}
+.ownerhead .oinfo b{font-size:15px}
+.ownerhead .oinfo small{font-size:11px;opacity:.8}
+.ownerhead .osp{display:flex;flex-direction:column;align-items:center;font-size:10px;
+                background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:2px 9px}
+.ownerhead .osp b{font-size:17px}
+.oskills{display:flex;flex-direction:column;gap:6px}
+.oskill{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.osk-h{display:flex;align-items:center;gap:7px}
+.osk-h b{flex:0 0 auto;font-size:13px}
+.osk-ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+        border:2px solid var(--ink);border-radius:5px;font-size:12px;color:#1c1526}
+.osk-lv{flex:1;font-style:normal;letter-spacing:2px;font-size:12px;color:var(--yellow)}
+.oskill small{display:block;font-size:10px;opacity:.78;margin-top:3px}
+.osk-eff{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.osk-eff span{font-size:9px;background:var(--trough);border:1px solid var(--ink);
+              border-radius:4px;padding:0 5px}
+[data-skin="hd"] .oskill{background:linear-gradient(180deg,#2c2340,#211a2f);
+                         border-color:rgba(214,178,106,.30)}
+[data-skin="hd"] .ownerhead .osp{background:linear-gradient(180deg,#2c2340,#211a2f);
+                                 border-color:rgba(214,178,106,.30)}
+[data-skin="hd"] .osk-eff span{background:var(--trough);border-color:rgba(214,178,106,.24);color:#c9bda4}
+
+/* ---------- ライバルの動向 ---------- */
+.trends{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+.trow{display:flex;align-items:center;gap:6px;font-size:11px;
+      background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.trow.me{background:linear-gradient(90deg,#fff2c4,#ffe9a8);font-weight:bold}
+.t-pos{width:18px;text-align:right;opacity:.7}
+.t-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-nm em{font-style:normal;font-size:9px;opacity:.75}
+.t-bar{position:relative;width:96px;height:12px;background:var(--trough);
+       border:1px solid var(--ink);border-radius:4px;overflow:hidden;flex-shrink:0}
+.t-bar i{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
+.t-bar b{position:absolute;top:0;left:0;right:0;text-align:center;font-size:9px;line-height:12px}
+.t-mix{display:flex;width:66px;height:8px;border:1px solid var(--ink);border-radius:3px;
+       overflow:hidden;flex-shrink:0}
+.t-mix u{display:block;height:100%;text-decoration:none}
+.t-mix u.sp{background:#e04a3f}.t-mix u.co{background:#3a7ad9}.t-mix u.ac{background:#4ea63f}
+.t-grew{width:44px;text-align:right;font-size:10px;opacity:.75}
+.t-grew.up{color:#2e8b30;opacity:1;font-weight:bold}
+[data-skin="hd"] .trow{background:linear-gradient(180deg,#2c2340,#211a2f);
+                       border-color:rgba(214,178,106,.28);color:#e8dcc4}
+/* 半透明だと下地との合成に頼ることになるので、不透明の色で置く */
+[data-skin="hd"] .trow.me{background:linear-gradient(90deg,#5b4a24,#332a1a);
+                          border-color:var(--gold);color:#ffeec0}
+[data-skin="hd"] .t-grew.up{color:#6ee06a}

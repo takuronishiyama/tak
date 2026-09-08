@@ -278,6 +278,138 @@ GP.state = (function () {
     };
   }
 
+  /* =======================================================
+     オーナー（プレイヤー自身）
+     実績で名声が貯まり、ランクが上がるとスキルポイントが手に入る。
+     スキルは各系統0..5で、ゲームのあちこちに効く。
+     ======================================================= */
+  function makeOwner(name, pastKey) {
+    const past = D.OWNER_PASTS.find(p => p.key === pastKey) || D.OWNER_PASTS[1];
+    const sk = {};
+    D.OWNER_SKILLS.forEach(s2 => { sk[s2.key] = 0; });
+    Object.keys(past.skills || {}).forEach(k => { sk[k] = past.skills[k]; });
+    return {
+      name: name || 'あなた',
+      past: past.key,
+      fame: 0,          // 名声（ランクの元）
+      rank: 0,
+      sp: 0,            // 未使用のスキルポイント
+      skills: sk
+    };
+  }
+
+  /* スキルの段位。保存が古くてオーナーが無い場合でも 0 を返す */
+  function osk(g2, key) {
+    return (g2 && g2.owner && g2.owner.skills && g2.owner.skills[key]) || 0;
+  }
+
+  function ownerRank(g2) {
+    const f = (g2 && g2.owner ? g2.owner.fame : 0) || 0;
+    let i = 0;
+    for (let k = 0; k < D.OWNER_RANKS.length; k++) if (f >= D.OWNER_RANKS[k].need) i = k;
+    return i;
+  }
+
+  /* 次のランクまでの進み具合（表示用） */
+  function ownerProgress(g2) {
+    const i = ownerRank(g2);
+    const cur = D.OWNER_RANKS[i], nx = D.OWNER_RANKS[i + 1];
+    const f = (g2.owner ? g2.owner.fame : 0) || 0;
+    if (!nx) return { i: i, cur: cur, next: null, pct: 100, need: 0 };
+    const span = nx.need - cur.need;
+    return { i: i, cur: cur, next: nx,
+             pct: Math.max(0, Math.min(100, Math.round((f - cur.need) / span * 100))),
+             need: nx.need - f };
+  }
+
+  /* 名声を足す。ランクが上がったらスキルポイントを配る。
+     上がった段数を返すので、呼び出し側で演出できる。              */
+  function addFame(g2, n) {
+    if (!g2.owner) g2.owner = makeOwner();
+    const before = ownerRank(g2);
+    g2.owner.fame = Math.max(0, Math.round((g2.owner.fame || 0) + n));
+    const after = ownerRank(g2);
+    if (after > before) {
+      g2.owner.sp += (after - before) * 2;      // 1段につき2ポイント
+      g2.owner.rank = after;
+      return after - before;
+    }
+    g2.owner.rank = after;
+    return 0;
+  }
+
+  function learnOwnerSkill(g2, key) {
+    if (!g2.owner || g2.owner.sp <= 0) return false;
+    const cur = g2.owner.skills[key] || 0;
+    if (cur >= D.OWNER_SKILL_MAX) return false;
+    // 上の段ほど、解放にランクが要る
+    if (cur + 1 > ownerRank(g2) + 1) return false;
+    g2.owner.skills[key] = cur + 1;
+    g2.owner.sp--;
+    return true;
+  }
+
+  /* ---------- レギュレーション変更 ----------
+     4シーズンに一度、マシンの規則が変わる。パーツと車体は白紙に戻り、
+     マシン世代も最初から。ただし施設・スタッフ・ファン・資金・オーナーは残るので、
+     積み上げてきたチーム力そのものは無駄にならない。
+     ライバルも同じだけ戻るので、上位と下位の差が一度リセットされる。       */
+  const REG_EVERY = 4;
+
+  function regulationDue(g2) {
+    return g2.season > 1 && ((g2.season - 1) % REG_EVERY === 0);
+  }
+
+  function applyRegulation(g2) {
+    g2.reg = (g2.reg || 0) + 1;
+    // 自チーム：パーツと車体を新規則のものに置き換える
+    g2.carGen = 0;
+    D.PART_CATS.forEach(c => {
+      const old2 = g2.equipped[c.key];
+      // 積んできた知見のぶんだけ、ゼロよりは良いところから始まる
+      const carry = old2 ? Math.min(14, old2.power * 0.18) : 0;
+      g2.equipped[c.key] = makePart(c.key, 0, 1, { power: 10 + carry });
+    });
+    g2.stock = [];
+    g2.body = makeBody(g2, null);
+    g2.nextCar = 0;
+    // 供給を受けていたエンジンも新規則では使えない
+    g2.engine = null;
+    g2.engineStash = null;
+    // ライバルも同じだけ戻す
+    (g2.rivals || []).forEach(r => {
+      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      const base = 18 * power + rnd(-3, 3);
+      ['speed', 'corner', 'accel'].forEach(k => {
+        // 元の強さを完全には失わない（強豪はやはり強い）
+        r.stats[k] = base * 3 * 0.55 + r.stats[k] * 0.22;
+      });
+    });
+    return g2.reg;
+  }
+
+  /* ---------- ライバルのシーズン中の開発 ----------
+     これが無いと、プレイヤーだけが毎週伸びて途中から一方的になる。
+     強いチームほど開発が速く、下位はゆっくり。難易度でも変わる。
+     ただしプレイヤーほどは伸びないので、手を入れただけ前に出られる。 */
+  function developRivals(g2) {
+    const diff = diffOf(g2);
+    (g2.rivals || []).forEach(r => {
+      // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
+      if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
+      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      // 1週あたりの伸び。season が進むほど全体の水準も上がる。
+      // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
+      // 遅いとシーズン半ばで一方的になる。
+      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * (1 + g2.season * 0.06);
+      ['speed', 'corner', 'accel'].forEach(k => {
+        r.stats[k] = r.stats[k] + step * (0.8 + Math.random() * 0.5);
+      });
+      // 信頼性も少しずつ上がる
+      r.rel = clamp(r.rel + 0.012 * (diff.rivalGrow || 1), 40, 98);
+    });
+  }
+
   /* ---------- マシン信頼性（0-100）---------- */
   function reliability(g) {
     let sum = 0, bonus = 0, n = 0;
@@ -330,6 +462,8 @@ GP.state = (function () {
   }
 
   function addHype(g2, v) {
+    // 知名度が高いオーナーほど、同じ結果でも話題になりやすい
+    if (v > 0) v = v * (1 + osk(g2, 'fame') * 0.20);
     g2.hype = clamp((g2.hype || 0) + v, 0, 100);
     return g2.hype;
   }
@@ -370,13 +504,15 @@ GP.state = (function () {
     const other = 150;
     const raw = staff + mgrs + drivers + youth + facilities + engine + other;
     // ロジスティクス責任者は運営全体の費用を下げる
-    const cut = Math.min(0.35, mgr(g2, 'logistics') * 0.010);
+    // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
+    const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
     const weekly = Math.round(raw * (1 - cut));
 
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
-    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor;
+    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
+                * (1 + osk(g2, 'money') * 0.06);   // 商才
     const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
     const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
@@ -452,6 +588,9 @@ GP.state = (function () {
       nextRace: 0,                  // 次のレースのindex
       points: 0,                    // 今季コンストラクターズポイント
       titles: { drivers: 0, teams: 0 },
+      // オーナー（プレイヤー自身）。元ドライバーの経歴で初期スキルが変わる
+      owner: null,
+      reg: 0,                       // レギュレーション世代（4シーズンごとに変わる）
       history: [],
       carGen: 0,
       body: null,
@@ -464,6 +603,7 @@ GP.state = (function () {
       trainedThisWeek: false
     };
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1, { power: 10, cond: 92, traits: [] }); });
+    g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
     g.body = makeBody(g, null);
     D.FACILITIES.forEach(f => { g.facilities[f.key] = 1; });
 
@@ -556,8 +696,10 @@ GP.state = (function () {
   function renegotiate(g2, rank) {
     const scale = D.FACILITIES.reduce((a, f) => a + (g2.facilities[f.key] || 1), 0);
     // チームが大きく、順位が良いほど要求は強くなる
-    const teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
-                       + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    let teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
+                     + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    // 交渉術のあるオーナーは、上げ幅を抑えられる
+    teamPull = 1 + (teamPull - 1) * Math.max(0.4, 1 - osk(g2, 'nego') * 0.04 * 4);
     const notes = [];
     g2.drivers.forEach(d => {
       // 本人の成績ぶん
@@ -652,9 +794,11 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
+    makeDriver, makeStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
+    makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
+    REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     bodyCap, makeBody, bodyStats, bodyVal, focusOf, nextCarProgress,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
