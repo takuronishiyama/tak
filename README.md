@@ -3,7 +3,19 @@
 カイロソフト風のドット絵テイストで遊ぶ、**F1チーム運営シミュレーションゲーム**です。
 弱小チームのオーナーとなり、マシンを開発し、ドライバーを育て、世界の頂点を目指します。
 
-ビルド不要。`index.html` をブラウザで開くだけで遊べます。
+ビルド不要。ブラウザで開くだけで遊べます。
+
+## ▶ 遊びかた（いちばん簡単）
+
+**[`grandprix.html`](grandprix.html) をダウンロードして開くだけです。**
+
+CSS も JavaScript も全部入りの1ファイルなので、フォルダごと保存する必要がありません。
+iPhone や iPad でも、このファイル1つをダウンロードして開けばそのまま遊べます。
+
+> `index.html` のほうは `assets/` と `src/` のフォルダが揃っていないと動きません。
+> ファイル1つだけ保存すると真っ白な画面になるので、その場合は `grandprix.html` を使ってください。
+
+## リポジトリごと使う場合
 
 ```
 git clone <this repo>
@@ -12,6 +24,8 @@ open index.html          # macOS
 # xdg-open index.html    # Linux
 # start index.html       # Windows
 ```
+
+`src/` を編集したら `node build.js` で `grandprix.html` を作り直せます。
 
 ## 📱 iPhone で遊ぶ
 
@@ -318,6 +332,8 @@ npx cap open ios      # Xcode が開くので、署名して実機・App Store �
 | ファイル | 役割 |
 |---|---|
 | `index.html` | 画面の骨格 |
+| `grandprix.html` | 全部入りの1ファイル版（`node build.js` で生成） |
+| `build.js` | 1ファイル版を作るスクリプト |
 | `manifest.webmanifest` / `sw.js` | ホーム画面アプリ化とオフライン対応 |
 | `assets/style.css` | カイロソフト風のスタイル（太いこげ茶の枠 × 生成りの紙 × 原色） |
 | `src/data.js` | サーキット・パーツ・スキル・性格・特別戦などのゲームデータ |

@@ -27,6 +27,26 @@
     l.href = 'https://fonts.googleapis.com/css2?family=DotGothic16&display=swap';
     document.head.appendChild(l);
   });
+
+  // assets/ や src/ が読み込めていない場合は、素のHTMLが表示されてしまう。
+  // 何が起きているのか分かるように案内を出す（このスクリプトは外部ファイルに依存しない）
+  window.addEventListener('load', function () {
+    if (window.GP && window.GP.state) return;
+    var d = document.createElement('div');
+    d.setAttribute('style',
+      'position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;background:#fff8e3;' +
+      'color:#4a2f1a;padding:24px;font:14px/1.8 sans-serif;overflow:auto');
+    d.innerHTML =
+      '<h2 style="margin:0 0 12px">ゲームのファイルが読み込めませんでした</h2>' +
+      '<p><b>index.html だけでは動きません。</b>同じ場所に <code>assets/</code> と ' +
+      '<code>src/</code> のフォルダが必要です。</p>' +
+      '<p style="margin-top:14px"><b>いちばん簡単な遊びかた</b><br>' +
+      'リポジトリの <code>grandprix.html</code>（1ファイルで完結する版）を' +
+      'ダウンロードして開いてください。フォルダごと保存する必要がありません。</p>' +
+      '<p style="margin-top:14px">リポジトリ全体を保存した場合は、' +
+      'フォルダを丸ごと置いたうえで <code>index.html</code> を開いてください。</p>';
+    document.body.appendChild(d);
+  });
 </script>
 </head>
 <body>
