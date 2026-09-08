@@ -34,21 +34,58 @@ GP.base = (function () {
   }
 
   /* ---------- 部品 ---------- */
+  /* 建物の箱。輪郭・壁の陰影・屋根・地面際の締まりまでを一度に描く。
+     ここを厚くすると、どの施設もまとめて立体的になる。               */
   function box(g, x, y, w, h, fill, top) {
-    g.fillStyle = '#3a2413';
+    g.fillStyle = '#3a2413';                                  // 輪郭
     g.fillRect(x - 2, y - h - 2, w + 4, h + 4);
-    g.fillStyle = fill;
+    g.fillStyle = fill;                                       // 壁
     g.fillRect(x, y - h, w, h);
+    // 左から光が当たっている想定。左を明るく、右を暗く
+    g.fillStyle = 'rgba(255,246,220,.18)';
+    g.fillRect(x, y - h, Math.max(2, w * 0.26), h);
+    g.fillStyle = 'rgba(40,24,10,.20)';
+    g.fillRect(x + w - Math.max(2, w * 0.22), y - h, Math.max(2, w * 0.22), h);
+    // 地面際は影で締める
+    g.fillStyle = 'rgba(40,24,10,.30)';
+    g.fillRect(x, y - 3, w, 3);
+    // 屋根はチームカラーの帯。庇を少し張り出させて、縁に光を入れる
+    const rh = Math.max(4, h * 0.20);
     g.fillStyle = top;
-    g.fillRect(x, y - h, w, Math.max(4, h * 0.20));
+    g.fillRect(x, y - h, w, rh);
+    g.fillStyle = 'rgba(255,255,255,.28)';
+    g.fillRect(x, y - h, w, 1.4);                             // 屋根の縁の照り
+    g.fillStyle = 'rgba(40,24,10,.35)';
+    g.fillRect(x, y - h + rh - 1.2, w, 1.2);                  // 帯の下の影
+    g.fillStyle = '#3a2413';
+    g.fillRect(x - 2.5, y - h - 2.5, w + 5, 2.5);             // 庇
+    g.fillStyle = shadeHex(top, 0.22);
+    g.fillRect(x - 2.5, y - h - 2.5, w + 5, 1.2);
+  }
+
+  /* 色を明るく／暗くする */
+  function shadeHex(hex, amt) {
+    if (!hex || hex[0] !== '#') return hex;
+    const n = parseInt(hex.slice(1), 16);
+    const f = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+    return 'rgb(' + f((n >> 16) & 255) + ',' + f((n >> 8) & 255) + ',' + f(n & 255) + ')';
   }
 
   function windows(g, x, y, w, h, cols, rows, lit) {
     const mw = Math.max(4, (w - 8) / cols - 3), mh = Math.max(4, (h - 12) / rows - 3);
     for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
-      // 日が落ちていれば、どの窓にも明かりが入る
-      g.fillStyle = (lit || dusk) ? 'rgba(255,238,170,.95)' : 'rgba(150,200,230,.85)';
-      g.fillRect(x + 5 + c * (mw + 3), y - h + 9 + r * (mh + 3), mw, mh);
+      const wx = x + 5 + c * (mw + 3), wy = y - h + 9 + r * (mh + 3);
+      g.fillStyle = 'rgba(50,36,20,.55)';                     // 窓枠
+      g.fillRect(wx - 1, wy - 1, mw + 2, mh + 2);
+      // 日が落ちていれば、どの窓にも明かりが入る。ところどころ消しておく
+      const on = (lit || dusk) && ((c * 3 + r * 5) % 7) !== 0;
+      g.fillStyle = on ? 'rgba(255,238,170,.95)'
+                       : (dusk ? 'rgba(70,86,110,.85)' : 'rgba(150,200,230,.85)');
+      g.fillRect(wx, wy, mw, mh);
+      g.fillStyle = on ? 'rgba(255,252,225,.85)' : 'rgba(255,255,255,.30)';
+      g.fillRect(wx, wy, mw, Math.max(1, mh * 0.3));          // ガラスの照り
+      g.fillStyle = 'rgba(255,255,255,.22)';                  // 窓台
+      g.fillRect(wx - 1, wy + mh + 1, mw + 2, 1);
     }
   }
 
@@ -234,12 +271,28 @@ GP.base = (function () {
     ctx.fillStyle = dusk ? '#2f4a2a' : '#8fbf62'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = dusk ? '#2a4325' : '#86b658';
     for (let y = 0; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
-    // 奥の木立
-    for (let x = 8; x < W; x += 26) {
-      const ty = 74 + Math.floor(rnd() * 10);
-      ctx.fillStyle = '#4a3218'; ctx.fillRect(x + 6, ty - 5, 3, 6);
-      ctx.fillStyle = '#1c4420'; ctx.fillRect(x, ty - 17, 15, 12); ctx.fillRect(x + 3, ty - 21, 9, 5);
-      ctx.fillStyle = '#317031'; ctx.fillRect(x + 1, ty - 16, 13, 10); ctx.fillRect(x + 4, ty - 20, 7, 4);
+    // 奥の木立。幹・輪郭・本体・光の葉 の4層で、遠景でも立体に見せる
+    for (let x = 4; x < W; x += 19) {
+      const ty = 74 + Math.floor(rnd() * 12);
+      const sc = 0.8 + rnd() * 0.55;
+      const cw = Math.round(8 * sc), ch = Math.round(12 * sc);
+      ctx.fillStyle = '#3a2712'; ctx.fillRect(x + 6, ty - 6, 3, 7);          // 幹
+      ctx.fillStyle = '#5c421f'; ctx.fillRect(x + 6, ty - 6, 1.5, 7);
+      const c0 = dusk ? '#0d2412' : '#173a1a';
+      const c1 = dusk ? '#173a1e' : '#256026';
+      const c2 = dusk ? '#1f4d27' : '#347a33';
+      const c3 = dusk ? '#2a6033' : '#4e9b46';
+      ctx.fillStyle = c0;                                                    // 輪郭
+      ctx.fillRect(x + 7 - cw, ty - 5 - ch, cw * 2, ch);
+      ctx.fillRect(x + 7 - cw * 0.6, ty - 8 - ch, cw * 1.2, 4);
+      ctx.fillStyle = c1;                                                    // 本体
+      ctx.fillRect(x + 8 - cw, ty - 4 - ch, cw * 2 - 2, ch - 1);
+      ctx.fillRect(x + 8 - cw * 0.6, ty - 7 - ch, cw * 1.1, 3.5);
+      ctx.fillStyle = c2;                                                    // 中間
+      ctx.fillRect(x + 8 - cw, ty - 3.5 - ch, cw * 1.1, ch * 0.5);
+      ctx.fillStyle = c3;                                                    // 光の葉
+      ctx.fillRect(x + 8.5 - cw, ty - 3 - ch, cw * 0.6, ch * 0.28);
+      ctx.fillRect(x + 8 - cw * 0.5, ty - 6.5 - ch, cw * 0.5, 2.4);
     }
     // 敷地の舗装（建物が建つ面）
     ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);

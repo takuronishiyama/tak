@@ -43,6 +43,12 @@ GP.raceview = (function () {
     const span = cumT[lo + 1] - cumT[lo] || 1;
     const r = interp(lo, (frac - cumT[lo]) / span);
     r.v = prof.v[lo] / prof.vmax;      // 0..1 の現在速度（描画に使う）
+    // 少し先の向きとの差＝ハンドルの切れ角。前輪を曲げて描くのに使う
+    const ah = interp((lo + 3) % prof.n, 0).ang;
+    let d = ah - r.ang;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    r.steer = Math.max(-0.5, Math.min(0.5, d * 1.6));
     return r;
   }
 
@@ -340,19 +346,34 @@ GP.raceview = (function () {
     const rnd = seeded(res.track.name);
     const pit = pitSpan();
     // 観客席（メインストレートの、ピットと反対側）
+    // コース側から順に、最前列→段々に高くなる座席→屋根、と重ねる。
     if (pit) {
       for (let k = 2; k < pit.len - 2; k += 9) {
         const nm = normalAt((pit.from + k) % poly.n);
-        const sx = nm.x - nm.nx * pit.side * 30, sy = nm.y - nm.ny * pit.side * 30;
-        if (sx < 8 || sy < 8 || sx > W - 8 || sy > H - 8) continue;
+        const sx = nm.x - nm.nx * pit.side * 31, sy = nm.y - nm.ny * pit.side * 31;
+        if (sx < 10 || sy < 10 || sx > W - 10 || sy > H - 10) continue;
         g.save();
-        g.translate(sx, sy); g.rotate(Math.atan2(nm.dy, nm.dx));
-        g.fillStyle = '#b8b2a4'; g.fillRect(-5, -8, 10, 16);
-        g.fillStyle = '#8f8a7e'; g.fillRect(-5, -8, 10, 2);
-        for (let r = -6; r < 7; r += 3) {          // 観客のドット
-          g.fillStyle = ['#e04a3f', '#3a7ad9', '#f0a020', '#4ea63f'][(r + 6) % 4];
-          g.fillRect(-3, r, 2, 2); g.fillRect(1, r, 2, 2);
+        g.translate(sx, sy);
+        g.rotate(Math.atan2(nm.dy, nm.dx));
+        g.scale(1, -pit.side);            // コース側がつねに手前になるように向きを揃える
+        const CROWD = ['#e8564a', '#4a86e0', '#f5aa2a', '#58b84a', '#d0d0d8', '#c060c8'];
+        g.fillStyle = '#3a352c'; g.fillRect(-6, -10, 12, 20);      // 土台の影
+        // 段。奥へ行くほど明るくして、せり上がって見せる
+        for (let t = 0; t < 4; t++) {
+          const yy = -9 + t * 4.6;
+          g.fillStyle = ['#6e6a5e', '#7c786a', '#8a8576', '#989282'][t];
+          g.fillRect(-5, yy, 10, 4.4);
+          g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(-5, yy, 10, 0.9);  // 段の影
+          for (let c2 = 0; c2 < 4; c2++) {                                // 観客
+            if (((t * 7 + c2 * 3) % 5) === 0) continue;                   // ところどころ空席
+            g.fillStyle = CROWD[(t * 3 + c2 * 2) % CROWD.length];
+            g.fillRect(-4.2 + c2 * 2.4, yy + 1.4, 1.6, 2.2);
+          }
         }
+        // 屋根と、それを支える柱
+        g.fillStyle = '#4a4a52'; g.fillRect(-6.5, 6.4, 1.3, 3.4); g.fillRect(5.2, 6.4, 1.3, 3.4);
+        g.fillStyle = '#5e5f68'; g.fillRect(-7, 8.6, 14, 3.2);
+        g.fillStyle = '#767781'; g.fillRect(-7, 8.6, 14, 1.1);
         g.restore();
       }
     }
@@ -388,51 +409,137 @@ GP.raceview = (function () {
 
   function drawProp(g, theme, x, y, rnd) {
     x = Math.round(x); y = Math.round(y);
+    // 縁取り付きの箱。ドット絵は輪郭があると形が締まる
     const box = (bx, by, bw, bh, fill, line) => {
       g.fillStyle = line; g.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
       g.fillStyle = fill; g.fillRect(bx, by, bw, bh);
     };
+
     if (theme === 'street') {
-      const w = 14 + Math.round(rnd() * 12), h = 16 + Math.round(rnd() * 18);
-      box(x - w / 2, y - h, w, h, ['#8e94a0', '#7c828e', '#9aa0ac'][Math.floor(rnd() * 3)], '#4a4f58');
-      g.fillStyle = 'rgba(255,240,180,.6)';
-      for (let a = 3; a < w - 3; a += 5) for (let b = 4; b < h - 3; b += 6) g.fillRect(x - w / 2 + a, y - h + b, 3, 3);
-      g.fillStyle = '#5c626c'; g.fillRect(x - w / 2, y - h, w, 3);
+      // ---- 街の建物：屋上のパラペットと設備、階ごとの窓 ----
+      const w = 15 + Math.round(rnd() * 13), h = 18 + Math.round(rnd() * 20);
+      const wall = ['#8e94a0', '#7c828e', '#9aa0ac', '#87909e'][Math.floor(rnd() * 4)];
+      box(x - w / 2, y - h, w, h, wall, '#3f444c');
+      g.fillStyle = 'rgba(255,255,255,.10)';                    // 左側に光を当てる
+      g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.28), h);
+      for (let a = 2; a < w - 3; a += 5) {                      // 窓
+        for (let b = 5; b < h - 3; b += 6) {
+          g.fillStyle = ((a + b) % 3) ? 'rgba(255,240,180,.62)' : 'rgba(120,150,180,.55)';
+          g.fillRect(x - w / 2 + a, y - h + b, 3, 3);
+          g.fillStyle = 'rgba(0,0,0,.22)';
+          g.fillRect(x - w / 2 + a, y - h + b + 3, 3, 1);       // 窓の下の影
+        }
+      }
+      g.fillStyle = '#5c626c'; g.fillRect(x - w / 2, y - h, w, 2.5);          // 屋上
+      g.fillStyle = '#6e7580'; g.fillRect(x - w / 2 - 1, y - h - 1.5, w + 2, 1.8);  // パラペット
+      if (rnd() < 0.6) {                                                     // 屋上の設備
+        g.fillStyle = '#4e545e'; g.fillRect(x - 2, y - h - 3.5, 5, 3);
+        g.fillStyle = '#666d78'; g.fillRect(x - 2, y - h - 3.5, 5, 1);
+      }
+
     } else if (theme === 'neon') {
-      const w = 12 + Math.round(rnd() * 12), h = 20 + Math.round(rnd() * 22);
-      box(x - w / 2, y - h, w, h, '#2a3050', '#151a2e');
-      const nc = ['#ff4fa0', '#4fd8ff', '#ffe14f', '#8cff6a'][Math.floor(rnd() * 4)];
+      // ---- 夜の街：高い塔と、光る看板 ----
+      const w = 12 + Math.round(rnd() * 12), h = 22 + Math.round(rnd() * 26);
+      box(x - w / 2, y - h, w, h, '#2a3050', '#141931');
+      g.fillStyle = 'rgba(120,150,220,.12)';
+      g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.3), h);
+      const nc = ['#ff4fa0', '#4fd8ff', '#ffe14f', '#8cff6a', '#c66aff'][Math.floor(rnd() * 5)];
+      // 縦看板と横看板
       g.fillStyle = nc;
       g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
-      g.fillRect(x - w / 2 + 2, y - h + 9, Math.max(3, w - 8), 3);
-      // 看板は光源として登録し、あとでにじませる
       emissive.push({ x: x - w / 2 + 2, y: y - h + 3, w: w - 4, h: 3, c: nc });
-      emissive.push({ x: x - w / 2 + 2, y: y - h + 9, w: Math.max(3, w - 8), h: 3, c: nc });
-      g.fillStyle = 'rgba(255,255,255,.25)';
-      for (let b = 16; b < h - 3; b += 6) g.fillRect(x - w / 2 + 3, y - h + b, w - 6, 2);
-    } else if (theme === 'desert') {
-      if (rnd() < 0.5) {                       // ヤシの木
-        g.fillStyle = '#5a4426'; g.fillRect(x - 2, y - 18, 4, 18);
-        g.fillStyle = '#8a6a3a'; g.fillRect(x - 1, y - 18, 2, 18);
-        g.fillStyle = '#2f6b38';
-        g.fillRect(x - 11, y - 21, 9, 3); g.fillRect(x + 2, y - 21, 9, 3);
-        g.fillRect(x - 8, y - 24, 6, 3);  g.fillRect(x + 2, y - 24, 6, 3);
-        g.fillStyle = '#3f8a4a'; g.fillRect(x - 3, y - 23, 6, 3);
-      } else {                                  // 岩
-        box(x - 7, y - 9, 14, 9, '#a08860', '#6e5a3c');
-        g.fillStyle = '#c0a880'; g.fillRect(x - 5, y - 8, 6, 3);
+      if (rnd() < 0.5) {
+        g.fillRect(x + w / 2 - 3.5, y - h + 8, 2.5, h * 0.4);
+        emissive.push({ x: x + w / 2 - 3.5, y: y - h + 8, w: 2.5, h: h * 0.4, c: nc });
+      } else {
+        g.fillRect(x - w / 2 + 2, y - h + 9, Math.max(3, w - 8), 2.5);
+        emissive.push({ x: x - w / 2 + 2, y: y - h + 9, w: Math.max(3, w - 8), h: 2.5, c: nc });
       }
-    } else {                                    // 木（芝・森・高原）
+      for (let b = 15; b < h - 3; b += 5) {                     // 灯りのついた窓
+        for (let a = 2; a < w - 3; a += 4) {
+          if (((a + b) % 3) === 0) continue;
+          g.fillStyle = 'rgba(255,236,180,.42)';
+          g.fillRect(x - w / 2 + a, y - h + b, 2, 2);
+        }
+      }
+      g.fillStyle = '#3b4266'; g.fillRect(x - w / 2, y - h, w, 2);
+      if (rnd() < 0.45) {                                       // 塔の頂の航空障害灯
+        g.fillStyle = '#ff5a4a'; g.fillRect(x - 0.8, y - h - 3, 1.6, 3);
+        emissive.push({ x: x - 0.8, y: y - h - 3, w: 1.6, h: 3, c: '#ff5a4a' });
+      }
+
+    } else if (theme === 'desert') {
+      const k = rnd();
+      if (k < 0.42) {
+        // ヤシの木：幹に節を入れ、葉を左右に垂らす
+        const th2 = 16 + Math.round(rnd() * 8);
+        g.fillStyle = '#4a3620'; g.fillRect(x - 2, y - th2, 4, th2);
+        g.fillStyle = '#7a5c32'; g.fillRect(x - 1, y - th2, 2, th2);
+        g.fillStyle = '#5c4526';
+        for (let b = 3; b < th2; b += 4) g.fillRect(x - 2, y - th2 + b, 4, 1);
+        const leaf = (dx, dy, lw, lh, c) => { g.fillStyle = c; g.fillRect(x + dx, y - th2 + dy, lw, lh); };
+        leaf(-12, -1, 10, 3, '#255c2e'); leaf(2, -1, 10, 3, '#255c2e');
+        leaf(-9, -4, 8, 3, '#2f6b38');   leaf(1, -4, 8, 3, '#2f6b38');
+        leaf(-6, -7, 5, 3, '#3f8a4a');   leaf(1, -7, 5, 3, '#3f8a4a');
+        leaf(-2, -9, 4, 3, '#4a9a55');
+        g.fillStyle = '#8a6a3a'; g.fillRect(x - 2, y - th2 - 1, 4, 2);   // 実
+      } else if (k < 0.72) {
+        // 岩：面ごとに明るさを変えて塊に見せる
+        const w = 13 + Math.round(rnd() * 8), h = 8 + Math.round(rnd() * 5);
+        box(x - w / 2, y - h, w, h, '#9a8358', '#635033');
+        g.fillStyle = '#b9a077'; g.fillRect(x - w / 2 + 1, y - h + 1, w * 0.55, h * 0.45);
+        g.fillStyle = '#c8b189'; g.fillRect(x - w / 2 + 2, y - h + 1, w * 0.3, 2);
+        g.fillStyle = '#7a6544'; g.fillRect(x - w / 2, y - 2, w, 2);
+      } else {
+        // サボテン
+        const h = 12 + Math.round(rnd() * 8);
+        g.fillStyle = '#2f6b38'; g.fillRect(x - 2.5, y - h, 5, h);
+        g.fillStyle = '#3f8a4a'; g.fillRect(x - 1.5, y - h, 2, h);
+        g.fillStyle = '#2f6b38';
+        g.fillRect(x - 7, y - h * 0.7, 4.5, 3); g.fillRect(x - 7, y - h * 0.7, 3, 7);
+        g.fillRect(x + 2.5, y - h * 0.55, 4.5, 3); g.fillRect(x + 4, y - h * 0.55, 3, 6);
+      }
+
+    } else if (theme === 'alpine') {
+      // ---- 針葉樹：三角を重ねて円錐にする ----
+      const h = 20 + Math.round(rnd() * 10);
+      g.fillStyle = '#43301a'; g.fillRect(x - 1.5, y - 5, 3, 5);
+      for (let t = 0; t < 4; t++) {
+        const yy = y - 5 - t * (h / 5.2), hw = 8 - t * 1.7;
+        g.fillStyle = '#123a1c'; g.fillRect(x - hw - 1, yy - h / 4.4, hw * 2 + 2, h / 4.4 + 1);
+        g.fillStyle = ['#1d5228', '#236030', '#2a6d37', '#31793d'][t];
+        g.fillRect(x - hw, yy - h / 4.4, hw * 2, h / 4.4);
+        g.fillStyle = 'rgba(210,235,255,.30)';                   // 左肩の雪
+        g.fillRect(x - hw, yy - h / 4.4, hw * 0.7, 1.6);
+      }
+
+    } else {
+      // ---- 広葉樹（芝・森）：幹・影の葉・本体・光の葉 の4層 ----
       const dark = theme === 'forest';
-      g.fillStyle = '#4a3218'; g.fillRect(x - 2, y - 7, 4, 7);
-      g.fillStyle = '#6a4a2a'; g.fillRect(x - 1, y - 7, 2, 7);
-      const c1 = dark ? '#245a28' : '#317031', c2 = dark ? '#3d8340' : '#54a84e';
-      g.fillStyle = '#1c4420';
-      g.fillRect(x - 9, y - 17, 18, 11); g.fillRect(x - 6, y - 21, 12, 5);
-      g.fillStyle = c1;
-      g.fillRect(x - 8, y - 16, 16, 9); g.fillRect(x - 5, y - 20, 10, 4);
-      g.fillStyle = c2;
-      g.fillRect(x - 6, y - 15, 7, 4); g.fillRect(x - 3, y - 19, 5, 3);
+      const sc = 0.85 + rnd() * 0.5;
+      const cw = Math.round(9 * sc), ch = Math.round(11 * sc);
+      g.fillStyle = '#3a2712'; g.fillRect(x - 2, y - 8, 4, 8);          // 幹
+      g.fillStyle = '#6a4a2a'; g.fillRect(x - 1, y - 8, 2, 8);
+      const c0 = dark ? '#0f2d14' : '#173a1a';
+      const c1 = dark ? '#1f5024' : '#2a6b2b';
+      const c2 = dark ? '#2e6e33' : '#3f8c3c';
+      const c3 = dark ? '#3f8543' : '#59a94f';
+      g.fillStyle = c0;                                                 // 輪郭
+      g.fillRect(x - cw - 1, y - 7 - ch, cw * 2 + 2, ch + 1);
+      g.fillRect(x - cw * 0.6, y - 10 - ch, cw * 1.2, 4);
+      g.fillStyle = c1;                                                 // 本体
+      g.fillRect(x - cw, y - 7 - ch, cw * 2, ch);
+      g.fillRect(x - cw * 0.55, y - 9.5 - ch, cw * 1.1, 3.5);
+      g.fillStyle = c2;                                                 // 中間の葉
+      g.fillRect(x - cw + 1, y - 6 - ch, cw * 1.2, ch * 0.55);
+      g.fillStyle = c3;                                                 // 光の当たる葉
+      g.fillRect(x - cw + 1.5, y - 5.5 - ch, cw * 0.7, ch * 0.3);
+      g.fillRect(x - cw * 0.4, y - 9 - ch, cw * 0.5, 2.5);
+      if (!dark && rnd() < 0.25) {                                      // たまに花や実
+        g.fillStyle = '#f0d84a';
+        g.fillRect(x - cw * 0.2, y - 4 - ch, 1.6, 1.6);
+        g.fillRect(x + cw * 0.4, y - 6 - ch, 1.6, 1.6);
+      }
     }
   }
 
@@ -600,7 +707,7 @@ GP.raceview = (function () {
       const pt2 = placeInLap(e, o.p);
       const vel = pt2.v == null ? 1 : pt2.v;
       emit(e, pt2, vel, o.out, wet);
-      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel);
+      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel, pt2.steer);
     }
     GP.fx.drawParticles(ctx);
     ctx.restore();
@@ -681,61 +788,151 @@ GP.raceview = (function () {
     }
   }
 
-  function drawCar(x, y, ang, color, isPlayer, out, gen, vel) {
+  /* ---------- マシンのドット絵 ----------
+     上から見たF1の形をそのまま組む。寸法は実車比（全長5.6m×全幅2.0m）を
+     1m≒5.5px で置いたもの。世代が上がるほど部品が増えていく。
+     前方が +x、車体の右が +y。光は車体の前左（-y側）から当たっている前提。   */
+  function drawCar(x, y, ang, color, isPlayer, out, gen, vel, steer) {
     gen = Math.max(0, Math.min(5, gen | 0));
     vel = vel == null ? 1 : vel;
-    const len = 15 + gen;                  // ボディ長
-    const rw = 3 + (gen >= 2 ? 1 : 0);     // リアウイング幅
-    const rh = 8 + (gen >= 3 ? 2 : 0);     // リアウイング高
-    const fh = 6 + (gen >= 2 ? 1 : 0);     // フロントウイング高
-    const nose = 7 + Math.floor(gen / 2);
+    steer = steer || 0;
+
+    const dark = shade(color, -0.16);      // 影になる面
+    const lite = shade(color, 0.18);       // 光が当たる面
+    const CARBON = '#22232a', CARBON2 = '#3a3c45', TYRE = '#15161a';
+
+    // 世代ごとの寸法。新しいほど長く低く、ウイングが大きくなる
+    const nose  = 15.0 + gen * 0.45;                // ノーズの先端
+    const fwX   = nose - 2.6;                       // フロントウイング（前輪より前）
+    const fwH   = 7.2 + gen * 0.26;                 // フロントウイングの半幅（車体最大幅）
+    const rwX   = -12.0 - gen * 0.28;               // リアウイングの位置
+    const rwH   = 5.6 + gen * 0.24;                 // リアウイングの半幅
+    const podH  = 3.2 + (gen >= 3 ? 0.4 : 0);       // サイドポッドの張り出し
+    const trk   = 5.1 + gen * 0.06;                 // タイヤ中心までの距離
+    const tyL   = 5.0 + gen * 0.16, tyH = 1.95;     // タイヤの長さ／半分の太さ
+    const frontAx = 8.2, rearAx = -7.4;             // 前後の車軸
+    const S = 0.80;                                 // 路面幅との釣り合いを取る全体倍率
 
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     ctx.rotate(ang);
-    ctx.globalAlpha = out ? 0.28 : 1;
-    if (!out) {
-      if (vel > 0.82) {
-        // 高速域はスピードラインを引いて伸びを見せる
-        ctx.strokeStyle = 'rgba(255,255,255,' + ((vel - 0.82) * 2.2).toFixed(2) + ')';
-        ctx.lineWidth = 1;
-        const tail = 6 + (vel - 0.82) * 50;
-        ctx.beginPath();
-        ctx.moveTo(-9, -2); ctx.lineTo(-9 - tail, -2);
-        ctx.moveTo(-9, 2);  ctx.lineTo(-9 - tail, 2);
-        ctx.stroke();
-      } else if (vel < 0.52) {
-        // 減速中はブレーキランプを灯す
-        ctx.fillStyle = 'rgba(255,60,40,' + (0.5 + (0.52 - vel)).toFixed(2) + ')';
-        ctx.fillRect(-10, -2, 2, 4);
-      }
+    ctx.scale(S, S);
+    ctx.globalAlpha = out ? 0.3 : 1;
+
+    const r = (rx, ry, rw, rh, c) => { ctx.fillStyle = c; ctx.fillRect(rx, ry, rw, rh); };
+
+    if (!out && vel > 0.82) {
+      // 高速域はスピードラインを引いて伸びを見せる
+      ctx.strokeStyle = 'rgba(255,255,255,' + ((vel - 0.82) * 2.0).toFixed(2) + ')';
+      ctx.lineWidth = 1;
+      const tail = 7 + (vel - 0.82) * 52;
+      ctx.beginPath();
+      ctx.moveTo(rwX - 1, -2.4); ctx.lineTo(rwX - 1 - tail, -2.4);
+      ctx.moveTo(rwX - 1, 2.4);  ctx.lineTo(rwX - 1 - tail, 2.4);
+      ctx.stroke();
     }
-    // 影
-    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-6, -3, len - 1, 8);
-    // タイヤ
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(-6, -5, 4, 3); ctx.fillRect(-6, 2, 4, 3);
-    ctx.fillRect(3, -5, 4, 3);  ctx.fillRect(3, 2, 4, 3);
-    // サイドポッド（第3世代以降）
-    if (gen >= 3) { ctx.fillStyle = color; ctx.fillRect(-3, -5, 6, 2); ctx.fillRect(-3, 3, 6, 2); }
-    // ボディ
-    ctx.fillStyle = color;
-    ctx.fillRect(-7, -2, len, 4);
-    ctx.fillRect(-8, -rh / 2, rw, rh);      // リアウイング
-    ctx.fillRect(nose, -fh / 2, 3, fh);     // フロントウイング
-    // エンジンカバーのフィン（第4世代以降）
-    if (gen >= 4) { ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.fillRect(-6, -1, 5, 2); }
-    // ハイライト
-    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(-4, -2, 8, 1);
-    // コクピット（第5世代はハロ付き）
-    ctx.fillStyle = '#222'; ctx.fillRect(-1, -1, 3, 2);
-    if (gen >= 5) { ctx.fillStyle = '#555'; ctx.fillRect(2, -2, 1, 4); }
+
+    // ---- 影（車体の下だけに、光と反対へ少しずらして落とす）----
+    r(rwX + 1.5, -1.8, nose - rwX - 2, 5.0, 'rgba(0,0,0,.30)');
+
+    // ---- タイヤ（後輪は固定、前輪は切れ角ぶん回す）----
+    const tyre = (tx, ty, rot) => {
+      ctx.save();
+      ctx.translate(tx, ty);
+      if (rot) ctx.rotate(rot);
+      r(-tyL / 2, -tyH, tyL, tyH * 2, TYRE);
+      r(-tyL / 2, -tyH, tyL, 0.9, '#4e515c');                        // 上面の照り
+      r(-tyL / 2, tyH - 0.6, tyL, 0.6, '#0c0d10');                   // 下側の締まり
+      if (gen >= 2) r(-1.1, -tyH + 0.5, 2.2, tyH * 2 - 1.0, '#5c606c');  // ホイール
+      else r(-0.9, -tyH + 0.6, 1.8, tyH * 2 - 1.2, '#3d404a');
+      ctx.restore();
+    };
+    tyre(rearAx, -trk, 0);  tyre(rearAx, trk, 0);
+    tyre(frontAx, -trk, steer); tyre(frontAx, trk, steer);
+
+    // ---- サスペンションアーム（車体とタイヤをつなぐ）----
+    r(rearAx - 0.5, -trk + 1.4, 1.1, trk - 3.0, CARBON2);
+    r(rearAx - 0.5, 1.6, 1.1, trk - 3.0, CARBON2);
+    r(frontAx - 0.5, -trk + 1.4, 1.1, trk - 2.6, CARBON2);
+    r(frontAx - 0.5, 1.2, 1.1, trk - 2.6, CARBON2);
+
+    // ---- フロア／バージボード（第3世代以降）----
+    if (gen >= 3) {
+      r(rearAx, -podH - 0.8, frontAx - rearAx - 2, 0.8, CARBON2);
+      r(rearAx, podH, frontAx - rearAx - 2, 0.8, CARBON2);
+    }
+
+    // ---- サイドポッド ----
+    r(-5.5, -podH, 9.5, podH - 1.7, dark);
+    r(-5.5, 1.7, 9.5, podH - 1.7, dark);
+    r(-5.5, -podH, 9.5, 0.8, lite);                     // 上端の照り
+    if (gen >= 2) {                                      // 冷却の吸気口
+      r(3.4, -podH + 0.4, 1.3, podH - 2.1, CARBON);
+      r(3.4, 1.7, 1.3, podH - 2.1, CARBON);
+    }
+
+    // ---- 車体 ----
+    // 後ろへ向かって絞り込む（コークボトル）。段ごとに幅を変えて形を出す。
+    const seg = (x0, x1, half, c) => {
+      r(x0, -half, x1 - x0, half * 2, c);
+      r(x0, -half, x1 - x0, Math.max(0.7, half * 0.42), lite);   // 光の当たる上面
+      r(x0, half - Math.max(0.6, half * 0.34), x1 - x0, Math.max(0.6, half * 0.34), dark);
+    };
+    seg(rwX + 2.0, -6.0, 1.5, color);       // リアデッキ（いちばん細い）
+    seg(-6.0, -1.8, 2.4, color);            // エンジンカバー（いちばん太い）
+    seg(-1.8, 3.4, 2.0, color);             // コクピット
+    seg(3.4, nose - 3.0, 1.3, color);       // ノーズ
+    seg(nose - 3.0, nose, 0.85, color);     // 先端
+    // 中央のストライプ。小さくてもチームを見分けやすくする
+    r(rwX + 2.0, -0.45, nose - rwX - 2.0, 0.9, shade(color, 0.30));
+
+    // ---- コクピットと乗員 ----
+    r(-0.6, -1.4, 3.6, 2.8, CARBON);                    // 開口部
+    r(0.2, -0.9, 2.0, 1.8, shade(color, 0.36));         // ヘルメット
+    r(0.2, -0.9, 2.0, 0.7, '#f4f4f4');                  // ヘルメットの照り
+    if (gen >= 5) {                                      // ハロ
+      r(3.1, -1.9, 0.8, 3.8, '#61646e');
+      r(-0.8, -2.0, 4.0, 0.7, '#61646e');
+      r(-0.8, 1.3, 4.0, 0.7, '#61646e');
+    }
+    if (gen >= 4) r(rwX + 3, -0.4, 6.5, 0.9, '#eeeeee');  // エンジンカバーのフィン
+
+    // ---- リアウイング ----
+    r(rwX + 1.2, -1.8, 1.5, 3.6, '#2c2e34');            // ディフューザー
+    r(rwX, -rwH, 2.6, rwH * 2, CARBON);
+    r(rwX, -rwH, 2.6, 0.9, CARBON2);
+    if (gen >= 1) {                                      // 翼端板
+      r(rwX - 0.5, -rwH - 1.1, 3.8, 1.1, dark);
+      r(rwX - 0.5, rwH, 3.8, 1.1, dark);
+    }
+    if (gen >= 4) r(rwX + 2.2, -rwH + 0.7, 1.0, rwH * 2 - 1.4, CARBON2);  // DRSの上段
+
+    // ---- フロントウイング ----
+    r(fwX, -fwH, 2.4, fwH * 2, CARBON);
+    r(fwX, -fwH, 2.4, 0.9, CARBON2);
+    if (gen >= 1) {
+      r(fwX - 0.4, -fwH - 1.1, 3.2, 1.1, dark);          // 翼端板
+      r(fwX - 0.4, fwH, 3.2, 1.1, dark);
+    }
+    if (gen >= 2) r(fwX + 1.9, -fwH + 0.9, 0.9, fwH * 2 - 1.8, CARBON2);  // 2段目
+
+    // ---- ブレーキランプ ----
+    if (!out && vel < 0.52) {
+      const a = (0.55 + (0.52 - vel)).toFixed(2);
+      r(rwX + 1.0, -1.4, 1.2, 2.8, 'rgba(255,60,40,' + a + ')');
+      GP.fx.addLight(function (lg) {
+        lg.save(); camTransform(lg); lg.translate(x, y); lg.rotate(ang);
+        lg.fillStyle = 'rgba(255,70,50,.95)';
+        lg.fillRect(rwX + 1.0, -1.4, 1.2, 2.8);
+        lg.restore();
+      });
+    }
     ctx.restore();
 
     if (isPlayer && !out) {
       // 自チームは矢印マーカー付き
       ctx.save();
-      ctx.translate(Math.round(x), Math.round(y) - 14);
+      ctx.translate(Math.round(x), Math.round(y) - 16);
       const bob = Math.sin(vt * 6) * 1.5;
       ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1031,5 +1228,5 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, setCamMode };
+  return { start, setSpeed, skip, stop, setCamMode, _drawCar: drawCar };
 })();
