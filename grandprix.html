@@ -1529,6 +1529,17 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* ピットのロス：走るぶんと止まるぶん */
+.pitsplit{display:flex;gap:3px;margin-top:6px}
+.pitsplit span{display:flex;align-items:center;justify-content:center;min-width:0;
+               padding:3px 4px;font-size:9.5px;font-weight:bold;white-space:nowrap;overflow:hidden;
+               border:2px solid var(--ink);border-radius:4px}
+.pitsplit .lane{background:#b9c8dd;color:#22303f}
+.pitsplit .stand{background:#f0c04a;color:#3a2611}
+[data-skin="hd"] .pitsplit span{border-color:#5b4a74}
+[data-skin="hd"] .pitsplit .lane{background:#41597a;color:#eaf1fb}
+[data-skin="hd"] .pitsplit .stand{background:#c9932c;color:#241a08}
+
 /* この週末に出ていくお金 */
 .billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
          background:#fff8e3;color:var(--ink)}
@@ -2268,84 +2279,84 @@ GP.data = (function () {
      path  : 0..1 正規化されたコース形状（描画・走行用の閉ループ）      */
   const TRACKS = [
     {
-      name: 'ベイサイド・ストリート', country: '🇦🇪', far: 1.30, laps: 24, base: 92,
+      name: 'ベイサイド・ストリート', country: '🇦🇪', far: 1.30, laps: 24, base: 92, pitLane: 20.8,
       weight: { speed: 0.30, corner: 0.34, accel: 0.36 }, tyre: 1.15, risk: 1.20,
       desc: '低速コーナーの続く市街地。壁が近い。',
       landmarks: ['ハーバーヘアピン', 'マリーナ・シケイン', 'ブリッジコーナー'],
       path: [[.14,.72],[.1,.52],[.16,.4],[.12,.3],[.12,.2],[.62,.2],[.72,.26],[.72,.44],[.86,.44],[.9,.52],[.86,.62],[.55,.62],[.48,.72],[.3,.8]]
     },
     {
-      name: 'シルバーウッド・パーク', country: '🇬🇧', far: 0.70, laps: 26, base: 88,
+      name: 'シルバーウッド・パーク', country: '🇬🇧', far: 0.70, laps: 26, base: 88, pitLane: 17.4,
       weight: { speed: 0.32, corner: 0.46, accel: 0.22 }, tyre: 1.25, risk: 0.95,
       desc: '高速コーナーの連続。エアロが物を言う。',
       landmarks: ['ウッドランド', 'ハイスピードS', 'オークカーブ'],
       path: [[.28,.2],[.42,.18],[.54,.24],[.6,.36],[.72,.3],[.84,.34],[.88,.46],[.8,.54],[.66,.52],[.56,.58],[.58,.7],[.68,.78],[.6,.86],[.44,.86],[.32,.8],[.3,.68],[.2,.6],[.1,.46],[.16,.3]]
     },
     {
-      name: 'モンテローザ市街地', country: '🇲🇨', far: 0.65, laps: 30, base: 78,
+      name: 'モンテローザ市街地', country: '🇲🇨', far: 0.65, laps: 30, base: 78, pitLane: 13.8,
       weight: { speed: 0.14, corner: 0.44, accel: 0.42 }, tyre: 0.85, risk: 1.45,
       desc: '抜けない。予選が全て。ミスは即クラッシュ。',
       landmarks: ['カジノヘアピン', 'トンネル出口', 'ポートシケイン'],
       path: [[.52,.18],[.66,.24],[.62,.36],[.74,.42],[.84,.56],[.72,.66],[.56,.62],[.48,.7],[.52,.82],[.34,.86],[.22,.76],[.28,.62],[.18,.52],[.24,.38],[.18,.24]]
     },
     {
-      name: 'グランデ・ロッソ', country: '🇮🇹', far: 0.70, laps: 25, base: 84,
+      name: 'グランデ・ロッソ', country: '🇮🇹', far: 0.70, laps: 25, base: 84, pitLane: 19.2,
       weight: { speed: 0.56, corner: 0.20, accel: 0.24 }, tyre: 0.95, risk: 1.05,
       desc: '超高速。パワーユニットの馬力勝負。',
       landmarks: ['グランデ・カーブ', '第1シケイン', 'パラボリカ'],
       path: [[.55,.24],[.8,.23],[.89,.3],[.8,.36],[.86,.44],[.9,.58],[.7,.64],[.45,.66],[.25,.64],[.3,.55],[.18,.5],[.09,.38],[.08,.26],[.3,.25]]
     },
     {
-      name: 'アルペン・リンク', country: '🇦🇹', far: 0.68, laps: 28, base: 76,
+      name: 'アルペン・リンク', country: '🇦🇹', far: 0.68, laps: 28, base: 76, pitLane: 12.9,
       weight: { speed: 0.44, corner: 0.26, accel: 0.30 }, tyre: 1.05, risk: 1.00,
       desc: '短いラップに登り坂。ブレーキ勝負の一発勝負。',
       landmarks: ['マウンテンターン', 'ダウンヒル', 'サミット'],
       path: [[.2,.36],[.34,.26],[.56,.3],[.62,.44],[.78,.44],[.86,.56],[.76,.7],[.52,.74],[.4,.66],[.28,.76],[.16,.66]]
     },
     {
-      name: 'サクラ・エイト', country: '🇯🇵', far: 1.55, laps: 27, base: 95,
+      name: 'サクラ・エイト', country: '🇯🇵', far: 1.55, laps: 27, base: 95, pitLane: 18.6,
       weight: { speed: 0.30, corner: 0.42, accel: 0.28 }, tyre: 1.30, risk: 1.10,
       desc: '立体交差の8の字。総合力が問われる名コース。',
       landmarks: ['スプーンカーブ', '逆バンク', 'デグナー'],
       path: [[.62,.18],[.38,.14],[.2,.2],[.12,.36],[.2,.26],[.32,.22],[.4,.28],[.34,.36],[.42,.42],[.36,.5],[.44,.56],[.58,.54],[.7,.46],[.8,.48],[.84,.58],[.76,.66],[.64,.64],[.56,.7],[.6,.8],[.74,.84],[.86,.78],[.88,.62],[.8,.34]]
     },
     {
-      name: 'デザート・ドーム', country: '🇧🇭', far: 1.30, laps: 26, base: 90,
+      name: 'デザート・ドーム', country: '🇧🇭', far: 1.30, laps: 26, base: 90, pitLane: 20.0,
       weight: { speed: 0.38, corner: 0.24, accel: 0.38 }, tyre: 1.35, risk: 0.90,
       desc: '路面が荒くタイヤに厳しい。ナイトレース。',
       landmarks: ['ドーム・ターン', 'サンドトラップ', 'オアシスベンド'],
       path: [[.3,.82],[.16,.7],[.24,.52],[.14,.42],[.16,.28],[.48,.24],[.56,.36],[.72,.32],[.86,.44],[.8,.6],[.6,.64],[.52,.76]]
     },
     {
-      name: 'メイプル・アイランド', country: '🇨🇦', far: 1.25, laps: 29, base: 82,
+      name: 'メイプル・アイランド', country: '🇨🇦', far: 1.25, laps: 29, base: 82, pitLane: 15.4,
       weight: { speed: 0.42, corner: 0.22, accel: 0.36 }, tyre: 1.10, risk: 1.25,
       desc: '低速シケイン＋長い直線。壁が待っている。',
       landmarks: ['ウォール・オブ・メイプル', 'アイランド・シケイン', 'ラストヘアピン'],
       path: [[.4,.32],[.68,.3],[.78,.34],[.72,.4],[.82,.44],[.9,.54],[.86,.66],[.62,.72],[.36,.74],[.26,.7],[.3,.62],[.2,.58],[.1,.46],[.1,.34]]
     },
     {
-      name: 'グリーンヒル・フォレスト', country: '🇧🇪', far: 0.62, laps: 24, base: 106,
+      name: 'グリーンヒル・フォレスト', country: '🇧🇪', far: 0.62, laps: 24, base: 106, pitLane: 17.0,
       weight: { speed: 0.40, corner: 0.40, accel: 0.20 }, tyre: 1.20, risk: 1.15,
       desc: '長大な1周と天候の急変。ドライバーの腕が出る。',
       landmarks: ['オー・ルージュ', 'フォレストバンク', 'ラ・コンブ'],
       path: [[.34,.34],[.5,.3],[.66,.32],[.78,.38],[.86,.48],[.82,.58],[.7,.6],[.6,.54],[.52,.58],[.5,.68],[.58,.76],[.52,.86],[.36,.88],[.22,.84],[.14,.82],[.1,.74],[.14,.56],[.22,.42]]
     },
     {
-      name: 'リオ・エストレラ', country: '🇧🇷', far: 1.60, laps: 30, base: 74,
+      name: 'リオ・エストレラ', country: '🇧🇷', far: 1.60, laps: 30, base: 74, pitLane: 15.8,
       weight: { speed: 0.34, corner: 0.32, accel: 0.34 }, tyre: 1.15, risk: 1.20,
       desc: '反時計回りの短いラップ。雨が多い。',
       landmarks: ['エストレラ・カーブ', 'スタジアム区間', 'セニーニャ'],
       path: [[.16,.68],[.18,.44],[.22,.24],[.54,.2],[.74,.3],[.82,.46],[.7,.58],[.5,.56],[.42,.66],[.5,.8],[.3,.84]]
     },
     {
-      name: 'ラスベガス・ネオン', country: '🇺🇸', far: 1.35, laps: 28, base: 96,
+      name: 'ラスベガス・ネオン', country: '🇺🇸', far: 1.35, laps: 28, base: 96, pitLane: 19.6,
       weight: { speed: 0.52, corner: 0.24, accel: 0.24 }, tyre: 0.90, risk: 1.30,
       desc: 'ネオン輝く超高速ストリート。低温がタイヤを苦しめる。',
       landmarks: ['ネオンベンド', 'ストリップ・ターン', 'ダウンタウン'],
       path: [[.55,.78],[.2,.77],[.09,.62],[.36,.52],[.07,.38],[.07,.22],[.35,.21],[.65,.205],[.9,.2],[.94,.34],[.62,.4],[.9,.5],[.88,.7]]
     },
     {
-      name: 'ファイナル・オアシス', country: '🇦🇪', far: 1.30, laps: 27, base: 88,
+      name: 'ファイナル・オアシス', country: '🇦🇪', far: 1.30, laps: 27, base: 88, pitLane: 21.8,
       weight: { speed: 0.34, corner: 0.34, accel: 0.32 }, tyre: 1.05, risk: 0.85,
       desc: '最終戦。ここまでの全てが試される。',
       landmarks: ['ファイナルターン', 'パームコーナー', 'サンセットベンド'],
@@ -2571,7 +2582,7 @@ GP.data = (function () {
     { key: 'tunnel',  name: '風洞',         icon: '💨', desc: 'エアロ／サスの開発が伸びる',   base: 2200 },
     { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速する',   base: 2000 },
     { key: 'market',  name: 'マーケティング室', icon: '📣', desc: 'スポンサー収入が増える',   base: 1600 },
-    { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピット作業とマシン信頼性が上がる', base: 1900 },
+    { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピットの静止時間が縮み、信頼性も上がる', base: 1900 },
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
   ];
 
@@ -2619,6 +2630,22 @@ GP.data = (function () {
   const LOGI_DELAY_FATIGUE = 7;   // 同・クルーの疲労
   /* クルーの疲労が満タンのときの悪影響 */
   const CREW_FULL = { pit: 2.0, rel: 8, mistake: 0.05 };
+
+  /* ---------- ピットストップ ----------
+     ピットで失う時間は、性格の違う2つの足し算でできている。
+       ・ピットロード……速度制限のなかを走り抜けるぶん。コースごとに決まっていて、
+         設備をいくら建てても縮まない。track.pitLane がその秒数。
+       ・静止時間……ジャッキが上がって下りるまで。ここだけが設備とクルーの腕で縮む。
+     セーフティカー中は「隊列そのものが遅い」ので、走るぶん＝ピットロードだけが
+     安くなる。止まって作業する時間は何があっても同じだけかかる。          */
+  const PIT_STAND_BASE  = 5.2;    // 何も揃っていないチームの静止時間（秒）
+  const PIT_STAND_MIN   = 1.8;    // どれだけ鍛えてもこれより速くは止まれない
+  const PIT_STAND_CURVE = 0.16;   // 設備とクルーの効きかた（大きいほど早く頭打ち）
+  const PIT_STAND_RIVAL = 3.7;    // ライバルチームの標準的な静止時間
+  const PIT_LANE_SC     = 0.38;   // 実車セーフティカー中のピットロード係数
+  const PIT_LANE_VSC    = 0.64;   // バーチャルセーフティカー中
+  const PIT_FUMBLE_BASE = 0.115;  // 作業をしくじる確率（腕が上がるほど下がる）
+  const PIT_FUMBLE_MIN  = 0.014;
 
   const DIFFICULTIES = [
     {
@@ -3054,19 +3081,19 @@ GP.data = (function () {
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 15, wet: false, wetIdeal: 0.00, wetTol: 0.14,
+      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.14,
       desc: 'いちばん速いが、あっという間に摩耗する' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
-      pace: 1.000, wear: 1.00, life: 25, wet: false, wetIdeal: 0.00, wetTol: 0.16,
+      pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.16,
       desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 38, wet: false, wetIdeal: 0.00, wetTol: 0.18,
+      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.18,
       desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
-      pace: 1.000, wear: 1.15, life: 24, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
+      pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
       desc: '小雨と半乾き用。濡れはじめと乾きかけの、いちばん長い時間を受け持つ' },
     { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
-      pace: 1.000, wear: 0.95, life: 30, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
+      pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
       desc: '大雨用。水を大量に掻き出すが、乾いた路面では溶けてしまう' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
@@ -3092,7 +3119,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -4051,6 +4078,32 @@ GP.state = (function () {
     return { pit: r * D.CREW_FULL.pit, rel: r * D.CREW_FULL.rel,
              mistake: r * D.CREW_FULL.mistake, level: crew(g2) };
   }
+  /* タイヤをどれだけ長持ちさせられるか（小さいほど持つ）。
+     技術のあるドライバーほど、同じタイヤで長く走れる            */
+  function tyreWear(d) { return (hasSkill(d, 'tyre') ? 0.55 : 1) * (1 - d.technique / 420); }
+
+  /* このコースを素直に何回止まって走るか。
+     よけいに1回止まって失うのはピットロードのぶん。そのかわり区間が短くなり、
+     やわらかくて速いタイヤを履ける。短いピットロードと長い距離ほど2回が生きる */
+  function naturalStops(track, laps, wear) {
+    return laps * (0.42 + wear * 0.24) > (track.pitLane || 18) ? 2 : 1;
+  }
+
+  /* ---- ピットの静止時間としくじりやすさ ----
+     ジャッキが上がって下りるまでの秒数。設備とクルーの腕で縮むのはここだけで、
+     ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
+     腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
+  function pitCrew(g2) {
+    const skill = g2.facilities.pit * 0.55 + staffBonus(g2, 'mechanic')
+                + mgr(g2, 'pitchief') * 0.06 + osk(g2, 'call') * 0.5;
+    const cw = crewPenalty(g2);
+    const stand = D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
+                / (1 + skill * D.PIT_STAND_CURVE) + cw.pit;
+    const fumble = clamp(D.PIT_FUMBLE_BASE / (1 + skill * 0.20) + cw.mistake * 0.8,
+                         D.PIT_FUMBLE_MIN, 0.30);
+    return { skill: skill, stand: stand, fumble: fumble };
+  }
+
   /* レースを1戦こなしたぶんの消耗。輸送手段で増減する */
   function tireCrew(g2) {
     if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
@@ -4952,7 +5005,7 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -5107,16 +5160,22 @@ GP.race = (function () {
     ],
     /* ピットイン */
     pit: [
-      '{A} ピットイン！ {B}に交換 ({P}秒)',
-      '{A} が動いた！ {B}を履いて送り出す ({P}秒)',
-      '{A} ピットへ。{B}に履き替えて再スタート ({P}秒)',
-      '{A}、タイヤ交換！ {B}で残りを走りきる ({P}秒)'
+      '{A} ピットイン！ {B}に交換（静止{S}秒・計{P}秒）',
+      '{A} が動いた！ {B}を履いて送り出す（静止{S}秒・計{P}秒）',
+      '{A} ピットへ。{B}に履き替えて再スタート（静止{S}秒・計{P}秒）',
+      '{A}、タイヤ交換！ {B}で残りを走りきる（静止{S}秒・計{P}秒）'
     ],
     /* 手間取ったピット */
     pitSlow: [
-      '{A} ピットイン！ …作業が止まった！ {B}に交換 ({P}秒)',
-      '{A} ピットイン、しかしタイヤがはまらない！ {B} ({P}秒)',
-      '{A} ピットで痛恨のロス！ {B}に交換 ({P}秒)'
+      '{A} ピットイン！ …作業が止まった！ {B}に交換（静止{S}秒・計{P}秒）',
+      '{A} ピットイン、しかしタイヤがはまらない！ {B}（静止{S}秒・計{P}秒）',
+      '{A} ピットで痛恨のロス！ {B}に交換（静止{S}秒・計{P}秒）'
+    ],
+    /* 隊列が遅いあいだのピット。ピットロードのぶんが安く済む */
+    pitCheap: [
+      '{A} この隊列でピットイン！ {B}に交換 — ロードのロスが{L}秒で済んだ（計{P}秒）',
+      '{A} 絶好のタイミングでピットへ！ {B}に交換（ロード{L}秒・静止{S}秒）',
+      '{A} 隊列が遅いうちに動いた！ {B}を履いて復帰（計{P}秒）'
     ]
   };
 
@@ -5421,7 +5480,7 @@ GP.race = (function () {
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
-          tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
+          tyreSkill: S.tyreWear(d),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
@@ -5459,11 +5518,14 @@ GP.race = (function () {
     if (weather.key === 'storm') return 'wet';
     if (weather.key === 'rain') return 'inter';
     if (prefer && D.DRY_TYRES.indexOf(prefer) >= 0) return prefer;
-    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * 0.9);
-    if (!fit.length) return 'hard';
-    // bias 0=攻め（寿命ぎりぎりの速いタイヤ） 1=バランス 2=堅実（余裕のある硬いタイヤ）
-    const i = bias >= 2 ? fit.length - 1 : bias === 1 ? Math.floor((fit.length - 1) / 2) : 0;
-    return fit[i].key;
+    /* 短い区間ほど、やわらかくて速いタイヤを選べる。
+       bias 0=攻め（余裕をほとんど残さない） 1=バランス 2=堅実（余裕をたっぷり取る）  */
+    const margin = bias >= 2 ? 1.34 : bias === 1 ? 1.10 : 0.94;
+    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * margin);
+    // どれも保たないなら、いちばん保つものを履くしかない
+    if (!fit.length) return D.DRY_TYRES[D.DRY_TYRES.length - 1];
+    // 保つもののうち、いちばんやわらかい＝いちばん速いもの
+    return fit[0].key;
   }
 
   function autoStrategy(team, track) {
@@ -5557,6 +5619,7 @@ GP.race = (function () {
     const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
     /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
     function wetLoss(ty, w, e) {
+      if (!isFinite(w)) w = 0;
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
       // うまい人ほど、合わないタイヤでも許容できる幅が広い
       const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
@@ -5602,17 +5665,25 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const cw = S.crewPenalty(g);          // クルーの疲労
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
-                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5   // 采配
-                  + cw.pit;
+    /* ---- ピットで失う時間 ----
+       「ピットロードを制限速度で走り抜けるぶん」＋「止まって作業しているぶん」。
+       前者はコースが決めていて、設備をいくら建てても1秒も縮まない。
+       縮められるのは後者だけ。だから隊列が遅いセーフティカー中は、
+       走るぶんだけが安くなり、止まるぶんは変わらずかかる。            */
+    const pitLane = track.pitLane || 18;
+    const myPit = S.pitCrew(g);
     const strategist = S.staffBonus(g, 'strategist');
+    // ライバルのクルーの腕は、そのチームの地力なりに揃っている
+    const carRef = entries.reduce((a, e) => a + e.carScore, 0) / Math.max(1, entries.length);
 
     // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      // コースとマシンから決まる「素直な」ストップ回数
-      const natural = (wear > 1.05 || laps > 28) ? 2 : 1;
+      /* コースとマシンから決まる「素直な」ストップ回数。
+         よけいに1回止まって失うのはピットロードのぶん。
+         そのかわり区間が短くなり、やわらかくて速いタイヤを履ける。
+         ピットロードが短くて周回の多いコースほど、2回止まる価値が出る  */
+      const natural = S.naturalStops(track, laps, wear);
       let stops = natural;
       e.tyreBias = 1;
       e.react = 0.45;                     // アンダーカットを仕掛ける積極性
@@ -5647,7 +5718,14 @@ GP.race = (function () {
         e.pitPlan.push(S.clamp(Math.round(laps * frac + S.rnd(-blur, blur)), 2, laps - 2));
       }
       e.pitPlan.sort((a, b) => a - b);
-      e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0) - (e.bd.svc - RIVAL_BODY_REF) * 2.2;
+      // ピットロードは全車共通。車体の出入りのしやすさだけがわずかに効く
+      e.pitLane = pitLane * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.06);
+      e.pitStand = e.isPlayer
+        ? Math.max(D.PIT_STAND_MIN, myPit.stand - (e.bd.svc - RIVAL_BODY_REF) * 1.8)
+        : S.clamp(D.PIT_STAND_RIVAL - (e.carScore - carRef) * 0.020,
+                  D.PIT_STAND_MIN, 6.2);
+      e.pitFumble = e.isPlayer ? myPit.fumble : 0.045;
+      e.pitLoss = e.pitLane + e.pitStand;      // 平常時の目安。表示と「遅かった」判定に使う
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
@@ -5764,14 +5842,17 @@ GP.race = (function () {
 
       // 天候の急変。全車があわててタイヤを替えに来る
       if (wxTo && lap === wxAt) {
-        wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
-               wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
-        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (wx.wet ? 0.6 : 0);
+        // 天気そのものは差し替えるが、路面の濡れ具合は毎周この上で
+        // 計算し直している。wx を丸ごと作り直すと level が消えてしまい、
+        // それ以降のラップタイムがすべて壊れる
+        wx.key = wxTo.key;
+        const nowWet = wxTo.key === 'rain' || wxTo.key === 'storm';
+        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (nowWet ? 0.6 : 0);
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
         wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
           text: wxTo.icon + ' 天候が変わった！ ' + weather.name + ' → ' + wxTo.name
-              + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
+              + '（' + (nowWet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
         order.forEach(e => {
           if (e.dnf || lap >= laps - 1) return;
           // いま履いているもので大きく損をしないなら、慌てて入らない
@@ -5948,16 +6029,20 @@ GP.race = (function () {
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
-          // セーフティカー中は隊列が遅いので、失う時間が小さい
-          const scCheap = underSC ? (scInfo.virtual ? 0.68 : 0.42) : 1;
-          const miss = e.isPlayer ? 0.035 + cw.mistake : 0.035;
-          const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < miss ? S.rnd(3, 9) : 0)) * scCheap;
+          /* 隊列が遅いあいだ、安くなるのは「走るぶん」だけ。
+             ジャッキが上がって下りるまでの時間は、何が出ていても変わらない  */
+          const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
+          const fumbled = Math.random() < e.pitFumble;
+          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0);
+          const lane = e.pitLane * laneMul;
+          const loss = lane + stand;
           t += loss;
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
           // ピットレーンでの速度超過。慌てているチームほど出る
-          if (Math.random() < 0.012 * (e.isPlayer ? Math.max(0.4, 1 - strategist * 0.25) : 1)) {
+          if (Math.random() < 0.012 * (e.isPlayer
+                ? Math.max(0.35, 1 - strategist * 0.22 - myPit.skill * 0.018) : 1)) {
             givePenalty(e, 'speeding', lap, events, laps);
           }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
@@ -5965,9 +6050,11 @@ GP.race = (function () {
           e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
+            const pool = fumbled ? SAY.pitSlow : (underSC ? SAY.pitCheap : SAY.pit);
             events.push({ lap, type: 'pit', car: e,
-              text: say(loss > e.pitLoss + 3 ? SAY.pitSlow : SAY.pit,
-                { A: e.driver.name, B: nt.name, P: loss.toFixed(1) }) });
+              text: say(pool, { A: e.driver.name, B: nt.name,
+                                P: loss.toFixed(1), S: stand.toFixed(1),
+                                L: lane.toFixed(1) }) });
           }
         }
         e.pitTime[lap - 1] = pitAdd;
@@ -6153,21 +6240,24 @@ GP.race = (function () {
           text: virtual
             ? '🟡 バーチャルセーフティカー！ 全車が一斉にペースを落とす（' + scLaps + '周）'
             : '🚨 セーフティカー出動！ 先導車の後ろに一列に詰まる（' + scLaps + '周）' });
-        // 隊列が遅いあいだはピットの損失が小さい。作戦が動く
-        // （バーチャルは全車が同じだけ遅いので、得は小さい）
+        /* 隊列が遅いあいだ、安くなるのは「ピットロードを走るぶん」だけ。
+           そのぶんが、まだ引っぱれたはずの周を捨てる損より大きいなら入る。
+           実車のほうが隊列が遅いので、浮く時間もバーチャルより大きい     */
         run.forEach(e => {
-          if (virtual && Math.random() < 0.55) return;
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
-          // 予定が遠くても、安いピットなら前倒しする価値がある
-          const worth = (next - lap) <= Math.round(laps * 0.45);
-          if (worth && Math.random() < 0.55 + (e.react || 0.4) * 0.4) {
+          const save = e.pitLane * (1 - (virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC));
+          const early = Math.max(0, next - lap - 1) * 1.05;   // 捨てる周のぶん
+          const net = save - early;
+          if (net < 1.0) return;
+          if (Math.random() < 0.30 + (e.react || 0.4) * 0.45 + net * 0.045) {
             e.pitPlan[e.pitPlan.indexOf(next)] = lap + 1;
             e.pitPlan.sort((a, b) => a - b);
             e.scPit = true;
             if (e.isPlayer) {
               events.push({ lap: lap + 1, type: 'pit', car: e,
-                text: e.driver.name + ' セーフティカー中にピットへ！ ロスが小さい' });
+                text: '🔧 ' + e.driver.name + ' 隊列が遅いうちにピットへ！ ' +
+                      'ピットロードのロスが ' + save.toFixed(1) + '秒 小さくなる' });
             }
           }
         });
@@ -13338,6 +13428,42 @@ window.GP = window.GP || {};
         '</div>';
     }
 
+    // ---- このコースでピットに入ると、どれだけ失うのか ----
+    {
+      const pc = S.pitCrew(g);
+      const lane = t.pitLane || 18;
+      const stand = pc.stand;
+      const one = lane + stand;
+      const scL = lane * D.PIT_LANE_SC + stand;
+      const vscL = lane * D.PIT_LANE_VSC + stand;
+      // このコースのピットロードは、全戦のなかでどのくらいか
+      const lanes = D.TRACKS.map(x => x.pitLane || 18).sort((a, b) => a - b);
+      const rank = lanes.indexOf(lane) + 1;
+      const heavy = rank > D.TRACKS.length * 0.6;
+      body += '<div class="stratbox pitbox">' +
+        '<b>🔧 1回のピットで失う時間 <em>' + one.toFixed(1) + '秒</em></b>' +
+        '<div class="pitsplit">' +
+          '<span class="lane" style="flex:' + lane.toFixed(1) + '">🛣️ ' + lane.toFixed(1) + '秒</span>' +
+          '<span class="stand" style="flex:' + Math.max(3.5, stand).toFixed(1) + '">🔧 ' +
+            stand.toFixed(1) + '秒</span>' +
+        '</div>' +
+        '<small>🛣️ <b>ピットロード</b> ' + lane.toFixed(1) + '秒 — 速度制限のなかを走り抜けるぶん。' +
+        'コースが決めていて、設備をいくら建てても<b>1秒も縮みません</b>' +
+        '（' + (heavy ? '全' + D.TRACKS.length + '戦で' + (D.TRACKS.length - rank + 1) +
+                        '番目に長い＝入るのが重いコース'
+                      : '全' + D.TRACKS.length + '戦で' + rank +
+                        '番目に短い＝入りやすいコース') + '）。<br>' +
+        '🔧 <b>静止時間</b> ' + stand.toFixed(1) + '秒 — ジャッキが上がって下りるまで。' +
+        'ここだけがピット設備とメカニックで縮みます（しくじる確率 ' +
+        (pc.fumble * 100).toFixed(0) + '%）。<br>' +
+        '🚨 <b>セーフティカー中なら ' + scL.toFixed(1) + '秒</b>／🟡 バーチャル中なら ' +
+        vscL.toFixed(1) + '秒。隊列そのものが遅いので、走るぶんだけが安くなります' +
+        '（止まっているぶんは変わりません）。<br>' +
+        '1ストップで ' + one.toFixed(1) + '秒、2ストップで ' + (one * 2).toFixed(1) + '秒。' +
+        'この差より新しいタイヤで取り返せるかが、ストップ回数の分かれ目です。</small>' +
+        '</div>';
+    }
+
     // ---- パワーユニットの状態と載せ替え ----
     body += puBoxHTML(t);
 
@@ -13376,9 +13502,19 @@ window.GP = window.GP || {};
     });
 
     // ---- ピット回数とタイヤの狙い ----
-    body += '<div class="sub">ピット作戦</div>' +
-      '<p class="desc">ストップが少ないほど1回のロスは減りますが、' +
-      'タイヤを長く使うぶんペースが落ちます。多いほど新しいタイヤで攻められます。</p>';
+    {
+      // このコースを素直に走るなら何回止まるか。ドライバーごとに違う
+      const one = (t.pitLane || 18) + S.pitCrew(g).stand;
+      const rec = g.drivers.map(d => S.naturalStops(t, laps, t.tyre * S.tyreWear(d)));
+      const recTxt = rec.every(x => x === rec[0]) ? rec[0] + 'ストップ'
+                   : Math.min.apply(null, rec) + '〜' + Math.max.apply(null, rec) + 'ストップ';
+      body += '<div class="sub">ピット作戦</div>' +
+        '<p class="desc">1回止まるたびに <b>' + one.toFixed(1) + '秒</b>。' +
+        'このコースは' + laps + '周でピットロードが' + (t.pitLane || 18).toFixed(1) + '秒なので、' +
+        '素直に走るなら <b>' + recTxt + '</b>（「おまかせ」はこれを選びます）。<br>' +
+        'ストップが少ないほど失う秒数は減りますが、区間が長くなるぶん硬くて遅いタイヤになります。' +
+        '多いほどやわらかいタイヤで攻められます。</p>';
+    }
     const STOPS = [['auto', 'おまかせ', 'コースに合わせて決める'],
                    ['1', '1ストップ', '引っ張る'],
                    ['2', '2ストップ', '標準'],
@@ -16440,8 +16576,8 @@ window.GP = window.GP || {};
     const fin = S.finances(g);
     const cw = S.crewPenalty(g);
     h += '<div class="diag-sub">' +
-      '<span>🔧 ピット作業 <b>' + (20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
-        - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5 + cw.pit).toFixed(1) + '秒</b></span>' +
+      '<span>🔧 ピットの静止時間 <b>' + S.pitCrew(g).stand.toFixed(1) + '秒</b>' +
+        '（しくじり ' + (S.pitCrew(g).fumble * 100).toFixed(0) + '%）</span>' +
       '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
       '<span>⚙️ PU ' + S.puOf(g).n + '基目 <b class="' +
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +

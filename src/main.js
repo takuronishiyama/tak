@@ -2322,6 +2322,42 @@ window.GP = window.GP || {};
         '</div>';
     }
 
+    // ---- このコースでピットに入ると、どれだけ失うのか ----
+    {
+      const pc = S.pitCrew(g);
+      const lane = t.pitLane || 18;
+      const stand = pc.stand;
+      const one = lane + stand;
+      const scL = lane * D.PIT_LANE_SC + stand;
+      const vscL = lane * D.PIT_LANE_VSC + stand;
+      // このコースのピットロードは、全戦のなかでどのくらいか
+      const lanes = D.TRACKS.map(x => x.pitLane || 18).sort((a, b) => a - b);
+      const rank = lanes.indexOf(lane) + 1;
+      const heavy = rank > D.TRACKS.length * 0.6;
+      body += '<div class="stratbox pitbox">' +
+        '<b>🔧 1回のピットで失う時間 <em>' + one.toFixed(1) + '秒</em></b>' +
+        '<div class="pitsplit">' +
+          '<span class="lane" style="flex:' + lane.toFixed(1) + '">🛣️ ' + lane.toFixed(1) + '秒</span>' +
+          '<span class="stand" style="flex:' + Math.max(3.5, stand).toFixed(1) + '">🔧 ' +
+            stand.toFixed(1) + '秒</span>' +
+        '</div>' +
+        '<small>🛣️ <b>ピットロード</b> ' + lane.toFixed(1) + '秒 — 速度制限のなかを走り抜けるぶん。' +
+        'コースが決めていて、設備をいくら建てても<b>1秒も縮みません</b>' +
+        '（' + (heavy ? '全' + D.TRACKS.length + '戦で' + (D.TRACKS.length - rank + 1) +
+                        '番目に長い＝入るのが重いコース'
+                      : '全' + D.TRACKS.length + '戦で' + rank +
+                        '番目に短い＝入りやすいコース') + '）。<br>' +
+        '🔧 <b>静止時間</b> ' + stand.toFixed(1) + '秒 — ジャッキが上がって下りるまで。' +
+        'ここだけがピット設備とメカニックで縮みます（しくじる確率 ' +
+        (pc.fumble * 100).toFixed(0) + '%）。<br>' +
+        '🚨 <b>セーフティカー中なら ' + scL.toFixed(1) + '秒</b>／🟡 バーチャル中なら ' +
+        vscL.toFixed(1) + '秒。隊列そのものが遅いので、走るぶんだけが安くなります' +
+        '（止まっているぶんは変わりません）。<br>' +
+        '1ストップで ' + one.toFixed(1) + '秒、2ストップで ' + (one * 2).toFixed(1) + '秒。' +
+        'この差より新しいタイヤで取り返せるかが、ストップ回数の分かれ目です。</small>' +
+        '</div>';
+    }
+
     // ---- パワーユニットの状態と載せ替え ----
     body += puBoxHTML(t);
 
@@ -2360,9 +2396,19 @@ window.GP = window.GP || {};
     });
 
     // ---- ピット回数とタイヤの狙い ----
-    body += '<div class="sub">ピット作戦</div>' +
-      '<p class="desc">ストップが少ないほど1回のロスは減りますが、' +
-      'タイヤを長く使うぶんペースが落ちます。多いほど新しいタイヤで攻められます。</p>';
+    {
+      // このコースを素直に走るなら何回止まるか。ドライバーごとに違う
+      const one = (t.pitLane || 18) + S.pitCrew(g).stand;
+      const rec = g.drivers.map(d => S.naturalStops(t, laps, t.tyre * S.tyreWear(d)));
+      const recTxt = rec.every(x => x === rec[0]) ? rec[0] + 'ストップ'
+                   : Math.min.apply(null, rec) + '〜' + Math.max.apply(null, rec) + 'ストップ';
+      body += '<div class="sub">ピット作戦</div>' +
+        '<p class="desc">1回止まるたびに <b>' + one.toFixed(1) + '秒</b>。' +
+        'このコースは' + laps + '周でピットロードが' + (t.pitLane || 18).toFixed(1) + '秒なので、' +
+        '素直に走るなら <b>' + recTxt + '</b>（「おまかせ」はこれを選びます）。<br>' +
+        'ストップが少ないほど失う秒数は減りますが、区間が長くなるぶん硬くて遅いタイヤになります。' +
+        '多いほどやわらかいタイヤで攻められます。</p>';
+    }
     const STOPS = [['auto', 'おまかせ', 'コースに合わせて決める'],
                    ['1', '1ストップ', '引っ張る'],
                    ['2', '2ストップ', '標準'],
@@ -5424,8 +5470,8 @@ window.GP = window.GP || {};
     const fin = S.finances(g);
     const cw = S.crewPenalty(g);
     h += '<div class="diag-sub">' +
-      '<span>🔧 ピット作業 <b>' + (20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
-        - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5 + cw.pit).toFixed(1) + '秒</b></span>' +
+      '<span>🔧 ピットの静止時間 <b>' + S.pitCrew(g).stand.toFixed(1) + '秒</b>' +
+        '（しくじり ' + (S.pitCrew(g).fumble * 100).toFixed(0) + '%）</span>' +
       '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
       '<span>⚙️ PU ' + S.puOf(g).n + '基目 <b class="' +
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +

@@ -1514,6 +1514,17 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* ピットのロス：走るぶんと止まるぶん */
+.pitsplit{display:flex;gap:3px;margin-top:6px}
+.pitsplit span{display:flex;align-items:center;justify-content:center;min-width:0;
+               padding:3px 4px;font-size:9.5px;font-weight:bold;white-space:nowrap;overflow:hidden;
+               border:2px solid var(--ink);border-radius:4px}
+.pitsplit .lane{background:#b9c8dd;color:#22303f}
+.pitsplit .stand{background:#f0c04a;color:#3a2611}
+[data-skin="hd"] .pitsplit span{border-color:#5b4a74}
+[data-skin="hd"] .pitsplit .lane{background:#41597a;color:#eaf1fb}
+[data-skin="hd"] .pitsplit .stand{background:#c9932c;color:#241a08}
+
 /* この週末に出ていくお金 */
 .billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
          background:#fff8e3;color:var(--ink)}

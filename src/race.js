@@ -138,16 +138,22 @@ GP.race = (function () {
     ],
     /* ピットイン */
     pit: [
-      '{A} ピットイン！ {B}に交換 ({P}秒)',
-      '{A} が動いた！ {B}を履いて送り出す ({P}秒)',
-      '{A} ピットへ。{B}に履き替えて再スタート ({P}秒)',
-      '{A}、タイヤ交換！ {B}で残りを走りきる ({P}秒)'
+      '{A} ピットイン！ {B}に交換（静止{S}秒・計{P}秒）',
+      '{A} が動いた！ {B}を履いて送り出す（静止{S}秒・計{P}秒）',
+      '{A} ピットへ。{B}に履き替えて再スタート（静止{S}秒・計{P}秒）',
+      '{A}、タイヤ交換！ {B}で残りを走りきる（静止{S}秒・計{P}秒）'
     ],
     /* 手間取ったピット */
     pitSlow: [
-      '{A} ピットイン！ …作業が止まった！ {B}に交換 ({P}秒)',
-      '{A} ピットイン、しかしタイヤがはまらない！ {B} ({P}秒)',
-      '{A} ピットで痛恨のロス！ {B}に交換 ({P}秒)'
+      '{A} ピットイン！ …作業が止まった！ {B}に交換（静止{S}秒・計{P}秒）',
+      '{A} ピットイン、しかしタイヤがはまらない！ {B}（静止{S}秒・計{P}秒）',
+      '{A} ピットで痛恨のロス！ {B}に交換（静止{S}秒・計{P}秒）'
+    ],
+    /* 隊列が遅いあいだのピット。ピットロードのぶんが安く済む */
+    pitCheap: [
+      '{A} この隊列でピットイン！ {B}に交換 — ロードのロスが{L}秒で済んだ（計{P}秒）',
+      '{A} 絶好のタイミングでピットへ！ {B}に交換（ロード{L}秒・静止{S}秒）',
+      '{A} 隊列が遅いうちに動いた！ {B}を履いて復帰（計{P}秒）'
     ]
   };
 
@@ -452,7 +458,7 @@ GP.race = (function () {
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
-          tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
+          tyreSkill: S.tyreWear(d),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
@@ -490,11 +496,14 @@ GP.race = (function () {
     if (weather.key === 'storm') return 'wet';
     if (weather.key === 'rain') return 'inter';
     if (prefer && D.DRY_TYRES.indexOf(prefer) >= 0) return prefer;
-    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * 0.9);
-    if (!fit.length) return 'hard';
-    // bias 0=攻め（寿命ぎりぎりの速いタイヤ） 1=バランス 2=堅実（余裕のある硬いタイヤ）
-    const i = bias >= 2 ? fit.length - 1 : bias === 1 ? Math.floor((fit.length - 1) / 2) : 0;
-    return fit[i].key;
+    /* 短い区間ほど、やわらかくて速いタイヤを選べる。
+       bias 0=攻め（余裕をほとんど残さない） 1=バランス 2=堅実（余裕をたっぷり取る）  */
+    const margin = bias >= 2 ? 1.34 : bias === 1 ? 1.10 : 0.94;
+    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * margin);
+    // どれも保たないなら、いちばん保つものを履くしかない
+    if (!fit.length) return D.DRY_TYRES[D.DRY_TYRES.length - 1];
+    // 保つもののうち、いちばんやわらかい＝いちばん速いもの
+    return fit[0].key;
   }
 
   function autoStrategy(team, track) {
@@ -588,6 +597,7 @@ GP.race = (function () {
     const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
     /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
     function wetLoss(ty, w, e) {
+      if (!isFinite(w)) w = 0;
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
       // うまい人ほど、合わないタイヤでも許容できる幅が広い
       const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
@@ -633,17 +643,25 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
-    const cw = S.crewPenalty(g);          // クルーの疲労
-    const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
-                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5   // 采配
-                  + cw.pit;
+    /* ---- ピットで失う時間 ----
+       「ピットロードを制限速度で走り抜けるぶん」＋「止まって作業しているぶん」。
+       前者はコースが決めていて、設備をいくら建てても1秒も縮まない。
+       縮められるのは後者だけ。だから隊列が遅いセーフティカー中は、
+       走るぶんだけが安くなり、止まるぶんは変わらずかかる。            */
+    const pitLane = track.pitLane || 18;
+    const myPit = S.pitCrew(g);
     const strategist = S.staffBonus(g, 'strategist');
+    // ライバルのクルーの腕は、そのチームの地力なりに揃っている
+    const carRef = entries.reduce((a, e) => a + e.carScore, 0) / Math.max(1, entries.length);
 
     // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      // コースとマシンから決まる「素直な」ストップ回数
-      const natural = (wear > 1.05 || laps > 28) ? 2 : 1;
+      /* コースとマシンから決まる「素直な」ストップ回数。
+         よけいに1回止まって失うのはピットロードのぶん。
+         そのかわり区間が短くなり、やわらかくて速いタイヤを履ける。
+         ピットロードが短くて周回の多いコースほど、2回止まる価値が出る  */
+      const natural = S.naturalStops(track, laps, wear);
       let stops = natural;
       e.tyreBias = 1;
       e.react = 0.45;                     // アンダーカットを仕掛ける積極性
@@ -678,7 +696,14 @@ GP.race = (function () {
         e.pitPlan.push(S.clamp(Math.round(laps * frac + S.rnd(-blur, blur)), 2, laps - 2));
       }
       e.pitPlan.sort((a, b) => a - b);
-      e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0) - (e.bd.svc - RIVAL_BODY_REF) * 2.2;
+      // ピットロードは全車共通。車体の出入りのしやすさだけがわずかに効く
+      e.pitLane = pitLane * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.06);
+      e.pitStand = e.isPlayer
+        ? Math.max(D.PIT_STAND_MIN, myPit.stand - (e.bd.svc - RIVAL_BODY_REF) * 1.8)
+        : S.clamp(D.PIT_STAND_RIVAL - (e.carScore - carRef) * 0.020,
+                  D.PIT_STAND_MIN, 6.2);
+      e.pitFumble = e.isPlayer ? myPit.fumble : 0.045;
+      e.pitLoss = e.pitLane + e.pitStand;      // 平常時の目安。表示と「遅かった」判定に使う
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
@@ -795,14 +820,17 @@ GP.race = (function () {
 
       // 天候の急変。全車があわててタイヤを替えに来る
       if (wxTo && lap === wxAt) {
-        wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
-               wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
-        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (wx.wet ? 0.6 : 0);
+        // 天気そのものは差し替えるが、路面の濡れ具合は毎周この上で
+        // 計算し直している。wx を丸ごと作り直すと level が消えてしまい、
+        // それ以降のラップタイムがすべて壊れる
+        wx.key = wxTo.key;
+        const nowWet = wxTo.key === 'rain' || wxTo.key === 'storm';
+        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (nowWet ? 0.6 : 0);
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
         wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
           text: wxTo.icon + ' 天候が変わった！ ' + weather.name + ' → ' + wxTo.name
-              + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
+              + '（' + (nowWet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
         order.forEach(e => {
           if (e.dnf || lap >= laps - 1) return;
           // いま履いているもので大きく損をしないなら、慌てて入らない
@@ -979,16 +1007,20 @@ GP.race = (function () {
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
-          // セーフティカー中は隊列が遅いので、失う時間が小さい
-          const scCheap = underSC ? (scInfo.virtual ? 0.68 : 0.42) : 1;
-          const miss = e.isPlayer ? 0.035 + cw.mistake : 0.035;
-          const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < miss ? S.rnd(3, 9) : 0)) * scCheap;
+          /* 隊列が遅いあいだ、安くなるのは「走るぶん」だけ。
+             ジャッキが上がって下りるまでの時間は、何が出ていても変わらない  */
+          const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
+          const fumbled = Math.random() < e.pitFumble;
+          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0);
+          const lane = e.pitLane * laneMul;
+          const loss = lane + stand;
           t += loss;
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
           // ピットレーンでの速度超過。慌てているチームほど出る
-          if (Math.random() < 0.012 * (e.isPlayer ? Math.max(0.4, 1 - strategist * 0.25) : 1)) {
+          if (Math.random() < 0.012 * (e.isPlayer
+                ? Math.max(0.35, 1 - strategist * 0.22 - myPit.skill * 0.018) : 1)) {
             givePenalty(e, 'speeding', lap, events, laps);
           }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
@@ -996,9 +1028,11 @@ GP.race = (function () {
           e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
+            const pool = fumbled ? SAY.pitSlow : (underSC ? SAY.pitCheap : SAY.pit);
             events.push({ lap, type: 'pit', car: e,
-              text: say(loss > e.pitLoss + 3 ? SAY.pitSlow : SAY.pit,
-                { A: e.driver.name, B: nt.name, P: loss.toFixed(1) }) });
+              text: say(pool, { A: e.driver.name, B: nt.name,
+                                P: loss.toFixed(1), S: stand.toFixed(1),
+                                L: lane.toFixed(1) }) });
           }
         }
         e.pitTime[lap - 1] = pitAdd;
@@ -1184,21 +1218,24 @@ GP.race = (function () {
           text: virtual
             ? '🟡 バーチャルセーフティカー！ 全車が一斉にペースを落とす（' + scLaps + '周）'
             : '🚨 セーフティカー出動！ 先導車の後ろに一列に詰まる（' + scLaps + '周）' });
-        // 隊列が遅いあいだはピットの損失が小さい。作戦が動く
-        // （バーチャルは全車が同じだけ遅いので、得は小さい）
+        /* 隊列が遅いあいだ、安くなるのは「ピットロードを走るぶん」だけ。
+           そのぶんが、まだ引っぱれたはずの周を捨てる損より大きいなら入る。
+           実車のほうが隊列が遅いので、浮く時間もバーチャルより大きい     */
         run.forEach(e => {
-          if (virtual && Math.random() < 0.55) return;
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
-          // 予定が遠くても、安いピットなら前倒しする価値がある
-          const worth = (next - lap) <= Math.round(laps * 0.45);
-          if (worth && Math.random() < 0.55 + (e.react || 0.4) * 0.4) {
+          const save = e.pitLane * (1 - (virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC));
+          const early = Math.max(0, next - lap - 1) * 1.05;   // 捨てる周のぶん
+          const net = save - early;
+          if (net < 1.0) return;
+          if (Math.random() < 0.30 + (e.react || 0.4) * 0.45 + net * 0.045) {
             e.pitPlan[e.pitPlan.indexOf(next)] = lap + 1;
             e.pitPlan.sort((a, b) => a - b);
             e.scPit = true;
             if (e.isPlayer) {
               events.push({ lap: lap + 1, type: 'pit', car: e,
-                text: e.driver.name + ' セーフティカー中にピットへ！ ロスが小さい' });
+                text: '🔧 ' + e.driver.name + ' 隊列が遅いうちにピットへ！ ' +
+                      'ピットロードのロスが ' + save.toFixed(1) + '秒 小さくなる' });
             }
           }
         });

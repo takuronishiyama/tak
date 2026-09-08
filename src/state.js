@@ -744,6 +744,32 @@ GP.state = (function () {
     return { pit: r * D.CREW_FULL.pit, rel: r * D.CREW_FULL.rel,
              mistake: r * D.CREW_FULL.mistake, level: crew(g2) };
   }
+  /* タイヤをどれだけ長持ちさせられるか（小さいほど持つ）。
+     技術のあるドライバーほど、同じタイヤで長く走れる            */
+  function tyreWear(d) { return (hasSkill(d, 'tyre') ? 0.55 : 1) * (1 - d.technique / 420); }
+
+  /* このコースを素直に何回止まって走るか。
+     よけいに1回止まって失うのはピットロードのぶん。そのかわり区間が短くなり、
+     やわらかくて速いタイヤを履ける。短いピットロードと長い距離ほど2回が生きる */
+  function naturalStops(track, laps, wear) {
+    return laps * (0.42 + wear * 0.24) > (track.pitLane || 18) ? 2 : 1;
+  }
+
+  /* ---- ピットの静止時間としくじりやすさ ----
+     ジャッキが上がって下りるまでの秒数。設備とクルーの腕で縮むのはここだけで、
+     ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
+     腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
+  function pitCrew(g2) {
+    const skill = g2.facilities.pit * 0.55 + staffBonus(g2, 'mechanic')
+                + mgr(g2, 'pitchief') * 0.06 + osk(g2, 'call') * 0.5;
+    const cw = crewPenalty(g2);
+    const stand = D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
+                / (1 + skill * D.PIT_STAND_CURVE) + cw.pit;
+    const fumble = clamp(D.PIT_FUMBLE_BASE / (1 + skill * 0.20) + cw.mistake * 0.8,
+                         D.PIT_FUMBLE_MIN, 0.30);
+    return { skill: skill, stand: stand, fumble: fumble };
+  }
+
   /* レースを1戦こなしたぶんの消耗。輸送手段で増減する */
   function tireCrew(g2) {
     if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
@@ -1645,7 +1671,7 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
