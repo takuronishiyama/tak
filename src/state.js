@@ -429,7 +429,10 @@ GP.state = (function () {
       const rar = old2 ? old2.rarity : 1;
       g2.equipped[c.key] = makePart(c.key, 0, rar, { power: 10 + carry, traits: old2 ? old2.traits : [] });
     });
-    g2.stock = [];
+    // 旧規則のパーツは使えなくなる。保管庫も空になる
+    // （ここが inventory ではなく stock になっていて、保管しておけば
+    //   規則変更をまるごと回避できてしまっていた）
+    g2.inventory = [];
     g2.body = makeBody(g2, null);
     g2.nextCar = 0;
     // 供給を受けていたエンジンも新規則では使えない
