@@ -559,7 +559,8 @@ GP.base = (function () {
       const py = WALK.y1 - 2;
       yard.forEach((q, i) => {
         const x = YARD_X[i];
-        person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
+        if (q.prop === 'brief') { briefStand(bg, x, py, q.color, q.done); }
+        else person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
         sign(bg, x, py - 42 - (i % 3) * 13, q.label, sel === q.key ? '#e04a3f' : '#3f3a30');
       });
@@ -716,6 +717,32 @@ GP.base = (function () {
       if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.key;
     }
     return null;
+  }
+
+  /* 合同デブリーフィングの場。ホワイトボードを囲んで数人が立っている */
+  function briefStand(bg, x, py, color, done) {
+    bg.globalAlpha = done ? 0.45 : 1;
+    bg.fillStyle = 'rgba(0,0,0,.30)';
+    bg.beginPath(); bg.ellipse(x, py, 16, 3.4, 0, 0, Math.PI * 2); bg.fill();
+    // ホワイトボード
+    bg.fillStyle = '#6b5a44'; bg.fillRect(x - 2, py - 12, 3, 12);
+    bg.fillStyle = '#3a3428'; bg.fillRect(x - 14, py - 34, 28, 22);
+    bg.fillStyle = '#e8e2d0'; bg.fillRect(x - 12, py - 32, 24, 18);
+    bg.fillStyle = '#3a7ad9'; bg.fillRect(x - 9, py - 29, 14, 2);
+    bg.fillRect(x - 9, py - 25, 10, 2);
+    bg.fillStyle = '#e04a3f'; bg.fillRect(x - 9, py - 21, 17, 2);
+    // 囲んでいる人（小さめに2人）
+    const mini = (mx, suit) => {
+      bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(mx - 4, py - 17, 8, 17);
+      bg.fillStyle = suit;                  bg.fillRect(mx - 4, py - 17, 8, 6);
+      bg.fillStyle = '#2c3140'; bg.fillRect(mx - 4, py - 7, 3, 7);
+      bg.fillRect(mx + 1, py - 7, 3, 7);
+      bg.fillStyle = '#eec49a'; bg.fillRect(mx - 3, py - 24, 6, 7);
+      bg.fillStyle = '#2b1d12'; bg.fillRect(mx - 3, py - 25, 6, 3);
+    };
+    mini(x - 17, color);
+    mini(x + 17, '#5a6270');
+    bg.globalAlpha = 1;
   }
 
   /* 敷地に立っている人。オフ期間の描き方と同じ形にそろえてある */

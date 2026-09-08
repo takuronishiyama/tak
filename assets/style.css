@@ -1375,3 +1375,19 @@ body[data-skin="hd"]{
 .regwarn small{display:block;margin-top:4px;font-size:10px;line-height:1.6;color:var(--ink2)}
 [data-skin="hd"] .regwarn{background:#2e1c22;color:#efe4cf}
 [data-skin="hd"] .regwarn small{color:#e8c8bc}
+
+/* ---------- 合同デブリーフィング ---------- */
+.brief-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;
+  margin:0 0 8px;padding:7px 10px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper2);color:var(--ink)}
+.brief-head b{font-size:14px}
+.brief-head span{font-size:10px;opacity:.85}
+.brief-list{margin:0 0 8px;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:var(--paper3)}
+.brief-row{display:flex;gap:8px;align-items:flex-start;padding:7px 9px;font-size:11px;line-height:1.5;
+  color:var(--ink);border-bottom:1px solid rgba(74,47,26,.18)}
+.brief-row:last-child{border-bottom:0}
+.brief-ic{flex:0 0 30px;font-size:18px;line-height:1}
+.brief-body em{display:block;font-style:normal;font-size:10px;opacity:.75;margin-bottom:2px}
+[data-skin="hd"] .brief-head{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .brief-list{background:#241c30}
+[data-skin="hd"] .brief-row{color:#efe4cf;border-bottom-color:rgba(255,225,160,.14)}
