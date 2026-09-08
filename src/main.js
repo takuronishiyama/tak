@@ -209,9 +209,10 @@ window.GP = window.GP || {};
     // ---- 車体開発 ----
     const cap = S.bodyCap(g);
     body += '</div><div class="sub">車体の熟成</div>' +
-      '<p class="desc">パーツとは別に、車体そのものを煮詰めます。' +
-      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + ' です。<br>' +
-      '新型マシンを作ると上限が上がりますが、育て直しになります。</p><div class="pick">';
+      '<p class="desc">パーツは速さを、車体は<b>壊れにくさ・タイヤの保ち・ピット作業・維持費</b>を担当します。' +
+      '効果は「上限に対して何割まで煮詰めたか」で決まるので、世代が変わっても価値は変わりません。<br>' +
+      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + '。' +
+      'ライバルはおおむね50%の仕上がりです。</p><div class="pick">';
     D.BODY_ATTRS.forEach(a => {
       const v = (g.body && g.body[a.key]) || 0;
       const cost = bodyCost(v);
@@ -221,7 +222,9 @@ window.GP = window.GP || {};
       body += '<button class="pickbtn" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
         '<span class="pb-body"><b>' + a.name + '</b>' +
-        '<small>' + a.desc + '<br><span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span> ' +
+        '<small>' + a.desc + '<br><span class="bd-eff">' + a.eff +
+        '<b>（いま ' + Math.round(pct) + '%）</b></span>' +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span> ' +
         Math.round(v * 10) / 10 + ' / ' + cap + (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
@@ -366,6 +369,8 @@ window.GP = window.GP || {};
     const p = g.plan;
     if (!p) return 1;
     if (p === 'balance') return 1.06;
+    // 速さの向きを持たない項目（整備性など）は、方針の影響を受けない
+    if (gainVec && !gainVec.speed && !gainVec.corner && !gainVec.accel) return 1;
     const w = (gainVec && gainVec[p]) || 0;
     if (w >= 0.5) return 1.22;
     if (w <= 0.15) return 0.92;

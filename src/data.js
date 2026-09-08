@@ -221,22 +221,38 @@ GP.data = (function () {
   /* ---------- 車体（マシン本体）----------
      パーツとは別に、車体そのものを1年かけて熟成させる。
      新型マシンを作ると数値は上がるが、また育て直しになる            */
+  /* 車体はパーツと同じ土俵で速さを競わない。
+     パーツが触らないところ ―― 壊れにくさ、タイヤの保ち、ピット作業、維持費 ――
+     を担当する。効果は「今のマシンの上限に対して何割まで煮詰めたか」で効く。 */
   const BODY_ATTRS = [
     { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
-      desc: 'コーナー性能と信頼性が上がる',
-      gain: { speed: 0.00, corner: 0.52, accel: 0.00 } },
+      desc: 'コーナー性能がわずかに上がる',
+      eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -30%）',
+      gain: { speed: 0.00, corner: 0.18, accel: 0.00 } },
     { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
-      desc: '最高速と加速がまとめて上がる',
-      gain: { speed: 0.75, corner: 0.00, accel: 0.58 } },
+      desc: '最高速と加速がわずかに上がる',
+      eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -22%）',
+      gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
     { key: 'aeroBody', name: '空力コンセプト', icon: '🌬️', color: '#3a7ad9',
-      desc: 'コーナー性能が上がり、エアロパーツの効果も底上げされる',
-      gain: { speed: 0.00, corner: 0.75, accel: 0.00 } },
+      desc: 'コーナー性能がわずかに上がる',
+      eff: 'エアロパーツの効きが増し、前車を追いやすくなる（追い抜き +20%）',
+      gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
     { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
-      desc: '信頼性が上がり、バッテリーの回生量も増える',
-      gain: { speed: 0.00, corner: 0.00, accel: 0.18 } },
+      desc: '加速がごくわずかに上がる',
+      eff: '信頼性 +7、バッテリーの回生が増え、終盤のタレが小さくなる',
+      gain: { speed: 0.00, corner: 0.00, accel: 0.06 } },
     { key: 'battery',  name: 'バッテリー',   icon: '🔋', color: '#f0a020',
-      desc: '電気の容量と放電量が増える。直線で伸びる',
-      gain: { speed: 0.34, corner: 0.00, accel: 0.40 } }
+      desc: '最高速と加速がわずかに上がる',
+      eff: '電気の容量と放電量が増え、直線で伸びる',
+      gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
+    { key: 'drive',    name: 'ドライバビリティ', icon: '🎯', color: '#e0644a',
+      desc: 'マシンそのものの速さは変わらない',
+      eff: '素直で乗りやすくなり、ドライバーが腕をそのまま出せる（ドライバー評価 +8%／ミス -25%）',
+      gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
+    { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
+      desc: 'マシンそのものの速さは変わらない',
+      eff: 'ピット作業が最大2.2秒速くなり、パーツの消耗が -35%（維持費が下がる）',
+      gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
   /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
   const BODY_CAP_RATIO = 0.35;
@@ -305,7 +321,7 @@ GP.data = (function () {
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
             'ライバルの土台が弱く、賞金もスポンサー料も多めに入ります。',
-      rivalPower: 0.84, rivalGrow: 1.05, funds: 1.45, prize: 1.15, sponsor: 1.15,
+      rivalPower: 0.78, rivalGrow: 1.05, funds: 1.45, prize: 1.15, sponsor: 1.15,
       ticket: 3, oilSponsor: true
     },
     {
@@ -313,7 +329,7 @@ GP.data = (function () {
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
             'ライバルもシーズン中に少しずつ速くなります。',
-      rivalPower: 1.00, rivalGrow: 1.00, funds: 1.00, prize: 1.00, sponsor: 1.00,
+      rivalPower: 1.00, rivalGrow: 1.10, funds: 1.00, prize: 1.00, sponsor: 1.00,
       ticket: 4, oilSponsor: false
     },
     {

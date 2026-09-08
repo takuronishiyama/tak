@@ -26,6 +26,16 @@ GP.race = (function () {
     if (ri.length) { hot = ri[S.rint(0, ri.length - 1)]; form[hot] += 0.052; }
     const list = [];
     list.hotTeam = hot >= 0 ? teams[hot].name : '';
+    // 車体の熟成度（0..1）。ライバルは「そこそこ仕上げてある」0.5 として扱うので、
+    // プレイヤーは煮詰めれば有利に、放っておけば不利になる
+    const RIVAL_BODY = RIVAL_BODY_REF;
+    const myBody = {
+      rigid: S.bodyRatio(g, 'rigidity'), light: S.bodyRatio(g, 'light'),
+      aero:  S.bodyRatio(g, 'aeroBody'), cool:  S.bodyRatio(g, 'cooling'),
+      svc:   S.bodyRatio(g, 'service'),  drive: S.bodyRatio(g, 'drive')
+    };
+    const evenBody = { rigid: RIVAL_BODY, light: RIVAL_BODY, aero: RIVAL_BODY,
+                       cool: RIVAL_BODY, svc: RIVAL_BODY, drive: RIVAL_BODY };
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track);
@@ -34,6 +44,9 @@ GP.race = (function () {
         let drv = S.driverRating(d);
         // スキルによる補正
         if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
+        // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
+        const bd0 = t.isPlayer ? myBody : evenBody;
+        drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
         const perf = (t.car * 0.60 + drv * 0.40) * form[ti];
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
@@ -46,6 +59,7 @@ GP.race = (function () {
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk, hot: ti === hot,
+          bd: t.isPlayer ? myBody : evenBody,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
           style: t.style || 'balanced',
@@ -62,6 +76,10 @@ GP.race = (function () {
     });
     return list;
   }
+
+  /* ライバルの車体はこのくらい仕上がっている、という基準。
+     プレイヤーの車体効果はすべてここを 0 として増減する */
+  const RIVAL_BODY_REF = 0.40;
 
   const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
 
@@ -180,7 +198,7 @@ GP.race = (function () {
         e.pitPlan.push(S.clamp(Math.round(laps * frac + S.rnd(-blur, blur)), 2, laps - 2));
       }
       e.pitPlan.sort((a, b) => a - b);
-      e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
+      e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0) - (e.bd.svc - RIVAL_BODY_REF) * 2.2;
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
 
@@ -273,14 +291,17 @@ GP.race = (function () {
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
+        // 軽い車体はタイヤを痛めない（ライバル基準の 0.5 で ±0 になるように正規化する）
+        const wearMul = (1 - e.bd.light * 0.22) / (1 - RIVAL_BODY_REF * 0.22);
+        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear * wearMul;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
+        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill * wearMul;
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
         if (lap > laps * 0.6 && !e.sk('stamina')) {
-          t += track.base * 0.0006 * (1 - e.driver.stamina / 200) * (lap - laps * 0.6);
+          t += track.base * 0.0006 * (1 - e.driver.stamina / 200) * (lap - laps * 0.6)
+             * ((1 - e.bd.cool * 0.35) / (1 - RIVAL_BODY_REF * 0.35));
         }
 
         // ラストスパート
@@ -295,7 +316,7 @@ GP.race = (function () {
         e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
 
         // ランダム（精密機械はブレが小さい）
-        const jitter = e.sk('precise') ? 0.45 : 1;
+        const jitter = (e.sk('precise') ? 0.45 : 1) * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.42);
         t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
 
         // スタート（1周目）
@@ -382,7 +403,8 @@ GP.race = (function () {
           if (atk.isPlayer) p += S.osk(g, 'call') * 0.08;    // 采配
           // コースの抜きやすさで全体を大きく上下させる。
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
-          p *= 0.18 + passEase * 1.24;
+          // 空力コンセプトが良いほど、前車の乱気流の中でも走れる
+          p *= (0.18 + passEase * 1.24) * ((1 + atk.bd.aero * 0.20) / (1 + RIVAL_BODY_REF * 0.20));
           p = S.clamp(p, 0.01, 0.80);
 
           if (Math.random() < p) {
@@ -438,6 +460,7 @@ GP.race = (function () {
         if (e.dnf || lap < 2) return;
         const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
         const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * wx.chaos * e.st.risk
+                    * ((1 - e.bd.rigid * 0.30) / (1 - RIVAL_BODY_REF * 0.30))
                       * (e.sk('heart') ? 0.40 : 1);
         const r = Math.random();
         if (r < mech) {

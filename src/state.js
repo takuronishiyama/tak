@@ -201,7 +201,7 @@ GP.state = (function () {
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
     // 空力コンセプトが良いほど、エアロパーツの効きも上がる
-    const aeroBoost = 1 + bodyVal(g, 'aeroBody') * 0.004;
+    const aeroBoost = 1 + bodyRatio(g, 'aeroBody') * 0.14;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
@@ -249,6 +249,12 @@ GP.state = (function () {
     return s;
   }
   const bodyVal = (g2, key) => (g2.body && g2.body[key]) || 0;
+  /* 車体の熟成度（0..1）。今のマシンの上限に対する割合で、効果はここから決まる。
+     世代が上がっても「どれだけ煮詰めたか」で効くので、いつでも意味がある */
+  function bodyRatio(g2, key) {
+    const cap = bodyCap(g2);
+    return cap > 0 ? clamp(bodyVal(g2, key) / cap, 0, 1) : 0;
+  }
 
   /* 開発リソースの配分 */
   function focusOf(g2) {
@@ -421,16 +427,18 @@ GP.state = (function () {
       if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
-    const bodyRel = (bodyVal(g, 'rigidity') + bodyVal(g, 'cooling')) * 0.11;
+    const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
+    // 整備性が高い車体は、同じ距離を走ってもパーツが傷まない
+    const svc = 1 - bodyRatio(g, 'service') * 0.35;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
-      const w = amount * (hasT(p, 'tough') ? 0.55 : 1);
+      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc;
       p.cond = clamp(p.cond - w, 5, 100);
     });
   }
@@ -787,7 +795,13 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 6) ? g : null;
+      if (!g || g.version !== 6) return null;
+      // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
+      if (g.body) {
+        const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
+        D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
+      }
+      return g;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -800,7 +814,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
-    bodyCap, makeBody, bodyStats, bodyVal, focusOf, nextCarProgress,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, focusOf, nextCarProgress,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

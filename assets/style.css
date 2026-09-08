@@ -1165,3 +1165,10 @@ body[data-skin="hd"]{
   padding:6px 9px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);font-size:11px;color:var(--ink)}
 .racetopics span{opacity:.5}
+
+/* 車体の熟成：その項目が何を担当しているか */
+.bd-eff{display:block;margin:2px 0 3px;padding:2px 5px;border-radius:3px;
+  background:#ece0c0;color:#3a2413;line-height:1.4}
+.bd-eff b{color:#6a4a22}
+[data-skin="hd"] .bd-eff{background:#332a44;color:#ffe4a6}
+[data-skin="hd"] .bd-eff b{color:#ffc96a}
