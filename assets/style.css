@@ -1192,3 +1192,12 @@ body[data-skin="hd"]{
 [data-skin="hd"] .logi-crew em.good{color:#8ee08a}
 [data-skin="hd"] .logi-crew em.warn{color:#ffcf6a}
 [data-skin="hd"] .logi-crew em.bad{color:#ff9a8a}
+
+/* 来季の仕込みが何を買っているのか */
+.nextcar-note{margin:5px 0 10px;padding:6px 9px;border-radius:5px;
+  background:#ece0c0;color:#3a2413;font-size:11px;line-height:1.6}
+.nextcar-note b{color:#6a4a22}
+.nextcar-note b.up{color:#2e7a2e}
+[data-skin="hd"] .nextcar-note{background:#332a44;color:#ffe4a6}
+[data-skin="hd"] .nextcar-note b{color:#ffc96a}
+[data-skin="hd"] .nextcar-note b.up{color:#8ee08a}

@@ -175,9 +175,18 @@ window.GP = window.GP || {};
         '<small>今季 ' + Math.round(f.cur * 100) + '%／来季 ' + Math.round(f.next * 100) + '%</small></button>';
     });
     const prog = Math.round(S.nextCarProgress(g) * 100);
+    const nv = S.nextCarPreview(g);
     body += '</div>' +
       '<div class="nextcar"><span>🌱 来季マシンの仕込み</span>' +
       '<i><b style="width:' + prog + '%"></b></i><em>' + prog + '%</em></div>';
+    // 仕込みが何を買っているのかを、そのまま数字で出す
+    body += '<p class="nextcar-note">' + (nv.isLast
+      ? 'これ以上の新型はありません。仕込みは効果がないので「今季に全力」がおすすめです。'
+      : 'いま新型に乗り換えると、車体の各項目は <b>' + nv.without + '</b> から始まります。' +
+        (nv.gain > 0
+          ? '仕込みぶんが乗って <b class="up">' + nv.withStock + '</b>（+' + nv.gain + '）になります。'
+          : 'まだ仕込みは乗っていません。') +
+        '<br>次のマシンでの上限は ' + nv.cap + ' です。') + '</p>';
     if (tk) {
       body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
         '<span class="tk-ic">🎫</span>' +
@@ -517,7 +526,9 @@ window.GP = window.GP || {};
         '<span class="pb-body"><b>' + cur.name + ' → ' + nx.name + '</b>' +
         '<small>パーツ上限 ' + cur.cap + ' → ' + nx.cap +
         '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
-        '<br>車体は新造され、前の知見を4割引き継いで再スタートします</small></span>' +
+        '<br>車体は各項目 <b>' + S.nextCarPreview(g).withStock + '</b> から再スタート' +
+        (S.nextCarPreview(g).gain > 0
+          ? '（うち +' + S.nextCarPreview(g).gain + ' は来季ぶんの仕込み）' : '') + '</small></span>' +
         '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
     }
     // ---- パワーユニットの供給 ----

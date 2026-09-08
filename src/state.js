@@ -260,6 +260,27 @@ GP.state = (function () {
   function focusOf(g2) {
     return D.FOCUS_LEVELS.find(f => f.key === (g2.focus || 'now')) || D.FOCUS_LEVELS[0];
   }
+  /* 新型に乗り換えたとき、車体がどこから始まるか。
+     「仕込み」が何を買っているのかを、そのまま数字で見せるために使う */
+  function nextCarPreview(g2) {
+    const gi = Math.min(D.CAR_GENS.length - 1, g2.carGen + 1);
+    const cap = Math.round(D.CAR_GENS[gi].cap * D.BODY_CAP_RATIO);
+    const prev = g2.body || {};
+    const n = D.BODY_ATTRS.length;
+    const carried = D.BODY_ATTRS.reduce((a, x) => a + (prev[x.key] || 0), 0) / n * D.BODY_CARRY;
+    const advance = (g2.nextCar || 0) * D.CARRY_TO_NEXT / n;
+    const floor = Math.max(cap * 0.15, carried);
+    const without = Math.min(cap, floor);
+    const withStock = Math.min(cap, floor + advance);
+    return {
+      cap: cap,
+      isLast: g2.carGen >= D.CAR_GENS.length - 1,
+      without: Math.round(without * 10) / 10,
+      withStock: Math.round(withStock * 10) / 10,
+      gain: Math.round((withStock - without) * 10) / 10
+    };
+  }
+
   /* 来季マシンの仕上がり具合（0-100%）。次の車体の初期値に乗る */
   function nextCarProgress(g2) {
     const cap = Math.round(D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen + 1)].cap * D.BODY_CAP_RATIO);
@@ -502,6 +523,24 @@ GP.state = (function () {
   }
 
   /* スポンサー収入にかかる倍率 */
+  /* ---------- ファン ---------- */
+  const fanTier = g2 => D.FAN_TIERS.find(t => (g2.fans || 0) < t.max) || D.FAN_TIERS[D.FAN_TIERS.length - 1];
+  /* 毎戦のグッズ・入場料収入。ファンが増えるほど伸びるが、
+     平方根なので終盤に爆発はしない */
+  function fanIncome(g2) {
+    const mult = (1 + g2.facilities.market * 0.08) * (1 + osk(g2, 'money') * 0.05)
+               * (1 + (g2.hype || 0) / 100 * 0.35);
+    return Math.round(D.FAN_INCOME * Math.sqrt(Math.max(0, g2.fans || 0)) * mult);
+  }
+  /* ファンが「これくらいはやるだろう」と思っている順位。
+     選手権での立ち位置から決まる。ここを上回るほどファンは増える */
+  function fanExpectation(g2) {
+    const tbl = constructorTable(g2);
+    const i = tbl.findIndex(r => r.isPlayer);
+    const rank = i < 0 ? tbl.length : i + 1;
+    return clamp(Math.round(rank * 1.6 - 0.6), 1, 20);
+  }
+
   function hypeBonus(g2) {
     return 1 + (g2.hype || 0) / 100 * 0.6;
   }
@@ -559,6 +598,7 @@ GP.state = (function () {
     const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
                 * (1 + osk(g2, 'money') * 0.06);   // 商才
     const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
+    const merch = fanIncome(g2);           // グッズ・入場料
     const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
     const PREP = raceWeek(0);                       // レース1回あたりの週数
@@ -572,9 +612,10 @@ GP.state = (function () {
       sponsorRpPerRace: rpRace,
       // レース1回ぶん（準備週＋レース週）の収支
       shipping: shipping,
+      merch: merch,
       cycleCost: weekly * PREP + shipping,
-      cycleIncome: perRace,
-      net: perRace - weekly * PREP - shipping
+      cycleIncome: perRace + merch,
+      net: perRace + merch - weekly * PREP - shipping
     };
   }
 
@@ -853,10 +894,11 @@ GP.state = (function () {
     makeDriver, makeStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
+    fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, focusOf, nextCarProgress,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, focusOf, nextCarProgress, nextCarPreview,
     logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,

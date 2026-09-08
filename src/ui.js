@@ -19,6 +19,15 @@ GP.ui = (function () {
     $('tTeamDot').style.background = g.color;
     $('tFunds').textContent = money(g.funds);
     $('tFans').textContent = money(g.fans);
+    // ファンが何を生んでいるかを、数字のそばで分かるようにする
+    const ft = S.fanTier(g);
+    const fw = $('tFans').parentElement;
+    if (fw) {
+      const ic = fw.querySelector('.ic');
+      if (ic) ic.textContent = ft.icon;
+      fw.title = ft.name + '／グッズ・入場料 +' + money(S.fanIncome(g)) + '万（1戦あたり）\n'
+               + 'ファンが期待している順位：' + S.fanExpectation(g) + '位';
+    }
     $('tRp').textContent = money(g.rp);
     $('tSeason').textContent = g.season;
     $('tWeek').textContent = g.week;
@@ -521,6 +530,7 @@ GP.ui = (function () {
     h += '<div class="fin-row total"><span>合計</span><b>' + money(f.weekly) + '万 / 週</b></div>' +
       '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
       '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
+      '<div class="fin-row"><span>' + S.fanTier(g).icon + ' グッズ・入場料（' + S.fanTier(g).name + '）</span><b class="good">+' + money(f.merch) + '</b></div>' +
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost - f.shipping) + '</b></div>' +
       '<div class="fin-row"><span>' + S.logiPlan(g).icon + ' 次戦への輸送費（' + S.logiPlan(g).name + '）</span><b class="bad">-' + money(f.shipping) + '</b></div>' +

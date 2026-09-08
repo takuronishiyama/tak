@@ -44,6 +44,8 @@ GP.race = (function () {
         let drv = S.driverRating(d);
         // スキルによる補正
         if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
+        // 母国グランプリ。地元のスタンドが自分の色で埋まると、人は強くなる
+        if (S.nationOf(d).flag === track.country) drv *= 1.035;
         // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
         const bd0 = t.isPlayer ? myBody : evenBody;
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
@@ -595,13 +597,37 @@ GP.race = (function () {
       }
     });
 
-    // ファン増減
+    // ---- ファン増減 ----
+    // 順位そのものではなく、「ファンが期待していた順位」をどれだけ上回ったかで動く。
+    // 弱小チームの7位は大喝采、強豪の7位は失望、という当たり前が効くようになる。
     const best = res.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
+    const expect = S.fanExpectation(g);
+    let fanNote = '';
     if (best) {
-      if (best.pos === 1)      { fanDelta = Math.round(600 + g.fans * 0.16); notes.push('🏆 優勝！ 街中が歓喜に包まれた！'); }
-      else if (best.pos <= 3)  { fanDelta = Math.round(300 + g.fans * 0.09); notes.push('🥉 表彰台！ ファンが増えた！'); }
-      else if (best.pos <= 10) { fanDelta = Math.round(120 + g.fans * 0.04); notes.push(sp ? '完走。手応えは残った。' : 'ポイント獲得。着実にファンが増えている。'); }
-      else                     { fanDelta = -Math.round(30 + g.fans * 0.02); notes.push(sp ? '結果は振るわなかった…' : 'ノーポイント…ファンが少し離れてしまった。'); }
+      const got = best.dnf ? 22 : best.pos;
+      const beat = expect - got;                       // +なら期待より上
+      const base = Math.round(90 + g.fans * 0.03);
+      if (best.pos === 1)      { fanDelta = Math.round(600 + g.fans * 0.14); fanNote = '🏆 優勝！ 街中が歓喜に包まれた！'; }
+      else if (best.pos <= 3)  { fanDelta = Math.round(300 + g.fans * 0.08); fanNote = '🥉 表彰台！ ファンが増えた！'; }
+      else if (!best.dnf && best.pos <= 10) { fanDelta = Math.round(110 + g.fans * 0.03); fanNote = 'ポイント獲得。着実にファンが増えている。'; }
+      else                     { fanDelta = -Math.round(30 + g.fans * 0.02); fanNote = best.dnf ? 'リタイア…ファンが少し離れてしまった。' : 'ノーポイント…ファンが少し離れてしまった。'; }
+      // 期待との差ぶん
+      fanDelta += Math.round(base * S.clamp(beat, -6, 8) * 0.34);
+      if (beat >= 4) fanNote = '🎉 誰も期待していなかった ' + got + '位！ ファンが一気に増えた！';
+      else if (beat <= -4 && !best.dnf) fanNote = '😞 ' + expect + '位あたりを期待されていたのに ' + got + '位…ファンが離れた。';
+      notes.push(fanNote + '（期待 ' + expect + '位）');
+
+      // 母国グランプリ：地元のスタンドが自分の色で埋まる
+      const homeDrv = g.drivers.filter(d => S.nationOf(d).flag === res.track.country);
+      if (homeDrv.length) {
+        const nm = homeDrv.map(d => d.name).join('・');
+        if (best.pos <= 10 && !best.dnf) {
+          fanDelta = Math.round(fanDelta * 1.6) + 220;
+          notes.push('🎌 ' + res.track.country + ' は ' + nm + ' の母国グランプリ。地元の声援がファンを連れてきた！');
+        } else {
+          notes.push('🎌 ' + res.track.country + ' は ' + nm + ' の母国グランプリだったが、地元に良いところを見せられなかった…');
+        }
+      }
       if (sp) fanDelta = Math.round(Math.max(0, fanDelta) * sp.fans + 60 * sp.fans);
     }
 
@@ -687,13 +713,19 @@ GP.race = (function () {
       notes.push('🎉 チーム初優勝！ 記念すべき一勝が刻まれた！');
     }
 
-    g.funds += prize + sponsorIncome;
+    // グッズと入場料。ファンがそのままチームの収入になる
+    const merch = Math.round(S.fanIncome(g) * (sp ? 0.5 : 1));
+    if (merch > 0) notes.push('🎫 グッズ・入場料 +' + merch + '万（' + S.fanTier(g).icon + S.fanTier(g).name + '）');
+    g.funds += prize + sponsorIncome + merch;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
     if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08));
-    g.fans = Math.max(0, g.fans + fanDelta);
+    // 負けが込んでも、離れていくのは一度に1割ちょっとまで。
+    // どんなときも残ってくれる人たちがいる
+    if (fanDelta < 0) fanDelta = Math.max(fanDelta, -Math.round(g.fans * 0.12) - 20);
+    g.fans = Math.max(120, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,

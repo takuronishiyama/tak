@@ -273,7 +273,9 @@ GP.data = (function () {
       desc: '今季は捨て気味。来季に大きく賭ける' }
   ];
   /* 蓄えた「来季ぶんの開発」が、翌シーズンの車体にどれだけ乗るか */
-  const CARRY_TO_NEXT = 0.55;
+  /* 車体の項目1つあたりに前倒しぶんがどれだけ乗るか。
+     項目数で割って配るので、項目を増やすときはここも合わせる */
+  const CARRY_TO_NEXT = 0.77;
 
   /* ---------- マシンの世代（研究で開発）---------- */
   const CAR_GENS = [
@@ -496,6 +498,20 @@ GP.data = (function () {
   const SPONSOR_BONUS_CAP = 3;
 
   /* ---------- 注目度（メディア露出）---------- */
+  /* ---------- ファン ----------
+     ファンは「増えると給料が上がるだけの数字」ではなく、
+     毎戦のグッズ・入場料収入としてチームの柱になる。       */
+  const FAN_TIERS = [
+    { max: 1500,    name: '地元の応援団', icon: '🏠', color: '#a89878' },
+    { max: 6000,    name: '常連ファン',   icon: '🎪', color: '#8a9a6a' },
+    { max: 20000,   name: '全国区',       icon: '🎌', color: '#4ea63f' },
+    { max: 60000,   name: '人気チーム',   icon: '🎫', color: '#3a7ad9' },
+    { max: 180000,  name: '国民的チーム', icon: '📣', color: '#b06fd0' },
+    { max: Infinity, name: '世界的人気',  icon: '🌍', color: '#f0a020' }
+  ];
+  /* 1戦あたりのグッズ・入場料収入の係数（ファン数の平方根に掛ける） */
+  const FAN_INCOME = 12;
+
   const HYPE_TIERS = [
     { max: 12,  name: '無名',       icon: '🫥', color: '#a89878' },
     { max: 28,  name: '注目され始め', icon: '📻', color: '#8a9a6a' },
@@ -626,7 +642,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { LOGI_BASE, LOGI_PLANS, CREW_FULL, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
