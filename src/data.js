@@ -655,6 +655,25 @@ GP.data = (function () {
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
+  /* ---------- パワーユニットの使用基数 ----------
+     1シーズンに使える基数は決まっていて、超えるとグリッド降格になる。
+     速さのために回すか、基数を守って我慢するか、という判断を作る      */
+  const PU_LIMIT = 3;              // 1シーズンに使える数
+  const PU_PENALTY = 5;            // 超えた1基につき、次戦のグリッド降格数
+  const PU_BASE_WEAR = 28;         // 1戦あたりの基本消耗（%）
+
+  /* ---------- 審査（FIA）の裁定 ----------
+     コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
+     5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
+  const PENALTIES = [
+    { key: 'limits', name: 'トラックリミット超過', icon: '🚧', sec: 5,
+      text: 'コース外にはみ出して得をしたと判断された' },
+    { key: 'contact', name: '危険な追い越し', icon: '💥', sec: 5,
+      text: '無理な飛び込みで相手を押し出したと判断された' },
+    { key: 'speeding', name: 'ピットレーン速度超過', icon: '🚨', sec: 5,
+      text: 'ピットレーンで速度を出しすぎた' }
+  ];
+
   /* ---------- 風洞・CFDの使用時間 ----------
      実際のF1と同じで、前年の順位が上のチームほど開発に使える時間が減る。
      勝てば勝つほど次が苦しくなり、負ければ負けるほど作り直す時間がもらえる。
@@ -695,5 +714,5 @@ GP.data = (function () {
 
   return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, WEATHER };
+           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, WEATHER };
 })();

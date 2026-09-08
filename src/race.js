@@ -82,6 +82,20 @@ GP.race = (function () {
     return list;
   }
 
+  /* 審査の裁定。持ち時間に5秒足され、結果は順位に効く */
+  function givePenalty(e, key, lap, events, laps) {
+    const P = D.PENALTIES.find(x => x.key === key) || D.PENALTIES[0];
+    e.penalty = (e.penalty || 0) + P.sec;
+    e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: P.sec }]);
+    // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
+    if (e.cum[lap - 1] != null) e.cum[lap - 1] += P.sec;
+    else e.penPending = (e.penPending || 0) + P.sec;
+    if (e.isPlayer) {
+      events.push({ lap: lap, type: 'penalty', car: e,
+        text: P.icon + ' ' + e.driver.name + ' に' + P.sec + '秒加算 — ' + P.text });
+    }
+  }
+
   /* ライバルの車体はこのくらい仕上がっている、という基準。
      プレイヤーの車体効果はすべてここを 0 として増減する */
   const RIVAL_BODY_REF = 0.40;
@@ -143,6 +157,14 @@ GP.race = (function () {
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
+    // パワーユニットの基数超過による降格。予選のあとに順位を下げる
+    const gridPen = (g.pu && g.pu.grid) || 0;
+    if (gridPen > 0) {
+      grid.filter(e => e.isPlayer).forEach(e => { e.grid += gridPen; e.gridPen = gridPen; });
+      grid.sort((a, b) => a.grid - b.grid);
+      grid.forEach((e, i) => { e.grid = i + 1; });
+      entries.sort((a, b) => a.grid - b.grid);
+    }
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
@@ -347,6 +369,10 @@ GP.race = (function () {
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
+          // ピットレーンでの速度超過。慌てているチームほど出る
+          if (Math.random() < 0.012 * (e.isPlayer ? Math.max(0.4, 1 - strategist * 0.25) : 1)) {
+            givePenalty(e, 'speeding', lap, events, laps);
+          }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
           e.tyreKey = e.stints[e.stintIdx].key;
           // 路面が変わっていたら、履くタイヤもそれに合わせる
@@ -364,7 +390,9 @@ GP.race = (function () {
 
         e.lapTimes[lap - 1] = t;
         const prev = lap === 1 ? 0 : e.cum[lap - 2];
-        e.cum[lap - 1] = prev + t;
+        // 罰則はラップタイムではなく持ち時間に足す（区間タイムの表示を汚さない）
+        e.cum[lap - 1] = prev + t + (e.penPending || 0);
+        e.penPending = 0;
         if (lap > 1 && t < e.fastest) e.fastest = t;
 
         // 区間タイム：走行ぶんはマシンの速度プロファイルの配分で割り、
@@ -407,7 +435,7 @@ GP.race = (function () {
           }
           if (atk.sk('passer')) p += 0.12;
           if (def.sk('heart')) p -= 0.08;             // 勝負強い相手は簡単には譲らない
-          if (atk.st && atk.st.push) p += (atk.st.push - 1) * 0.10;
+          if (atk.st) p += (atk.st.risk - 1) * 0.055;      // 攻める作戦ほど仕掛けが決まる
           if (atk.isPlayer) p += S.osk(g, 'call') * 0.08;    // 采配
           // コースの抜きやすさで全体を大きく上下させる。
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
@@ -425,12 +453,17 @@ GP.race = (function () {
                   ? ' ストレートで ' + def.driver.name + ' を刺した！'
                   : ' コーナーで ' + def.driver.name + ' の内に飛び込んだ！') });
             }
+            // 強引に決めた一撃は、あとで咎められることがある
+            const rough = (onStraight ? 0.010 : 0.030)
+                        * (atk.st ? atk.st.risk : 1)
+                        * (1 - atk.driver.technique / 320);
+            if (Math.random() < rough) givePenalty(atk, 'contact', lap, events, laps);
           } else {
             // 失敗：抜けずに詰まる。コーナーで無理をすると足を痛める
             let stuck = (0.55 - gap) * (2.1 - passEase * 0.8);
             if (atk.sk('passer')) stuck *= 0.55;
             atk.cum[lap - 1] += stuck;
-            if (!onStraight && Math.random() < 0.05 + (atk.st ? (atk.st.push - 1) * 0.05 : 0)) {
+            if (!onStraight && Math.random() < 0.05 + (atk.st ? (atk.st.risk - 1) * 0.05 : 0)) {
               const miss = S.rnd(0.7, 2.3);
               atk.cum[lap - 1] += miss;
               atk.tyreAge += 0.6;                     // 無理をするとタイヤも傷む
@@ -439,6 +472,8 @@ GP.race = (function () {
                   text: atk.driver.name + ' 仕掛けきれずにコースを外れかけた…（-' +
                         miss.toFixed(1) + '秒）' });
               }
+              // はみ出したまま順位を保っていると、審査が入る
+              if (Math.random() < 0.24) givePenalty(atk, 'limits', lap, events, laps);
             }
           }
         }
@@ -682,6 +717,23 @@ GP.race = (function () {
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
+    // パワーユニットの消耗。攻める作戦ほど早く傷む
+    const pushMul = res.classified.filter(e => e.isPlayer)
+      .reduce((a, e) => Math.max(a, e.st ? e.st.risk : 1), 1) * (sp ? sp.wear * 0.4 + 0.6 : 1);
+    if (g.pu) g.pu.grid = 0;                     // 前回の降格ぶんは消化済み
+    const puRes = S.usePU(g, res.track, 0.55 + pushMul * 0.45);
+    if (puRes.swapped) {
+      if (puRes.over) {
+        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入。使用基数の上限（' +
+          D.PU_LIMIT + '基）を超えたため、次戦は ' + puRes.grid + 'グリッド降格。');
+      } else {
+        notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（今季あと ' +
+          Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+      }
+    } else if (S.puOf(g).life < 25) {
+      notes.push('⚙️ パワーユニットの残りが ' + Math.round(S.puOf(g).life) +
+        '%。そろそろ載せ替えが要る（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）。');
+    }
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);
     g.funds -= ship;

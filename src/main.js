@@ -711,9 +711,11 @@ window.GP = window.GP || {};
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
     });
+    const puGain = S.nursePU(g, S.rnd(8, 16) * (1 + S.staffBonus(g, 'mechanic') * 0.18));
     U.closeModal();
     staffExp('mechanic', 12);
-    U.log(g, '🛠️ 分解整備を行った。信頼性 ' + Math.round(S.reliability(g)) + '%', 'good');
+    U.log(g, '🛠️ 分解整備を行った。信頼性 ' + Math.round(S.reliability(g)) + '%' +
+             (puGain > 0 ? '／パワーユニットの残り +' + puGain + '%' : ''), 'good');
     U.pop('🛠️ 信頼性UP', 'good');
     endWeek();
   }
@@ -1582,6 +1584,25 @@ window.GP = window.GP || {};
       t.country + ' ' + esc(t.name) + '</b>' +
       '<span>' + laps + '周 ／ ' + esc(t.desc) + '</span></div>';
     if (special) body += '<p class="note">' + esc(special.note) + '</p>';
+
+    // ---- パワーユニットの状態 ----
+    const pu = S.puOf(g);
+    const wear = S.puWear(g, t, 1);
+    const left = Math.max(0, D.PU_LIMIT - pu.used);
+    const willSwap = pu.life - wear <= 0;
+    body += '<div class="pubox' + (pu.grid ? ' pen' : willSwap && left <= 0 ? ' warn' : '') + '">' +
+      '<b>⚙️ パワーユニット ' + pu.used + '基目／今季あと ' + left + '基</b>' +
+      '<span class="skbar big"><i class="' + (pu.life < 25 ? 'f2' : pu.life < 50 ? 'f1' : 'f0') +
+        '" style="width:' + Math.round(pu.life) + '%"></i></span>' +
+      '<em>残り ' + Math.round(pu.life) + '%</em>' +
+      '<small>このコースを走ると、およそ ' + Math.round(wear) + '% 減ります。' +
+      (willSwap
+        ? (left > 0 ? 'このレースで載せ替えになります。'
+                    : '<b class="warn">上限を超えるため、次戦は ' + D.PU_PENALTY + 'グリッド降格になります。</b>')
+        : '「🛠️ 整備」で少し延命できます。') +
+      (pu.grid ? '<br><b class="warn">今回は基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
+      '</small></div>';
+
     body += '<div class="sub">作戦を決める</div>';
     g.drivers.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="sr-btns" data-drv="' + d.id + '">';
@@ -1799,6 +1820,10 @@ window.GP = window.GP || {};
       extra.push('スタート ' + me.grid + '番手から ' + (moved > 0 ? moved + 'つ順位を上げました' : (-moved) + 'つ落としました'));
     }
     if (me.passes) extra.push('コース上で ' + me.passes + '回、前の車を抜きました');
+    if (me.penalty) {
+      extra.push('⚖️ 審査で合計 ' + me.penalty + '秒 加算されました（' +
+        (me.penalties || []).map(x => x.lap + '周目 ' + x.name).join('、') + '）');
+    }
     if (me.dnf) extra.push('リタイア（' + me.dnfReason + '）。信頼性は ' + Math.round(S.reliability(g)) + '% です');
     if (extra.length) h += '<p class="desc">' + extra.map(esc).join('<br>') + '</p>';
 
@@ -2225,6 +2250,7 @@ window.GP = window.GP || {};
     g.season++;
     g.week = 1;
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
+    S.puReset(g);                // パワーユニットの使用基数も新品から数え直す
     g.nextRace = 0;
     // 4シーズンに一度、マシンの規則が変わる
     const regChange = S.regulationDue(g);
@@ -3380,6 +3406,9 @@ window.GP = window.GP || {};
       '<span>🔧 ピット作業 <b>' + (20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
         - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5 + cw.pit).toFixed(1) + '秒</b></span>' +
       '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
+      '<span>⚙️ PU ' + S.puOf(g).used + '基目 <b class="' +
+        (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +
+        '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基）</span>' +
       '<span>👷 開発の厚み <b>' + (S.staffBonus(g, 'engineer') * 100 / 3).toFixed(0) + '</b></span>' +
       '<span>💹 1戦の収支 <b class="' + (fin.net >= 0 ? 'good' : 'bad') + '">' +
         (fin.net >= 0 ? '+' : '') + money(fin.net) + '万</b></span>' +

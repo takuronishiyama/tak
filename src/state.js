@@ -566,6 +566,46 @@ GP.state = (function () {
     g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
+  /* ---------- パワーユニットの使用基数 ---------- */
+  function puOf(g2) {
+    if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0 };
+    return g2.pu;
+  }
+  /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
+  function puWear(g2, track, pushMul) {
+    const laps = (track && track.laps) || 26;
+    const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
+    const care = 1 - Math.min(0.28, staffBonus(g2, 'mechanic') * 0.06 + g2.facilities.pit * 0.015);
+    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care;
+  }
+  /* レースを走り終えたときの処理。使い切ったら次の基数へ */
+  function usePU(g2, track, pushMul) {
+    const pu = puOf(g2);
+    pu.life = Math.max(0, pu.life - puWear(g2, track, pushMul));
+    const out = { swapped: false, used: pu.used, over: false, grid: 0 };
+    if (pu.life <= 0) {
+      pu.used++;
+      pu.life = 100;
+      out.swapped = true;
+      out.used = pu.used;
+      if (pu.used > D.PU_LIMIT) {
+        pu.over++;
+        pu.grid += D.PU_PENALTY;
+        out.over = true;
+        out.grid = D.PU_PENALTY;
+      }
+    }
+    return out;
+  }
+  /* 整備コマンドで少しだけ延命できる */
+  function nursePU(g2, amount) {
+    const pu = puOf(g2);
+    const before = pu.life;
+    pu.life = clamp(pu.life + amount, 0, 100);
+    return Math.round(pu.life - before);
+  }
+  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0 }; }
+
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
     // 整備性が高い車体は、同じ距離を走ってもパーツが傷まない
@@ -780,6 +820,7 @@ GP.state = (function () {
       focus: 'now',         // 開発リソースの配分
       nextCar: 0,           // 来季マシンに積み上げた開発量
       lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
+      pu: { used: 1, life: 100, grid: 0, over: 0 },   // パワーユニットの基数と残り
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       standings: [], results: [],
       log: [],
@@ -1157,6 +1198,7 @@ GP.state = (function () {
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
       if (!g.logi) g.logi = { plan: 'std', crew: 0 };
+      if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
         D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
@@ -1178,6 +1220,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
+    puOf, puWear, usePU, nursePU, puReset,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview,
     logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
