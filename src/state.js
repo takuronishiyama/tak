@@ -706,7 +706,8 @@ GP.state = (function () {
   function useSpares(g2) {
     const n = logiLoad(g2).spares;
     if (n <= 0) return null;
-    const list = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean)
+    const list = D.PART_CATS.map(c => g2.equipped[c.key])
+      .filter(p => p && p.cond < 72)
       .sort((a, b) => a.cond - b.cond).slice(0, n);
     if (!list.length) return null;
     let sum = 0;
@@ -866,11 +867,13 @@ GP.state = (function () {
   function staffBonus(g, key) {
     let sum = 0;
     g.staff.forEach(s => {
-      if (s.type === key) { sum += s.skill; return; }
+      // 段位が上がるほど、同じ技能でもチームへの効き方が大きくなる
+      const w = s.skill * staffRank(s).mul;
+      if (s.type === key) { sum += w; return; }
       // 「肩書きは違うが、あの人はそこも見られる」ぶん
       (s.traits || []).forEach(tk => {
         const t = D.STAFF_TRAITS.find(x => x.key === tk);
-        if (t && t.cross === key) sum += s.skill * D.STAFF_TRAIT_CROSS;
+        if (t && t.cross === key) sum += w * D.STAFF_TRAIT_CROSS;
       });
     });
     return sum / 20;
@@ -1153,6 +1156,28 @@ GP.state = (function () {
     st.salary = staffSalary(st);
     return st;
   }
+  /* いまの段位と、次の段位まであとどれだけか */
+  function staffRank(st) {
+    const sk = (st && st.skill) || 0;
+    let r = D.STAFF_RANKS[0];
+    D.STAFF_RANKS.forEach(x => { if (sk >= x.at) r = x; });
+    return r;
+  }
+  function nextStaffRank(st) {
+    const cur = staffRank(st);
+    const i = D.STAFF_RANKS.indexOf(cur);
+    const nx = D.STAFF_RANKS[i + 1];
+    if (!nx) return null;
+    // 伸びしろが届かない人は、そこまで行けない
+    return { rank: nx, need: Math.max(0, nx.at - (st.skill || 0)),
+             reachable: staffCap(st) >= nx.at };
+  }
+  /* 「シニアメカニック」のような肩書き */
+  function staffTitle(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || { name: '' };
+    return staffRank(st).prefix + t.name;
+  }
+
   /* この人がどこまで伸びるか。才能で決まる */
   const staffCap = st => 34 + (st.pot || 2) * 8;
   const staffNeed = st => Math.round(36 * (st.expLv || 1));
@@ -1475,7 +1500,11 @@ GP.state = (function () {
     g.staff.forEach(st => {
       st.years = (st.years || 0) + 1;
       st.age = (st.age || 34) + 1;
-      const off = rnd(26, 44) * (1 + mentors * 0.14) * (stTrait(st, 'grower') ? 1.35 : 1);
+      // 同じ職種にチーフがいると、その下は育ちが早い
+      const chiefs = g.staff.filter(s => s !== st && s.type === st.type &&
+                                    staffRank(s).key === 'chief').length;
+      const off = rnd(26, 44) * (1 + mentors * 0.14 + chiefs * D.STAFF_CHIEF_MENTOR)
+                * (stTrait(st, 'grower') ? 1.35 : 1);
       const u = giveStaffExp(st, off * staffGrowMul(st));
       if (u) grown.push(st.name + '（技能 ' + st.skill + '／Lv.' + st.expLv + '）');
     });
@@ -1584,6 +1613,7 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,

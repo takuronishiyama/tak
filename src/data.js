@@ -620,6 +620,22 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] }
   ];
 
+  /* ---------- 職種ごとのキャリア ----------
+     技能が上がると肩書きが変わる。見習いから始まり、チーフまで来れば
+     首脳陣へ上がれる。段位そのものにも効き目があるので、
+     「育てて上げる」ことに意味が出る                                */
+  const STAFF_RANKS = [
+    { key: 'junior', at: 0,  prefix: '見習い', icon: '🌱', mul: 0.94,
+      note: '現場を覚えている最中。技能は少し割り引いて数える' },
+    { key: 'full',   at: 16, prefix: '',       icon: '🔧', mul: 1.00,
+      note: '一人前。ひととおり任せられる' },
+    { key: 'senior', at: 28, prefix: 'シニア', icon: '⭐', mul: 1.07,
+      note: '部門の中心。技能が7%増しに数えられる' },
+    { key: 'chief',  at: 38, prefix: 'チーフ', icon: '👑', mul: 1.16,
+      note: '部門の長。技能が16%増しに数えられ、同じ職種の仲間も育ちやすい。首脳陣へ昇進できる' }
+  ];
+  const STAFF_CHIEF_MENTOR = 0.22;   // チーフ1人につき、同職種の伸びがどれだけ良くなるか
+
   /* ---------- スタッフの固有スキル ----------
      cross があるものは、専門外の職能にも技能の一部が乗る。
      「肩書きは違うが、あの人はピットも見られる」を作るための仕組み。   */
@@ -735,6 +751,18 @@ GP.data = (function () {
       note: '上まで回して速さを取る。1台ぶん速いが、一気にへたり、壊れやすくもなる' }
   ];
 
+  /* ---------- ピットウォールからの指示 ----------
+     無線は雰囲気だけのものではなく、実際に走りを変える。
+     攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い       */
+  const ORDERS = [
+    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85,
+      note: 'ペースを落としてタイヤを最後まで持たせる' },
+    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1,
+      note: '決めたとおりのペースで' },
+    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30,
+      note: 'いま前に出るために、持っているものを使う' }
+  ];
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -763,29 +791,47 @@ GP.data = (function () {
   /* ---------- タイヤ ----------
      pace はラップタイムの倍率（小さいほど速い）、
      wear は摩耗の速さ、life は性能が落ちきるまでの目安周回数        */
+  /* wetIdeal / wetTol ＝ そのタイヤが本領を出す路面の濡れ具合と、その許容幅。
+     路面は「乾き／濡れ」の二択ではなく 0〜1 の度合いで持っていて、
+     ここから外れるほどタイムを失う。通り雨や乾きかけの路面で
+     「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 15, wet: false, desc: 'いちばん速いが、あっという間に摩耗する' },
+      pace: 0.986, wear: 1.60, life: 15, wet: false, wetIdeal: 0.00, wetTol: 0.14,
+      desc: 'いちばん速いが、あっという間に摩耗する' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
-      pace: 1.000, wear: 1.00, life: 25, wet: false, desc: '速さと保ちのバランス型' },
+      pace: 1.000, wear: 1.00, life: 25, wet: false, wetIdeal: 0.00, wetTol: 0.16,
+      desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 38, wet: false, desc: '遅いが長く保つ。ストップを減らせる' },
+      pace: 1.014, wear: 0.66, life: 38, wet: false, wetIdeal: 0.00, wetTol: 0.18,
+      desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
-      pace: 1.000, wear: 1.15, life: 24, wet: true,  desc: '小雨〜半乾き路面用' },
+      pace: 1.000, wear: 1.15, life: 24, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
+      desc: '小雨と半乾き用。濡れはじめと乾きかけの、いちばん長い時間を受け持つ' },
     { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
-      pace: 1.000, wear: 0.95, life: 30, wet: true,  desc: '大雨用。水を大量に掻き出す' }
+      pace: 1.000, wear: 0.95, life: 30, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
+      desc: '大雨用。水を大量に掻き出すが、乾いた路面では溶けてしまう' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
+  const WET_MISMATCH = 0.42;      // 路面と噛み合わないぶん、1周でどれだけ失うか
+  /* 路面の濡れ具合の見え方。セクターごとにこれで色分けする */
+  const WET_LEVELS = [
+    { at: 0.10, name: 'ドライ',   short: 'D', color: '#c8a86a' },
+    { at: 0.32, name: '湿り',     short: 'd', color: '#9aae7a' },
+    { at: 0.58, name: 'ハーフ',   short: 'H', color: '#5f9e6a' },
+    { at: 0.80, name: 'ウェット', short: 'W', color: '#3f86c0' },
+    { at: 1.01, name: '大雨',     short: 'X', color: '#2a5fa0' }
+  ];
 
   /* ---------- 天候 ---------- */
   const WEATHER = [
-    { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00 },
-    { key: 'cloud', name: 'くもり', icon: '☁️', grip: 1.01, chaos: 1.00 },
-    { key: 'rain',  name: '雨',     icon: '🌧️', grip: 0.93, chaos: 1.60 },
-    { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
+    { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00, wetTo: 0.00 },
+    { key: 'cloud', name: 'くもり', icon: '☁️', grip: 1.01, chaos: 1.00, wetTo: 0.04 },
+    { key: 'rain',  name: '雨',     icon: '🌧️', grip: 0.93, chaos: 1.60, wetTo: 0.58 },
+    { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

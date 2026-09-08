@@ -663,6 +663,20 @@ body.preboot .topbar{visibility:hidden}
 @keyframes rvBadgeV{0%,100%{background:#ffe14a}50%{background:#fff6c8}}
 @keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
 
+/* 路面の濡れ具合（セクターごと） */
+.rv-wet{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle;align-items:center}
+.rvw-h{font-style:normal;font-size:9px;color:#cbbb9a;margin-right:2px}
+.rvw{font-style:normal;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;
+     border:2px solid #12100c;color:#12100c;white-space:nowrap}
+
+/* レース画面に出す、いまの指示 */
+.rv-orders{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}
+.rvo{font-style:normal;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;
+     border:2px solid #12100c;background:#2a2a34;color:#e6dcc8;white-space:nowrap}
+.rvo.push{background:#7a2a1e;color:#ffd9c8;border-color:#12100c}
+.rvo.save{background:#1e4a2a;color:#cdf0cd;border-color:#12100c}
+.rvo.hold{background:#2f3346;color:#dfe4f0}
+
 /* ---- チーム無線 ----
    実況の文字列とは別に、ピットとドライバーの声だけを数秒だけ出す */
 .rv-radio{position:absolute;left:8px;bottom:8px;width:min(260px,58%);
@@ -1434,6 +1448,27 @@ body[data-skin="hd"]{
 [data-skin="hd"] .devrow.weak{border-color:#ffd23a;border-left-width:6px}
 [data-skin="hd"] .weakchip{background:#ffd23a;color:#2a1c08}
 
+/* スタッフのキャリアのはしご */
+.stitle{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;padding:1px 6px;
+        border-radius:3px;background:#ecd9a4;color:#3a2611;vertical-align:middle}
+.career{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 2px;align-items:center}
+.cr{font-style:normal;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;
+    background:#e8e0c8;color:#6a5c46;border:1px solid #c6b795}
+.cr u{text-decoration:none;font-size:8px;margin-left:3px;opacity:.8}
+.cr.done{background:#d8ceae;color:#4a3f28}
+.cr.on{background:#2e6a2e;color:#eaffe4;border-color:#1c4a1c;font-weight:bold}
+.cr.far{opacity:.4}
+.cr.mgr{background:#f0e0c0;color:#6a4a18;border-color:#c9a45c}
+.cr.mgr.ready{background:#c98b10;color:#2a1c08;font-weight:bold}
+.careernote{display:block;font-size:9px;line-height:1.6;color:var(--ink2);margin-bottom:2px}
+[data-skin="hd"] .stitle{background:#4b3d68;color:#efe4cf}
+[data-skin="hd"] .cr{background:#2f2540;color:#cbbb9a;border-color:#5b4a74}
+[data-skin="hd"] .cr.done{background:#3a2f50;color:#e2d6bb}
+[data-skin="hd"] .cr.on{background:#3f7a3f;color:#eaffe4;border-color:#8ee08a}
+[data-skin="hd"] .cr.mgr{background:#43364f;color:#e8c98a;border-color:#8a6a2a}
+[data-skin="hd"] .cr.mgr.ready{background:#c98b10;color:#2a1c08}
+[data-skin="hd"] .careernote{color:#cbbb9a}
+
 /* 首脳陣：昇進と招聘を並べて比べる */
 .mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .mgeffs em{font-style:normal;font-size:9px;padding:1px 5px;border-radius:3px;
@@ -1752,6 +1787,8 @@ body[data-skin="hd"]{
       <b id="rvTrack">-</b>
       <span id="rvWeather">-</span>
       <span id="rvLap">LAP 1 / 1</span>
+      <span id="rvWet" class="rv-wet"></span>
+      <span id="rvOrders" class="rv-orders"></span>
     </div>
     <div class="rv-body">
       <div class="rv-canvaswrap">
@@ -2816,6 +2853,22 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] }
   ];
 
+  /* ---------- 職種ごとのキャリア ----------
+     技能が上がると肩書きが変わる。見習いから始まり、チーフまで来れば
+     首脳陣へ上がれる。段位そのものにも効き目があるので、
+     「育てて上げる」ことに意味が出る                                */
+  const STAFF_RANKS = [
+    { key: 'junior', at: 0,  prefix: '見習い', icon: '🌱', mul: 0.94,
+      note: '現場を覚えている最中。技能は少し割り引いて数える' },
+    { key: 'full',   at: 16, prefix: '',       icon: '🔧', mul: 1.00,
+      note: '一人前。ひととおり任せられる' },
+    { key: 'senior', at: 28, prefix: 'シニア', icon: '⭐', mul: 1.07,
+      note: '部門の中心。技能が7%増しに数えられる' },
+    { key: 'chief',  at: 38, prefix: 'チーフ', icon: '👑', mul: 1.16,
+      note: '部門の長。技能が16%増しに数えられ、同じ職種の仲間も育ちやすい。首脳陣へ昇進できる' }
+  ];
+  const STAFF_CHIEF_MENTOR = 0.22;   // チーフ1人につき、同職種の伸びがどれだけ良くなるか
+
   /* ---------- スタッフの固有スキル ----------
      cross があるものは、専門外の職能にも技能の一部が乗る。
      「肩書きは違うが、あの人はピットも見られる」を作るための仕組み。   */
@@ -2931,6 +2984,18 @@ GP.data = (function () {
       note: '上まで回して速さを取る。1台ぶん速いが、一気にへたり、壊れやすくもなる' }
   ];
 
+  /* ---------- ピットウォールからの指示 ----------
+     無線は雰囲気だけのものではなく、実際に走りを変える。
+     攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い       */
+  const ORDERS = [
+    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85,
+      note: 'ペースを落としてタイヤを最後まで持たせる' },
+    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1,
+      note: '決めたとおりのペースで' },
+    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30,
+      note: 'いま前に出るために、持っているものを使う' }
+  ];
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -2959,31 +3024,49 @@ GP.data = (function () {
   /* ---------- タイヤ ----------
      pace はラップタイムの倍率（小さいほど速い）、
      wear は摩耗の速さ、life は性能が落ちきるまでの目安周回数        */
+  /* wetIdeal / wetTol ＝ そのタイヤが本領を出す路面の濡れ具合と、その許容幅。
+     路面は「乾き／濡れ」の二択ではなく 0〜1 の度合いで持っていて、
+     ここから外れるほどタイムを失う。通り雨や乾きかけの路面で
+     「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 15, wet: false, desc: 'いちばん速いが、あっという間に摩耗する' },
+      pace: 0.986, wear: 1.60, life: 15, wet: false, wetIdeal: 0.00, wetTol: 0.14,
+      desc: 'いちばん速いが、あっという間に摩耗する' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
-      pace: 1.000, wear: 1.00, life: 25, wet: false, desc: '速さと保ちのバランス型' },
+      pace: 1.000, wear: 1.00, life: 25, wet: false, wetIdeal: 0.00, wetTol: 0.16,
+      desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 38, wet: false, desc: '遅いが長く保つ。ストップを減らせる' },
+      pace: 1.014, wear: 0.66, life: 38, wet: false, wetIdeal: 0.00, wetTol: 0.18,
+      desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
-      pace: 1.000, wear: 1.15, life: 24, wet: true,  desc: '小雨〜半乾き路面用' },
+      pace: 1.000, wear: 1.15, life: 24, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
+      desc: '小雨と半乾き用。濡れはじめと乾きかけの、いちばん長い時間を受け持つ' },
     { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
-      pace: 1.000, wear: 0.95, life: 30, wet: true,  desc: '大雨用。水を大量に掻き出す' }
+      pace: 1.000, wear: 0.95, life: 30, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
+      desc: '大雨用。水を大量に掻き出すが、乾いた路面では溶けてしまう' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
+  const WET_MISMATCH = 0.42;      // 路面と噛み合わないぶん、1周でどれだけ失うか
+  /* 路面の濡れ具合の見え方。セクターごとにこれで色分けする */
+  const WET_LEVELS = [
+    { at: 0.10, name: 'ドライ',   short: 'D', color: '#c8a86a' },
+    { at: 0.32, name: '湿り',     short: 'd', color: '#9aae7a' },
+    { at: 0.58, name: 'ハーフ',   short: 'H', color: '#5f9e6a' },
+    { at: 0.80, name: 'ウェット', short: 'W', color: '#3f86c0' },
+    { at: 1.01, name: '大雨',     short: 'X', color: '#2a5fa0' }
+  ];
 
   /* ---------- 天候 ---------- */
   const WEATHER = [
-    { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00 },
-    { key: 'cloud', name: 'くもり', icon: '☁️', grip: 1.01, chaos: 1.00 },
-    { key: 'rain',  name: '雨',     icon: '🌧️', grip: 0.93, chaos: 1.60 },
-    { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
+    { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00, wetTo: 0.00 },
+    { key: 'cloud', name: 'くもり', icon: '☁️', grip: 1.01, chaos: 1.00, wetTo: 0.04 },
+    { key: 'rain',  name: '雨',     icon: '🌧️', grip: 0.93, chaos: 1.60, wetTo: 0.58 },
+    { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -3902,7 +3985,8 @@ GP.state = (function () {
   function useSpares(g2) {
     const n = logiLoad(g2).spares;
     if (n <= 0) return null;
-    const list = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean)
+    const list = D.PART_CATS.map(c => g2.equipped[c.key])
+      .filter(p => p && p.cond < 72)
       .sort((a, b) => a.cond - b.cond).slice(0, n);
     if (!list.length) return null;
     let sum = 0;
@@ -4062,11 +4146,13 @@ GP.state = (function () {
   function staffBonus(g, key) {
     let sum = 0;
     g.staff.forEach(s => {
-      if (s.type === key) { sum += s.skill; return; }
+      // 段位が上がるほど、同じ技能でもチームへの効き方が大きくなる
+      const w = s.skill * staffRank(s).mul;
+      if (s.type === key) { sum += w; return; }
       // 「肩書きは違うが、あの人はそこも見られる」ぶん
       (s.traits || []).forEach(tk => {
         const t = D.STAFF_TRAITS.find(x => x.key === tk);
-        if (t && t.cross === key) sum += s.skill * D.STAFF_TRAIT_CROSS;
+        if (t && t.cross === key) sum += w * D.STAFF_TRAIT_CROSS;
       });
     });
     return sum / 20;
@@ -4349,6 +4435,28 @@ GP.state = (function () {
     st.salary = staffSalary(st);
     return st;
   }
+  /* いまの段位と、次の段位まであとどれだけか */
+  function staffRank(st) {
+    const sk = (st && st.skill) || 0;
+    let r = D.STAFF_RANKS[0];
+    D.STAFF_RANKS.forEach(x => { if (sk >= x.at) r = x; });
+    return r;
+  }
+  function nextStaffRank(st) {
+    const cur = staffRank(st);
+    const i = D.STAFF_RANKS.indexOf(cur);
+    const nx = D.STAFF_RANKS[i + 1];
+    if (!nx) return null;
+    // 伸びしろが届かない人は、そこまで行けない
+    return { rank: nx, need: Math.max(0, nx.at - (st.skill || 0)),
+             reachable: staffCap(st) >= nx.at };
+  }
+  /* 「シニアメカニック」のような肩書き */
+  function staffTitle(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || { name: '' };
+    return staffRank(st).prefix + t.name;
+  }
+
   /* この人がどこまで伸びるか。才能で決まる */
   const staffCap = st => 34 + (st.pot || 2) * 8;
   const staffNeed = st => Math.round(36 * (st.expLv || 1));
@@ -4671,7 +4779,11 @@ GP.state = (function () {
     g.staff.forEach(st => {
       st.years = (st.years || 0) + 1;
       st.age = (st.age || 34) + 1;
-      const off = rnd(26, 44) * (1 + mentors * 0.14) * (stTrait(st, 'grower') ? 1.35 : 1);
+      // 同じ職種にチーフがいると、その下は育ちが早い
+      const chiefs = g.staff.filter(s => s !== st && s.type === st.type &&
+                                    staffRank(s).key === 'chief').length;
+      const off = rnd(26, 44) * (1 + mentors * 0.14 + chiefs * D.STAFF_CHIEF_MENTOR)
+                * (stTrait(st, 'grower') ? 1.35 : 1);
       const u = giveStaffExp(st, off * staffGrowMul(st));
       if (u) grown.push(st.name + '（技能 ' + st.skill + '／Lv.' + st.expLv + '）');
     });
@@ -4780,6 +4892,7 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
@@ -5062,6 +5175,32 @@ GP.race = (function () {
             '「マシンは良かった。それだけに残念だ」']
   };
 
+  /* ピットウォールがこの周に出す指示。
+     タイヤの残り・前後の車間・残り周回から、攻めるか抑えるかを決める。
+     決めた指示は、そのままラップタイムとタイヤの減りに効く          */
+  function decideOrder(e, lap, laps, ty) {
+    const left = ty.life - e.tyreAge;                 // タイヤの余力（周）
+    const nextPit = e.pitPlan.find(l => l > lap);
+    const toPit = nextPit == null ? laps - lap : nextPit - lap;
+    const gapA = e.gapAhead, gapB = e.gapBehind;
+    // タイヤが持たない見込みなら、まず抑える
+    if (left < toPit) return 'save';
+    // 攻め続けられる時間には限りがある。何周も出しっぱなしにはできない
+    const burnt = (e.pushLaps || 0) >= 4;
+    // 終盤、前が射程で、タイヤを使い切ってよいなら出しきる
+    if (laps - lap <= 4 && gapA != null && gapA < 2.0) return 'push';
+    if (!burnt) {
+      // 後ろに詰められている。守るのは、タイヤに余裕があるときだけ
+      if (gapB != null && gapB < 1.0 && left > toPit * 1.6 + 3) return 'push';
+      // 前が射程。仕掛けるのも、余裕があるときだけ
+      if (gapA != null && gapA < 1.0 && left > toPit * 1.6 + 4) return 'push';
+    }
+    // ぎりぎりなら労わる
+    if (left < toPit + 2) return 'save';
+    return 'hold';
+  }
+  const orderOf = k => D.ORDERS.find(o => o.key === k) || D.ORDERS[1];
+
   /* その周に、自チームのドライバーとどんなやりとりがあったか。
      優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
      状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
@@ -5074,8 +5213,11 @@ GP.race = (function () {
       const ty = tyreOf(e.tyreKey);
       const ahead = i > 0 ? run[i - 1] : null;
       const behind = i < run.length - 1 ? run[i + 1] : null;
+      // 「ボックス、◯◯に行く」で読むのは、これから実際に履くタイヤ。
+      // いま履いているものを読んでいたため、交換の結果と食い違っていた
+      const nextTy = e.pitTyre || ty.key;
       const V = {
-        D: e.driver.name, P: i + 1, N: laps - lap, T: ty.name,
+        D: e.driver.name, P: i + 1, N: laps - lap, T: tyreOf(nextTy).name,
         L: Math.max(0, Math.round(ty.life - e.tyreAge)),
         GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
@@ -5114,6 +5256,14 @@ GP.race = (function () {
         e.radioPen = -1;
         push(RADIO.pen, 'pit', true);
         push(RADIO.angry, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.orderChanged === lap) {                     // 指示が変わった
+        e.orderChanged = -1;
+        if (e.order === 'push') { push(RADIO.push, 'pit', true); push(RADIO.pushBack, 'drv', true); }
+        else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
+        else { push(RADIO.clear, 'pit', true); }
         e.radioCool = 3;
         return;
       }
@@ -5346,6 +5496,52 @@ GP.race = (function () {
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
     const wxInfo = { at: 0, from: weather.name, to: '', icon: '' };
+    /* ---- 路面の濡れ具合 ----
+       「乾いているか、濡れているか」の二択ではなく、0〜1 の度合いで持つ。
+       しかもセクターごとに違う。雨は手前のセクターから来て奥へ広がり、
+       乾くときも同じ順に乾いていく。おかげで
+       「通り雨」「大雨」「乾きかけ」が、そのまま履き替えの判断になる  */
+    let wetTarget = weather.wetTo != null ? weather.wetTo : (weather.wetTyres ? 0.6 : 0);
+    const wetSec = [wetTarget, wetTarget, wetTarget];
+    const wetLog = [];                       // 各周のセクター別の濡れ具合（観戦画面用）
+    let shower = null;                       // 通り雨（何周かだけ強く降る）
+    const secShare = geoShare();
+    function geoShare() { return [0.34, 0.33, 0.33]; }
+    /* コース全体としての濡れ具合（セクターの長さで重みづけ） */
+    const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
+    /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
+    function wetLoss(ty, w) {
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tol = ty.wetTol != null ? ty.wetTol : 0.2;
+      const d = Math.max(0, Math.abs(w - ideal) - tol);
+      return d * D.WET_MISMATCH;
+    }
+    /* いま入ったとして、どのタイヤを履くか。
+       予定していた銘柄を基本にしつつ、路面が変わっていれば合わせ直す。
+       乾きかけなら、少し先を読んでドライに賭けることもある          */
+    function tyreForNow(e, lap) {
+      const planned = e.stints[e.stintIdx] ? e.stints[e.stintIdx].key : 'medium';
+      const w = wx.level == null ? 0 : wx.level;
+      // 路面がこれから向かう先。乾きかけならドライに、降り出しなら雨用に
+      const ahead = w + (wetTarget - w) * 0.55;
+      const dry = pickTyre(laps - lap, { key: 'sunny' }, D.DRY_TYRES.indexOf(planned) >= 0 ? planned : null, e.tyreBias);
+      const want = bestWetTyre(ahead, dry);
+      // 予定どおりで大きく損をしないなら、予定を尊重する
+      const lossPlanned = wetLoss(tyreOf(planned), ahead);
+      return lossPlanned <= wetLoss(tyreOf(want), ahead) + 0.012 ? planned : want;
+    }
+
+    /* いまの路面にいちばん合うタイヤ */
+    function bestWetTyre(w, dryPick) {
+      if (w < 0.20) return dryPick;
+      let best = null, bl = 9;
+      D.TYRES.forEach(t => {
+        if (!t.wet) return;
+        const l = wetLoss(t, w);
+        if (l < bl) { bl = l; best = t.key; }
+      });
+      return best || 'inter';
+    }
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
@@ -5431,6 +5627,8 @@ GP.race = (function () {
       e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
       e.pitTime = [];       // 各周のピット停止時間
       e.lapErs = [];        // 各周のバッテリー残量
+      e.lapOrder = [];      // 各周にピットウォールが出していた指示
+      e.order = 'hold';
       // ERS：エレクトロニクスの性能が高いほど容量も回生量も大きい
       const elecPower = e.isPlayer
         ? S.ersOf(g).power
@@ -5454,10 +5652,40 @@ GP.race = (function () {
     }
 
     for (let lap = 1; lap <= laps; lap++) {
+      /* ---- 路面が変わっていく ----
+         雨はセクター1から来て奥へ抜けていく。乾くときも同じ順。
+         「セクター2だけまだ濡れている」という時間が生まれる         */
+      if (shower) {
+        shower.left--;
+        if (shower.left <= 0) { wetTarget = shower.back; shower = null; }
+      } else if (!special && lap > 3 && lap < laps - 3 && Math.random() < 0.012) {
+        // 通り雨。数周だけ強く降って、また引いていく
+        shower = { left: S.rint(3, 6), back: wetTarget };
+        wetTarget = Math.min(1, Math.max(wetTarget, 0.35) + S.rnd(0.18, 0.42));
+        events.push({ lap, type: 'weather',
+          text: '🌦️ 一部のセクターに雨雲がかかった！ 路面が濡れはじめる' });
+        wxChangedThisLap = true;
+      }
+      for (let k = 0; k < 3; k++) {
+        const rate = 0.40 - k * 0.09;                 // 手前のセクターから変わる
+        wetSec[k] += (wetTarget - wetSec[k]) * rate;
+        if (Math.abs(wetTarget - wetSec[k]) < 0.01) wetSec[k] = wetTarget;
+      }
+      wetLog[lap - 1] = [Math.round(wetSec[0] * 100) / 100,
+                         Math.round(wetSec[1] * 100) / 100,
+                         Math.round(wetSec[2] * 100) / 100];
+      const wnow = wetAvg();
+      // 路面が濡れるほどグリップが落ち、荒れる
+      wx.grip = 1 - wnow * 0.15;
+      wx.chaos = 1 + wnow * 1.35;
+      wx.wet = wnow >= 0.30;
+      wx.level = wnow;
+
       // 天候の急変。全車があわててタイヤを替えに来る
       if (wxTo && lap === wxAt) {
         wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
                wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
+        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (wx.wet ? 0.6 : 0);
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
         wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
@@ -5465,6 +5693,8 @@ GP.race = (function () {
               + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
         order.forEach(e => {
           if (e.dnf || lap >= laps - 1) return;
+          // いま履いているもので大きく損をしないなら、慌てて入らない
+          if (wetLoss(tyreOf(e.tyreKey), wetTarget) < 0.02) return;
           // 読みの速いチームほど早く動ける
           const delay = S.clamp(Math.round(3.4 - e.react * 2.8 + S.rnd(-0.5, 1.4)), 1, 6);
           const at = Math.min(laps - 1, lap + delay);
@@ -5486,9 +5716,9 @@ GP.race = (function () {
         const ty = tyreOf(e.tyreKey);
         t *= ty.pace;
 
-        // 路面と銘柄が噛み合っていないと、とたんに走れなくなる
-        if (wx.wet && !ty.wet) t *= (wx.key === 'storm' ? 1.175 : 1.105);
-        else if (!wx.wet && ty.wet) t *= (ty.key === 'wet' ? 1.135 : 1.055);
+        // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
+        // 「合っている／合っていない」ではなく、ずれた量で効く
+        t *= 1 + wetLoss(ty, wx.level);
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
@@ -5515,6 +5745,28 @@ GP.race = (function () {
         e.battery = Math.min(e.ersCap, e.battery - use + e.ersRecover);
         t *= (1 - use * E.gainPerUnit * ersScale);
         e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
+
+        // 次の周にピットへ入るなら、履くタイヤをこの時点で決めておく。
+        // 無線で読み上げるのも、実際に履くのも同じものにするため
+        if (e.pitPlan.indexOf(lap + 1) >= 0 && !e.pitTyre) {
+          const keep = e.stintIdx;
+          e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
+          e.pitTyre = tyreForNow(e, lap + 1);
+          e.stintIdx = keep;
+        }
+
+        // ---- ピットウォールの指示 ----
+        // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
+        // 無線で言っていることが、そのままここで効く
+        const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty);
+        if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
+        // 攻めた周を数えておく。続けざまには出せない
+        e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
+        const ord = orderOf(ordKey);
+        t *= (1 + ord.pace);
+        e.tyreAge += ord.wear;
+        e.lapOrder[lap - 1] = ordKey;
 
         // ---- 前の車との関係 ----
         // 直線では前車の後ろが速く（スリップストリーム）、
@@ -5557,7 +5809,8 @@ GP.race = (function () {
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
-                 * (1 + (e.defending || 0) * 0.45);      // 守っているときほど乱れやすい
+                 * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
+                 * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
@@ -5615,12 +5868,8 @@ GP.race = (function () {
             givePenalty(e, 'speeding', lap, events, laps);
           }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
-          e.tyreKey = e.stints[e.stintIdx].key;
-          // 路面が変わっていたら、履くタイヤもそれに合わせる
-          if (wx.wet !== tyreOf(e.tyreKey).wet) {
-            e.tyreKey = wx.wet ? (wx.key === 'storm' ? 'wet' : 'inter')
-                               : pickTyre(laps - lap, { key: 'sunny' }, null, e.tyreBias);
-          }
+          e.tyreKey = e.pitTyre || tyreForNow(e, lap);
+          e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             events.push({ lap, type: 'pit', car: e,
@@ -5884,7 +6133,7 @@ GP.race = (function () {
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, radio: radio, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      events, radio: radio, wetLog: wetLog, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
@@ -6043,7 +6292,7 @@ GP.race = (function () {
     });
 
     // パーツの消耗。予備もツールも置いてきた週は、現場で手当てができない
-    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
+    S.wearParts(g, S.rnd(2.6, 6.2) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
     // 持ってきた予備で、いちばん傷んだところを直しておく
     const fixed = S.useSpares(g);
     if (fixed) {
@@ -7427,6 +7676,35 @@ GP.raceview = (function () {
       const on = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
       badge.textContent = sc && sc.virtual ? '🟡 VIRTUAL SC' : '🚨 SAFETY CAR';
       badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
+    }
+
+    // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
+    const wb = document.getElementById('rvWet');
+    if (wb) {
+      const wl = (res.wetLog || [])[Math.max(0, lap - 1)];
+      if (wl && Math.max(wl[0], wl[1], wl[2]) >= 0.08) {
+        const lv = v => (GP.data.WET_LEVELS || []).find(x => v < x.at) ||
+                        (GP.data.WET_LEVELS || [])[0];
+        wb.innerHTML = '<i class="rvw-h">路面</i>' + wl.map((v, k) => {
+          const l = lv(v);
+          return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
+            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+        }).join('');
+      } else { wb.innerHTML = ''; }
+    }
+
+    // いまピットウォールが出している指示。無線で言っていることと同じもの
+    const ob = document.getElementById('rvOrders');
+    if (ob) {
+      const li = res.entries.filter(e => e.isPlayer && !e.out);
+      ob.innerHTML = li.map(e => {
+        if (e.dnf && vt >= (e.cum[e.dnfLap - 1] || 0)) return '';
+        const l = lapInfo(e, vt).lap;
+        const k = (e.lapOrder || [])[l - 1] || 'hold';
+        const o = (GP.data.ORDERS || []).find(x => x.key === k) || { icon: '⚙️', name: '通常' };
+        return '<i class="rvo ' + k + '" title="' + (o.note || '') + '">' +
+          o.icon + ' ' + e.driver.name.split('・')[0] + ' ' + o.name + '</i>';
+      }).join('');
     }
 
     const box = document.getElementById('rvOrder');
@@ -12332,26 +12610,64 @@ window.GP = window.GP || {};
     }).join('') + '</span>';
   }
 
+  /* この人の「この先」を、段位のはしごとして見せる。
+     いまどこにいて、次に何が要るのか、その先に何があるのかを一列に並べる */
+  function careerPath(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const cur = S.staffRank(st);
+    const cap = S.staffCap(st);
+    let h = '<span class="career">';
+    D.STAFF_RANKS.forEach(r => {
+      const on = r.key === cur.key;
+      const done = st.skill >= r.at;
+      const far = cap < r.at;
+      h += '<i class="cr' + (on ? ' on' : done ? ' done' : '') + (far ? ' far' : '') +
+        '" title="' + esc(r.note) + '">' + r.icon + ' ' + (r.prefix || '一人前') +
+        (r.at ? '<u>' + r.at + '</u>' : '') + '</i>';
+    });
+    // その先の首脳陣
+    (t.promote || []).forEach(k => {
+      const m = D.MANAGERS.find(x => x.key === k);
+      if (!m) return;
+      h += '<i class="cr mgr' + (cur.key === 'chief' ? ' ready' : '') + '">' +
+        m.icon + ' ' + m.name + '</i>';
+    });
+    h += '</span>';
+    const nx = S.nextStaffRank(st);
+    if (nx) {
+      h += '<span class="careernote">' + (nx.reachable
+        ? '次は <b>' + (nx.rank.prefix || '一人前') + '</b>（技能あと ' + Math.ceil(nx.need) + '）。' +
+          esc(nx.rank.note)
+        : '<b class="warn">伸びしろの上限（' + cap + '）が足りず、' +
+          (nx.rank.prefix || '一人前') + 'には届きません。</b>') + '</span>';
+    } else {
+      h += '<span class="careernote"><b>チーフに到達。「👔 首脳陣」から昇進させられます。</b></span>';
+    }
+    return h;
+  }
+
   function staffRow(st, actions, extra) {
     const t = D.STAFF_TYPES.find(x => x.key === st.type);
     const cap = S.staffCap(st);
     const pct = Math.min(100, st.skill / cap * 100);
-    const rank = st.skill >= 45 ? '一流' : st.skill >= 32 ? '熟練' : st.skill >= 20 ? '中堅' : '見習い';
+    const rk = S.staffRank(st);
     const pt = S.potOf(st);
     const need = S.staffNeed(st);
     const exPct = Math.min(100, (st.exp || 0) / need * 100);
     const capped = st.skill >= cap;
     return '<div class="pickbtn done staffrow">' +
       '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
-      '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
-      '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
-      '　<em class="sage">' + (st.age || 34) + '歳</em>' +
+      '<span class="pb-body"><b>' + esc(st.name) +
+      '<em class="stitle">' + rk.icon + ' ' + esc(S.staffTitle(st)) + '</em></b>' +
+      '<small><em class="sage">' + (st.age || 34) + '歳</em>' +
       '　<em class="spot" style="color:' + pt.color + '">' + U.stars(st.pot || 2) + ' ' + pt.name + '</em>' +
+      '　<em class="srank">効き方 ×' + rk.mul.toFixed(2) + '</em>' +
       '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill +
       '</b> <em class="scap">/ ' + cap + (capped ? '（上限）' : '') + '</em>' +
       '<br><span class="skbar exp"><i style="width:' + exPct + '%"></i></span> ' +
-      'Lv.<b>' + (st.expLv || 1) + '</b> <em class="scap">次まで ' +
-      Math.max(0, Math.ceil(need - (st.exp || 0))) + '</em>' +
+      'Lv.<b>' + (st.expLv || 1) + '</b> <em class="scap">次のレベルまで ' +
+      Math.max(0, Math.ceil(need - (st.exp || 0))) + '（レベルが上がると技能 +1〜3）</em>' +
+      careerPath(st) +
       '<br>' + t.desc + traitChips(st) + (extra || '') + '</small></span>' +
       '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
   }
@@ -12498,8 +12814,10 @@ window.GP = window.GP || {};
         st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
     });
     body += '</div>';
-    body += '<p class="desc">技能 ' + S.PROMOTE_MIN + ' 以上の人は、空いている首脳陣の役職に' +
-      '<b>昇進</b>させられます。技能は少し目減りしますが、効き方がチーム全体に変わります。</p>';
+    body += '<p class="desc">技能が上がると肩書きが変わります：' +
+      D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
+      '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
+      '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
     body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
     D.STAFF_TYPES.forEach(t => {
       const v = byType[t.key] || 0;
@@ -15117,8 +15435,9 @@ window.GP = window.GP || {};
     });
     const lines = [];
     if (worst) {
-      const up = Math.round(S.rnd(5, 11) * skill);
-      worst.cond = S.clamp(worst.cond + up, 10, 100);
+      // 立ち話でできるのは応急手当まで。ちゃんと戻すのは「🛠️ 整備」の仕事
+      const up = Math.round(S.rnd(2.5, 5.5) * skill);
+      worst.cond = S.clamp(worst.cond + up, 10, 92);
       lines.push(worst.name + ' のコンディション +' + up + '（いま ' + Math.round(worst.cond) + '%）');
     }
     const pu = S.puOf(g);

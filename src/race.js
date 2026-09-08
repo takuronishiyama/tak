@@ -252,6 +252,32 @@ GP.race = (function () {
             '「マシンは良かった。それだけに残念だ」']
   };
 
+  /* ピットウォールがこの周に出す指示。
+     タイヤの残り・前後の車間・残り周回から、攻めるか抑えるかを決める。
+     決めた指示は、そのままラップタイムとタイヤの減りに効く          */
+  function decideOrder(e, lap, laps, ty) {
+    const left = ty.life - e.tyreAge;                 // タイヤの余力（周）
+    const nextPit = e.pitPlan.find(l => l > lap);
+    const toPit = nextPit == null ? laps - lap : nextPit - lap;
+    const gapA = e.gapAhead, gapB = e.gapBehind;
+    // タイヤが持たない見込みなら、まず抑える
+    if (left < toPit) return 'save';
+    // 攻め続けられる時間には限りがある。何周も出しっぱなしにはできない
+    const burnt = (e.pushLaps || 0) >= 4;
+    // 終盤、前が射程で、タイヤを使い切ってよいなら出しきる
+    if (laps - lap <= 4 && gapA != null && gapA < 2.0) return 'push';
+    if (!burnt) {
+      // 後ろに詰められている。守るのは、タイヤに余裕があるときだけ
+      if (gapB != null && gapB < 1.0 && left > toPit * 1.6 + 3) return 'push';
+      // 前が射程。仕掛けるのも、余裕があるときだけ
+      if (gapA != null && gapA < 1.0 && left > toPit * 1.6 + 4) return 'push';
+    }
+    // ぎりぎりなら労わる
+    if (left < toPit + 2) return 'save';
+    return 'hold';
+  }
+  const orderOf = k => D.ORDERS.find(o => o.key === k) || D.ORDERS[1];
+
   /* その周に、自チームのドライバーとどんなやりとりがあったか。
      優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
      状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
@@ -264,8 +290,11 @@ GP.race = (function () {
       const ty = tyreOf(e.tyreKey);
       const ahead = i > 0 ? run[i - 1] : null;
       const behind = i < run.length - 1 ? run[i + 1] : null;
+      // 「ボックス、◯◯に行く」で読むのは、これから実際に履くタイヤ。
+      // いま履いているものを読んでいたため、交換の結果と食い違っていた
+      const nextTy = e.pitTyre || ty.key;
       const V = {
-        D: e.driver.name, P: i + 1, N: laps - lap, T: ty.name,
+        D: e.driver.name, P: i + 1, N: laps - lap, T: tyreOf(nextTy).name,
         L: Math.max(0, Math.round(ty.life - e.tyreAge)),
         GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
@@ -304,6 +333,14 @@ GP.race = (function () {
         e.radioPen = -1;
         push(RADIO.pen, 'pit', true);
         push(RADIO.angry, 'drv', true);
+        e.radioCool = 3;
+        return;
+      }
+      if (e.orderChanged === lap) {                     // 指示が変わった
+        e.orderChanged = -1;
+        if (e.order === 'push') { push(RADIO.push, 'pit', true); push(RADIO.pushBack, 'drv', true); }
+        else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
+        else { push(RADIO.clear, 'pit', true); }
         e.radioCool = 3;
         return;
       }
@@ -536,6 +573,52 @@ GP.race = (function () {
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
     let wxTo = null, wxAt = 0;
     const wxInfo = { at: 0, from: weather.name, to: '', icon: '' };
+    /* ---- 路面の濡れ具合 ----
+       「乾いているか、濡れているか」の二択ではなく、0〜1 の度合いで持つ。
+       しかもセクターごとに違う。雨は手前のセクターから来て奥へ広がり、
+       乾くときも同じ順に乾いていく。おかげで
+       「通り雨」「大雨」「乾きかけ」が、そのまま履き替えの判断になる  */
+    let wetTarget = weather.wetTo != null ? weather.wetTo : (weather.wetTyres ? 0.6 : 0);
+    const wetSec = [wetTarget, wetTarget, wetTarget];
+    const wetLog = [];                       // 各周のセクター別の濡れ具合（観戦画面用）
+    let shower = null;                       // 通り雨（何周かだけ強く降る）
+    const secShare = geoShare();
+    function geoShare() { return [0.34, 0.33, 0.33]; }
+    /* コース全体としての濡れ具合（セクターの長さで重みづけ） */
+    const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
+    /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
+    function wetLoss(ty, w) {
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tol = ty.wetTol != null ? ty.wetTol : 0.2;
+      const d = Math.max(0, Math.abs(w - ideal) - tol);
+      return d * D.WET_MISMATCH;
+    }
+    /* いま入ったとして、どのタイヤを履くか。
+       予定していた銘柄を基本にしつつ、路面が変わっていれば合わせ直す。
+       乾きかけなら、少し先を読んでドライに賭けることもある          */
+    function tyreForNow(e, lap) {
+      const planned = e.stints[e.stintIdx] ? e.stints[e.stintIdx].key : 'medium';
+      const w = wx.level == null ? 0 : wx.level;
+      // 路面がこれから向かう先。乾きかけならドライに、降り出しなら雨用に
+      const ahead = w + (wetTarget - w) * 0.55;
+      const dry = pickTyre(laps - lap, { key: 'sunny' }, D.DRY_TYRES.indexOf(planned) >= 0 ? planned : null, e.tyreBias);
+      const want = bestWetTyre(ahead, dry);
+      // 予定どおりで大きく損をしないなら、予定を尊重する
+      const lossPlanned = wetLoss(tyreOf(planned), ahead);
+      return lossPlanned <= wetLoss(tyreOf(want), ahead) + 0.012 ? planned : want;
+    }
+
+    /* いまの路面にいちばん合うタイヤ */
+    function bestWetTyre(w, dryPick) {
+      if (w < 0.20) return dryPick;
+      let best = null, bl = 9;
+      D.TYRES.forEach(t => {
+        if (!t.wet) return;
+        const l = wetLoss(t, w);
+        if (l < bl) { bl = l; best = t.key; }
+      });
+      return best || 'inter';
+    }
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
@@ -621,6 +704,8 @@ GP.race = (function () {
       e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
       e.pitTime = [];       // 各周のピット停止時間
       e.lapErs = [];        // 各周のバッテリー残量
+      e.lapOrder = [];      // 各周にピットウォールが出していた指示
+      e.order = 'hold';
       // ERS：エレクトロニクスの性能が高いほど容量も回生量も大きい
       const elecPower = e.isPlayer
         ? S.ersOf(g).power
@@ -644,10 +729,40 @@ GP.race = (function () {
     }
 
     for (let lap = 1; lap <= laps; lap++) {
+      /* ---- 路面が変わっていく ----
+         雨はセクター1から来て奥へ抜けていく。乾くときも同じ順。
+         「セクター2だけまだ濡れている」という時間が生まれる         */
+      if (shower) {
+        shower.left--;
+        if (shower.left <= 0) { wetTarget = shower.back; shower = null; }
+      } else if (!special && lap > 3 && lap < laps - 3 && Math.random() < 0.012) {
+        // 通り雨。数周だけ強く降って、また引いていく
+        shower = { left: S.rint(3, 6), back: wetTarget };
+        wetTarget = Math.min(1, Math.max(wetTarget, 0.35) + S.rnd(0.18, 0.42));
+        events.push({ lap, type: 'weather',
+          text: '🌦️ 一部のセクターに雨雲がかかった！ 路面が濡れはじめる' });
+        wxChangedThisLap = true;
+      }
+      for (let k = 0; k < 3; k++) {
+        const rate = 0.40 - k * 0.09;                 // 手前のセクターから変わる
+        wetSec[k] += (wetTarget - wetSec[k]) * rate;
+        if (Math.abs(wetTarget - wetSec[k]) < 0.01) wetSec[k] = wetTarget;
+      }
+      wetLog[lap - 1] = [Math.round(wetSec[0] * 100) / 100,
+                         Math.round(wetSec[1] * 100) / 100,
+                         Math.round(wetSec[2] * 100) / 100];
+      const wnow = wetAvg();
+      // 路面が濡れるほどグリップが落ち、荒れる
+      wx.grip = 1 - wnow * 0.15;
+      wx.chaos = 1 + wnow * 1.35;
+      wx.wet = wnow >= 0.30;
+      wx.level = wnow;
+
       // 天候の急変。全車があわててタイヤを替えに来る
       if (wxTo && lap === wxAt) {
         wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
                wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
+        wetTarget = wxTo.wetTo != null ? wxTo.wetTo : (wx.wet ? 0.6 : 0);
         wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
         wxChangedThisLap = true;
         events.push({ lap, type: 'weather',
@@ -655,6 +770,8 @@ GP.race = (function () {
               + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
         order.forEach(e => {
           if (e.dnf || lap >= laps - 1) return;
+          // いま履いているもので大きく損をしないなら、慌てて入らない
+          if (wetLoss(tyreOf(e.tyreKey), wetTarget) < 0.02) return;
           // 読みの速いチームほど早く動ける
           const delay = S.clamp(Math.round(3.4 - e.react * 2.8 + S.rnd(-0.5, 1.4)), 1, 6);
           const at = Math.min(laps - 1, lap + delay);
@@ -676,9 +793,9 @@ GP.race = (function () {
         const ty = tyreOf(e.tyreKey);
         t *= ty.pace;
 
-        // 路面と銘柄が噛み合っていないと、とたんに走れなくなる
-        if (wx.wet && !ty.wet) t *= (wx.key === 'storm' ? 1.175 : 1.105);
-        else if (!wx.wet && ty.wet) t *= (ty.key === 'wet' ? 1.135 : 1.055);
+        // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
+        // 「合っている／合っていない」ではなく、ずれた量で効く
+        t *= 1 + wetLoss(ty, wx.level);
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
@@ -705,6 +822,28 @@ GP.race = (function () {
         e.battery = Math.min(e.ersCap, e.battery - use + e.ersRecover);
         t *= (1 - use * E.gainPerUnit * ersScale);
         e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
+
+        // 次の周にピットへ入るなら、履くタイヤをこの時点で決めておく。
+        // 無線で読み上げるのも、実際に履くのも同じものにするため
+        if (e.pitPlan.indexOf(lap + 1) >= 0 && !e.pitTyre) {
+          const keep = e.stintIdx;
+          e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
+          e.pitTyre = tyreForNow(e, lap + 1);
+          e.stintIdx = keep;
+        }
+
+        // ---- ピットウォールの指示 ----
+        // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
+        // 無線で言っていることが、そのままここで効く
+        const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty);
+        if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
+        // 攻めた周を数えておく。続けざまには出せない
+        e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
+        const ord = orderOf(ordKey);
+        t *= (1 + ord.pace);
+        e.tyreAge += ord.wear;
+        e.lapOrder[lap - 1] = ordKey;
 
         // ---- 前の車との関係 ----
         // 直線では前車の後ろが速く（スリップストリーム）、
@@ -747,7 +886,8 @@ GP.race = (function () {
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
-                 * (1 + (e.defending || 0) * 0.45);      // 守っているときほど乱れやすい
+                 * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
+                 * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
@@ -805,12 +945,8 @@ GP.race = (function () {
             givePenalty(e, 'speeding', lap, events, laps);
           }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
-          e.tyreKey = e.stints[e.stintIdx].key;
-          // 路面が変わっていたら、履くタイヤもそれに合わせる
-          if (wx.wet !== tyreOf(e.tyreKey).wet) {
-            e.tyreKey = wx.wet ? (wx.key === 'storm' ? 'wet' : 'inter')
-                               : pickTyre(laps - lap, { key: 'sunny' }, null, e.tyreBias);
-          }
+          e.tyreKey = e.pitTyre || tyreForNow(e, lap);
+          e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             events.push({ lap, type: 'pit', car: e,
@@ -1074,7 +1210,7 @@ GP.race = (function () {
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, radio: radio, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      events, radio: radio, wetLog: wetLog, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
@@ -1233,7 +1369,7 @@ GP.race = (function () {
     });
 
     // パーツの消耗。予備もツールも置いてきた週は、現場で手当てができない
-    S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
+    S.wearParts(g, S.rnd(2.6, 6.2) * res.track.risk * (sp ? sp.wear : 1) * S.logiLoad(g).wear);
     // 持ってきた予備で、いちばん傷んだところを直しておく
     const fixed = S.useSpares(g);
     if (fixed) {

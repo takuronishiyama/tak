@@ -648,6 +648,20 @@ body.preboot .topbar{visibility:hidden}
 @keyframes rvBadgeV{0%,100%{background:#ffe14a}50%{background:#fff6c8}}
 @keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
 
+/* 路面の濡れ具合（セクターごと） */
+.rv-wet{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle;align-items:center}
+.rvw-h{font-style:normal;font-size:9px;color:#cbbb9a;margin-right:2px}
+.rvw{font-style:normal;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;
+     border:2px solid #12100c;color:#12100c;white-space:nowrap}
+
+/* レース画面に出す、いまの指示 */
+.rv-orders{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}
+.rvo{font-style:normal;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;
+     border:2px solid #12100c;background:#2a2a34;color:#e6dcc8;white-space:nowrap}
+.rvo.push{background:#7a2a1e;color:#ffd9c8;border-color:#12100c}
+.rvo.save{background:#1e4a2a;color:#cdf0cd;border-color:#12100c}
+.rvo.hold{background:#2f3346;color:#dfe4f0}
+
 /* ---- チーム無線 ----
    実況の文字列とは別に、ピットとドライバーの声だけを数秒だけ出す */
 .rv-radio{position:absolute;left:8px;bottom:8px;width:min(260px,58%);
@@ -1418,6 +1432,27 @@ body[data-skin="hd"]{
 [data-skin="hd"] .devup b{color:#8ef08e}
 [data-skin="hd"] .devrow.weak{border-color:#ffd23a;border-left-width:6px}
 [data-skin="hd"] .weakchip{background:#ffd23a;color:#2a1c08}
+
+/* スタッフのキャリアのはしご */
+.stitle{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;padding:1px 6px;
+        border-radius:3px;background:#ecd9a4;color:#3a2611;vertical-align:middle}
+.career{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 2px;align-items:center}
+.cr{font-style:normal;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;
+    background:#e8e0c8;color:#6a5c46;border:1px solid #c6b795}
+.cr u{text-decoration:none;font-size:8px;margin-left:3px;opacity:.8}
+.cr.done{background:#d8ceae;color:#4a3f28}
+.cr.on{background:#2e6a2e;color:#eaffe4;border-color:#1c4a1c;font-weight:bold}
+.cr.far{opacity:.4}
+.cr.mgr{background:#f0e0c0;color:#6a4a18;border-color:#c9a45c}
+.cr.mgr.ready{background:#c98b10;color:#2a1c08;font-weight:bold}
+.careernote{display:block;font-size:9px;line-height:1.6;color:var(--ink2);margin-bottom:2px}
+[data-skin="hd"] .stitle{background:#4b3d68;color:#efe4cf}
+[data-skin="hd"] .cr{background:#2f2540;color:#cbbb9a;border-color:#5b4a74}
+[data-skin="hd"] .cr.done{background:#3a2f50;color:#e2d6bb}
+[data-skin="hd"] .cr.on{background:#3f7a3f;color:#eaffe4;border-color:#8ee08a}
+[data-skin="hd"] .cr.mgr{background:#43364f;color:#e8c98a;border-color:#8a6a2a}
+[data-skin="hd"] .cr.mgr.ready{background:#c98b10;color:#2a1c08}
+[data-skin="hd"] .careernote{color:#cbbb9a}
 
 /* 首脳陣：昇進と招聘を並べて比べる */
 .mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}

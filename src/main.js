@@ -1690,26 +1690,64 @@ window.GP = window.GP || {};
     }).join('') + '</span>';
   }
 
+  /* この人の「この先」を、段位のはしごとして見せる。
+     いまどこにいて、次に何が要るのか、その先に何があるのかを一列に並べる */
+  function careerPath(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const cur = S.staffRank(st);
+    const cap = S.staffCap(st);
+    let h = '<span class="career">';
+    D.STAFF_RANKS.forEach(r => {
+      const on = r.key === cur.key;
+      const done = st.skill >= r.at;
+      const far = cap < r.at;
+      h += '<i class="cr' + (on ? ' on' : done ? ' done' : '') + (far ? ' far' : '') +
+        '" title="' + esc(r.note) + '">' + r.icon + ' ' + (r.prefix || '一人前') +
+        (r.at ? '<u>' + r.at + '</u>' : '') + '</i>';
+    });
+    // その先の首脳陣
+    (t.promote || []).forEach(k => {
+      const m = D.MANAGERS.find(x => x.key === k);
+      if (!m) return;
+      h += '<i class="cr mgr' + (cur.key === 'chief' ? ' ready' : '') + '">' +
+        m.icon + ' ' + m.name + '</i>';
+    });
+    h += '</span>';
+    const nx = S.nextStaffRank(st);
+    if (nx) {
+      h += '<span class="careernote">' + (nx.reachable
+        ? '次は <b>' + (nx.rank.prefix || '一人前') + '</b>（技能あと ' + Math.ceil(nx.need) + '）。' +
+          esc(nx.rank.note)
+        : '<b class="warn">伸びしろの上限（' + cap + '）が足りず、' +
+          (nx.rank.prefix || '一人前') + 'には届きません。</b>') + '</span>';
+    } else {
+      h += '<span class="careernote"><b>チーフに到達。「👔 首脳陣」から昇進させられます。</b></span>';
+    }
+    return h;
+  }
+
   function staffRow(st, actions, extra) {
     const t = D.STAFF_TYPES.find(x => x.key === st.type);
     const cap = S.staffCap(st);
     const pct = Math.min(100, st.skill / cap * 100);
-    const rank = st.skill >= 45 ? '一流' : st.skill >= 32 ? '熟練' : st.skill >= 20 ? '中堅' : '見習い';
+    const rk = S.staffRank(st);
     const pt = S.potOf(st);
     const need = S.staffNeed(st);
     const exPct = Math.min(100, (st.exp || 0) / need * 100);
     const capped = st.skill >= cap;
     return '<div class="pickbtn done staffrow">' +
       '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
-      '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
-      '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
-      '　<em class="sage">' + (st.age || 34) + '歳</em>' +
+      '<span class="pb-body"><b>' + esc(st.name) +
+      '<em class="stitle">' + rk.icon + ' ' + esc(S.staffTitle(st)) + '</em></b>' +
+      '<small><em class="sage">' + (st.age || 34) + '歳</em>' +
       '　<em class="spot" style="color:' + pt.color + '">' + U.stars(st.pot || 2) + ' ' + pt.name + '</em>' +
+      '　<em class="srank">効き方 ×' + rk.mul.toFixed(2) + '</em>' +
       '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill +
       '</b> <em class="scap">/ ' + cap + (capped ? '（上限）' : '') + '</em>' +
       '<br><span class="skbar exp"><i style="width:' + exPct + '%"></i></span> ' +
-      'Lv.<b>' + (st.expLv || 1) + '</b> <em class="scap">次まで ' +
-      Math.max(0, Math.ceil(need - (st.exp || 0))) + '</em>' +
+      'Lv.<b>' + (st.expLv || 1) + '</b> <em class="scap">次のレベルまで ' +
+      Math.max(0, Math.ceil(need - (st.exp || 0))) + '（レベルが上がると技能 +1〜3）</em>' +
+      careerPath(st) +
       '<br>' + t.desc + traitChips(st) + (extra || '') + '</small></span>' +
       '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
   }
@@ -1856,8 +1894,10 @@ window.GP = window.GP || {};
         st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
     });
     body += '</div>';
-    body += '<p class="desc">技能 ' + S.PROMOTE_MIN + ' 以上の人は、空いている首脳陣の役職に' +
-      '<b>昇進</b>させられます。技能は少し目減りしますが、効き方がチーム全体に変わります。</p>';
+    body += '<p class="desc">技能が上がると肩書きが変わります：' +
+      D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
+      '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
+      '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
     body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
     D.STAFF_TYPES.forEach(t => {
       const v = byType[t.key] || 0;
@@ -4475,8 +4515,9 @@ window.GP = window.GP || {};
     });
     const lines = [];
     if (worst) {
-      const up = Math.round(S.rnd(5, 11) * skill);
-      worst.cond = S.clamp(worst.cond + up, 10, 100);
+      // 立ち話でできるのは応急手当まで。ちゃんと戻すのは「🛠️ 整備」の仕事
+      const up = Math.round(S.rnd(2.5, 5.5) * skill);
+      worst.cond = S.clamp(worst.cond + up, 10, 92);
       lines.push(worst.name + ' のコンディション +' + up + '（いま ' + Math.round(worst.cond) + '%）');
     }
     const pu = S.puOf(g);

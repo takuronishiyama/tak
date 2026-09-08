@@ -1281,6 +1281,35 @@ GP.raceview = (function () {
       badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
     }
 
+    // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
+    const wb = document.getElementById('rvWet');
+    if (wb) {
+      const wl = (res.wetLog || [])[Math.max(0, lap - 1)];
+      if (wl && Math.max(wl[0], wl[1], wl[2]) >= 0.08) {
+        const lv = v => (GP.data.WET_LEVELS || []).find(x => v < x.at) ||
+                        (GP.data.WET_LEVELS || [])[0];
+        wb.innerHTML = '<i class="rvw-h">路面</i>' + wl.map((v, k) => {
+          const l = lv(v);
+          return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
+            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+        }).join('');
+      } else { wb.innerHTML = ''; }
+    }
+
+    // いまピットウォールが出している指示。無線で言っていることと同じもの
+    const ob = document.getElementById('rvOrders');
+    if (ob) {
+      const li = res.entries.filter(e => e.isPlayer && !e.out);
+      ob.innerHTML = li.map(e => {
+        if (e.dnf && vt >= (e.cum[e.dnfLap - 1] || 0)) return '';
+        const l = lapInfo(e, vt).lap;
+        const k = (e.lapOrder || [])[l - 1] || 'hold';
+        const o = (GP.data.ORDERS || []).find(x => x.key === k) || { icon: '⚙️', name: '通常' };
+        return '<i class="rvo ' + k + '" title="' + (o.note || '') + '">' +
+          o.icon + ' ' + e.driver.name.split('・')[0] + ' ' + o.name + '</i>';
+      }).join('');
+    }
+
     const box = document.getElementById('rvOrder');
     let html = '';
     ord.forEach((o, i) => {
