@@ -4273,6 +4273,170 @@ window.GP = window.GP || {};
       '<p class="tr-ask">▶ ' + v.ask + '</p></div>';
   }
 
+  /* =======================================================
+     経営レポート
+     首脳陣が、リソースと人の過不足を指摘する。
+     「足りない」だけでなく「余っている」も言う。
+     ======================================================= */
+  function mgmtVoice(role) {
+    const m = g.managers && g.managers[role];
+    const def = D.MANAGERS.find(x => x.key === role) || {};
+    // 役職が空席なら、現場からの声としてまとめて上がってくる
+    return m
+      ? { name: m.name, icon: def.icon || '👔', role: def.name || '', vacant: false }
+      : { name: '現場から', icon: def.icon || '👔', role: (def.name || '') + ' 不在', vacant: true };
+  }
+
+  function mgmtReport() {
+    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const fin = S.finances(g);
+    const out = [];
+    const push = (sev, role, head, text, ask) =>
+      out.push({ sev: sev, who: mgmtVoice(role), head: head, text: text, ask: ask });
+
+    // ---- 資金繰り ----
+    const runway = fin.weekly > 0 ? Math.floor(g.funds / fin.weekly) : 99;
+    if (g.funds < 0) {
+      push(3, 'principal', '資金がマイナスです',
+        '固定費が毎週 ' + money(fin.weekly) + '万。いまの資金は ' + money(g.funds) + '万です。' +
+        '-20,000万を割ると、チームは解散になります。',
+        '人件費の見直しか、賞金の入る順位が要ります。高い契約から手を離すことも考えてください。');
+    } else if (runway < 8) {
+      push(3, 'principal', '資金がもちません',
+        '毎週 ' + money(fin.weekly) + '万が出ていきます。いまの資金では <b>あと' + runway + '週</b>です。',
+        '開発を止めてでも、賞金の入る順位を取りにいきましょう。輸送を船便に落とすのも手です。');
+    } else if (runway > 40 && S.capRatio(g) < 0.55 && (g.nextRace || 0) >= 6) {
+      push(1, 'principal', '資金が寝ています',
+        '資金は ' + money(g.funds) + '万（' + runway + '週ぶん）。' +
+        '今季の予算枠も <b>' + Math.round(S.capRatio(g) * 100) + '%</b> しか使っていません。',
+        '使わなかった枠は来季に持ち越せません。開発か施設に回しましょう。');
+    }
+
+    // ---- 人の過不足 ----
+    const need = [
+      { k: 'engineer',   label: 'エンジニア',     why: '開発の伸びが上がりません' },
+      { k: 'mechanic',   label: 'メカニック',     why: '信頼性が低く、ピット作業も遅いままです' },
+      { k: 'strategist', label: 'ストラテジスト', why: 'ピットのタイミングが読めず、作業も遅れます' },
+      { k: 'designer',   label: 'デザイナー',     why: '良いレアリティのパーツが設計できません' },
+      { k: 'analyst',    label: 'アナリスト',     why: '研究ポイントが伸びません' },
+      { k: 'trainer',    label: 'トレーナー',     why: 'ドライバーの育ちが遅くなります' }
+    ];
+    const bonus = {};
+    need.forEach(x => { bonus[x.k] = S.staffBonus(g, x.k); });
+    const missing = need.filter(x => bonus[x.k] < 0.35);
+    if (missing.length) {
+      const first = missing[0];
+      push(missing.length >= 3 ? 3 : 2, 'principal',
+        first.label + 'が足りていません',
+        (missing.length > 1
+          ? '<b>' + missing.map(x => x.label).join('・') + '</b> が手薄です。'
+          : '<b>' + first.label + '</b> が実質いません。') + first.why,
+        '人事から採るか、他チームから引き抜きましょう。' +
+        (first.k === 'strategist'
+          ? '一流のストラテジストがいるかどうかで、接戦での優勝率はおよそ倍変わります。' : ''));
+    } else {
+      const top = need.slice().sort((a, b) => bonus[b.k] - bonus[a.k]);
+      if (bonus[top[0].k] > bonus[top[top.length - 1].k] * 3.2 && bonus[top[0].k] > 2.4) {
+        push(1, 'principal', top[0].label + 'に偏っています',
+          '<b>' + top[0].label + '</b> は厚いのに、<b>' + top[top.length - 1].label + '</b> が薄い。' +
+          '同じ人件費なら、薄いところに寄せたほうが効きます。',
+          '次の採用は ' + top[top.length - 1].label + ' を。昇進で首脳陣に上げるのも手です。');
+      }
+    }
+
+    // ---- 首脳陣の空席 ----
+    const vacant = D.MANAGERS.filter(x => !(g.managers && g.managers[x.key]));
+    const promotable = (g.staff || []).some(x => S.promotableRoles(g, x).length);
+    if (vacant.length && (promotable || g.funds > 12000)) {
+      push(2, vacant[0].key, vacant[0].name + 'の席が空いています',
+        '<b>' + vacant.map(x => x.name).join('・') + '</b> が不在です。' + esc(vacant[0].desc),
+        promotable ? '技能の足りたスタッフを昇進させられます。人事から。'
+                   : '候補者を雇いましょう。人事から。');
+    }
+
+    // ---- ドライバーとマシンの釣り合い ----
+    const mineCar = S.carScoreOf(S.carStats(g), track);
+    const mineDrv = g.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, g.drivers.length);
+    const carRank = (g.rivals || []).filter(r => S.carScoreOf(r.stats, track) > mineCar).length + 1;
+    const drvRank = (g.rivals || []).filter(r =>
+      r.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, r.drivers.length) > mineDrv).length + 1;
+    const balanceOk = (g.nextRace || 0) >= 2 || g.season > 1;
+    if (balanceOk && drvRank - carRank >= 4 && carRank <= 8) {
+      push(2, 'principal', 'マシンにドライバーが追いついていません',
+        'マシンは <b>' + carRank + '番目</b>なのに、ドライバーの腕は <b>' + drvRank + '番目</b>。' +
+        'いまのクルマなら、もっと上で走れるはずです。',
+        '練習で鍛えるか、市場でより速い人を。育成の若手を上げる手もあります。');
+    } else if (balanceOk && carRank - drvRank >= 4 && drvRank <= 8) {
+      push(2, 'technical', 'ドライバーにマシンが追いついていません',
+        'ドライバーの腕は <b>' + drvRank + '番目</b>なのに、マシンは <b>' + carRank + '番目</b>。' +
+        'いい人材を遊ばせています。',
+        '開発にコマンドを寄せてください。腕のある人ほど、良いクルマで化けます。');
+    }
+
+    // ---- 研究ポイント ----
+    const capped = D.PART_CATS.every(c => {
+      const p = g.equipped[c.key];
+      return p && p.power >= S.partCap(g, p) * 0.95;
+    });
+    if (g.rp > 400 && !capped) {
+      push(1, 'technical', '研究ポイントが余っています',
+        '<b>' + g.rp + 'pt</b> 貯まっています。使わなければ、ただの数字です。',
+        '設計に回して、より良いレアリティのパーツを引きにいきましょう。');
+    }
+
+    // ---- 現場の消耗 ----
+    const cw = S.crewPenalty(g);
+    if (cw.level >= 65) {
+      push(2, 'pitchief', 'クルーが限界です',
+        '疲労が <b>' + Math.round(cw.level) + '</b>。ピット作業が +' + cw.pit.toFixed(1) +
+        '秒、信頼性も -' + cw.rel.toFixed(1) + ' 落ちています。',
+        '「☕休養」を挟むか、輸送をチャーター便に上げてください。');
+    }
+
+    // ---- 運営費 ----
+    if (fin.net < 0 && fin.weekly > 900) {
+      push(2, 'logistics', '運営費が重くなっています',
+        '毎週 ' + money(fin.weekly) + '万。1戦あたりの収支は <b>' +
+        money(fin.net) + '万</b>で、賞金だけが頼りです。',
+        mgmtVoice('logistics').vacant
+          ? 'ロジスティクス責任者を据えれば、固定費そのものが下がります。'
+          : '輸送手段を落とすか、契約を見直しましょう。');
+    }
+
+    // ---- 施設の偏り ----
+    const lv = D.FACILITIES.map(f => ({ f: f, v: g.facilities[f.key] || 1 }))
+      .sort((a, b) => b.v - a.v);
+    if (lv.length && lv[0].v - lv[lv.length - 1].v >= 4) {
+      push(1, 'technical', lv[lv.length - 1].f.name + 'だけ取り残されています',
+        '<b>' + lv[0].f.name + ' Lv.' + lv[0].v + '</b> に対して、<b>' +
+        lv[lv.length - 1].f.name + ' は Lv.' + lv[lv.length - 1].v + '</b>。' +
+        esc(lv[lv.length - 1].f.desc),
+        '次の拡張はそこへ。伸びしろが残っているところほど、同じ金額で効きます。');
+    }
+
+    out.sort((a, b) => b.sev - a.sev);
+    return out.slice(0, 3);
+  }
+
+  function mgmtReportHTML() {
+    const rows = mgmtReport();
+    if (!rows.length) {
+      return '<div class="sub">👔 経営レポート</div>' +
+        '<p class="desc">いまのところ、目立った過不足はありません。</p>';
+    }
+    let h = '<div class="sub">👔 経営レポート — リソースと人の過不足</div><div class="mgrep">';
+    rows.forEach(r => {
+      const cls = r.sev >= 3 ? 'bad' : r.sev === 2 ? 'warn' : 'note';
+      h += '<div class="mg-row ' + cls + '">' +
+        '<div class="mg-who">' + r.who.icon + ' ' + esc(r.who.name) +
+        '<em>' + esc(r.who.role) + '</em></div>' +
+        '<b>' + r.head + '</b>' +
+        '<p>' + r.text + '</p>' +
+        '<p class="mg-ask">▶ ' + r.ask + '</p></div>';
+    });
+    return h + '</div>';
+  }
+
   /* ---- チーム診断：いま何が足を引っぱっているのか ---- */
   function teamDiag() {
     const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
@@ -4349,6 +4513,7 @@ window.GP = window.GP || {};
 
   function cmdInfo() {
     let body = stakeBlock(false);
+    body += mgmtReportHTML();
     body += teamDiag();
     body += U.finance(g);
     body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();

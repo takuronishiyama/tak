@@ -1414,3 +1414,27 @@ body[data-skin="hd"]{
 [data-skin="hd"] .techrep.warn>b{color:#ffcf6a}
 [data-skin="hd"] .techrep.bad>b{color:#ff9a8a}
 [data-skin="hd"] .techrep .tr-ask{border-top-color:rgba(255,225,160,.26)}
+
+/* ---------- 経営レポート ---------- */
+.mgrep{margin:0 0 10px}
+.mg-row{margin:0 0 7px;padding:8px 10px;border:2px solid var(--ink);border-left:6px solid var(--ink2);
+  border-radius:6px;background:var(--paper3);color:var(--ink)}
+.mg-row.note{border-left-color:#3a7ad9}
+.mg-row.warn{border-left-color:#c98b10}
+.mg-row.bad{border-left-color:#b02a20}
+.mg-who{font-size:10px;opacity:.8;margin-bottom:3px}
+.mg-who em{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:8px;
+  background:#e6d8b6;color:#4a3a22;font-size:9px}
+.mg-row>b{display:block;font-size:13px;line-height:1.4}
+.mg-row.note>b{color:#2a5a8a}
+.mg-row.warn>b{color:#a86a10}
+.mg-row.bad>b{color:#b02a20}
+.mg-row p{margin:4px 0 0;font-size:11px;line-height:1.6}
+.mg-row p b{font-weight:bold}
+.mg-ask{margin-top:5px;padding-top:5px;border-top:1px dashed rgba(74,47,26,.30);font-weight:bold}
+[data-skin="hd"] .mg-row{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .mg-who em{background:#3a3050;color:#d8c8a4}
+[data-skin="hd"] .mg-row.note>b{color:#8fc8ff}
+[data-skin="hd"] .mg-row.warn>b{color:#ffcf6a}
+[data-skin="hd"] .mg-row.bad>b{color:#ff9a8a}
+[data-skin="hd"] .mg-ask{border-top-color:rgba(255,225,160,.26)}
