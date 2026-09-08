@@ -1220,3 +1220,9 @@ body[data-skin="hd"]{
 [data-skin="hd"] .trchip.cross{background:#26364d;border-color:#4a6a90;color:#a6d8ff}
 [data-skin="hd"] .fromteam{background:#4a2a26;border-color:#8a4a3a;color:#ffc0a8}
 [data-skin="hd"] .poachbox{background:#241c30;color:#efe4cf}
+
+/* スタッフの成長表示 */
+.skbar.exp i{background:linear-gradient(#8fc8ff,#3a7ad9)}
+.staffrow .sage,.staffrow .spot,.staffrow .scap{font-style:normal;font-size:10px}
+.staffrow .scap{opacity:.75}
+[data-skin="hd"] .skbar.exp i{background:linear-gradient(#9fd8ff,#3a7ad9)}

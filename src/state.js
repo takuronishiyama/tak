@@ -735,16 +735,88 @@ GP.state = (function () {
   function makeStaff(type, quality, opts) {
     opts = opts || {};
     const t = D.STAFF_TYPES.find(s => s.key === type);
+    // 若い人ほど伸びしろの当たり外れが大きい。ベテランは伸びないが即戦力
+    const age = opts.age || rint(24, 52);
+    const pot = opts.pot || rollPotential(age < 32);
     // チームの規模が大きいほど、良い人材が応募してくる
-    const skill = clamp(Math.round(rint(8, 22) + (quality || 0) * 0.28 + (opts.bonus || 0)), 5, 60);
+    const base = rint(8, 22) + (quality || 0) * 0.28 + (opts.bonus || 0);
+    // 歳を重ねているぶんは、すでに腕になっている
     const st = {
       id: 's' + Math.random().toString(36).slice(2, 8),
       type: type, name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: skill, traits: rollStaffTraits(type, opts.traitBonus || 0), salary: 0,
-      years: 0                    // 在籍年数（昇進の条件に使う）
+      age: age, pot: pot,
+      exp: 0, expLv: 1,
+      traits: rollStaffTraits(type, opts.traitBonus || 0), salary: 0,
+      years: 0                    // 在籍年数
     };
+    st.skill = clamp(Math.round(base + Math.max(0, age - 30) * 0.55), 5, staffCap(st));
     st.salary = staffSalary(st);
     return st;
+  }
+  /* この人がどこまで伸びるか。才能で決まる */
+  const staffCap = st => 34 + (st.pot || 2) * 8;
+  const staffNeed = st => Math.round(36 * (st.expLv || 1));
+  /* 歳を取るほど伸びは鈍る */
+  function staffGrowMul(st) {
+    const p = D.POTENTIAL[(st.pot || 2) - 1] || D.POTENTIAL[1];
+    const a = st.age || 34;
+    const ageMul = a < 30 ? 1.15 : a < 40 ? 1.0 : a < 50 ? 0.72 : 0.45;
+    return p.growth * ageMul;
+  }
+
+  /* ---------- スタッフの経験値 ----------
+     チームが何をしたかが、そのまま関わった人の経験になる。
+     専門外へ効く固有スキルを持っている人は、その仕事からも学ぶ。   */
+  function addStaffExp(g2, typeKey, amount) {
+    const ups = [];
+    (g2.staff || []).forEach(st => {
+      let a = 0;
+      if (st.type === typeKey) a = amount;
+      else if ((st.traits || []).some(k => {
+        const t = D.STAFF_TRAITS.find(x => x.key === k);
+        return t && t.cross === typeKey;
+      })) a = amount * D.STAFF_TRAIT_CROSS;
+      if (a <= 0) return;
+      const u = giveStaffExp(st, a * staffGrowMul(st));
+      if (u) ups.push(u);
+    });
+    return ups;
+  }
+  /* 全員に少しずつ（レースを1戦こなした、など） */
+  function addStaffExpAll(g2, amount) {
+    const ups = [];
+    (g2.staff || []).forEach(st => {
+      const u = giveStaffExp(st, amount * staffGrowMul(st));
+      if (u) ups.push(u);
+    });
+    return ups;
+  }
+  function giveStaffExp(st, amount) {
+    if (st.exp == null) { st.exp = 0; st.expLv = 1; }
+    if (st.pot == null) st.pot = 2;
+    if (st.age == null) st.age = 34;
+    st.exp += amount;
+    const cap = staffCap(st);
+    let gained = 0, lv = 0, learned = null;
+    while (st.exp >= staffNeed(st)) {
+      st.exp -= staffNeed(st);
+      st.expLv++;
+      lv = st.expLv;
+      if (st.skill < cap) {
+        const up = Math.max(1, Math.round(rint(1, 3) * staffGrowMul(st)));
+        st.skill = clamp(st.skill + up, 1, cap);
+        gained += up;
+      }
+      // 現場で覚える。専門外へ効く固有スキルが増えていく
+      if (!learned && (st.traits || []).length < 3 && Math.random() < 0.26) {
+        const pool = D.STAFF_TRAITS.filter(x => x.cross !== st.type &&
+          (st.traits || []).indexOf(x.key) < 0);
+        if (pool.length) { learned = pick(pool); st.traits = (st.traits || []).concat([learned.key]); }
+      }
+    }
+    if (!lv) return null;
+    st.salary = staffSalary(st);
+    return { name: st.name, lv: lv, skill: st.skill, gained: gained, learned: learned, capped: st.skill >= cap };
   }
   /* 固有スキルの抽選。専門外へ効くものは、自分の職能とは違うものだけ選ぶ */
   function rollStaffTraits(type, bonus) {
@@ -920,20 +992,29 @@ GP.state = (function () {
   }
 
   /* ---------- スタッフの成長（シーズン明け）---------- */
+  /* シーズン明け。1年ぶんの経験と、加齢 */
   function growStaff(g) {
     const grown = [];
     // 指導者がいるチームは、全体の伸びが良くなる
     const mentors = g.staff.filter(s => stTrait(s, 'mentor')).length;
     g.staff.forEach(st => {
       st.years = (st.years || 0) + 1;
-      const p = 0.55 + mentors * 0.10 + (stTrait(st, 'grower') ? 0.20 : 0);
-      if (Math.random() < p) {
-        st.skill += rint(1, 3) + (stTrait(st, 'grower') ? 1 : 0);
-        st.salary = staffSalary(st);
-        grown.push(st.name + '（技能 ' + st.skill + '）');
-      }
+      st.age = (st.age || 34) + 1;
+      const off = rnd(26, 44) * (1 + mentors * 0.14) * (stTrait(st, 'grower') ? 1.35 : 1);
+      const u = giveStaffExp(st, off * staffGrowMul(st));
+      if (u) grown.push(st.name + '（技能 ' + st.skill + '／Lv.' + st.expLv + '）');
     });
     return grown;
+  }
+  /* 歳を取りすぎた人は引退する（シーズン明け） */
+  function retireStaff(g) {
+    const out = [];
+    g.staff = (g.staff || []).filter(st => {
+      const a = st.age || 34;
+      if (a >= 58 && Math.random() < (a - 57) * 0.22) { out.push(st); return false; }
+      return true;
+    });
+    return out;
   }
 
   /* ---------- 全チーム（自分＋ライバル）---------- */
@@ -1006,7 +1087,8 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, staffSalary, stTrait, traitOf, rollStaffTraits,
+    makeDriver, makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,

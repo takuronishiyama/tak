@@ -51,6 +51,26 @@ window.GP = window.GP || {};
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
   }
 
+  /* チームが何をしたかを、関わったスタッフの経験にする */
+  function staffExp(typeKey, amount) {
+    reportStaffUps(S.addStaffExp(g, typeKey, amount));
+  }
+  function staffExpAll(amount) {
+    reportStaffUps(S.addStaffExpAll(g, amount));
+  }
+  function reportStaffUps(ups) {
+    (ups || []).forEach(u => {
+      const tail = u.capped ? '（もう伸びしろがない）' : '';
+      U.log(g, '⭐ ' + u.name + ' が Lv.' + u.lv + ' に上がった（技能 +' + u.gained + ' → ' +
+               u.skill + '）' + tail, 'good');
+      if (u.learned) {
+        U.log(g, '🎓 ' + u.name + ' が「' + u.learned.name + '」を身につけた。', 'good');
+        U.toast('🎓 ' + u.name + '「' + u.learned.name + '」', 'good');
+      }
+      GP.sound.play('levelup', 160);
+    });
+  }
+
   function levelCheck(d) {
     while (d.exp >= 40 * d.expLv) {
       d.exp -= 40 * d.expLv;
@@ -300,6 +320,7 @@ window.GP = window.GP || {};
 
     U.closeModal();
     GP.sound.play(crit ? 'crit' : 'confirm');
+    staffExp('engineer', 9); staffExp('designer', 4);
     U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) + (crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
     U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
     if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
@@ -416,6 +437,7 @@ window.GP = window.GP || {};
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
 
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
+    staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
     GP.sound.play(crit ? 'crit' : 'confirm');
     if (p.power >= cap) U.toast('このパーツは限界です。新型マシンか、より高レアなパーツが必要です。', 'warn');
@@ -491,6 +513,7 @@ window.GP = window.GP || {};
     U.closeModal();
     U.log(g, '📐 ' + part.name + '（' + rr.name + '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
     GP.sound.play(rarity >= 4 ? 'crit' : 'confirm');
+    staffExp('designer', 14); staffExp('engineer', 3);
     if (rarity >= 4) U.toast('🎉 ' + rr.name + 'パーツ「' + part.name + '」が完成！', 'good');
     else U.toast('📐 ' + part.name + '（' + rr.name + '）が完成', rarity >= 3 ? 'good' : '');
     U.pop(U.stars(rarity), rarity >= 4 ? 'crit' : 'good');
@@ -646,6 +669,7 @@ window.GP = window.GP || {};
                             + S.osk(g, 'eye') + S.rnd(-2, 6)) * crunchMul());   // 技術眼
     g.rp += gain;
     U.closeModal();
+    staffExp('analyst', 12);
     U.log(g, '🔬 データ解析を行った。研究P +' + gain);
     U.pop('🔬+' + gain, 'good');
     endWeek();
@@ -701,6 +725,7 @@ window.GP = window.GP || {};
       if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
     });
     U.closeModal();
+    staffExp('mechanic', 12);
     U.log(g, '🛠️ 分解整備を行った。信頼性 ' + Math.round(S.reliability(g)) + '%', 'good');
     U.pop('🛠️ 信頼性UP', 'good');
     endWeek();
@@ -739,12 +764,45 @@ window.GP = window.GP || {};
     });
     body += '</div>';
 
+    // ---- スタッフの研修 ----
+    const wcost = Math.round(1400 + g.season * 500);
+    const nStaff = (g.staff || []).length;
+    body += '<div class="sub">スタッフの研修</div>' +
+      '<p class="desc">現場を離れて学び直す週です（1週消費・費用 💰' + money(wcost) + '万）。' +
+      '在籍している全員に経験が入り、若くて伸びしろのある人ほど大きく伸びます。' +
+      '「指導者」がいるチームでは、さらに効きます。</p><div class="pick">';
+    body += '<button class="pickbtn" data-k="wkshop"' +
+      ((nStaff && g.funds >= wcost) ? '' : ' disabled') + '>' +
+      '<span class="pb-ic" style="background:#3a7ad9">🏫</span>' +
+      '<span class="pb-body"><b>全体研修をひらく</b>' +
+      '<small>' + (nStaff ? nStaff + '人が参加。経験 +60（才能と年齢で伸びが変わる）'
+                          : 'スタッフがいません') + '</small></span>' +
+      '<span class="pb-cost">💰' + money(wcost) + '</span></button></div>';
+
     U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }], { wide: true });
     paintInterior();
     bindPick(k => {
-      if (k.indexOf('skill:') === 0) doSkillTrain(+k.split(':')[1], scost);
+      if (k === 'wkshop') doWorkshop(wcost);
+      else if (k.indexOf('skill:') === 0) doSkillTrain(+k.split(':')[1], scost);
       else doTrain(k, cost);
     });
+  }
+
+  /* ---- スタッフの全体研修 ---- */
+  function doWorkshop(cost) {
+    if (!(g.staff || []).length || g.funds < cost) return;
+    g.funds -= cost;
+    const mentors = g.staff.filter(st => S.stTrait(st, 'mentor')).length;
+    const before = g.staff.map(st => st.skill);
+    staffExpAll(60 * (1 + mentors * 0.16));
+    const after = g.staff.map(st => st.skill);
+    const up = g.staff.filter((st, i) => after[i] > before[i]).length;
+    U.closeModal();
+    GP.sound.play('confirm');
+    U.log(g, '🏫 全体研修をひらいた。' + (up ? up + '人の技能が伸びた。' : '目に見える伸びはなかった。'),
+          up ? 'good' : '');
+    U.pop('🏫 研修', up ? 'good' : '');
+    endWeek();
   }
 
   function doSkillTrain(idx, cost) {
@@ -786,6 +844,7 @@ window.GP = window.GP || {};
     d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
     levelCheck(d);
     U.closeModal();
+    staffExp('trainer', 12);
     const nm = { speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[stat];
     U.log(g, '💪 ' + d.name + ' の' + nm + ' +' + gain.toFixed(1));
     U.pop('+' + gain.toFixed(1) + ' ' + nm, 'good');
@@ -1187,13 +1246,24 @@ window.GP = window.GP || {};
 
   function staffRow(st, actions, extra) {
     const t = D.STAFF_TYPES.find(x => x.key === st.type);
-    const pct = Math.min(100, st.skill / 60 * 100);
+    const cap = S.staffCap(st);
+    const pct = Math.min(100, st.skill / cap * 100);
     const rank = st.skill >= 45 ? '一流' : st.skill >= 32 ? '熟練' : st.skill >= 20 ? '中堅' : '見習い';
+    const pt = S.potOf(st);
+    const need = S.staffNeed(st);
+    const exPct = Math.min(100, (st.exp || 0) / need * 100);
+    const capped = st.skill >= cap;
     return '<div class="pickbtn done staffrow">' +
       '<span class="pb-ic" style="background:#7b5a3a">' + t.icon + '</span>' +
       '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
       '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
-      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill + '</b>' +
+      '　<em class="sage">' + (st.age || 34) + '歳</em>' +
+      '　<em class="spot" style="color:' + pt.color + '">' + U.stars(st.pot || 2) + ' ' + pt.name + '</em>' +
+      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill +
+      '</b> <em class="scap">/ ' + cap + (capped ? '（上限）' : '') + '</em>' +
+      '<br><span class="skbar exp"><i style="width:' + exPct + '%"></i></span> ' +
+      'Lv.<b>' + (st.expLv || 1) + '</b> <em class="scap">次まで ' +
+      Math.max(0, Math.ceil(need - (st.exp || 0))) + '</em>' +
       '<br>' + t.desc + traitChips(st) + (extra || '') + '</small></span>' +
       '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
   }
@@ -1315,7 +1385,9 @@ window.GP = window.GP || {};
         (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
         (D.STAFF_TYPES.find(x => x.key === st.type) || {}).name + '／技能 ' + st.skill +
-        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        '　' + (st.age || 34) + '歳　<em style="color:' + S.potOf(st).color + '">' +
+        U.stars(st.pot || 2) + ' ' + S.potOf(st).name + '</em>' +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / S.staffCap(st) * 100) + '%"></i></span>' +
         traitChips(st) +
         '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
     });
@@ -1332,8 +1404,9 @@ window.GP = window.GP || {};
       body += '<button class="pickbtn" data-k="ps:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#8a4a3a">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
-        t.name + '／技能 ' + st.skill + '　<em class="fromteam">' + esc(st.team) + '</em>' +
-        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        t.name + '／技能 ' + st.skill + '　' + (st.age || 34) + '歳　<em class="fromteam">' + esc(st.team) + '</em>' +
+        '　<em style="color:' + S.potOf(st).color + '">' + U.stars(st.pot || 2) + '</em>' +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / S.staffCap(st) * 100) + '%"></i></span>' +
         traitChips(st) +
         '</small></span><span class="pb-cost">引き抜き<br>💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
     });
@@ -1781,6 +1854,10 @@ window.GP = window.GP || {};
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
     g.drivers.forEach(d => levelCheck(d));
+    // レースを1戦こなすと、現場にいた全員が経験を積む
+    staffExpAll(7);
+    staffExp('strategist', 14);
+    staffExp('mechanic', 8);
     // よそのチームが、うちの誰かに声をかけてくることがある
     const raid = S.poachAttempt(g);
     if (raid) { askPoach(raid); return; }
@@ -2053,9 +2130,15 @@ window.GP = window.GP || {};
     if (raises.length) {
       U.log(g, '📝 契約更改：' + raises.join('、') + '（チーム全体の人件費も上がった）', 'warn');
     }
-    // スタッフの成長
+    // スタッフの成長と、歳を重ねた人の引退
     const grown = S.growStaff(g);
     if (grown.length) U.log(g, '📈 スタッフが成長した：' + grown.join('、'), 'good');
+    const left = S.retireStaff(g);
+    left.forEach(st => {
+      const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+      U.log(g, '🎩 ' + st.name + '（' + t.name + '／' + st.age + '歳）が現場を去った。長いあいだお疲れさま。', 'warn');
+    });
+    if (left.length) U.toast('🎩 ' + left.map(x => x.name).join('、') + ' が引退', 'warn');
     // ライバル強化
     g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name));
     refreshMarkets(true);
