@@ -2833,109 +2833,83 @@ window.GP = window.GP || {};
     return GRID_GUESTS[i];
   }
 
-  function cmdGrid() {
-    weekFlags();
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+  /* グリッドに並ぶ顔ぶれを作る */
+  function gridPeople() {
     const done = k => (g.talked || []).indexOf('grid:' + k) >= 0;
-    const guest = gridGuest();
     const lineup = prePack
       ? prePack.entries.filter(e => e.isPlayer).map(e => e.driver)
-      : S.allTeams(g, t).find(x => x.isPlayer).drivers;
-
-    let body = '<div class="racehead"><b>🏁 スターティンググリッド</b><span>' +
-      t.country + ' ' + esc(t.name) + '</span></div>' +
-      '<div class="gridwrap"><canvas id="gridCv" width="520" height="182"></canvas></div>' +
-      (function () {
-        const mine = (prePack ? prePack.grid : []).filter(e => e.isPlayer)
-          .map(e => e.driver.name + ' <b>' + e.grid + '番手</b>');
-        return mine.length
-          ? '<p class="gridmine">🚩 ' + mine.join('　／　') + '</p>' : '';
-      })() +
-      '<p class="desc">予選を終えて、マシンがグリッドに並んでいます。' +
-      'ここでやれることは、レースウィークごとに一度ずつ。</p>' +
-      '<div class="pick">';
-
-    lineup.forEach((d, i) => {
-      const k = 'cheer' + i;
-      body += '<button class="pickbtn' + (done(k) ? ' done' : '') + '" data-k="gw:' + k + '"' +
-        (done(k) ? ' disabled' : '') + '>' +
-        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + ' を送り出す</b>' +
-        '<small>調子 ' + Math.round(d.form) + '／' + S.persOf(d).icon + S.persOf(d).name +
-        (done(k) ? '　<em>声はかけた</em>' : '　肩を叩いて送り出す') + '</small></span>' +
-        '<span class="pb-cost">' + (done(k) ? '—' : '鼓舞する') + '</span></button>';
+      : (g.drivers || []);
+    const gu = gridGuest();
+    const list = [];
+    lineup.slice(0, 2).forEach((d, i) => {
+      list.push({ key: 'gd:mine' + i, kind: 'car', label: d.name,
+                  color: g.color, gen: g.carGen, done: done('cheer' + i) });
     });
-
-    body += '<button class="pickbtn' + (done('look') ? ' done' : '') + '" data-k="gw:look"' +
-      (done('look') ? ' disabled' : '') + '>' +
-      '<span class="pb-ic" style="background:#3a7ad9">🔍</span>' +
-      '<span class="pb-body"><b>並んだマシンを間近で見る</b>' +
-      '<small>' + (done('look') ? '今日はもう見て回った'
-        : '自分より前に並ぶクルマほど、学べるものが多い') + '</small></span>' +
-      '<span class="pb-cost">' + (done('look') ? '—' : '見る') + '</span></button>';
-
-    body += '<button class="pickbtn' + (done('guest') ? ' done' : '') + '" data-k="gw:guest"' +
-      (done('guest') ? ' disabled' : '') + '>' +
-      '<span class="pb-ic" style="background:#8a6ad0">' + guest.icon + '</span>' +
-      '<span class="pb-body"><b>' + guest.who + 'と話す</b>' +
-      '<small>' + (done('guest') ? '今日はもう話した' : 'グリッドには、いろいろな人が降りてくる') +
-      '</small></span>' +
-      '<span class="pb-cost">' + (done('guest') ? '—' : '話す') + '</span></button>';
-    body += '</div>';
-
-    U.modal('🏁 グリッドウォーク', body, [
-      { label: '🚦 決勝スタート！', cls: 'primary', fn: startRace }
-    ], { wide: true });
-    drawGrid();
-    bindPick(k => {
-      const key = k.split(':')[1];
-      if (key.indexOf('cheer') === 0) return doCheer(+key.slice(5));
-      if (key === 'look') return doGridLook();
-      if (key === 'guest') return doGridGuest();
-    });
+    while (list.length < 2) list.push({ key: 'gd:mine' + list.length, kind: 'car',
+                                        label: '', color: g.color, gen: g.carGen, done: true });
+    list.push({ key: 'gd:look', kind: 'look', label: '並んだマシンを見る',
+                color: '#5a6270', done: done('look') });
+    list.push({ key: 'gd:guest', kind: 'person', label: gu.who,
+                color: '#8a5a2a', done: done('guest') });
+    list.push({ key: 'gd:go', kind: 'gate', label: 'スタート進行', done: false });
+    return list;
   }
 
-  /* グリッドに並んだマシンを描く */
-  function drawGrid() {
-    const cv = $('gridCv');
-    if (!cv) return;
-    const ctx = cv.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    const W = cv.width, H = cv.height;
-    // 路面
-    ctx.fillStyle = '#3a3a42'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#33333b';
-    for (let y = 0; y < H; y += 10) ctx.fillRect(0, y, W, 5);
-    // グリッドの白枠
-    const rows = 5, cols = 2;
-    // 並びは予選の結果そのもの
-    const table = (prePack ? prePack.grid : []).slice(0, rows * cols)
-      .map(e => ({ name: e.team.name, color: e.color, isPlayer: !!e.isPlayer }));
-    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = 78 + c * 190 + (r % 2 ? 0 : 0);
-        const y = 16 + r * 33;
-        ctx.strokeRect(x - 22, y - 10, 46, 24);
+  function gridDoors() {
+    const m = {};
+    const ppl = gridPeople();
+    ppl.forEach(q => {
+      const dn = q.done;
+      if (q.key.indexOf('gd:mine') === 0) {
+        const i = +q.key.slice(7);
+        m[q.key] = { icon: '🔥', label: q.label || 'マシン',
+                     to: dn ? '送り出した' : '鼓舞する',
+                     fn: () => dn ? yardAgain(q.label || 'ドライバー') : doCheer(i) };
+      } else if (q.key === 'gd:look') {
+        m[q.key] = { icon: '🔍', label: '並んだマシン', to: dn ? '見て回った' : '見る',
+                     fn: () => dn ? yardAgain('マシン') : doGridLook() };
+      } else if (q.key === 'gd:guest') {
+        m[q.key] = { icon: '🗣️', label: q.label, to: dn ? '話した' : '話す',
+                     fn: () => dn ? yardAgain(q.label) : doGridGuest() };
+      } else if (q.key === 'gd:go') {
+        m[q.key] = { icon: '🚦', label: 'スタート進行', to: '決勝へ', fn: () => leaveGrid(true) };
       }
-    }
-    // 並んでいるマシン（選手権の順で、上位から前に）
-    let n = 0;
-    for (let r = 0; r < rows && n < table.length; r++) {
-      for (let c = 0; c < cols && n < table.length; c++, n++) {
-        const row = table[n];
-        const x = 78 + c * 190, y = 16 + r * 33;
-        RV.paintCar(ctx, x, y + 2, -Math.PI / 2, row.color, Math.min(5, g.carGen), 0.2);
-        if (row.isPlayer) {
-          ctx.strokeStyle = '#fff34d'; ctx.lineWidth = 2;
-          ctx.setLineDash([4, 3]); ctx.strokeRect(x - 24, y - 12, 50, 28); ctx.setLineDash([]);
-        }
-        ctx.fillStyle = 'rgba(255,255,255,.85)';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText(String(n + 1), x - 34, y + 6);
-      }
-    }
+    });
+    return m;
   }
+
+  /* グリッドへ降りる。ここからは歩いて回る */
+  function cmdGrid() {
+    weekFlags();
+    U.closeModal();
+    g.onGrid = true;
+    // 並び（予選順）を絵のために持っておく
+    g.gridOrder = (prePack ? prePack.grid : []).slice(0, 12).map(e => ({
+      color: e.color, gen: e.gen || 0, mine: !!e.isPlayer
+    }));
+    GP.grid.setPeople(gridPeople());
+    GP.grid.invalidate();
+    const p = GP.grid.clampWalk(60, GP.grid.WALK.y1 - 6);
+    actor.x = p.x; actor.y = p.y;
+    render();
+    U.toast('🏁 グリッドを歩けます。マシンやスタッフに近づいて「入る」', 'good');
+  }
+
+  function refreshGrid() {
+    GP.grid.setPeople(gridPeople());
+    GP.grid.invalidate();
+    render();
+  }
+
+  function leaveGrid(start) {
+    g.onGrid = false;
+    g.gridOrder = null;
+    render();
+    if (start) startRace();
+  }
+
+
+
 
   function doCheer(i) {
     weekFlags();
@@ -2960,9 +2934,9 @@ window.GP = window.GP || {};
        : d.form >= 95 ? '「はい。やることは分かっています」'
        : '「……ありがとうございます。やってみます」') + '</span></div>' +
       '<p class="note">調子 +' + up.toFixed(0) + '（いま ' + Math.round(d.form) + '）</p>',
-      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); refreshGrid(); } }]);
     GP.sound.play('good');
-    S.save(g); render();
+    S.save(g); refreshGrid();
   }
 
   function doGridLook() {
@@ -2989,9 +2963,9 @@ window.GP = window.GP || {};
       '<p class="note">🔬 研究P +' + rp +
       (hint ? '<br>📐 設計のヒントを持ち帰った（次に設計するパーツが良いものになりやすい）' : '') +
       '</p>',
-      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); refreshGrid(); } }]);
     GP.sound.play(hint ? 'crit' : 'good');
-    S.save(g); render();
+    S.save(g); refreshGrid();
   }
 
   function doGridGuest() {
@@ -3003,9 +2977,9 @@ window.GP = window.GP || {};
     U.modal(gu.icon + ' ' + gu.who + 'と話す',
       '<p class="lead">' + gu.line(g) + '</p>' +
       '<p class="note">' + esc(note) + '</p>',
-      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); refreshGrid(); } }]);
     GP.sound.play('good');
-    S.save(g); render();
+    S.save(g); refreshGrid();
   }
 
   const PADDOCK_DOORS = {
@@ -3384,7 +3358,10 @@ window.GP = window.GP || {};
   }
 
   /* いま歩いている場所（本拠地／パドック）と、その入口一覧 */
-  function hubMap() { return isRaceWeek() ? GP.paddock : GP.base; }
+  function hubMap() {
+    if (g.onGrid) return GP.grid;
+    return isRaceWeek() ? GP.paddock : GP.base;
+  }
 
   /* 同じレースウィークのうちは、一度きりの行動を覚えておく */
   function weekFlags() {
@@ -3399,6 +3376,7 @@ window.GP = window.GP || {};
   /* パドックの入口一覧。ライバルのガレージと人はゲームの状態から作る */
   function hubDoors() {
     if (g.offseason) return offDoors();
+    if (g.onGrid) return gridDoors();
     if (!isRaceWeek()) {
       if (g.offseason) return HUB_DOORS;
       const m = {};
@@ -4205,7 +4183,8 @@ window.GP = window.GP || {};
       const hint = $('hubHint');
       if (hint) {
         hint.textContent = d ? d.icon + ' ' + d.label + ' — ここで「入る」'
-                             : (isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT);
+                             : (g.onGrid ? GRID_IDLE_HINT
+                                : isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT);
         hint.classList.toggle('on', !!d);
       }
       const btn = $('hubEnter');
@@ -4228,6 +4207,7 @@ window.GP = window.GP || {};
     hubBusy = false;
   }
 
+  const GRID_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。マシンや人の下で「入る」';
   const HUB_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」';
   const PADDOCK_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。ガレージや出口の下で「入る」';
 
@@ -4239,6 +4219,13 @@ window.GP = window.GP || {};
     GP.base.invalidate();          // 施設を広げた直後などに背景を作り直す
     GP.paddock.invalidate();
     actor.color = g.color || '#e04a3f';
+    // 場所が変われば、足元の案内も切り替える
+    const hint0 = $('hubHint');
+    if (hint0) {
+      hint0.textContent = g.onGrid ? GRID_IDLE_HINT
+                     : isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT;
+      hint0.classList.remove('on');
+    }
     const p = hubMap().clampWalk(actor.x, actor.y);
     actor.x = p.x; actor.y = p.y;
     hubDoor = null;

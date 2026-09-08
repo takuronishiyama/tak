@@ -1420,6 +1420,7 @@ GP.state = (function () {
       if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0 };
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      g.onGrid = false; g.gridOrder = null;   // グリッド散策の途中では再開しない
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
         D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
