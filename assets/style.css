@@ -114,6 +114,32 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .desc{font-size:12px;color:#6b503a;margin:6px 0;line-height:1.6}
 .lead{font-size:13px;margin-bottom:10px;line-height:1.7}
 
+/* ---------- 注目度ゲージ ---------- */
+.stat.hype{gap:5px}
+.hypebar{width:44px;height:8px;background:#e9dcbc;border:2px solid var(--ink);
+         border-radius:5px;overflow:hidden;display:inline-block}
+.hypebar b{display:block;height:100%;transition:width .4s}
+.hypebox{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;
+         background:#fffdf3;border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
+.pickbtn.offer{border-color:#8a2f8a;box-shadow:0 3px 0 #8a2f8a;
+               background:linear-gradient(#fff0ff,#f4dcf4);animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
+.gp-t .flp{font-style:normal;margin-left:3px}
+.rewardbox small{display:block;font-size:9px;opacity:.65}
+
+/* ---------- チャンピオンシップ順位表 ---------- */
+.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:#fffdf3;margin-bottom:4px}
+table.rank.champ{font-size:11px}
+table.rank.champ td,table.rank.champ th{padding:3px 5px;text-align:center;white-space:nowrap}
+table.rank.champ td.nm,table.rank.champ th.nm{text-align:left}
+table.rank.champ td.pt{font-weight:bold;font-size:12px}
+table.rank.grid{font-size:10px}
+table.rank.grid td{width:22px;text-align:center;padding:2px}
+table.rank.grid td.gold{background:var(--yellow);font-weight:bold}
+table.rank.grid td.pod{background:#c8ecc0;font-weight:bold}
+table.rank.grid td.pts{background:#e8f0d8}
+table.rank.grid td.dnf{background:#ffd8d0;color:#a02010}
+table.rank.grid td.dim{opacity:.35}
+
 /* ---------- 難易度・チケット ---------- */
 .tb-team .mode{font-size:10px;color:#fff;border:2px solid var(--ink);border-radius:5px;
                padding:0 6px;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.3)}

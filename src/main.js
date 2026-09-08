@@ -32,13 +32,15 @@ window.GP = window.GP || {};
     const drift = d => { d.form = S.clamp(d.form + (100 - d.form) * 0.14 + S.rnd(-4.5, 5), 62, 122); };
     g.drivers.forEach(d => { drift(d); levelCheck(d); });
     g.rivals.forEach(t => t.drivers.forEach(drift));   // ライバルも同じ条件で
-    // ファンの自然減
+    // ファンの自然減と、話題の風化
     g.fans = Math.max(0, g.fans - Math.round(g.fans * 0.006));
+    S.addHype(g, -(g.hype || 0) * 0.035);
 
     g.week++;
     g.special = null;
     randomEvent();
     offerSpecial();
+    offerSponsor();
 
     if (g.week > S.SEASON_WEEKS) return seasonEnd();
     S.save(g);
@@ -94,6 +96,29 @@ window.GP = window.GP || {};
         return;
       }
     }
+  }
+
+  /* ---------- スポンサーからのオファー ----------
+     注目度が高いと、まだ契約していない大手から向こうが声を掛けてくる     */
+  function offerSponsor() {
+    // 期限切れのオファーは引っ込む
+    if (g.sponsorOffer && g.sponsorOffer.until != null && g.week > g.sponsorOffer.until) {
+      U.log(g, '📞 ' + g.sponsorOffer.name + ' からのオファーは期限切れになった…', 'warn');
+      g.sponsorOffer = null;
+    }
+    if (g.sponsorOffer) return;
+    const slots = 2 + g.facilities.market;
+    if (g.sponsors.length >= slots) return;
+    const have = g.sponsors.map(x => x.name);
+    const cand = D.SPONSORS.filter(sp => have.indexOf(sp.name) < 0 && S.sponsorOpen(g, sp));
+    if (!cand.length) return;
+    // 注目度が高いほど声が掛かりやすい
+    if (Math.random() > 0.06 + (g.hype || 0) / 100 * 0.22) return;
+    const sp = cand[cand.length - 1];        // 条件を満たす中でいちばん大きいところ
+    g.sponsorOffer = { name: sp.name, adv: Math.round(sp.per * 8), until: g.week + 4 };
+    GP.sound.play('confirm');
+    U.log(g, '📞 ' + sp.name + ' から契約のオファーが届いた！（「営業」で確認）', 'good');
+    U.toast('📞 ' + sp.name + ' からオファー！', 'good');
   }
 
   /* ---------- 特別戦の誘い ---------- */
@@ -428,13 +453,32 @@ window.GP = window.GP || {};
   function cmdSponsor() {
     const slots = 2 + g.facilities.market;
     const have = g.sponsors.map(s => s.name);
-    const avail = D.SPONSORS.filter(s => g.fans >= s.fans && have.indexOf(s.name) < 0);
-    let body = '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>';
+    const avail = D.SPONSORS.filter(s => S.sponsorOpen(g, s) && have.indexOf(s.name) < 0);
+    const ht = S.hypeTier(g);
+    let body = '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
+      '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
+      '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>';
+
+    if (g.sponsorOffer) {
+      const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
+      if (sp) {
+        body += '<div class="sub">📞 届いているオファー</div><div class="pick">' +
+          '<button class="pickbtn offer" data-k="__offer">' +
+          '<span class="pb-ic" style="background:#b06fd0">' + sp.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(sp.name) + ' から契約の打診</b>' +
+          '<small>毎戦 ' + money(sp.per) + '万／' + sp.need + '位以内でボーナス ' + money(sp.bonus) + '万' +
+          '<br>先方からの申し出なので契約金が上乗せされる：<b>+' + money(g.sponsorOffer.adv) + '万</b>' +
+          (g.sponsorOffer.until != null ? '　<em class="warn">残り' + Math.max(0, g.sponsorOffer.until - g.week + 1) + '週</em>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">受ける</span></button></div>';
+      }
+    }
     body += '<div class="pick"><button class="pickbtn" data-k="__ad"><span class="pb-ic" style="background:#f0a020">📣</span>' +
       '<span class="pb-body"><b>プロモーション活動</b><small>ファンを増やし、少し資金も入る</small></span>' +
       '<span class="pb-cost">+ファン</span></button></div>';
     body += '<div class="sub">契約できるスポンサー</div><div class="pick">';
-    if (!avail.length) body += '<p class="desc">今のファン数では新しい契約先がありません。人気を高めましょう。</p>';
+    if (!avail.length) body += '<p class="desc">いまの規模で契約できる相手がいません。' +
+      'ファンを増やし、レースで上位に食い込んで注目度を上げましょう。</p>';
     avail.forEach(s => {
       const full = g.sponsors.length >= slots;
       body += '<button class="pickbtn" data-k="' + esc(s.name) + '"' + (full ? ' disabled' : '') + '>' +
@@ -450,7 +494,11 @@ window.GP = window.GP || {};
     });
     body += '</div>';
     U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
-    bindPick(k => (k === '__ad') ? doPromo() : doSign(k));
+    bindPick(k => {
+      if (k === '__ad') return doPromo();
+      if (k === '__offer') return doAcceptOffer();
+      doSign(k);
+    });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-drop]'), b => {
       b.onclick = () => {
         g.sponsors = g.sponsors.filter(s => s.name !== b.dataset.drop);
@@ -469,6 +517,23 @@ window.GP = window.GP || {};
     U.pop('👥+' + money(f), 'good');
     endWeek();
   }
+  function doAcceptOffer() {
+    if (!g.sponsorOffer) return;
+    const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
+    if (!sp) { g.sponsorOffer = null; return; }
+    const slots = 2 + g.facilities.market;
+    if (g.sponsors.length >= slots) { U.toast('スポンサー枠が空いていません', 'warn'); return; }
+    const adv = g.sponsorOffer.adv;
+    g.sponsors.push(Object.assign({}, sp));
+    g.funds += adv;
+    g.sponsorOffer = null;
+    GP.sound.play('coin');
+    U.closeModal();
+    U.log(g, '🤝 ' + sp.name + ' のオファーを受けた！ 契約金 +' + money(adv) + '万', 'good');
+    U.toast('🤝 ' + sp.name + ' と契約成立！', 'good');
+    endWeek();
+  }
+
   function doSign(name) {
     const s = D.SPONSORS.find(x => x.name === name);
     if (!s) return;
@@ -956,15 +1021,24 @@ window.GP = window.GP || {};
           '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
           '<span class="gp-mv ' + (e.grid > e.pos ? 'up' : e.grid < e.pos ? 'down' : '') + '">' +
           (e.dnf ? 'DNF' : (e.grid > e.pos ? '▲' + (e.grid - e.pos) : e.grid < e.pos ? '▼' + (e.pos - e.grid) : '－')) + '</span>' +
-          '<span class="gp-t">' + (e.dnf ? esc(e.dnfReason) : (e.points ? '+' + e.points + 'pt' : '')) + '</span></div>';
+          '<span class="gp-t">' + (e.dnf ? esc(e.dnfReason) : (e.points ? '+' + e.points + 'pt' : '')) +
+          (e.flPoint ? '<em class="flp" title="ファステストラップ +1">⚡</em>' : '') + '</span></div>';
       });
       body += '</div>';
+      const ht = S.hypeTier(g);
+      const hd = res.hypeDelta || 0;
       body += '<div class="rewardbox">' +
         '<div>💰 賞金 <b>+' + money(reward.prize) + '万</b></div>' +
-        '<div>📣 スポンサー <b>+' + money(reward.sponsorIncome) + '万</b></div>' +
+        '<div>📣 スポンサー <b>+' + money(reward.sponsorIncome) + '万</b><small>注目度 ×' + S.hypeBonus(g).toFixed(2) + '</small></div>' +
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
+        '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
-      if (res.fastestLap) body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) + '（' + fmtTime(res.fastestLap.fastest) + '）</p>';
+      if (res.fastestLap) {
+        const scored = !res.fastestLap.dnf && res.fastestLap.pos <= D.POINTS.length && !res.special;
+        body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) +
+          '（' + fmtTime(res.fastestLap.fastest) + '）' +
+          (scored ? ' — 10位以内で完走のためボーナス <b>+1pt</b>' : ' — 10位以内ではないためボーナスなし') + '</p>';
+      }
 
       // 性格に応じて調子が動き、ひとことを残す
       const said = [];
@@ -1159,7 +1233,8 @@ window.GP = window.GP || {};
   }
 
   function cmdInfo() {
-    let body = '<div class="sub">今季のレース結果</div>';
+    let body = U.standings(g);
+    body += '<div class="sub">今季のレース結果</div>';
     if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
     g.results.slice().reverse().forEach(r => {
       const mine = r.rows.filter(x => x.isPlayer);
@@ -1172,12 +1247,12 @@ window.GP = window.GP || {};
     body += '<div class="sub">通算タイトル</div><p class="desc">コンストラクターズ ' + g.titles.teams + ' 回／ドライバーズ ' + g.titles.drivers + ' 回</p>';
     U.modal('📖 チーム情報', body, [
       { label: '💾 セーブ', fn: () => { S.save(g); U.toast('💾 セーブしました', 'good'); } },
+      { label: '閉じる', fn: U.closeModal },
       { label: '🗑️ 最初から', cls: 'danger', fn: () => {
           U.modal('本当に最初から？', '<p class="lead">現在のデータは消えます。よろしいですか？</p>', [
             { label: 'はい', cls: 'danger', fn: () => { S.wipe(); location.reload(); } },
             { label: 'いいえ', fn: U.closeModal }]);
-        } },
-      { label: '閉じる', fn: U.closeModal }
+        } }
     ], { wide: true });
   }
 

@@ -220,7 +220,7 @@ GP.data = (function () {
 
   /* イージー専用の大口スポンサー */
   const OIL_SPONSOR = {
-    name: 'アル・ナジュム石油', icon: '🛢️', per: 2400, bonus: 6000, need: 6, fans: 0
+    name: 'アル・ナジュム石油', icon: '🛢️', per: 1950, bonus: 6000, need: 6, fans: 0
   };
 
   /* ---------- 才能（成長のしやすさ）---------- */
@@ -312,16 +312,34 @@ GP.data = (function () {
   ];
 
   /* ---------- スポンサー ---------- */
+  /* fans はファン数、hype は注目度（露出）の必要値。
+     大手ほど「話題になっているチーム」でないと相手にしてくれない        */
   const SPONSORS = [
-    { name: 'マメゾウ電機',     icon: '🔌', per: 420,  bonus: 1500,  need: 12, fans: 0 },
-    { name: 'カメカメ運送',     icon: '📦', per: 560,  bonus: 2200,  need: 10, fans: 400 },
-    { name: 'ホシノ製菓',       icon: '🍬', per: 760,  bonus: 3200,  need: 8,  fans: 1200 },
-    { name: 'グリーンオイル',   icon: '🛢️', per: 1100, bonus: 5000,  need: 6,  fans: 3000 },
-    { name: 'ゼンリョク銀行',   icon: '🏦', per: 1600, bonus: 8000,  need: 5,  fans: 7000 },
-    { name: 'ネクサス通信',     icon: '📡', per: 2300, bonus: 12000, need: 3,  fans: 14000 },
-    { name: 'オリオン航空',     icon: '✈️', per: 3400, bonus: 18000, need: 2,  fans: 26000 },
-    { name: 'ワールドテック',   icon: '🌐', per: 5000, bonus: 30000, need: 1,  fans: 45000 }
+    { name: 'マメゾウ電機',     icon: '🔌', per: 340,  bonus: 1500,  need: 12, fans: 0,     hype: 0 },
+    { name: 'カメカメ運送',     icon: '📦', per: 450,  bonus: 2200,  need: 10, fans: 400,   hype: 8 },
+    { name: 'ホシノ製菓',       icon: '🍬', per: 610,  bonus: 3200,  need: 8,  fans: 1200,  hype: 18 },
+    { name: 'グリーンオイル',   icon: '🛢️', per: 880, bonus: 5000,  need: 6,  fans: 3000,  hype: 30 },
+    { name: 'ゼンリョク銀行',   icon: '🏦', per: 1280, bonus: 8000,  need: 5,  fans: 7000,  hype: 42 },
+    { name: 'ネクサス通信',     icon: '📡', per: 1840, bonus: 12000, need: 3,  fans: 14000, hype: 55 },
+    { name: 'オリオン航空',     icon: '✈️', per: 2720, bonus: 18000, need: 2,  fans: 26000, hype: 68 },
+    { name: 'ワールドテック',   icon: '🌐', per: 4000, bonus: 30000, need: 1,  fans: 45000, hype: 82 }
   ];
+
+  /* ---------- 注目度（メディア露出）---------- */
+  const HYPE_TIERS = [
+    { max: 12,  name: '無名',       icon: '🫥', color: '#a89878' },
+    { max: 28,  name: '注目され始め', icon: '📻', color: '#8a9a6a' },
+    { max: 46,  name: '話題のチーム', icon: '📰', color: '#4ea63f' },
+    { max: 64,  name: '人気チーム',   icon: '📺', color: '#3a7ad9' },
+    { max: 82,  name: '主役',        icon: '🌟', color: '#b06fd0' },
+    { max: 101, name: '時代の顔',    icon: '👑', color: '#f0a020' }
+  ];
+
+  /* 順位ごとの注目度の増減。ポイント圏外でも上位で終えれば露出は増える */
+  const HYPE_BY_POS = [16, 12, 10, 8, 7, 6, 5.5, 5, 4.5, 4, 3, 2.6, 2.2, 1.8, 1.5, 1.2, 1, 0.8, 0.6, 0.4, 0.3, 0.2];
+
+  /* ファステストラップのボーナスポイント（10位以内で完走した場合のみ） */
+  const FASTEST_LAP_POINT = 1;
 
   /* ---------- スタッフ ---------- */
   const STAFF_TYPES = [
@@ -375,6 +393,7 @@ GP.data = (function () {
   ];
 
   /* ---------- ポイントシステム ---------- */
+  /* 実際のF1と同じ配点。10位までが入賞 */
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
@@ -389,5 +408,5 @@ GP.data = (function () {
   ];
 
   return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           NATIONS, PERSONALITIES, QUOTES, SPECIALS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

@@ -6,7 +6,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v3';
+  const SAVE_KEY = 'gp_monogatari_save_v4';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -134,6 +134,7 @@ GP.state = (function () {
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
+      poles: 0, fastestLaps: 0, dnfs: 0, best: 99,
       nation: opts.nation || rint(0, D.NATIONS.length - 1),
       pot: opts.pot || rollPotential(opts.youth),
       pers: opts.pers || pick(D.PERSONALITIES).key,
@@ -249,6 +250,31 @@ GP.state = (function () {
     return g.staff.filter(s => s.type === key).reduce((a, s) => a + s.skill, 0) / 20;
   }
 
+  /* =======================================================
+     注目度（メディア露出）
+     良い結果を出すほど話題になり、スポンサー収入が増え、
+     大手が声を掛けてくるようになる。放っておくと少しずつ忘れられる。
+     ======================================================= */
+  function hypeTier(g2) {
+    const h = g2.hype || 0;
+    return D.HYPE_TIERS.find(t => h < t.max) || D.HYPE_TIERS[D.HYPE_TIERS.length - 1];
+  }
+
+  /* スポンサー収入にかかる倍率 */
+  function hypeBonus(g2) {
+    return 1 + (g2.hype || 0) / 100 * 0.6;
+  }
+
+  function addHype(g2, v) {
+    g2.hype = clamp((g2.hype || 0) + v, 0, 100);
+    return g2.hype;
+  }
+
+  /* 契約できるスポンサーか（ファン数と注目度の両方が要る） */
+  function sponsorOpen(g2, sp) {
+    return g2.fans >= sp.fans && (g2.hype || 0) >= (sp.hype || 0);
+  }
+
   /* ---------- 週あたりの固定費 ---------- */
   function weeklyCost(g) {
     const staff = g.staff.reduce((a, s) => a + s.salary, 0);
@@ -294,7 +320,7 @@ GP.state = (function () {
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 3,
+      version: 4,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
@@ -302,6 +328,7 @@ GP.state = (function () {
       mode: diff.key,
       funds: Math.round(17000 * diff.funds),
       tickets: 0,           // 開発チケット
+      hype: 4,              // 注目度（メディア露出）0-100
       dryStreak: 0,         // 入賞できていないレース数
       youth: [],            // 下部組織の若手
       fans: 500,
@@ -473,7 +500,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 3) ? g : null;
+      return (g && g.version === 4) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -482,6 +509,7 @@ GP.state = (function () {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
+    hypeTier, hypeBonus, addHype, sponsorOpen,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

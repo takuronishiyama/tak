@@ -26,6 +26,13 @@ GP.ui = (function () {
       ? 'シーズン終了'
       : (left === 0 ? '★ 今週レース！' : '第' + (g.nextRace + 1) + '戦まで あと' + left + '週');
     $('tNext').className = left === 0 ? 'race-imminent' : '';
+    const ht = S.hypeTier(g);
+    $('tHypeIc').textContent = ht.icon;
+    $('tHypeVal').textContent = Math.round(g.hype || 0);
+    $('tHypeBar').style.width = Math.round(g.hype || 0) + '%';
+    $('tHypeBar').style.background = ht.color;
+    $('tHypeBox').title = 'メディアでの扱い：' + ht.name +
+      '（スポンサー収入 ×' + S.hypeBonus(g).toFixed(2) + '）';
     const tk = g.tickets || 0;
     $('tTicket').textContent = tk;
     $('tTicketBox').style.display = tk ? '' : 'none';
@@ -308,6 +315,76 @@ GP.ui = (function () {
       '<circle cx="' + start[0].toFixed(1) + '" cy="' + start[1].toFixed(1) + '" r="4.5" fill="#e04a3f" stroke="#4a2f1a" stroke-width="2"/></svg>';
   }
 
+  /* =========================================================
+     チャンピオンシップ順位表
+     実際のF1と同じ配点（25-18-15-12-10-8-6-4-2-1）＋
+     10位以内で完走したファステストラップに +1
+     ========================================================= */
+  function standings(g) {
+    const rounds = g.results.filter(r => r.season === g.season);
+    let h = '<div class="sub">🏆 ドライバーズランキング</div>';
+
+    // ラウンドごとの獲得ポイントを名前で引けるようにする
+    const byRound = {};
+    rounds.forEach((r, i) => {
+      r.rows.forEach(row => {
+        byRound[row.name] = byRound[row.name] || [];
+        byRound[row.name][i] = { pts: row.pts, pos: row.pos, dnf: row.dnf, fl: row.fl };
+      });
+    });
+
+    const stats = {};
+    g.drivers.forEach(d => { stats[d.name] = d; });
+    g.rivals.forEach(t => t.drivers.forEach(d => { stats[d.name] = d; }));
+
+    const rows = S.driverTable(g);
+    h += '<div class="tablewrap"><table class="rank champ"><tr>' +
+      '<th>#</th><th>ドライバー</th><th>チーム</th><th title="優勝">🏆</th>' +
+      '<th title="表彰台">🥉</th><th title="ポールポジション">P</th>' +
+      '<th title="ファステストラップ">⚡</th><th>pt</th></tr>';
+    rows.forEach((r, i) => {
+      const d = stats[r.name] || {};
+      h += '<tr class="' + (r.isPlayer ? 'me' : '') + '"><td>' + (i + 1) + '</td>' +
+        '<td class="nm">' + esc(r.name) + '</td>' +
+        '<td><span class="rk-chip" style="background:' + r.color + '"></span>' + esc(r.team) + '</td>' +
+        '<td>' + (d.wins || 0) + '</td><td>' + (d.podiums || 0) + '</td>' +
+        '<td>' + (d.poles || 0) + '</td><td>' + (d.fastestLaps || 0) + '</td>' +
+        '<td class="pt">' + r.points + '</td></tr>';
+    });
+    h += '</table></div>';
+
+    h += '<div class="sub">🏭 コンストラクターズランキング</div>';
+    h += '<div class="tablewrap"><table class="rank champ"><tr><th>#</th><th>チーム</th><th>pt</th></tr>';
+    S.constructorTable(g).forEach((r, i) => {
+      h += '<tr class="' + (r.isPlayer ? 'me' : '') + '"><td>' + (i + 1) + '</td>' +
+        '<td class="nm"><span class="rk-chip" style="background:' + r.color + '"></span>' + esc(r.name) + '</td>' +
+        '<td class="pt">' + r.points + '</td></tr>';
+    });
+    h += '</table></div>';
+
+    // ラウンド別のポイント推移（上位ドライバーぶん）
+    if (rounds.length) {
+      h += '<div class="sub">📈 ラウンド別の獲得ポイント</div>';
+      h += '<div class="tablewrap"><table class="rank grid"><tr><th class="nm">ドライバー</th>';
+      rounds.forEach(r => { h += '<th title="' + esc(r.track) + '">R' + r.round + '</th>'; });
+      h += '<th>計</th></tr>';
+      rows.slice(0, 12).forEach(r => {
+        h += '<tr class="' + (r.isPlayer ? 'me' : '') + '"><td class="nm">' + esc(r.name) + '</td>';
+        rounds.forEach((rd, i) => {
+          const c = (byRound[r.name] || [])[i];
+          if (!c) { h += '<td class="dim">-</td>'; return; }
+          const cls = c.dnf ? 'dnf' : c.pos === 1 ? 'gold' : c.pos <= 3 ? 'pod' : c.pts ? 'pts' : 'dim';
+          h += '<td class="' + cls + '" title="' + (c.dnf ? 'リタイア' : c.pos + '位') +
+            (c.fl ? ' / ファステストラップ' : '') + '">' + (c.dnf ? '×' : (c.pts || '·')) + '</td>';
+        });
+        h += '<td class="pt">' + r.points + '</td></tr>';
+      });
+      h += '</table></div>';
+      h += '<p class="desc">セルの数字はその戦で得たポイント。🏆金＝優勝、緑＝表彰台、× はリタイア。</p>';
+    }
+    return h;
+  }
+
   /* ---------- 特別戦の招待カード ---------- */
   function specialCard(g, sp) {
     if (!sp || !g.special) return '';
@@ -386,5 +463,5 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, $ };
+           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, $ };
 })();

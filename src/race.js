@@ -239,16 +239,27 @@ GP.race = (function () {
     const diff = S.diffOf(g);
     let prize = 0, fanDelta = 0;
 
+    // ファステストラップは10位以内で完走した場合のみ1点（実際のF1と同じ扱い）
+    const flCar = res.fastestLap;
+    const flScores = !!(flCar && !flCar.dnf && flCar.pos <= D.POINTS.length);
+
     res.classified.forEach(e => {
-      const pts = (!e.dnf && e.pos <= D.POINTS.length) ? D.POINTS[e.pos - 1] : 0;
+      let pts = (!e.dnf && e.pos <= D.POINTS.length) ? D.POINTS[e.pos - 1] : 0;
+      const gotFL = flCar && e.id === flCar.id;
+      if (gotFL && flScores) pts += D.FASTEST_LAP_POINT;
       // 特別戦は選手権とは無関係。ポイントも通算成績も動かない
       e.points = sp ? 0 : pts;
+      e.flPoint = !sp && gotFL && flScores;
       if (!sp) {
         e.driver.seasonPoints += pts;
         e.driver.races++;
-        if (!e.dnf) {
+        if (e.grid === 1) e.driver.poles = (e.driver.poles || 0) + 1;
+        if (gotFL) e.driver.fastestLaps = (e.driver.fastestLaps || 0) + 1;
+        if (e.dnf) e.driver.dnfs = (e.driver.dnfs || 0) + 1;
+        else {
           if (e.pos === 1) e.driver.wins++;
           if (e.pos <= 3) e.driver.podiums++;
+          if (e.pos < (e.driver.best || 99)) e.driver.best = e.pos;
         }
       }
       // 結果を受けての調子の変化は全ドライバーに等しく起きる
@@ -275,10 +286,32 @@ GP.race = (function () {
       if (sp) fanDelta = Math.round(Math.max(0, fanDelta) * sp.fans + 60 * sp.fans);
     }
 
-    // スポンサー収入（特別戦は選手権外なので基本給のみ）
+    // ---- 注目度（露出）----
+    // 入賞できなくても、より上位でゴールすれば話題にはなる
+    let hypeDelta = 0;
+    res.classified.filter(e => e.isPlayer).forEach(e => {
+      if (e.dnf) { hypeDelta -= 2; return; }
+      hypeDelta += (D.HYPE_BY_POS[e.pos - 1] || 0.2);
+      if (e.grid === 1) hypeDelta += 3;                       // ポールポジション
+      if (e.flPoint || (res.fastestLap && res.fastestLap.id === e.id)) hypeDelta += 3;
+      const gained = e.grid - e.pos;
+      if (gained > 0) hypeDelta += Math.min(6, gained * 0.4); // 追い上げも評価される
+    });
+    if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
+    const beforeTier = S.hypeTier(g).name;
+    S.addHype(g, hypeDelta);
+    const afterTier = S.hypeTier(g).name;
+    if (afterTier !== beforeTier) {
+      notes.push('📣 メディアでの扱いが「' + afterTier + '」に変わった！ スポンサー収入が伸びる。');
+      res.hypeUp = afterTier;
+    }
+    res.hypeDelta = hypeDelta;
+
+    // スポンサー収入（注目度が高いほど増える。特別戦は選手権外なので基本給のみ）
+    const hb = S.hypeBonus(g);
     let sponsorIncome = 0;
     g.sponsors.forEach(s2 => {
-      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * (sp ? 0.4 : 1) * diff.sponsor;
+      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * hb * (sp ? 0.4 : 1) * diff.sponsor;
       if (!sp && best && !best.dnf && best.pos <= s2.need) {
         sponsorIncome += s2.bonus;
         notes.push('📣 ' + s2.name + ' の目標達成ボーナス！ +' + Math.round(s2.bonus) + '万');
@@ -321,7 +354,8 @@ GP.race = (function () {
       weather: res.weather.name,
       rows: res.classified.slice(0, 22).map(e => ({
         pos: e.pos, name: e.driver.name, team: e.team.name, color: e.color,
-        grid: e.grid, pts: e.points, dnf: e.dnf, isPlayer: e.isPlayer
+        grid: e.grid, pts: e.points, dnf: e.dnf, isPlayer: e.isPlayer,
+        fl: !!e.flPoint || !!(res.fastestLap && res.fastestLap.id === e.id)
       }))
     });
     return res.reward;
