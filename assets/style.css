@@ -156,6 +156,11 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hypebar b{display:block;height:100%;transition:width .4s}
 .hypebox{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;
          background:#fffdf3;border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
+.skind{font-style:normal;font-size:9px;border:1px solid var(--ink);border-radius:4px;
+       padding:0 5px;margin-left:5px;background:#e8dcc0}
+.skind.tech{background:#cfe0f8}
+.skind.media{background:#ffe0f0}
+.skind.mixed{background:#e0f4d8}
 .pickbtn.offer{border-color:#8a2f8a;box-shadow:0 3px 0 #8a2f8a;
                background:linear-gradient(#fff0ff,#f4dcf4);animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
 .gp-t .flp{font-style:normal;margin-left:3px}
@@ -170,6 +175,31 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .fin-row.cut{color:#2e8b30}
 .fin-row.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:3px;padding-top:4px;font-size:13px}
 .fin-row.total b{font-size:14px}
+
+/* ---------- 開発リソースの配分 ---------- */
+.focusrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.focusbtn{flex:1;min-width:104px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+          background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
+.focusbtn b{font-size:12px}
+.focusbtn small{font-size:9px;opacity:.75}
+.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
+         background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
+.nextcar i{flex:1;height:10px;background:#e9dcbc;border:2px solid var(--ink);border-radius:5px;overflow:hidden}
+.nextcar i b{display:block;height:100%;background:linear-gradient(#8ede6a,#4ea63f);transition:width .35s}
+.nextcar em{font-style:normal;font-weight:bold;width:36px;text-align:right}
+
+/* ---------- 車体 ---------- */
+.sub.small{font-size:11px;padding:1px 8px;margin:8px 0 4px}
+.bodyattrs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+       border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.battr span{width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.battr i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.battr i b{display:block;height:100%;transition:width .35s}
+.battr em{font-style:normal;width:44px;text-align:right;font-weight:bold}
+.battr em small{font-weight:normal;opacity:.6;font-size:8px}
 
 /* ---------- ERS ---------- */
 .ersrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;margin:6px 0;
@@ -535,8 +565,14 @@ body.preboot .topbar{visibility:hidden}
 .rv-head b{flex:1}
 .rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
-#raceCanvas{border:3px solid var(--ink);border-radius:8px;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
-            flex-shrink:0;max-width:100%;background:#7fbf5a}
+.rv-canvaswrap{position:relative;flex-shrink:0;max-width:100%}
+#raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
+            image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
+            max-width:100%;background:#7fbf5a}
+.rv-cam{position:absolute;right:6px;bottom:6px;display:flex;gap:4px}
+.rv-cam button{background:rgba(255,248,227,.9);border:2px solid var(--ink);border-radius:6px;
+               font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
+.rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
          border-radius:8px;overflow:hidden;background:#fffdf3;min-width:150px}
 .rv-order-h{background:var(--ink2);color:#ffeec4;font-size:11px;padding:2px 6px;flex-shrink:0}
@@ -637,7 +673,9 @@ body.preboot .topbar{visibility:hidden}
   #toastLayer{padding-top:calc(104px + env(safe-area-inset-top))}
   .numpop{top:calc(150px + env(safe-area-inset-top))}
   .rv-body{flex-direction:column;align-items:center}
+  .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
+  .rv-cam button{font-size:9px;padding:2px 5px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
   .sc-ty{width:64px}

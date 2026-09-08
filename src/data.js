@@ -152,6 +152,44 @@ GP.data = (function () {
     { key: 'boost',  name: '高出力',   icon: '🔥', desc: '最高速がさらに上がる' }
   ];
 
+  /* ---------- 車体（マシン本体）----------
+     パーツとは別に、車体そのものを1年かけて熟成させる。
+     新型マシンを作ると数値は上がるが、また育て直しになる            */
+  const BODY_ATTRS = [
+    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
+      desc: 'コーナー性能と信頼性が上がる',
+      gain: { speed: 0.00, corner: 0.52, accel: 0.00 } },
+    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
+      desc: '最高速と加速がまとめて上がる',
+      gain: { speed: 0.75, corner: 0.00, accel: 0.58 } },
+    { key: 'aeroBody', name: '空力コンセプト', icon: '🌬️', color: '#3a7ad9',
+      desc: 'コーナー性能が上がり、エアロパーツの効果も底上げされる',
+      gain: { speed: 0.00, corner: 0.75, accel: 0.00 } },
+    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
+      desc: '信頼性が上がり、バッテリーの回生量も増える',
+      gain: { speed: 0.00, corner: 0.00, accel: 0.18 } }
+  ];
+  /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
+  const BODY_CAP_RATIO = 0.35;
+  /* 新型を作ったとき、前の車体の知見をどれだけ引き継ぐか */
+  const BODY_CARRY = 0.50;
+
+  /* ---------- 開発リソースの配分 ----------
+     今シーズンの熟成に全振りするか、来季のマシンに前倒しで着手するか。
+     早く始めるほど来季が強くなるが、そのぶん今季の伸びが落ちる         */
+  const FOCUS_LEVELS = [
+    { key: 'now',   name: '今季に全力', icon: '🔥', next: 0.00, cur: 1.00,
+      desc: '来季の準備はしない。今季の伸びが最大' },
+    { key: 'mostly',name: '今季優先',   icon: '⚖️', next: 0.20, cur: 0.88,
+      desc: '少しだけ来季に手をつける' },
+    { key: 'half',  name: '半々',       icon: '🔀', next: 0.45, cur: 0.70,
+      desc: '今季と来季に半分ずつ' },
+    { key: 'next',  name: '来季優先',   icon: '🌱', next: 0.75, cur: 0.48,
+      desc: '今季は捨て気味。来季に大きく賭ける' }
+  ];
+  /* 蓄えた「来季ぶんの開発」が、翌シーズンの車体にどれだけ乗るか */
+  const CARRY_TO_NEXT = 0.55;
+
   /* ---------- マシンの世代（研究で開発）---------- */
   const CAR_GENS = [
     { name: 'MK-I',   cap: 30,  rp: 0,    cost: 0,     base: 0 },
@@ -220,7 +258,8 @@ GP.data = (function () {
 
   /* イージー専用の大口スポンサー */
   const OIL_SPONSOR = {
-    name: 'アル・ナジュム石油', icon: '🛢️', per: 1950, bonus: 6000, need: 6, fans: 0
+    name: 'アル・ナジュム石油', icon: '🛢️', kind: 'cash',
+    per: 1950, rp: 0, fan: 0, bonus: 6000, bonusRp: 0, need: 6, fans: 0, hype: 0
   };
 
   /* ---------- 才能（成長のしやすさ）---------- */
@@ -314,16 +353,40 @@ GP.data = (function () {
   /* ---------- スポンサー ---------- */
   /* fans はファン数、hype は注目度（露出）の必要値。
      大手ほど「話題になっているチーム」でないと相手にしてくれない        */
+  const SPONSOR_KINDS = {
+    cash:  { name: '現金型',   icon: '💰', desc: '毎戦まとまった資金が入る' },
+    tech:  { name: '技術提携', icon: '🔬', desc: '資金は少ないが、研究ポイントが大きく入る' },
+    mixed: { name: '複合型',   icon: '🔀', desc: '資金と研究ポイントの両方が入る' },
+    media: { name: '露出型',   icon: '📣', desc: '資金は控えめだが、ファンと注目度が伸びる' }
+  };
+
   const SPONSORS = [
-    { name: 'マメゾウ電機',     icon: '🔌', per: 340,  bonus: 1500,  need: 12, fans: 0,     hype: 0 },
-    { name: 'カメカメ運送',     icon: '📦', per: 450,  bonus: 2200,  need: 10, fans: 400,   hype: 8 },
-    { name: 'ホシノ製菓',       icon: '🍬', per: 610,  bonus: 3200,  need: 8,  fans: 1200,  hype: 18 },
-    { name: 'グリーンオイル',   icon: '🛢️', per: 880, bonus: 5000,  need: 6,  fans: 3000,  hype: 30 },
-    { name: 'ゼンリョク銀行',   icon: '🏦', per: 1280, bonus: 8000,  need: 5,  fans: 7000,  hype: 42 },
-    { name: 'ネクサス通信',     icon: '📡', per: 1840, bonus: 12000, need: 3,  fans: 14000, hype: 55 },
-    { name: 'オリオン航空',     icon: '✈️', per: 2720, bonus: 18000, need: 2,  fans: 26000, hype: 68 },
-    { name: 'ワールドテック',   icon: '🌐', per: 4000, bonus: 30000, need: 1,  fans: 45000, hype: 82 }
+    { name: 'マメゾウ電機',   icon: '🔌', kind: 'cash',  per: 340,  rp: 0,  fan: 0,
+      bonus: 1500,  bonusRp: 0,   need: 12, fans: 0,     hype: 0 },
+    { name: 'カメカメ運送',   icon: '📦', kind: 'cash',  per: 450,  rp: 0,  fan: 0,
+      bonus: 2200,  bonusRp: 0,   need: 10, fans: 400,   hype: 8 },
+    { name: 'テクノ理研',     icon: '🧪', kind: 'tech',  per: 120,  rp: 9,  fan: 0,
+      bonus: 400,   bonusRp: 26,  need: 10, fans: 300,   hype: 6 },
+    { name: 'ホシノ製菓',     icon: '🍬', kind: 'media', per: 420,  rp: 0,  fan: 130,
+      bonus: 1800,  bonusRp: 0,   need: 8,  fans: 1200,  hype: 18 },
+    { name: 'グリーンオイル', icon: '🛢️', kind: 'cash',  per: 880,  rp: 0,  fan: 0,
+      bonus: 5000,  bonusRp: 0,   need: 6,  fans: 3000,  hype: 30 },
+    { name: '未来重工',       icon: '⚙️', kind: 'tech',  per: 260,  rp: 20, fan: 0,
+      bonus: 900,   bonusRp: 60,  need: 6,  fans: 2500,  hype: 26 },
+    { name: 'ゼンリョク銀行', icon: '🏦', kind: 'cash',  per: 1280, rp: 0,  fan: 0,
+      bonus: 8000,  bonusRp: 0,   need: 5,  fans: 7000,  hype: 42 },
+    { name: 'ネクサス通信',   icon: '📡', kind: 'mixed', per: 900,  rp: 14, fan: 90,
+      bonus: 4200,  bonusRp: 40,  need: 3,  fans: 14000, hype: 55 },
+    { name: 'クオンタム研究所', icon: '🔭', kind: 'tech', per: 380,  rp: 38, fan: 0,
+      bonus: 1400,  bonusRp: 120, need: 4,  fans: 12000, hype: 52 },
+    { name: 'オリオン航空',   icon: '✈️', kind: 'media', per: 1500, rp: 0,  fan: 420,
+      bonus: 7000,  bonusRp: 0,   need: 2,  fans: 26000, hype: 68 },
+    { name: 'ワールドテック', icon: '🌐', kind: 'mixed', per: 1900, rp: 26, fan: 160,
+      bonus: 9000,  bonusRp: 80,  need: 1,  fans: 45000, hype: 82 }
   ];
+
+  /* 目標達成ボーナスは、1シーズンにこの回数まで（契約上の上限） */
+  const SPONSOR_BONUS_CAP = 3;
 
   /* ---------- 注目度（メディア露出）---------- */
   const HYPE_TIERS = [
@@ -456,6 +519,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+  return { SPONSOR_BONUS_CAP, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

@@ -7,7 +7,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
-  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
+  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -378,10 +378,87 @@ GP.raceview = (function () {
     return 'rgb(' + f((n >> 16) & 255) + ',' + f((n >> 8) & 255) + ',' + f(n & 255) + ')';
   }
 
+  /* =========================================================
+     カメラ
+     全体を見せるモードと、注目している車に寄るモードを持ち、
+     切り替えは滑らかに補間する
+     ========================================================= */
+  let cam = { x: 0, y: 0, z: 1, tx: 0, ty: 0, tz: 1, mode: 'auto', focusId: null, label: '' };
+
+  function setCamMode(m) {
+    cam.mode = m;
+    const bar = document.getElementById('rvCam');
+    if (bar) Array.prototype.forEach.call(bar.children, b => b.classList.toggle('on', b.dataset.cam === m));
+  }
+
+  /* いま寄るべき相手を決める */
+  function pickFocus(t) {
+    const ord = orderAt(t);
+    const alive = ord.filter(o => !o.out);
+    if (!alive.length) return null;
+    const mine = alive.filter(o => o.e.isPlayer);
+
+    if (cam.mode === 'wide') return null;
+    if (cam.mode === 'mine') return mine.length ? { list: mine.slice(0, 2), label: 'マイチーム' } : null;
+
+    // auto：自チームが誰かと接近していればそのバトル、いなければ先頭争い
+    for (let i = 0; i < alive.length; i++) {
+      if (!alive[i].e.isPlayer) continue;
+      const near = [];
+      if (i > 0) near.push(alive[i - 1]);
+      near.push(alive[i]);
+      if (i < alive.length - 1) near.push(alive[i + 1]);
+      const spread = Math.abs(near[0].p - near[near.length - 1].p) * res.track.base;
+      if (near.length > 1 && spread < 2.2) {
+        return { list: near, label: '⚔️ ' + alive[i].e.driver.name + ' のバトル' };
+      }
+    }
+    const lead = alive.slice(0, 2);
+    const gap = lead.length > 1 ? Math.abs(lead[0].p - lead[1].p) * res.track.base : 99;
+    if (gap < 2.0) return { list: lead, label: '⚔️ 首位争い' };
+    return mine.length ? { list: mine.slice(0, 1), label: mine[0].e.driver.name } : { list: lead.slice(0, 1), label: '先頭' };
+  }
+
+  /* カメラの目標位置を更新する */
+  function updateCam(t) {
+    const f = pickFocus(t);
+    cam.label = f ? f.label : '';
+    if (!f) { cam.tx = cv.width / 2; cam.ty = cv.height / 2; cam.tz = 1; }
+    else {
+      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      f.list.forEach(o => {
+        const pt = placeInLap(o.e, o.p);
+        minX = Math.min(minX, pt.x); maxX = Math.max(maxX, pt.x);
+        minY = Math.min(minY, pt.y); maxY = Math.max(maxY, pt.y);
+      });
+      const pad = 90;
+      const w = Math.max(160, maxX - minX + pad * 2), h = Math.max(120, maxY - minY + pad * 2);
+      cam.tx = (minX + maxX) / 2; cam.ty = (minY + maxY) / 2;
+      cam.tz = Math.max(1, Math.min(2.6, Math.min(cv.width / w, cv.height / h)));
+    }
+    // 滑らかに追従する
+    const k = 0.07;
+    cam.x += (cam.tx - cam.x) * k;
+    cam.y += (cam.ty - cam.y) * k;
+    cam.z += (cam.tz - cam.z) * k;
+    // 画面の外が映らないように寄せる
+    const halfW = cv.width / (2 * cam.z), halfH = cv.height / (2 * cam.z);
+    cam.x = Math.max(halfW, Math.min(cv.width - halfW, cam.x));
+    cam.y = Math.max(halfH, Math.min(cv.height - halfH, cam.y));
+  }
+
   /* ---------- 毎フレームの描画 ---------- */
   function draw(t) {
     const w = cv.width, h = cv.height;
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
+
+    updateCam(t);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(cam.z, cam.z);
+    ctx.translate(-cam.x, -cam.y);
 
     if (trackArt) ctx.drawImage(trackArt, 0, 0); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
 
@@ -407,18 +484,62 @@ GP.raceview = (function () {
         const px = nm.x + nm.nx * pit.side * 20, py = nm.y + nm.ny * pit.side * 20;
         const ang = Math.atan2(nm.dy, nm.dx);
         drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
-        // 作業中の目印
+        // 作業中のクルーと、残り時間
+        const li = lapInfo(e, t);
+        const pt = (e.pitTime || [])[li.lap - 1] || 1;
+        const left = Math.max(0, li.lapTime - li.into);
         ctx.save();
-        ctx.translate(px, py - 12);
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+        // タイヤを換えるクルー（4隅で動く）
+        for (let c2 = 0; c2 < 4; c2++) {
+          const sx = (c2 < 2 ? -5 : 5), sy = (c2 % 2 ? 7 : -7);
+          const bob = Math.sin(t * 14 + c2) * 1.4;
+          ctx.fillStyle = '#2b2b33'; ctx.fillRect(sx - 2, sy + bob - 2, 4, 5);
+          ctx.fillStyle = e.color; ctx.fillRect(sx - 2, sy + bob - 4, 4, 2);
+        }
+        ctx.fillStyle = '#2b2b33'; ctx.fillRect(-11, -3, 4, 6);   // ジャッキ担当
+        ctx.restore();
+        ctx.save();
+        ctx.translate(px, py - 13);
         ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
-        ctx.fillRect(-7, -6, 14, 10); ctx.strokeRect(-7, -6, 14, 10);
-        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('PIT', 0, 2);
+        ctx.fillRect(-13, -7, 26, 12); ctx.strokeRect(-13, -7, 26, 12);
+        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('PIT ' + left.toFixed(1), 0, 2);
         ctx.restore();
         continue;
       }
       const pt2 = placeInLap(e, o.p);
       drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
+    }
+    ctx.restore();
+    drawOverlay(t);
+  }
+
+  /* ---------- 画面に重ねる情報 ---------- */
+  function drawOverlay(t) {
+    const w = cv.width;
+    // いま何を映しているか
+    if (cam.label) {
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+      const tw = ctx.measureText(cam.label).width + 14;
+      ctx.fillStyle = 'rgba(40,24,10,.78)';
+      ctx.fillRect(8, 8, tw, 20);
+      ctx.fillStyle = '#ffeec4';
+      ctx.fillText(cam.label, 15, 22);
+    }
+    // 最終ラップ
+    const leader = orderAt(t).filter(o => !o.out)[0];
+    if (leader) {
+      const lap = Math.min(res.laps, Math.floor(leader.p) + 1);
+      if (lap >= res.laps) {
+        const a = 0.65 + Math.sin(t * 4) * 0.35;
+        ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(40,24,10,.7)';
+        ctx.fillRect(w / 2 - 82, 6, 164, 28);
+        ctx.fillStyle = 'rgba(255,243,77,' + a.toFixed(2) + ')';
+        ctx.fillText('FINAL LAP', w / 2, 28);
+      }
     }
   }
 
@@ -499,7 +620,17 @@ GP.raceview = (function () {
     }
     // speed は「レース全体を何秒で見せるか」。実時間に対する倍率をそこから出す
     vt += dt * (duration / speed);
-    if (vt >= duration) { vt = duration; running = false; draw(vt); updateHud(); flushEvents(true); finish(); return; }
+    if (vt >= duration) {
+      vt = duration; draw(vt); updateHud(); flushEvents(true);
+      // チェッカーフラッグの演出をひと呼吸だけ見せる
+      if (chequer < 1) {
+        chequer = Math.min(1, chequer + dt / 1.6);
+        drawChequer(chequer);
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      running = false; finish(); return;
+    }
     draw(vt);
     updateHud();
     raf = requestAnimationFrame(tick);
@@ -678,22 +809,53 @@ GP.raceview = (function () {
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
+    cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
+            mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0;
+    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
   function skip() {
-    running = false; lights = 1;
+    running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
     vt = duration;
     draw(vt); updateHud(); flushEvents(true); finish();
   }
 
+  /* ---------- チェッカーフラッグ ---------- */
+  function drawChequer(p) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = 'rgba(20,12,6,' + (0.35 * Math.min(1, p * 3)).toFixed(2) + ')';
+    ctx.fillRect(0, 0, w, h);
+    // 旗が振られる
+    const sway = Math.sin(p * 22) * 6;
+    const cx = w / 2, cy = h / 2 - 10;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(sway * Math.PI / 180);
+    const sq = 11;
+    for (let r = 0; r < 5; r++) for (let c2 = 0; c2 < 7; c2++) {
+      ctx.fillStyle = ((r + c2) % 2) ? '#2b1c0e' : '#fffdf3';
+      ctx.fillRect(-7 * sq / 2 + c2 * sq, -5 * sq / 2 + r * sq + Math.sin(p * 18 + c2) * 2, sq, sq);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#7a6a52'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
+    if (p > 0.35) {
+      ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeText('FINISH!', cx, cy + 5 * sq / 2 + 40);
+      ctx.fillStyle = '#fff34d';
+      ctx.fillText('FINISH!', cx, cy + 5 * sq / 2 + 40);
+    }
+  }
+
   /* ---------- スタートシグナル ---------- */
   let lightBeeps = 0;
   function drawLights(p) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     const w = cv.width;
     const cxl = w / 2, cy = 46;
     const on = Math.min(5, Math.floor(p * 6.2));      // 5つ順に点灯
@@ -729,5 +891,5 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, smoothPath };
+  return { start, setSpeed, skip, stop, setCamMode };
 })();

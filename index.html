@@ -109,7 +109,14 @@
       <span id="rvLap">LAP 1 / 1</span>
     </div>
     <div class="rv-body">
-      <canvas id="raceCanvas" width="560" height="400"></canvas>
+      <div class="rv-canvaswrap">
+        <canvas id="raceCanvas" width="560" height="400"></canvas>
+        <div id="rvCam" class="rv-cam">
+          <button data-cam="auto" class="on">🎬 おまかせ</button>
+          <button data-cam="mine">🚩 自チーム</button>
+          <button data-cam="wide">🗺️ 全体</button>
+        </div>
+      </div>
       <div class="rv-side">
         <div class="rv-order-h">順位</div>
         <div id="rvOrder" class="rv-order"></div>

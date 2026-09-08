@@ -401,17 +401,30 @@ GP.race = (function () {
     }
     res.hypeDelta = hypeDelta;
 
-    // スポンサー収入（注目度が高いほど増える。特別戦は選手権外なので基本給のみ）
+    // スポンサー報酬（種別によって資金・研究P・ファンのどれが入るかが変わる）
     const hb = S.hypeBonus(g) * (1 + S.mgr(g, 'principal') * 0.006);
-    let sponsorIncome = 0;
+    const spScale = (1 + g.facilities.market * 0.07) * hb * (sp ? 0.4 : 1) * diff.sponsor;
+    let sponsorIncome = 0, sponsorRp = 0, sponsorFans = 0;
     g.sponsors.forEach(s2 => {
-      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * hb * (sp ? 0.4 : 1) * diff.sponsor;
-      if (!sp && best && !best.dnf && best.pos <= s2.need) {
-        sponsorIncome += s2.bonus;
-        notes.push('📣 ' + s2.name + ' の目標達成ボーナス！ +' + Math.round(s2.bonus) + '万');
+      sponsorIncome += (s2.per || 0) * spScale;
+      sponsorRp     += (s2.rp || 0) * spScale;
+      sponsorFans   += (s2.fan || 0) * spScale;
+      // 達成ボーナスは契約上、シーズンあたりの回数に上限がある
+      const hits = s2.hits || 0;
+      if (!sp && best && !best.dnf && best.pos <= s2.need && hits < D.SPONSOR_BONUS_CAP) {
+        s2.hits = hits + 1;
+        sponsorIncome += (s2.bonus || 0);
+        sponsorRp += (s2.bonusRp || 0);
+        const kind = D.SPONSOR_KINDS[s2.kind] || D.SPONSOR_KINDS.cash;
+        notes.push(kind.icon + ' ' + s2.name + ' の目標達成ボーナス！ +' +
+          Math.round(s2.bonus || 0) + '万' + (s2.bonusRp ? ' / 研究P +' + s2.bonusRp : '') +
+          '（今季 ' + s2.hits + '/' + D.SPONSOR_BONUS_CAP + '回目）');
       }
     });
     sponsorIncome = Math.round(sponsorIncome);
+    sponsorRp = Math.round(sponsorRp);
+    sponsorFans = Math.round(sponsorFans);
+    fanDelta += sponsorFans;
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
@@ -440,9 +453,9 @@ GP.race = (function () {
 
     g.funds += prize + sponsorIncome;
     g.fans = Math.max(0, g.fans + fanDelta);
-    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2);
+    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, fanDelta, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,

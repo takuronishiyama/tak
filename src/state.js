@@ -6,7 +6,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v5';
+  const SAVE_KEY = 'gp_monogatari_save_v6';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -200,19 +200,64 @@ GP.state = (function () {
   /* ---------- マシン性能の導出（装着パーツ＋マシン世代のベース）---------- */
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
+    // 空力コンセプトが良いほど、エアロパーツの効きも上がる
+    const aeroBoost = 1 + bodyVal(g, 'aeroBody') * 0.004;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
       const ps = partStats(p);
       // コンディションが落ちたパーツは本来の性能を出しきれない
-      const f = 0.82 + p.cond / 100 * 0.18;
+      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1);
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
     });
-    const base = D.CAR_GENS[g.carGen].base;
-    s.speed += base; s.corner += base; s.accel += base;
+    // 車体そのものが生む性能
+    const bs = bodyStats(g);
+    s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
     return s;
+  }
+
+  /* =======================================================
+     車体（マシン本体）
+     ======================================================= */
+  function bodyCap(g2) {
+    return Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
+  }
+  /* 新しい車体を作る。前の知見を一部引き継ぐ */
+  function makeBody(g2, prev, stock) {
+    const cap = Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
+    const b = { cond: 100 };
+    // 事前に積み上げてあった「来季ぶんの開発」を4項目に振り分ける
+    const advance = (stock || 0) * D.CARRY_TO_NEXT / D.BODY_ATTRS.length;
+    D.BODY_ATTRS.forEach(a => {
+      const carried = prev ? prev[a.key] * D.BODY_CARRY : 0;
+      b[a.key] = Math.round(Math.min(cap, Math.max(cap * 0.15, carried) + advance) * 10) / 10;
+    });
+    return b;
+  }
+  /* 車体が生む3性能 */
+  function bodyStats(g2) {
+    const s = { speed: 0, corner: 0, accel: 0 };
+    const b = g2.body || {};
+    D.BODY_ATTRS.forEach(a => {
+      const v = b[a.key] || 0;
+      s.speed += v * a.gain.speed;
+      s.corner += v * a.gain.corner;
+      s.accel += v * a.gain.accel;
+    });
+    return s;
+  }
+  const bodyVal = (g2, key) => (g2.body && g2.body[key]) || 0;
+
+  /* 開発リソースの配分 */
+  function focusOf(g2) {
+    return D.FOCUS_LEVELS.find(f => f.key === (g2.focus || 'now')) || D.FOCUS_LEVELS[0];
+  }
+  /* 来季マシンの仕上がり具合（0-100%）。次の車体の初期値に乗る */
+  function nextCarProgress(g2) {
+    const cap = Math.round(D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen + 1)].cap * D.BODY_CAP_RATIO);
+    return Math.max(0, Math.min(1, (g2.nextCar || 0) / (cap * 4)));
   }
 
   /* ---------- ERS（バッテリー）----------
@@ -220,8 +265,8 @@ GP.state = (function () {
   function ersOf(g2) {
     const p = g2.equipped && g2.equipped.elec;
     const pw = p ? p.power * (0.82 + p.cond / 100 * 0.18) : 10;
-    const genB = D.CAR_GENS[g2.carGen] ? D.CAR_GENS[g2.carGen].base : 0;
-    return ersFrom(pw + genB * 0.5);
+    // 冷却が良いほど電気を多く回せる
+    return ersFrom(pw + bodyVal(g2, 'cooling') * 0.45);
   }
   function ersFrom(power) {
     const E = D.ERS;
@@ -244,7 +289,8 @@ GP.state = (function () {
       if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
-    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
+    const bodyRel = (bodyVal(g, 'rigidity') + bodyVal(g, 'cooling')) * 0.11;
+    return clamp(avg + bonus + bodyRel + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
@@ -328,8 +374,9 @@ GP.state = (function () {
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
-    const perRace = Math.round(g2.sponsors.reduce((a, sp) =>
-      a + sp.per * (1 + g2.facilities.market * 0.12) * boost * diff.sponsor, 0));
+    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor;
+    const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
+    const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
     const PREP = raceWeek(0);                       // レース1回あたりの週数
     return {
@@ -337,6 +384,7 @@ GP.state = (function () {
       facilities: facilities, other: other, cut: cut,
       weekly: weekly,
       sponsorPerRace: perRace,
+      sponsorRpPerRace: rpRace,
       // レース1回ぶん（準備週＋レース週）の収支
       cycleCost: weekly * PREP,
       cycleIncome: perRace,
@@ -383,7 +431,7 @@ GP.state = (function () {
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 5,
+      version: 6,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
@@ -402,6 +450,9 @@ GP.state = (function () {
       titles: { drivers: 0, teams: 0 },
       history: [],
       carGen: 0,
+      body: null,
+      focus: 'now',         // 開発リソースの配分
+      nextCar: 0,           // 来季マシンに積み上げた開発量
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       standings: [], results: [],
       log: [],
@@ -409,6 +460,7 @@ GP.state = (function () {
       trainedThisWeek: false
     };
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1, { power: 10, cond: 92, traits: [] }); });
+    g.body = makeBody(g, null);
     D.FACILITIES.forEach(f => { g.facilities[f.key] = 1; });
 
     resetNames([]);
@@ -494,6 +546,30 @@ GP.state = (function () {
     return d;
   }
 
+  /* ---------- 契約更改（シーズン明け）----------
+     活躍した人ほど報酬を要求する。強くなるほど維持費が重くなり、
+     勝ち続けても資金が無限には積み上がらないようにする              */
+  function renegotiate(g2, rank) {
+    const scale = D.FACILITIES.reduce((a, f) => a + (g2.facilities[f.key] || 1), 0);
+    // チームが大きく、順位が良いほど要求は強くなる
+    const teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
+                       + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    const notes = [];
+    g2.drivers.forEach(d => {
+      // 本人の成績ぶん
+      const own = 1 + Math.min(0.45, d.seasonPoints * 0.0022) + d.wins * 0.03;
+      const before = d.salary;
+      d.salary = Math.round(d.salary * Math.min(1.65, teamPull * own));
+      if (d.salary > before) notes.push(d.name + ' ' + before + '→' + d.salary + '万');
+    });
+    g2.staff.forEach(st => { st.salary = Math.round(st.salary * Math.min(1.35, teamPull)); });
+    D.MANAGERS.forEach(m => {
+      const cur = g2.managers && g2.managers[m.key];
+      if (cur) cur.salary = Math.round(cur.salary * Math.min(1.40, teamPull));
+    });
+    return notes;
+  }
+
   /* ---------- スタッフの成長（シーズン明け）---------- */
   function growStaff(g) {
     const grown = [];
@@ -565,7 +641,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 5) ? g : null;
+      return (g && g.version === 6) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -573,9 +649,10 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
-    diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
+    diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
     makeManager, mgr, finances, ersOf, ersFrom,
+    bodyCap, makeBody, bodyStats, bodyVal, focusOf, nextCarProgress,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

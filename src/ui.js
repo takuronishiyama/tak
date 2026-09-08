@@ -143,6 +143,16 @@ GP.ui = (function () {
           '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
     const ers = S.ersOf(g);
+    const cap = S.bodyCap(g);
+    let bodyRows = '';
+    D.BODY_ATTRS.forEach(a => {
+      const v = (g.body && g.body[a.key]) || 0;
+      const pct = Math.min(100, v / cap * 100);
+      bodyRows += '<div class="battr" title="' + esc(a.desc) + '">' +
+        '<span>' + a.icon + a.name + '</span>' +
+        '<i><b style="width:' + pct + '%;background:' + a.color + '"></b></i>' +
+        '<em>' + (Math.round(v * 10) / 10) + '<small>/' + cap + '</small></em></div>';
+    });
     return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
@@ -152,6 +162,8 @@ GP.ui = (function () {
       '<em>放電 <b>' + ers.deploy + '</b>/周</em></div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
+      '<div class="sub small">車体の熟成</div><div class="bodyattrs">' + bodyRows + '</div>' +
+      '<div class="sub small">装着パーツ</div>' +
       '<div class="parts">' + parts + '</div>' +
       (g.inventory.length ? '<div class="invnote">📦 保管パーツ ' + g.inventory.length + ' 個（「マシン」で装着・合成）</div>' : '') +
       '</div></div>';
@@ -287,7 +299,13 @@ GP.ui = (function () {
       });
       h += '</div>';
       h += '<div class="spons"><div class="sub">スポンサー</div>';
-      g.sponsors.forEach(s => { h += '<div class="spon">' + s.icon + ' ' + esc(s.name) + '<em>' + money(s.per) + '万/戦</em></div>'; });
+      g.sponsors.forEach(s => {
+        const bits = [];
+        if (s.per) bits.push('💰' + money(s.per));
+        if (s.rp) bits.push('🔬' + s.rp);
+        if (s.fan) bits.push('👥' + money(s.fan));
+        h += '<div class="spon">' + s.icon + ' ' + esc(s.name) + '<em>' + bits.join(' ') + '</em></div>';
+      });
       h += '</div>';
     }
     h += '</div>';
@@ -365,6 +383,7 @@ GP.ui = (function () {
     h += '<div class="fin-row total"><span>合計</span><b>' + money(f.weekly) + '万 / 週</b></div>' +
       '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
       '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
+      (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost) + '</b></div>' +
       '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
       (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +

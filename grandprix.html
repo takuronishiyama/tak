@@ -171,6 +171,11 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hypebar b{display:block;height:100%;transition:width .4s}
 .hypebox{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;
          background:#fffdf3;border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
+.skind{font-style:normal;font-size:9px;border:1px solid var(--ink);border-radius:4px;
+       padding:0 5px;margin-left:5px;background:#e8dcc0}
+.skind.tech{background:#cfe0f8}
+.skind.media{background:#ffe0f0}
+.skind.mixed{background:#e0f4d8}
 .pickbtn.offer{border-color:#8a2f8a;box-shadow:0 3px 0 #8a2f8a;
                background:linear-gradient(#fff0ff,#f4dcf4);animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
 .gp-t .flp{font-style:normal;margin-left:3px}
@@ -185,6 +190,31 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .fin-row.cut{color:#2e8b30}
 .fin-row.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:3px;padding-top:4px;font-size:13px}
 .fin-row.total b{font-size:14px}
+
+/* ---------- 開発リソースの配分 ---------- */
+.focusrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.focusbtn{flex:1;min-width:104px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+          background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
+.focusbtn b{font-size:12px}
+.focusbtn small{font-size:9px;opacity:.75}
+.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
+         background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
+.nextcar i{flex:1;height:10px;background:#e9dcbc;border:2px solid var(--ink);border-radius:5px;overflow:hidden}
+.nextcar i b{display:block;height:100%;background:linear-gradient(#8ede6a,#4ea63f);transition:width .35s}
+.nextcar em{font-style:normal;font-weight:bold;width:36px;text-align:right}
+
+/* ---------- 車体 ---------- */
+.sub.small{font-size:11px;padding:1px 8px;margin:8px 0 4px}
+.bodyattrs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+       border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.battr span{width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.battr i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.battr i b{display:block;height:100%;transition:width .35s}
+.battr em{font-style:normal;width:44px;text-align:right;font-weight:bold}
+.battr em small{font-weight:normal;opacity:.6;font-size:8px}
 
 /* ---------- ERS ---------- */
 .ersrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;margin:6px 0;
@@ -550,8 +580,14 @@ body.preboot .topbar{visibility:hidden}
 .rv-head b{flex:1}
 .rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
-#raceCanvas{border:3px solid var(--ink);border-radius:8px;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
-            flex-shrink:0;max-width:100%;background:#7fbf5a}
+.rv-canvaswrap{position:relative;flex-shrink:0;max-width:100%}
+#raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
+            image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
+            max-width:100%;background:#7fbf5a}
+.rv-cam{position:absolute;right:6px;bottom:6px;display:flex;gap:4px}
+.rv-cam button{background:rgba(255,248,227,.9);border:2px solid var(--ink);border-radius:6px;
+               font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
+.rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
          border-radius:8px;overflow:hidden;background:#fffdf3;min-width:150px}
 .rv-order-h{background:var(--ink2);color:#ffeec4;font-size:11px;padding:2px 6px;flex-shrink:0}
@@ -652,7 +688,9 @@ body.preboot .topbar{visibility:hidden}
   #toastLayer{padding-top:calc(104px + env(safe-area-inset-top))}
   .numpop{top:calc(150px + env(safe-area-inset-top))}
   .rv-body{flex-direction:column;align-items:center}
+  .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
+  .rv-cam button{font-size:9px;padding:2px 5px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
   .sc-ty{width:64px}
@@ -764,7 +802,14 @@ body.preboot .topbar{visibility:hidden}
       <span id="rvLap">LAP 1 / 1</span>
     </div>
     <div class="rv-body">
-      <canvas id="raceCanvas" width="560" height="400"></canvas>
+      <div class="rv-canvaswrap">
+        <canvas id="raceCanvas" width="560" height="400"></canvas>
+        <div id="rvCam" class="rv-cam">
+          <button data-cam="auto" class="on">🎬 おまかせ</button>
+          <button data-cam="mine">🚩 自チーム</button>
+          <button data-cam="wide">🗺️ 全体</button>
+        </div>
+      </div>
       <div class="rv-side">
         <div class="rv-order-h">順位</div>
         <div id="rvOrder" class="rv-order"></div>
@@ -1075,6 +1120,44 @@ GP.data = (function () {
     { key: 'boost',  name: '高出力',   icon: '🔥', desc: '最高速がさらに上がる' }
   ];
 
+  /* ---------- 車体（マシン本体）----------
+     パーツとは別に、車体そのものを1年かけて熟成させる。
+     新型マシンを作ると数値は上がるが、また育て直しになる            */
+  const BODY_ATTRS = [
+    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
+      desc: 'コーナー性能と信頼性が上がる',
+      gain: { speed: 0.00, corner: 0.52, accel: 0.00 } },
+    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
+      desc: '最高速と加速がまとめて上がる',
+      gain: { speed: 0.75, corner: 0.00, accel: 0.58 } },
+    { key: 'aeroBody', name: '空力コンセプト', icon: '🌬️', color: '#3a7ad9',
+      desc: 'コーナー性能が上がり、エアロパーツの効果も底上げされる',
+      gain: { speed: 0.00, corner: 0.75, accel: 0.00 } },
+    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
+      desc: '信頼性が上がり、バッテリーの回生量も増える',
+      gain: { speed: 0.00, corner: 0.00, accel: 0.18 } }
+  ];
+  /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
+  const BODY_CAP_RATIO = 0.35;
+  /* 新型を作ったとき、前の車体の知見をどれだけ引き継ぐか */
+  const BODY_CARRY = 0.50;
+
+  /* ---------- 開発リソースの配分 ----------
+     今シーズンの熟成に全振りするか、来季のマシンに前倒しで着手するか。
+     早く始めるほど来季が強くなるが、そのぶん今季の伸びが落ちる         */
+  const FOCUS_LEVELS = [
+    { key: 'now',   name: '今季に全力', icon: '🔥', next: 0.00, cur: 1.00,
+      desc: '来季の準備はしない。今季の伸びが最大' },
+    { key: 'mostly',name: '今季優先',   icon: '⚖️', next: 0.20, cur: 0.88,
+      desc: '少しだけ来季に手をつける' },
+    { key: 'half',  name: '半々',       icon: '🔀', next: 0.45, cur: 0.70,
+      desc: '今季と来季に半分ずつ' },
+    { key: 'next',  name: '来季優先',   icon: '🌱', next: 0.75, cur: 0.48,
+      desc: '今季は捨て気味。来季に大きく賭ける' }
+  ];
+  /* 蓄えた「来季ぶんの開発」が、翌シーズンの車体にどれだけ乗るか */
+  const CARRY_TO_NEXT = 0.55;
+
   /* ---------- マシンの世代（研究で開発）---------- */
   const CAR_GENS = [
     { name: 'MK-I',   cap: 30,  rp: 0,    cost: 0,     base: 0 },
@@ -1143,7 +1226,8 @@ GP.data = (function () {
 
   /* イージー専用の大口スポンサー */
   const OIL_SPONSOR = {
-    name: 'アル・ナジュム石油', icon: '🛢️', per: 1950, bonus: 6000, need: 6, fans: 0
+    name: 'アル・ナジュム石油', icon: '🛢️', kind: 'cash',
+    per: 1950, rp: 0, fan: 0, bonus: 6000, bonusRp: 0, need: 6, fans: 0, hype: 0
   };
 
   /* ---------- 才能（成長のしやすさ）---------- */
@@ -1237,16 +1321,40 @@ GP.data = (function () {
   /* ---------- スポンサー ---------- */
   /* fans はファン数、hype は注目度（露出）の必要値。
      大手ほど「話題になっているチーム」でないと相手にしてくれない        */
+  const SPONSOR_KINDS = {
+    cash:  { name: '現金型',   icon: '💰', desc: '毎戦まとまった資金が入る' },
+    tech:  { name: '技術提携', icon: '🔬', desc: '資金は少ないが、研究ポイントが大きく入る' },
+    mixed: { name: '複合型',   icon: '🔀', desc: '資金と研究ポイントの両方が入る' },
+    media: { name: '露出型',   icon: '📣', desc: '資金は控えめだが、ファンと注目度が伸びる' }
+  };
+
   const SPONSORS = [
-    { name: 'マメゾウ電機',     icon: '🔌', per: 340,  bonus: 1500,  need: 12, fans: 0,     hype: 0 },
-    { name: 'カメカメ運送',     icon: '📦', per: 450,  bonus: 2200,  need: 10, fans: 400,   hype: 8 },
-    { name: 'ホシノ製菓',       icon: '🍬', per: 610,  bonus: 3200,  need: 8,  fans: 1200,  hype: 18 },
-    { name: 'グリーンオイル',   icon: '🛢️', per: 880, bonus: 5000,  need: 6,  fans: 3000,  hype: 30 },
-    { name: 'ゼンリョク銀行',   icon: '🏦', per: 1280, bonus: 8000,  need: 5,  fans: 7000,  hype: 42 },
-    { name: 'ネクサス通信',     icon: '📡', per: 1840, bonus: 12000, need: 3,  fans: 14000, hype: 55 },
-    { name: 'オリオン航空',     icon: '✈️', per: 2720, bonus: 18000, need: 2,  fans: 26000, hype: 68 },
-    { name: 'ワールドテック',   icon: '🌐', per: 4000, bonus: 30000, need: 1,  fans: 45000, hype: 82 }
+    { name: 'マメゾウ電機',   icon: '🔌', kind: 'cash',  per: 340,  rp: 0,  fan: 0,
+      bonus: 1500,  bonusRp: 0,   need: 12, fans: 0,     hype: 0 },
+    { name: 'カメカメ運送',   icon: '📦', kind: 'cash',  per: 450,  rp: 0,  fan: 0,
+      bonus: 2200,  bonusRp: 0,   need: 10, fans: 400,   hype: 8 },
+    { name: 'テクノ理研',     icon: '🧪', kind: 'tech',  per: 120,  rp: 9,  fan: 0,
+      bonus: 400,   bonusRp: 26,  need: 10, fans: 300,   hype: 6 },
+    { name: 'ホシノ製菓',     icon: '🍬', kind: 'media', per: 420,  rp: 0,  fan: 130,
+      bonus: 1800,  bonusRp: 0,   need: 8,  fans: 1200,  hype: 18 },
+    { name: 'グリーンオイル', icon: '🛢️', kind: 'cash',  per: 880,  rp: 0,  fan: 0,
+      bonus: 5000,  bonusRp: 0,   need: 6,  fans: 3000,  hype: 30 },
+    { name: '未来重工',       icon: '⚙️', kind: 'tech',  per: 260,  rp: 20, fan: 0,
+      bonus: 900,   bonusRp: 60,  need: 6,  fans: 2500,  hype: 26 },
+    { name: 'ゼンリョク銀行', icon: '🏦', kind: 'cash',  per: 1280, rp: 0,  fan: 0,
+      bonus: 8000,  bonusRp: 0,   need: 5,  fans: 7000,  hype: 42 },
+    { name: 'ネクサス通信',   icon: '📡', kind: 'mixed', per: 900,  rp: 14, fan: 90,
+      bonus: 4200,  bonusRp: 40,  need: 3,  fans: 14000, hype: 55 },
+    { name: 'クオンタム研究所', icon: '🔭', kind: 'tech', per: 380,  rp: 38, fan: 0,
+      bonus: 1400,  bonusRp: 120, need: 4,  fans: 12000, hype: 52 },
+    { name: 'オリオン航空',   icon: '✈️', kind: 'media', per: 1500, rp: 0,  fan: 420,
+      bonus: 7000,  bonusRp: 0,   need: 2,  fans: 26000, hype: 68 },
+    { name: 'ワールドテック', icon: '🌐', kind: 'mixed', per: 1900, rp: 26, fan: 160,
+      bonus: 9000,  bonusRp: 80,  need: 1,  fans: 45000, hype: 82 }
   ];
+
+  /* 目標達成ボーナスは、1シーズンにこの回数まで（契約上の上限） */
+  const SPONSOR_BONUS_CAP = 3;
 
   /* ---------- 注目度（メディア露出）---------- */
   const HYPE_TIERS = [
@@ -1379,8 +1487,9 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+  return { SPONSOR_BONUS_CAP, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
 
 </script>
@@ -1599,7 +1708,7 @@ window.GP = window.GP || {};
 GP.state = (function () {
   'use strict';
   const D = GP.data;
-  const SAVE_KEY = 'gp_monogatari_save_v5';
+  const SAVE_KEY = 'gp_monogatari_save_v6';
 
   /* ---------- 乱数ユーティリティ ---------- */
   const rnd  = (a, b) => a + Math.random() * (b - a);
@@ -1793,19 +1902,64 @@ GP.state = (function () {
   /* ---------- マシン性能の導出（装着パーツ＋マシン世代のベース）---------- */
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
+    // 空力コンセプトが良いほど、エアロパーツの効きも上がる
+    const aeroBoost = 1 + bodyVal(g, 'aeroBody') * 0.004;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
       const ps = partStats(p);
       // コンディションが落ちたパーツは本来の性能を出しきれない
-      const f = 0.82 + p.cond / 100 * 0.18;
+      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1);
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
     });
-    const base = D.CAR_GENS[g.carGen].base;
-    s.speed += base; s.corner += base; s.accel += base;
+    // 車体そのものが生む性能
+    const bs = bodyStats(g);
+    s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
     return s;
+  }
+
+  /* =======================================================
+     車体（マシン本体）
+     ======================================================= */
+  function bodyCap(g2) {
+    return Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
+  }
+  /* 新しい車体を作る。前の知見を一部引き継ぐ */
+  function makeBody(g2, prev, stock) {
+    const cap = Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
+    const b = { cond: 100 };
+    // 事前に積み上げてあった「来季ぶんの開発」を4項目に振り分ける
+    const advance = (stock || 0) * D.CARRY_TO_NEXT / D.BODY_ATTRS.length;
+    D.BODY_ATTRS.forEach(a => {
+      const carried = prev ? prev[a.key] * D.BODY_CARRY : 0;
+      b[a.key] = Math.round(Math.min(cap, Math.max(cap * 0.15, carried) + advance) * 10) / 10;
+    });
+    return b;
+  }
+  /* 車体が生む3性能 */
+  function bodyStats(g2) {
+    const s = { speed: 0, corner: 0, accel: 0 };
+    const b = g2.body || {};
+    D.BODY_ATTRS.forEach(a => {
+      const v = b[a.key] || 0;
+      s.speed += v * a.gain.speed;
+      s.corner += v * a.gain.corner;
+      s.accel += v * a.gain.accel;
+    });
+    return s;
+  }
+  const bodyVal = (g2, key) => (g2.body && g2.body[key]) || 0;
+
+  /* 開発リソースの配分 */
+  function focusOf(g2) {
+    return D.FOCUS_LEVELS.find(f => f.key === (g2.focus || 'now')) || D.FOCUS_LEVELS[0];
+  }
+  /* 来季マシンの仕上がり具合（0-100%）。次の車体の初期値に乗る */
+  function nextCarProgress(g2) {
+    const cap = Math.round(D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen + 1)].cap * D.BODY_CAP_RATIO);
+    return Math.max(0, Math.min(1, (g2.nextCar || 0) / (cap * 4)));
   }
 
   /* ---------- ERS（バッテリー）----------
@@ -1813,8 +1967,8 @@ GP.state = (function () {
   function ersOf(g2) {
     const p = g2.equipped && g2.equipped.elec;
     const pw = p ? p.power * (0.82 + p.cond / 100 * 0.18) : 10;
-    const genB = D.CAR_GENS[g2.carGen] ? D.CAR_GENS[g2.carGen].base : 0;
-    return ersFrom(pw + genB * 0.5);
+    // 冷却が良いほど電気を多く回せる
+    return ersFrom(pw + bodyVal(g2, 'cooling') * 0.45);
   }
   function ersFrom(power) {
     const E = D.ERS;
@@ -1837,7 +1991,8 @@ GP.state = (function () {
       if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
-    return clamp(avg + bonus + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
+    const bodyRel = (bodyVal(g, 'rigidity') + bodyVal(g, 'cooling')) * 0.11;
+    return clamp(avg + bonus + bodyRel + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
@@ -1921,8 +2076,9 @@ GP.state = (function () {
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
-    const perRace = Math.round(g2.sponsors.reduce((a, sp) =>
-      a + sp.per * (1 + g2.facilities.market * 0.12) * boost * diff.sponsor, 0));
+    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor;
+    const perRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.per || 0) * scale, 0));
+    const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
     const PREP = raceWeek(0);                       // レース1回あたりの週数
     return {
@@ -1930,6 +2086,7 @@ GP.state = (function () {
       facilities: facilities, other: other, cut: cut,
       weekly: weekly,
       sponsorPerRace: perRace,
+      sponsorRpPerRace: rpRace,
       // レース1回ぶん（準備週＋レース週）の収支
       cycleCost: weekly * PREP,
       cycleIncome: perRace,
@@ -1976,7 +2133,7 @@ GP.state = (function () {
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
-      version: 5,
+      version: 6,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
       season: 1,
@@ -1995,6 +2152,9 @@ GP.state = (function () {
       titles: { drivers: 0, teams: 0 },
       history: [],
       carGen: 0,
+      body: null,
+      focus: 'now',         // 開発リソースの配分
+      nextCar: 0,           // 来季マシンに積み上げた開発量
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       standings: [], results: [],
       log: [],
@@ -2002,6 +2162,7 @@ GP.state = (function () {
       trainedThisWeek: false
     };
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1, { power: 10, cond: 92, traits: [] }); });
+    g.body = makeBody(g, null);
     D.FACILITIES.forEach(f => { g.facilities[f.key] = 1; });
 
     resetNames([]);
@@ -2087,6 +2248,30 @@ GP.state = (function () {
     return d;
   }
 
+  /* ---------- 契約更改（シーズン明け）----------
+     活躍した人ほど報酬を要求する。強くなるほど維持費が重くなり、
+     勝ち続けても資金が無限には積み上がらないようにする              */
+  function renegotiate(g2, rank) {
+    const scale = D.FACILITIES.reduce((a, f) => a + (g2.facilities[f.key] || 1), 0);
+    // チームが大きく、順位が良いほど要求は強くなる
+    const teamPull = 1 + Math.max(0, (11 - rank)) * 0.018 + scale * 0.004
+                       + Math.max(0, Math.log10(Math.max(10, g2.fans)) - 3) * 0.05;
+    const notes = [];
+    g2.drivers.forEach(d => {
+      // 本人の成績ぶん
+      const own = 1 + Math.min(0.45, d.seasonPoints * 0.0022) + d.wins * 0.03;
+      const before = d.salary;
+      d.salary = Math.round(d.salary * Math.min(1.65, teamPull * own));
+      if (d.salary > before) notes.push(d.name + ' ' + before + '→' + d.salary + '万');
+    });
+    g2.staff.forEach(st => { st.salary = Math.round(st.salary * Math.min(1.35, teamPull)); });
+    D.MANAGERS.forEach(m => {
+      const cur = g2.managers && g2.managers[m.key];
+      if (cur) cur.salary = Math.round(cur.salary * Math.min(1.40, teamPull));
+    });
+    return notes;
+  }
+
   /* ---------- スタッフの成長（シーズン明け）---------- */
   function growStaff(g) {
     const grown = [];
@@ -2158,7 +2343,7 @@ GP.state = (function () {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
-      return (g && g.version === 5) ? g : null;
+      return (g && g.version === 6) ? g : null;
     } catch (e) { return null; }
   }
   function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -2166,9 +2351,10 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, makeStaff, makeRivals, driverRating, resetNames, growStaff,
-    diffOf, potOf, rollPotential, makeYouth, youthSlots, growYouth, promoteYouth,
+    diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
     makeManager, mgr, finances, ersOf, ersFrom,
+    bodyCap, makeBody, bodyStats, bodyVal, focusOf, nextCarProgress,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -2585,17 +2771,30 @@ GP.race = (function () {
     }
     res.hypeDelta = hypeDelta;
 
-    // スポンサー収入（注目度が高いほど増える。特別戦は選手権外なので基本給のみ）
+    // スポンサー報酬（種別によって資金・研究P・ファンのどれが入るかが変わる）
     const hb = S.hypeBonus(g) * (1 + S.mgr(g, 'principal') * 0.006);
-    let sponsorIncome = 0;
+    const spScale = (1 + g.facilities.market * 0.07) * hb * (sp ? 0.4 : 1) * diff.sponsor;
+    let sponsorIncome = 0, sponsorRp = 0, sponsorFans = 0;
     g.sponsors.forEach(s2 => {
-      sponsorIncome += s2.per * (1 + g.facilities.market * 0.12) * hb * (sp ? 0.4 : 1) * diff.sponsor;
-      if (!sp && best && !best.dnf && best.pos <= s2.need) {
-        sponsorIncome += s2.bonus;
-        notes.push('📣 ' + s2.name + ' の目標達成ボーナス！ +' + Math.round(s2.bonus) + '万');
+      sponsorIncome += (s2.per || 0) * spScale;
+      sponsorRp     += (s2.rp || 0) * spScale;
+      sponsorFans   += (s2.fan || 0) * spScale;
+      // 達成ボーナスは契約上、シーズンあたりの回数に上限がある
+      const hits = s2.hits || 0;
+      if (!sp && best && !best.dnf && best.pos <= s2.need && hits < D.SPONSOR_BONUS_CAP) {
+        s2.hits = hits + 1;
+        sponsorIncome += (s2.bonus || 0);
+        sponsorRp += (s2.bonusRp || 0);
+        const kind = D.SPONSOR_KINDS[s2.kind] || D.SPONSOR_KINDS.cash;
+        notes.push(kind.icon + ' ' + s2.name + ' の目標達成ボーナス！ +' +
+          Math.round(s2.bonus || 0) + '万' + (s2.bonusRp ? ' / 研究P +' + s2.bonusRp : '') +
+          '（今季 ' + s2.hits + '/' + D.SPONSOR_BONUS_CAP + '回目）');
       }
     });
     sponsorIncome = Math.round(sponsorIncome);
+    sponsorRp = Math.round(sponsorRp);
+    sponsorFans = Math.round(sponsorFans);
+    fanDelta += sponsorFans;
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
@@ -2624,9 +2823,9 @@ GP.race = (function () {
 
     g.funds += prize + sponsorIncome;
     g.fans = Math.max(0, g.fans + fanDelta);
-    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2);
+    g.rp += (sp ? sp.rp : 8) + Math.round(S.staffBonus(g, 'analyst') * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, fanDelta, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,
@@ -2654,7 +2853,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
-  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
+  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -3025,10 +3224,87 @@ GP.raceview = (function () {
     return 'rgb(' + f((n >> 16) & 255) + ',' + f((n >> 8) & 255) + ',' + f(n & 255) + ')';
   }
 
+  /* =========================================================
+     カメラ
+     全体を見せるモードと、注目している車に寄るモードを持ち、
+     切り替えは滑らかに補間する
+     ========================================================= */
+  let cam = { x: 0, y: 0, z: 1, tx: 0, ty: 0, tz: 1, mode: 'auto', focusId: null, label: '' };
+
+  function setCamMode(m) {
+    cam.mode = m;
+    const bar = document.getElementById('rvCam');
+    if (bar) Array.prototype.forEach.call(bar.children, b => b.classList.toggle('on', b.dataset.cam === m));
+  }
+
+  /* いま寄るべき相手を決める */
+  function pickFocus(t) {
+    const ord = orderAt(t);
+    const alive = ord.filter(o => !o.out);
+    if (!alive.length) return null;
+    const mine = alive.filter(o => o.e.isPlayer);
+
+    if (cam.mode === 'wide') return null;
+    if (cam.mode === 'mine') return mine.length ? { list: mine.slice(0, 2), label: 'マイチーム' } : null;
+
+    // auto：自チームが誰かと接近していればそのバトル、いなければ先頭争い
+    for (let i = 0; i < alive.length; i++) {
+      if (!alive[i].e.isPlayer) continue;
+      const near = [];
+      if (i > 0) near.push(alive[i - 1]);
+      near.push(alive[i]);
+      if (i < alive.length - 1) near.push(alive[i + 1]);
+      const spread = Math.abs(near[0].p - near[near.length - 1].p) * res.track.base;
+      if (near.length > 1 && spread < 2.2) {
+        return { list: near, label: '⚔️ ' + alive[i].e.driver.name + ' のバトル' };
+      }
+    }
+    const lead = alive.slice(0, 2);
+    const gap = lead.length > 1 ? Math.abs(lead[0].p - lead[1].p) * res.track.base : 99;
+    if (gap < 2.0) return { list: lead, label: '⚔️ 首位争い' };
+    return mine.length ? { list: mine.slice(0, 1), label: mine[0].e.driver.name } : { list: lead.slice(0, 1), label: '先頭' };
+  }
+
+  /* カメラの目標位置を更新する */
+  function updateCam(t) {
+    const f = pickFocus(t);
+    cam.label = f ? f.label : '';
+    if (!f) { cam.tx = cv.width / 2; cam.ty = cv.height / 2; cam.tz = 1; }
+    else {
+      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      f.list.forEach(o => {
+        const pt = placeInLap(o.e, o.p);
+        minX = Math.min(minX, pt.x); maxX = Math.max(maxX, pt.x);
+        minY = Math.min(minY, pt.y); maxY = Math.max(maxY, pt.y);
+      });
+      const pad = 90;
+      const w = Math.max(160, maxX - minX + pad * 2), h = Math.max(120, maxY - minY + pad * 2);
+      cam.tx = (minX + maxX) / 2; cam.ty = (minY + maxY) / 2;
+      cam.tz = Math.max(1, Math.min(2.6, Math.min(cv.width / w, cv.height / h)));
+    }
+    // 滑らかに追従する
+    const k = 0.07;
+    cam.x += (cam.tx - cam.x) * k;
+    cam.y += (cam.ty - cam.y) * k;
+    cam.z += (cam.tz - cam.z) * k;
+    // 画面の外が映らないように寄せる
+    const halfW = cv.width / (2 * cam.z), halfH = cv.height / (2 * cam.z);
+    cam.x = Math.max(halfW, Math.min(cv.width - halfW, cam.x));
+    cam.y = Math.max(halfH, Math.min(cv.height - halfH, cam.y));
+  }
+
   /* ---------- 毎フレームの描画 ---------- */
   function draw(t) {
     const w = cv.width, h = cv.height;
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
+
+    updateCam(t);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(cam.z, cam.z);
+    ctx.translate(-cam.x, -cam.y);
 
     if (trackArt) ctx.drawImage(trackArt, 0, 0); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
 
@@ -3054,18 +3330,62 @@ GP.raceview = (function () {
         const px = nm.x + nm.nx * pit.side * 20, py = nm.y + nm.ny * pit.side * 20;
         const ang = Math.atan2(nm.dy, nm.dx);
         drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
-        // 作業中の目印
+        // 作業中のクルーと、残り時間
+        const li = lapInfo(e, t);
+        const pt = (e.pitTime || [])[li.lap - 1] || 1;
+        const left = Math.max(0, li.lapTime - li.into);
         ctx.save();
-        ctx.translate(px, py - 12);
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+        // タイヤを換えるクルー（4隅で動く）
+        for (let c2 = 0; c2 < 4; c2++) {
+          const sx = (c2 < 2 ? -5 : 5), sy = (c2 % 2 ? 7 : -7);
+          const bob = Math.sin(t * 14 + c2) * 1.4;
+          ctx.fillStyle = '#2b2b33'; ctx.fillRect(sx - 2, sy + bob - 2, 4, 5);
+          ctx.fillStyle = e.color; ctx.fillRect(sx - 2, sy + bob - 4, 4, 2);
+        }
+        ctx.fillStyle = '#2b2b33'; ctx.fillRect(-11, -3, 4, 6);   // ジャッキ担当
+        ctx.restore();
+        ctx.save();
+        ctx.translate(px, py - 13);
         ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
-        ctx.fillRect(-7, -6, 14, 10); ctx.strokeRect(-7, -6, 14, 10);
-        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('PIT', 0, 2);
+        ctx.fillRect(-13, -7, 26, 12); ctx.strokeRect(-13, -7, 26, 12);
+        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('PIT ' + left.toFixed(1), 0, 2);
         ctx.restore();
         continue;
       }
       const pt2 = placeInLap(e, o.p);
       drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
+    }
+    ctx.restore();
+    drawOverlay(t);
+  }
+
+  /* ---------- 画面に重ねる情報 ---------- */
+  function drawOverlay(t) {
+    const w = cv.width;
+    // いま何を映しているか
+    if (cam.label) {
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+      const tw = ctx.measureText(cam.label).width + 14;
+      ctx.fillStyle = 'rgba(40,24,10,.78)';
+      ctx.fillRect(8, 8, tw, 20);
+      ctx.fillStyle = '#ffeec4';
+      ctx.fillText(cam.label, 15, 22);
+    }
+    // 最終ラップ
+    const leader = orderAt(t).filter(o => !o.out)[0];
+    if (leader) {
+      const lap = Math.min(res.laps, Math.floor(leader.p) + 1);
+      if (lap >= res.laps) {
+        const a = 0.65 + Math.sin(t * 4) * 0.35;
+        ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(40,24,10,.7)';
+        ctx.fillRect(w / 2 - 82, 6, 164, 28);
+        ctx.fillStyle = 'rgba(255,243,77,' + a.toFixed(2) + ')';
+        ctx.fillText('FINAL LAP', w / 2, 28);
+      }
     }
   }
 
@@ -3146,7 +3466,17 @@ GP.raceview = (function () {
     }
     // speed は「レース全体を何秒で見せるか」。実時間に対する倍率をそこから出す
     vt += dt * (duration / speed);
-    if (vt >= duration) { vt = duration; running = false; draw(vt); updateHud(); flushEvents(true); finish(); return; }
+    if (vt >= duration) {
+      vt = duration; draw(vt); updateHud(); flushEvents(true);
+      // チェッカーフラッグの演出をひと呼吸だけ見せる
+      if (chequer < 1) {
+        chequer = Math.min(1, chequer + dt / 1.6);
+        drawChequer(chequer);
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      running = false; finish(); return;
+    }
     draw(vt);
     updateHud();
     raf = requestAnimationFrame(tick);
@@ -3325,22 +3655,53 @@ GP.raceview = (function () {
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
+    cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
+            mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0;
+    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
   function skip() {
-    running = false; lights = 1;
+    running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
     vt = duration;
     draw(vt); updateHud(); flushEvents(true); finish();
   }
 
+  /* ---------- チェッカーフラッグ ---------- */
+  function drawChequer(p) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = 'rgba(20,12,6,' + (0.35 * Math.min(1, p * 3)).toFixed(2) + ')';
+    ctx.fillRect(0, 0, w, h);
+    // 旗が振られる
+    const sway = Math.sin(p * 22) * 6;
+    const cx = w / 2, cy = h / 2 - 10;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(sway * Math.PI / 180);
+    const sq = 11;
+    for (let r = 0; r < 5; r++) for (let c2 = 0; c2 < 7; c2++) {
+      ctx.fillStyle = ((r + c2) % 2) ? '#2b1c0e' : '#fffdf3';
+      ctx.fillRect(-7 * sq / 2 + c2 * sq, -5 * sq / 2 + r * sq + Math.sin(p * 18 + c2) * 2, sq, sq);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#7a6a52'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
+    if (p > 0.35) {
+      ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeText('FINISH!', cx, cy + 5 * sq / 2 + 40);
+      ctx.fillStyle = '#fff34d';
+      ctx.fillText('FINISH!', cx, cy + 5 * sq / 2 + 40);
+    }
+  }
+
   /* ---------- スタートシグナル ---------- */
   let lightBeeps = 0;
   function drawLights(p) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     const w = cv.width;
     const cxl = w / 2, cy = 46;
     const on = Math.min(5, Math.floor(p * 6.2));      // 5つ順に点灯
@@ -3376,7 +3737,7 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, smoothPath };
+  return { start, setSpeed, skip, stop, setCamMode };
 })();
 
 </script>
@@ -3822,6 +4183,16 @@ GP.ui = (function () {
           '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
     const ers = S.ersOf(g);
+    const cap = S.bodyCap(g);
+    let bodyRows = '';
+    D.BODY_ATTRS.forEach(a => {
+      const v = (g.body && g.body[a.key]) || 0;
+      const pct = Math.min(100, v / cap * 100);
+      bodyRows += '<div class="battr" title="' + esc(a.desc) + '">' +
+        '<span>' + a.icon + a.name + '</span>' +
+        '<i><b style="width:' + pct + '%;background:' + a.color + '"></b></i>' +
+        '<em>' + (Math.round(v * 10) / 10) + '<small>/' + cap + '</small></em></div>';
+    });
     return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
@@ -3831,6 +4202,8 @@ GP.ui = (function () {
       '<em>放電 <b>' + ers.deploy + '</b>/周</em></div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
+      '<div class="sub small">車体の熟成</div><div class="bodyattrs">' + bodyRows + '</div>' +
+      '<div class="sub small">装着パーツ</div>' +
       '<div class="parts">' + parts + '</div>' +
       (g.inventory.length ? '<div class="invnote">📦 保管パーツ ' + g.inventory.length + ' 個（「マシン」で装着・合成）</div>' : '') +
       '</div></div>';
@@ -3966,7 +4339,13 @@ GP.ui = (function () {
       });
       h += '</div>';
       h += '<div class="spons"><div class="sub">スポンサー</div>';
-      g.sponsors.forEach(s => { h += '<div class="spon">' + s.icon + ' ' + esc(s.name) + '<em>' + money(s.per) + '万/戦</em></div>'; });
+      g.sponsors.forEach(s => {
+        const bits = [];
+        if (s.per) bits.push('💰' + money(s.per));
+        if (s.rp) bits.push('🔬' + s.rp);
+        if (s.fan) bits.push('👥' + money(s.fan));
+        h += '<div class="spon">' + s.icon + ' ' + esc(s.name) + '<em>' + bits.join(' ') + '</em></div>';
+      });
       h += '</div>';
     }
     h += '</div>';
@@ -4044,6 +4423,7 @@ GP.ui = (function () {
     h += '<div class="fin-row total"><span>合計</span><b>' + money(f.weekly) + '万 / 週</b></div>' +
       '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
       '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
+      (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost) + '</b></div>' +
       '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
       (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +
@@ -4373,7 +4753,20 @@ window.GP = window.GP || {};
   function cmdDevelop() {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
-    let body = '';
+    const fc = S.focusOf(g);
+    let body = '<div class="sub">開発リソースの配分</div>' +
+      '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
+      '来季に回したぶんは、次の新型マシンの初期性能になります。</p>' +
+      '<div class="focusrow">';
+    D.FOCUS_LEVELS.forEach(f => {
+      body += '<button class="focusbtn' + (f.key === g.focus ? ' on' : '') + '" data-focus="' + f.key + '"' +
+        ' title="' + esc(f.desc) + '"><b>' + f.icon + ' ' + f.name + '</b>' +
+        '<small>今季 ' + Math.round(f.cur * 100) + '%／来季 ' + Math.round(f.next * 100) + '%</small></button>';
+    });
+    const prog = Math.round(S.nextCarProgress(g) * 100);
+    body += '</div>' +
+      '<div class="nextcar"><span>🌱 来季マシンの仕込み</span>' +
+      '<i><b style="width:' + prog + '%"></b></i><em>' + prog + '%</em></div>';
     if (tk) {
       body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
         '<span class="tk-ic">🎫</span>' +
@@ -4399,6 +4792,26 @@ window.GP = window.GP || {};
         (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
+    // ---- 車体開発 ----
+    const cap = S.bodyCap(g);
+    body += '</div><div class="sub">車体の熟成</div>' +
+      '<p class="desc">パーツとは別に、車体そのものを煮詰めます。' +
+      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + ' です。<br>' +
+      '新型マシンを作ると上限が上がりますが、育て直しになります。</p><div class="pick">';
+    D.BODY_ATTRS.forEach(a => {
+      const v = (g.body && g.body[a.key]) || 0;
+      const cost = bodyCost(v);
+      const capped = v >= cap;
+      const ok = useTicket || (g.funds >= cost && g.rp >= 8);
+      const pct = Math.min(100, v / cap * 100);
+      body += '<button class="pickbtn" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
+        '<span class="pb-body"><b>' + a.name + '</b>' +
+        '<small>' + a.desc + '<br><span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span> ' +
+        Math.round(v * 10) / 10 + ' / ' + cap + (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+    });
+
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
       '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
@@ -4415,10 +4828,56 @@ window.GP = window.GP || {};
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
     const tg = $('tkToggle');
     if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
+      b.onclick = () => {
+        g.focus = b.dataset.focus;
+        GP.sound.play('tap');
+        const f = S.focusOf(g);
+        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
+        S.save(g); render(); cmdDevelop();
+      };
+    });
     bindPick(k => {
       const [kind, key] = k.split(':');
-      if (kind === 'imp') doImprove(key); else doDesign(key);
+      if (kind === 'imp') doImprove(key);
+      else if (kind === 'bdy') doBody(key);
+      else doDesign(key);
     });
+  }
+
+  const bodyCost = v => Math.round(380 + v * 34);
+
+  function doBody(key) {
+    const a = D.BODY_ATTRS.find(x => x.key === key);
+    if (!a || !g.body) return;
+    const v = g.body[key] || 0;
+    const cap = S.bodyCap(g);
+    const cost = bodyCost(v);
+    const free = spendTicket();
+    if (!free) {
+      if (g.funds < cost || g.rp < 8) return;
+      g.funds -= cost; g.rp -= 8;
+    }
+    const facBonus = 1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06;
+    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
+    const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
+    const fc = S.focusOf(g);
+    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus;
+    let crit = false;
+    if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
+    if (v >= cap) gain *= 0.14;
+    const toNext = gain * fc.next;
+    gain = Math.round(gain * fc.cur * 10) / 10;
+    g.nextCar = (g.nextCar || 0) + toNext;
+    g.body[key] = Math.round((v + gain) * 10) / 10;
+
+    U.closeModal();
+    GP.sound.play(crit ? 'crit' : 'confirm');
+    U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) + (crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
+    U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
+    if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
+    if (g.body[key] >= cap) U.toast('この車体は煮詰まりました。新型マシンが必要です。', 'warn');
+    endWeek();
   }
 
   /* チケットを1枚消費する。使わない場合は false を返す */
@@ -4447,11 +4906,15 @@ window.GP = window.GP || {};
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    const fc = S.focusOf(g);
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus;
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     if (p.power >= cap) gain *= 0.16;
-    gain = Math.round(gain * 10) / 10;
+    // 来季に回したぶんは今季に乗らない
+    const toNext = gain * fc.next;
+    gain = Math.round(gain * fc.cur * 10) / 10;
+    g.nextCar = (g.nextCar || 0) + toNext;
 
     p.power = Math.round((p.power + gain) * 10) / 10;
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
@@ -4507,7 +4970,8 @@ window.GP = window.GP || {};
       '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
 
     body += '<div class="sub">新型マシンの開発</div>';
-    body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>（全パーツの開発上限 ' + cur.cap + '／車体ベース +' + cur.base + '）</p>';
+    body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>' +
+      '（パーツの開発上限 ' + cur.cap + '／車体の熟成上限 ' + S.bodyCap(g) + '）</p>';
     if (!nx) {
       body += '<div class="bigbox">🏁 最終型 <b>' + cur.name + '</b> に到達済み</div>';
     } else {
@@ -4515,8 +4979,9 @@ window.GP = window.GP || {};
       body += '<div class="pick"><button class="pickbtn" data-k="__gen"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#e04a3f">🏎️</span>' +
         '<span class="pb-body"><b>' + cur.name + ' → ' + nx.name + '</b>' +
-        '<small>開発上限 ' + cur.cap + ' → ' + nx.cap + '／車体ベース +' + cur.base + ' → +' + nx.base +
-        '<br>より高性能なパーツを設計できるようになります</small></span>' +
+        '<small>パーツ上限 ' + cur.cap + ' → ' + nx.cap +
+        '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
+        '<br>車体は新造され、前の知見を4割引き継いで再スタートします</small></span>' +
         '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
     }
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
@@ -4541,8 +5006,17 @@ window.GP = window.GP || {};
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + 15, 10, 100);
     });
+    // 車体を新造する。前の車体の知見を4割引き継ぐ
+    const prev = g.body;
+    const stock = g.nextCar || 0;
+    g.body = S.makeBody(g, prev, stock);
+    if (stock > 0) {
+      U.log(g, '🌱 前もって進めていた来季ぶんの開発が、新型マシンに反映された。', 'good');
+    }
+    g.nextCar = 0;
     U.closeModal();
-    U.log(g, '🎊 新型マシン「' + nx.name + '」が完成！ 開発上限が ' + nx.cap + ' に上がった！', 'good');
+    U.log(g, '🎊 新型マシン「' + nx.name + '」がロールアウト！ 車体の上限が ' +
+      S.bodyCap(g) + ' に上がった（前の知見を引き継いで再スタート）', 'good');
     GP.sound.play('crit');
     U.toast('🎊 新型マシン「' + nx.name + '」ロールアウト！', 'good');
     U.pop('🏎️ ' + nx.name, 'crit');
@@ -4678,8 +5152,8 @@ window.GP = window.GP || {};
         body += '<div class="sub">📞 届いているオファー</div><div class="pick">' +
           '<button class="pickbtn offer" data-k="__offer">' +
           '<span class="pb-ic" style="background:#b06fd0">' + sp.icon + '</span>' +
-          '<span class="pb-body"><b>' + esc(sp.name) + ' から契約の打診</b>' +
-          '<small>毎戦 ' + money(sp.per) + '万／' + sp.need + '位以内でボーナス ' + money(sp.bonus) + '万' +
+          '<span class="pb-body"><b>' + esc(sp.name) + ' から契約の打診</b>' + kindChip(sp) +
+          '<small>' + payoutLine(sp) + '／' + sp.need + '位以内でボーナス ' + money(sp.bonus) + '万' +
           '<br>先方からの申し出なので契約金が上乗せされる：<b>+' + money(g.sponsorOffer.adv) + '万</b>' +
           (g.sponsorOffer.until != null ? '　<em class="warn">残り' + Math.max(0, g.sponsorOffer.until - g.week + 1) + '週</em>' : '') +
           '</small></span>' +
@@ -4696,13 +5170,17 @@ window.GP = window.GP || {};
       const full = g.sponsors.length >= slots;
       body += '<button class="pickbtn" data-k="' + esc(s.name) + '"' + (full ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#4ea63f">' + s.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(s.name) + '</b><small>毎戦 ' + money(s.per) + '万／' + s.need + '位以内でボーナス ' + money(s.bonus) + '万</small></span>' +
+        '<span class="pb-body"><b>' + esc(s.name) + '</b>' + kindChip(s) +
+        '<small>' + payoutLine(s) + '<br>' + s.need + '位以内でボーナス ' + money(s.bonus) +
+        '万' + (s.bonusRp ? '／研究P ' + s.bonusRp : '') + '</small></span>' +
         '<span class="pb-cost">契約</span></button>';
     });
     body += '</div><div class="sub">契約中</div><div class="pick">';
     g.sponsors.forEach(s => {
       body += '<div class="pickbtn done"><span class="pb-ic" style="background:#4ea63f">' + s.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(s.name) + '</b><small>毎戦 ' + money(s.per) + '万</small></span>' +
+        '<span class="pb-body"><b>' + esc(s.name) + '</b>' + kindChip(s) +
+        '<small>' + payoutLine(s) + '<br>' + s.need + '位以内でボーナス（今季 ' +
+        (s.hits || 0) + '/' + D.SPONSOR_BONUS_CAP + '回）</small></span>' +
         '<span class="pb-cost"><button class="mini danger" data-drop="' + esc(s.name) + '">解約</button></span></div>';
     });
     body += '</div>';
@@ -4720,6 +5198,18 @@ window.GP = window.GP || {};
       };
     });
   }
+  function kindChip(s) {
+    const k = D.SPONSOR_KINDS[s.kind] || D.SPONSOR_KINDS.cash;
+    return '<em class="skind ' + s.kind + '" title="' + esc(k.desc) + '">' + k.icon + k.name + '</em>';
+  }
+  function payoutLine(s) {
+    const parts = [];
+    if (s.per) parts.push('💰' + money(s.per) + '万');
+    if (s.rp) parts.push('🔬' + s.rp);
+    if (s.fan) parts.push('👥' + money(s.fan));
+    return '毎戦 ' + parts.join('　');
+  }
+
   function doPromo() {
     const f = Math.round((180 + g.fans * 0.10) * (1 + g.facilities.market * 0.18) * S.rnd(0.8, 1.3));
     const m = Math.round(f * 1.4);
@@ -5417,7 +5907,8 @@ window.GP = window.GP || {};
       const hd = res.hypeDelta || 0;
       body += '<div class="rewardbox">' +
         '<div>💰 賞金 <b>+' + money(reward.prize) + '万</b></div>' +
-        '<div>📣 スポンサー <b>+' + money(reward.sponsorIncome) + '万</b><small>注目度 ×' + S.hypeBonus(g).toFixed(2) + '</small></div>' +
+        '<div>📣 スポンサー <b>+' + money(reward.sponsorIncome) + '万</b><small>' +
+        (reward.sponsorRp ? '研究P +' + reward.sponsorRp + '／' : '') + '注目度 ×' + S.hypeBonus(g).toFixed(2) + '</small></div>' +
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
@@ -5519,11 +6010,24 @@ window.GP = window.GP || {};
       g.drivers = g.drivers.filter(x => x.id !== d.id);
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
     });
+    // スポンサーの達成ボーナス回数をリセット
+    g.sponsors.forEach(sp2 => { sp2.hits = 0; });
+    // 来季ぶんの仕込みは持ち越すが、使わないまま年を跨ぐと少し目減りする
+    if (g.nextCar > 0) {
+      g.nextCar = Math.round(g.nextCar * 0.8 * 10) / 10;
+      U.log(g, '🌱 来季マシンの仕込みを持ち越した（' + Math.round(S.nextCarProgress(g) * 100) + '%）。', 'good');
+    }
     // 若手の加齢と、育ちきった選手のお知らせ
     (g.youth || []).forEach(d => {
       d.age++;
       if (d.age >= 24) U.log(g, '🎓 ' + d.name + ' は育成年齢の上限が近い。昇格させるか決断のとき。', 'warn');
     });
+    // 契約更改：活躍した人ほど報酬が上がる
+    const rankNow = S.constructorTable(g).findIndex(r => r.isPlayer) + 1;
+    const raises = S.renegotiate(g, rankNow);
+    if (raises.length) {
+      U.log(g, '📝 契約更改：' + raises.join('、') + '（チーム全体の人件費も上がった）', 'warn');
+    }
     // スタッフの成長
     const grown = S.growStaff(g);
     if (grown.length) U.log(g, '📈 スタッフが成長した：' + grown.join('、'), 'good');
@@ -5612,6 +6116,9 @@ window.GP = window.GP || {};
       };
     });
     $('rvSkip').onclick = () => RV.skip();
+    Array.prototype.forEach.call($('rvCam').children, b => {
+      b.onclick = () => { GP.sound.play('tap'); RV.setCamMode(b.dataset.cam); };
+    });
   }
 
   function cmdRest() {
