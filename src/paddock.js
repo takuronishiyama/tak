@@ -22,7 +22,7 @@ GP.paddock = (function () {
   const SPOTS = [
     { key: 'drivers', x: 92,  label: 'ドライバーの控え' },
     { key: 'timing',  x: 400, label: 'タイミングブース' },
-    { key: 'gate',    x: 530, label: 'コースへの出口' }
+    { key: 'gate',    x: 530, label: 'スターティンググリッド' }
   ];
 
   /* パドックにいる人。通路側に立っていて、話しかけられる */

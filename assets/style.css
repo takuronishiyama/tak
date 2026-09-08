@@ -1438,3 +1438,11 @@ body[data-skin="hd"]{
 [data-skin="hd"] .mg-row.warn>b{color:#ffcf6a}
 [data-skin="hd"] .mg-row.bad>b{color:#ff9a8a}
 [data-skin="hd"] .mg-ask{border-top-color:rgba(255,225,160,.26)}
+
+/* グリッドウォーク */
+.gridwrap{margin:6px 0 8px;border:3px solid var(--ink);border-radius:8px;overflow:hidden;background:#3a3a42}
+.gridwrap canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+
+.gridmine{margin:0 0 6px;padding:5px 9px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper2);color:var(--ink);font-size:12px}
+[data-skin="hd"] .gridmine{background:#241c30;color:#efe4cf}

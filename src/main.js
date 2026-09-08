@@ -692,7 +692,9 @@ window.GP = window.GP || {};
       g.funds -= dc.money; g.rp -= dc.rp; capSpend(dc.money);
     }
 
+    const hinted = (g.designEdge || 0) > 0;
     const rarity = S.rollRarity(g);
+    if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
     const part = S.makePart(key, g.carGen, rarity);
     g.inventory.push(part);
 
@@ -1973,7 +1975,7 @@ window.GP = window.GP || {};
     body += '</div>';
 
     U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
-      { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
+      { label: '🔧 フリー走行へ', cls: 'primary', fn: cmdPractice },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
     ]);
 
@@ -2011,14 +2013,97 @@ window.GP = window.GP || {};
     });
   }
 
-  let currentRes = null;
-  function startRace() {
-    currentRes = R.simulate(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
+  let currentRes = null, prePack = null;
+
+  /* ---- フリー走行 ----
+     限られた走行時間を、何に使うか。ひとつだけ選べる。 */
+  const PRACTICE = [
+    { k: 'setup', icon: '🔧', label: 'セットアップを詰める', setup: 1.014,
+      note: 'マシンの仕上がりが上がる。いちばん素直な使い方',
+      run: () => { staffExp('engineer', 10); return 'セットアップが決まった（今日のマシンが少し速い）'; } },
+    { k: 'rookie', icon: '🎓', label: 'ルーキーを走らせる', setup: 1.004,
+      note: 'リザーブか若手に経験を積ませる。そのぶんセットアップは進まない',
+      avail: () => !!(g.reserve || (g.youth || []).length),
+      run: () => {
+        const d = g.reserve || (g.youth || [])[0];
+        if (!d) return null;
+        const keys = ['speed', 'technique', 'stamina', 'mental'];
+        const ups = [];
+        keys.forEach(k => {
+          if (Math.random() < 0.6) {
+            const up = S.rnd(1.4, 3.2) * S.potOf(d).growth;
+            d[k] = S.clamp(d[k] + up, 1, 199);
+            ups.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] + ' +' + up.toFixed(1));
+          }
+        });
+        d.exp = (d.exp || 0) + 20;
+        staffExp('trainer', 10);
+        return d.name + ' が実車を走らせた（' + (ups.join('／') || '手応えを得た') + '）';
+      } },
+    { k: 'tyre', icon: '🛞', label: 'タイヤを試す', setup: 1.007,
+      note: 'このコースでの摩耗が分かる。ストップ数の読みが正確になる',
+      run: () => {
+        const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+        const stops = (t.tyre > 1.05 || t.laps > 28) ? 2 : 1;
+        staffExp('strategist', 10);
+        g.drivers.forEach(d => { d.technique = S.clamp(d.technique + S.rnd(0.6, 1.6), 1, 199); });
+        return 'タイヤの持ちを確かめた（このコースは ' + stops + 'ストップが軸／ドライバーの技術も少し上がった）';
+      } },
+    { k: 'long', icon: '📊', label: 'ロングランでデータを取る', setup: 1.005,
+      note: '走り込んでデータを集める。研究ポイントが入る',
+      run: () => {
+        const rp = Math.max(4, Math.round(6 + S.staffBonus(g, 'analyst') * 2.4 + S.osk(g, 'eye') * 1.5));
+        g.rp += rp;
+        staffExp('analyst', 12);
+        return 'ロングランのデータが取れた（研究P +' + rp + '）';
+      } }
+  ];
+
+  function cmdPractice() {
+    const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
+      t.country + ' ' + esc(t.name) + '</span></div>' +
+      '<p class="desc">決勝までに走れる時間は限られています。何に使うか、ひとつだけ選んでください。' +
+      'ここで決めたことは、この週末のあいだ効きます。</p><div class="pick">';
+    PRACTICE.forEach((x, i) => {
+      const ok = !x.avail || x.avail();
+      body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="fp:' + i + '"' +
+        (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
+        '<span class="pb-body"><b>' + x.label + '</b><small>' + x.note +
+        (ok ? '' : '<br><em class="warn">走らせられる若手がいません</em>') + '</small></span>' +
+        '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%</span></button>';
+    });
+    body += '</div>';
+    U.modal('🔧 フリー走行', body, [], { wide: true });
+    bindPick(k => doPractice(+k.split(':')[1]));
+  }
+
+  function doPractice(i) {
+    const x = PRACTICE[i];
+    if (!x || (x.avail && !x.avail())) return;
+    pendingStrategy.setup = x.setup;
+    const msg = x.run();
+    if (msg) { U.log(g, x.icon + ' ' + msg); U.toast(x.icon + ' ' + msg, 'good'); }
+    GP.sound.play('confirm');
+    S.save(g);
+    U.closeModal();
+    runQualifying();
+  }
+
+  function runQualifying() {
+    prePack = R.prequalify(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
     showQualifying();
   }
 
+  function startRace() {
+    currentRes = R.simulate(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special, prePack);
+    prePack = null;
+    runRace();
+  }
+
   function showQualifying() {
-    const res = currentRes;
+    const res = prePack;
     let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name + '</b><span>予選結果</span></div>';
     body += '<div class="gridlist">';
     res.grid.slice(0, 22).forEach(e => {
@@ -2030,7 +2115,7 @@ window.GP = window.GP || {};
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
-    U.modal('⏱️ 予選', body, [{ label: '🚦 決勝スタート！', cls: 'primary', fn: runRace }], { wide: true });
+    U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
   }
 
   /* =======================================================
@@ -2311,6 +2396,7 @@ window.GP = window.GP || {};
     staffExpAll(7);
     staffExp('strategist', 14);
     staffExp('mechanic', 8);
+    g.gridClean = false;          // グリッドで聞いた話が効くのは、その一戦だけ
     // 次の週は、持ち帰ったデータを囲んでの反省会になる
     if (currentRes) {
       const me = currentRes.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
@@ -2708,6 +2794,220 @@ window.GP = window.GP || {};
   }
 
   /* パドックで立ち寄れる場所。レースウィークだけこちらを使う */
+  /* =======================================================
+     グリッドウォーク
+     決勝前、コースに並んだマシンのあいだを歩く。
+     ドライバーを送り出し、他所のマシンを間近で見て、関係者と話す。
+     ここでやれることは、レースウィークごとに一度ずつ。
+     ======================================================= */
+  const GRID_GUESTS = [
+    { key: 'tyre', icon: '🛞', who: 'タイヤ供給の技術者',
+      line: g2 => {
+        const t = D.TRACKS[Math.min(g2.nextRace, D.TRACKS.length - 1)];
+        return t.tyre >= 1.2
+          ? '「今日は路面が厳しい。想定より1周ぶんは早くタレると思ってください」'
+          : t.tyre <= 0.95
+            ? '「路面はやさしいです。1ストップで引っぱる手もありますよ」'
+            : '「標準的です。教科書どおりで問題ありません」';
+      },
+      run: () => { const d = S.pick(g.drivers); if (d) d.technique = S.clamp(d.technique + S.rnd(0.8, 2.0), 1, 199);
+        return 'タイヤの使い方を教わった（ドライバーの技術が少し上がった）'; } },
+    { key: 'fia', icon: '⚖️', who: 'FIAの技術委員',
+      line: () => '「今日は特にトラックリミットを厳しく見ます。無理な飛び込みは加算対象です」',
+      run: () => { g.gridClean = true;
+        return '審査の基準を聞いておいた（今日は裁定を受けにくい）'; } },
+    { key: 'boss', icon: '🎩', who: 'ライバルのチーム代表',
+      line: g2 => {
+        const r = (g2.rivals || [])[S.rint(0, Math.max(0, (g2.rivals || []).length - 1))];
+        return r ? '「' + esc(r.name) + 'です。おたくのクルマ、去年とは別物ですね」' : '「いい週末を」';
+      },
+      run: () => { S.addHype(g, 2.0); return 'よそのチーム代表と言葉を交わした（注目度 +2.0）'; } },
+    { key: 'eng', icon: '👷', who: 'よそのエンジニア',
+      line: () => '「そこのフロア、うちも去年やりました。あれは苦労しましたよ」',
+      run: () => { g.designEdge = (g.designEdge || 0) + 1;
+        return '設計のヒントを持ち帰った（次に設計するパーツが良いものになりやすい）'; } }
+  ];
+
+  function gridGuest() {
+    const i = (g.season * 7 + g.nextRace * 3) % GRID_GUESTS.length;
+    return GRID_GUESTS[i];
+  }
+
+  function cmdGrid() {
+    weekFlags();
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const done = k => (g.talked || []).indexOf('grid:' + k) >= 0;
+    const guest = gridGuest();
+    const lineup = prePack
+      ? prePack.entries.filter(e => e.isPlayer).map(e => e.driver)
+      : S.allTeams(g, t).find(x => x.isPlayer).drivers;
+
+    let body = '<div class="racehead"><b>🏁 スターティンググリッド</b><span>' +
+      t.country + ' ' + esc(t.name) + '</span></div>' +
+      '<div class="gridwrap"><canvas id="gridCv" width="520" height="182"></canvas></div>' +
+      (function () {
+        const mine = (prePack ? prePack.grid : []).filter(e => e.isPlayer)
+          .map(e => e.driver.name + ' <b>' + e.grid + '番手</b>');
+        return mine.length
+          ? '<p class="gridmine">🚩 ' + mine.join('　／　') + '</p>' : '';
+      })() +
+      '<p class="desc">予選を終えて、マシンがグリッドに並んでいます。' +
+      'ここでやれることは、レースウィークごとに一度ずつ。</p>' +
+      '<div class="pick">';
+
+    lineup.forEach((d, i) => {
+      const k = 'cheer' + i;
+      body += '<button class="pickbtn' + (done(k) ? ' done' : '') + '" data-k="gw:' + k + '"' +
+        (done(k) ? ' disabled' : '') + '>' +
+        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + ' を送り出す</b>' +
+        '<small>調子 ' + Math.round(d.form) + '／' + S.persOf(d).icon + S.persOf(d).name +
+        (done(k) ? '　<em>声はかけた</em>' : '　肩を叩いて送り出す') + '</small></span>' +
+        '<span class="pb-cost">' + (done(k) ? '—' : '鼓舞する') + '</span></button>';
+    });
+
+    body += '<button class="pickbtn' + (done('look') ? ' done' : '') + '" data-k="gw:look"' +
+      (done('look') ? ' disabled' : '') + '>' +
+      '<span class="pb-ic" style="background:#3a7ad9">🔍</span>' +
+      '<span class="pb-body"><b>並んだマシンを間近で見る</b>' +
+      '<small>' + (done('look') ? '今日はもう見て回った'
+        : '自分より前に並ぶクルマほど、学べるものが多い') + '</small></span>' +
+      '<span class="pb-cost">' + (done('look') ? '—' : '見る') + '</span></button>';
+
+    body += '<button class="pickbtn' + (done('guest') ? ' done' : '') + '" data-k="gw:guest"' +
+      (done('guest') ? ' disabled' : '') + '>' +
+      '<span class="pb-ic" style="background:#8a6ad0">' + guest.icon + '</span>' +
+      '<span class="pb-body"><b>' + guest.who + 'と話す</b>' +
+      '<small>' + (done('guest') ? '今日はもう話した' : 'グリッドには、いろいろな人が降りてくる') +
+      '</small></span>' +
+      '<span class="pb-cost">' + (done('guest') ? '—' : '話す') + '</span></button>';
+    body += '</div>';
+
+    U.modal('🏁 グリッドウォーク', body, [
+      { label: '🚦 決勝スタート！', cls: 'primary', fn: startRace }
+    ], { wide: true });
+    drawGrid();
+    bindPick(k => {
+      const key = k.split(':')[1];
+      if (key.indexOf('cheer') === 0) return doCheer(+key.slice(5));
+      if (key === 'look') return doGridLook();
+      if (key === 'guest') return doGridGuest();
+    });
+  }
+
+  /* グリッドに並んだマシンを描く */
+  function drawGrid() {
+    const cv = $('gridCv');
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const W = cv.width, H = cv.height;
+    // 路面
+    ctx.fillStyle = '#3a3a42'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#33333b';
+    for (let y = 0; y < H; y += 10) ctx.fillRect(0, y, W, 5);
+    // グリッドの白枠
+    const rows = 5, cols = 2;
+    // 並びは予選の結果そのもの
+    const table = (prePack ? prePack.grid : []).slice(0, rows * cols)
+      .map(e => ({ name: e.team.name, color: e.color, isPlayer: !!e.isPlayer }));
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = 78 + c * 190 + (r % 2 ? 0 : 0);
+        const y = 16 + r * 33;
+        ctx.strokeRect(x - 22, y - 10, 46, 24);
+      }
+    }
+    // 並んでいるマシン（選手権の順で、上位から前に）
+    let n = 0;
+    for (let r = 0; r < rows && n < table.length; r++) {
+      for (let c = 0; c < cols && n < table.length; c++, n++) {
+        const row = table[n];
+        const x = 78 + c * 190, y = 16 + r * 33;
+        RV.paintCar(ctx, x, y + 2, -Math.PI / 2, row.color, Math.min(5, g.carGen), 0.2);
+        if (row.isPlayer) {
+          ctx.strokeStyle = '#fff34d'; ctx.lineWidth = 2;
+          ctx.setLineDash([4, 3]); ctx.strokeRect(x - 24, y - 12, 50, 28); ctx.setLineDash([]);
+        }
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(String(n + 1), x - 34, y + 6);
+      }
+    }
+  }
+
+  function doCheer(i) {
+    weekFlags();
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const lineup = prePack
+      ? prePack.entries.filter(e => e.isPlayer).map(e => e.driver)
+      : S.allTeams(g, t).find(x => x.isPlayer).drivers;
+    const d = lineup[i];
+    if (!d || (g.talked || []).indexOf('grid:cheer' + i) >= 0) return;
+    g.talked.push('grid:cheer' + i);
+    const p = S.persOf(d);
+    const up = S.rnd(5, 11) * p.up * (1 + S.osk(g, 'fame') * 0.06);
+    d.form = S.clamp(d.form + up, 62, 122);
+    // 予選はもう終わっているので、今日の決勝には直接乗せる
+    if (prePack) {
+      prePack.entries.filter(e => e.isPlayer && e.driver.id === d.id)
+        .forEach(e => { e.perf *= 1 + up * 0.0012; });
+    }
+    U.modal('🔥 ' + esc(d.name) + ' を送り出す',
+      '<div class="quote">' + U.face(d, 40) + '<span>' +
+      (d.form >= 110 ? '「わかってます。今日は獲りにいきます」'
+       : d.form >= 95 ? '「はい。やることは分かっています」'
+       : '「……ありがとうございます。やってみます」') + '</span></div>' +
+      '<p class="note">調子 +' + up.toFixed(0) + '（いま ' + Math.round(d.form) + '）</p>',
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  function doGridLook() {
+    weekFlags();
+    if ((g.talked || []).indexOf('grid:look') >= 0) return;
+    g.talked.push('grid:look');
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const mine = S.carScoreOf(S.carStats(g), t);
+    const ahead = (g.rivals || []).filter(r => S.carScoreOf(r.stats, t) > mine);
+    const analyst = S.staffBonus(g, 'analyst');
+    const eye = S.osk(g, 'eye');
+    const edge = ahead.reduce((a, r) => a + (S.carScoreOf(r.stats, t) - mine), 0) / Math.max(1, ahead.length);
+    const rp = Math.max(2, Math.round((edge * 0.22 + analyst * 0.6 + S.rnd(1, 3)) * (1 + eye * 0.25)));
+    g.rp += rp;
+    // 前に並ぶクルマが多いほど、設計のヒントも拾いやすい
+    const hint = Math.random() < Math.min(0.75, 0.18 + ahead.length * 0.05 + analyst * 0.06);
+    if (hint) g.designEdge = (g.designEdge || 0) + 1;
+    const target = ahead.length ? S.pick(ahead) : null;
+    U.modal('🔍 並んだマシンを間近で見る',
+      '<p class="lead">' + (target
+        ? esc(target.name) + ' のマシンを、手が届く距離で見る。' +
+          '<br>フロアの処理、翼端板の形。写真では分からないものがある。'
+        : '前に並ぶクルマはない。自分たちのクルマが、いちばん速い。') + '</p>' +
+      '<p class="note">🔬 研究P +' + rp +
+      (hint ? '<br>📐 設計のヒントを持ち帰った（次に設計するパーツが良いものになりやすい）' : '') +
+      '</p>',
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+    GP.sound.play(hint ? 'crit' : 'good');
+    S.save(g); render();
+  }
+
+  function doGridGuest() {
+    weekFlags();
+    if ((g.talked || []).indexOf('grid:guest') >= 0) return;
+    g.talked.push('grid:guest');
+    const gu = gridGuest();
+    const note = gu.run();
+    U.modal(gu.icon + ' ' + gu.who + 'と話す',
+      '<p class="lead">' + gu.line(g) + '</p>' +
+      '<p class="note">' + esc(note) + '</p>',
+      [{ label: 'グリッドへ戻る', cls: 'primary', fn: () => { U.closeModal(); cmdGrid(); } }]);
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
   const PADDOCK_DOORS = {
     garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
     drivers: { icon: '🧑‍✈️', label: 'ドライバーの控え', to: 'ドライバー',

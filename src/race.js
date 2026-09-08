@@ -52,7 +52,7 @@ GP.race = (function () {
         const bd0 = t.isPlayer ? myBody : evenBody;
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
         const perf = (t.car * 0.60 + drv * 0.40) * form[ti]
-                   * (t.isPlayer ? S.logiPlan(g).perf : 1);
+                   * (t.isPlayer ? S.logiPlan(g).perf * ((strategy && strategy.setup) || 1) : 1);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
@@ -149,16 +149,31 @@ GP.race = (function () {
     return entries.slice();
   }
 
-  /* ---------- 決勝シミュレーション ---------- */
-  function simulate(g, trackIndex, strategy, special) {
+  /* ---------- 予選まで ----------
+     グリッドを先に確定させて、決勝の前に見せられるようにする。
+     ここで作ったものを simulate に渡すと、そのまま決勝に使われる      */
+  function prequalify(g, trackIndex, strategy, special) {
     const track = D.TRACKS[trackIndex];
-    // 途中で書き換えるので、天気表そのものではなく複製を持つ
     const weather = Object.assign({}, special && special.force
       ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
       : rollWeather(track));
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
+    return { trackIndex: trackIndex, track: track, weather: weather,
+             entries: entries, grid: grid, special: special };
+  }
+
+  /* ---------- 決勝シミュレーション ---------- */
+  function simulate(g, trackIndex, strategy, special, pre) {
+    const track = D.TRACKS[trackIndex];
+    // 予選を先に走らせてあれば、そのグリッドをそのまま使う
+    const weather = pre ? pre.weather : Object.assign({}, special && special.force
+      ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
+      : rollWeather(track));
+    if (!pre) weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
+    const entries = pre ? pre.entries : buildEntries(g, track, weather, strategy);
+    const grid = pre ? pre.grid : qualify(entries, track, weather);
     // パワーユニットの基数超過による降格。予選のあとに順位を下げる
     const gridPen = (g.pu && g.pu.grid) || 0;
     if (gridPen > 0) {
@@ -456,9 +471,11 @@ GP.race = (function () {
                   : ' コーナーで ' + def.driver.name + ' の内に飛び込んだ！') });
             }
             // 強引に決めた一撃は、あとで咎められることがある
+            // グリッドで審査の基準を聞いてきた週は、咎められにくい
             const rough = (onStraight ? 0.010 : 0.030)
                         * (atk.st ? atk.st.risk : 1)
-                        * (1 - atk.driver.technique / 320);
+                        * (1 - atk.driver.technique / 320)
+                        * (atk.isPlayer && g.gridClean ? 0.45 : 1);
             if (Math.random() < rough) givePenalty(atk, 'contact', lap, events, laps);
           } else {
             // 失敗：抜けずに詰まる。コーナーで無理をすると足を痛める
@@ -475,7 +492,7 @@ GP.race = (function () {
                         miss.toFixed(1) + '秒）' });
               }
               // はみ出したまま順位を保っていると、審査が入る
-              if (Math.random() < 0.24) givePenalty(atk, 'limits', lap, events, laps);
+              if (Math.random() < 0.24 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) givePenalty(atk, 'limits', lap, events, laps);
             }
           }
         }
@@ -818,5 +835,5 @@ GP.race = (function () {
     return res.reward;
   }
 
-  return { simulate, applyResult, STRATEGIES, rollWeather };
+  return { simulate, prequalify, applyResult, STRATEGIES, rollWeather };
 })();

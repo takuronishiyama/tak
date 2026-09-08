@@ -74,7 +74,9 @@ GP.state = (function () {
 
   /* 設計時のレアリティ抽選（デザイナーの腕で上振れする） */
   function rollRarity(g) {
-    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35 + mgr(g, 'technical') * 0.06;
+    // グリッドで他所のマシンを間近に見てきたぶんは、次の設計に効く
+    const dz = staffBonus(g, 'designer') + g.facilities.factory * 0.35 + mgr(g, 'technical') * 0.06
+             + (g.designEdge || 0) * 1.4;
     const w = [
       Math.max(6, 58 - dz * 5),
       26 + dz * 0.6,
@@ -940,6 +942,7 @@ GP.state = (function () {
       reserve: null,        // リザーブドライバー（1人）
       title: null,          // タイトルスポンサー（冠）
       capSpent: 0,          // 今季ここまでの開発・設備への支出
+      designEdge: 0,        // グリッドで得た設計のヒント（次の設計で効く）
       yardDone: [],         // 今週すでに声をかけた相手
       debrief: 0,           // レースの次の週だけ、反省会ができる
       lastRace: null,       // 直前のレースの要点（反省会で使う）
