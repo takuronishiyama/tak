@@ -1389,6 +1389,25 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* いまの場所でできること（歩かずに選ぶための一覧） */
+.hublist{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:stretch}
+.hl-h{width:100%;font-size:10px;color:var(--ink2);margin:0 0 1px}
+.hlbtn{display:flex;align-items:center;gap:5px;flex:1 1 186px;min-width:168px;
+       padding:5px 8px;cursor:pointer;text-align:left;line-height:1.35;
+       border:2px solid var(--ink);border-radius:6px;background:#fff8e3;color:var(--ink);
+       font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35)}
+.hlbtn i{font-style:normal;font-size:13px;flex:none}
+.hlbtn b{flex:1;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hlbtn em{font-style:normal;font-size:9px;color:#3a2611;flex:none;font-weight:bold;
+          background:#ecd9a4;border-radius:3px;padding:1px 5px}
+.hlbtn:hover:not([disabled]){background:#ffe9a8;transform:translateY(1px);box-shadow:0 1px 0 rgba(74,47,26,.35)}
+.hlbtn[disabled]{opacity:.45;cursor:default;box-shadow:none}
+[data-skin="hd"] .hl-h{color:#cbbb9a}
+[data-skin="hd"] .hlbtn{background:#2f2540;border-color:#5b4a74;color:#efe4cf;
+                        box-shadow:0 2px 0 rgba(0,0,0,.45)}
+[data-skin="hd"] .hlbtn em{color:#efe4cf;background:#4b3d68}
+[data-skin="hd"] .hlbtn:hover:not([disabled]){background:#3c3054}
+
 /* この週末に出ていくお金 */
 .billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
          background:#fff8e3;color:var(--ink)}

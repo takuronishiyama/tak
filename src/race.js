@@ -706,6 +706,29 @@ GP.race = (function () {
         t *= (1 - use * E.gainPerUnit * ersScale);
         e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
 
+        // ---- 前の車との関係 ----
+        // 直線では前車の後ろが速く（スリップストリーム）、
+        // コーナーでは前車の乱れた空気で曲がらない（乱気流）。
+        // 抜きにくいコースほど乱気流がきつく、張りついたまま抜けない
+        if (e.gapAhead != null && e.gapAhead < 1.5) {
+          const near = 1 - e.gapAhead / 1.5;               // 0..1
+          const dirty = 1.7 - passEase;                    // 抜きにくいほど大きい
+          t -= track.base * 0.0042 * near * (0.35 + geo.longestShare * 2.2);
+          t += track.base * 0.0060 * near * near * dirty
+             * ((1 - e.bd.aero * 0.30) / (1 - RIVAL_BODY_REF * 0.30));
+          if (e.gapAhead < 0.9) e.tyreAge += 0.26;         // 前について走るとタイヤが焼ける
+        }
+        // ---- 後ろから来られている ----
+        // 守るために普段より攻めた走りになる。速くはなるが、そのぶん削れる
+        if (e.gapBehind != null && e.gapBehind < 1.6) {
+          const push = 1 - e.gapBehind / 1.6;
+          t -= track.base * 0.0034 * push * (0.55 + e.driver.mental / 240);
+          e.tyreAge += 0.20 * push;
+          e.defending = push;
+        } else {
+          e.defending = 0;
+        }
+
         // ランダム（精密機械はブレが小さい）
         const jitter = (e.sk('precise') ? 0.45 : 1) * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.42);
         t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
@@ -723,7 +746,8 @@ GP.race = (function () {
                  * (0.55 + wx.chaos * 0.45)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
-                 * (e.driver.hurt ? 1.35 : 1);
+                 * (e.driver.hurt ? 1.35 : 1)
+                 * (1 + (e.defending || 0) * 0.45);      // 守っているときほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
@@ -826,16 +850,20 @@ GP.race = (function () {
         // 0.8秒以内まで詰めたら仕掛ける。コースの性格で、
         // 「ストレートで刺す」か「コーナーで飛び込む」かが変わる。
         const scNow = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        if (!scNow && gap > 0 && gap < 0.55) {
+        if (!scNow && gap > 0 && gap < 0.90) {
           const atk = running[i], def = running[i - 1];
           // ストレートが長いコースほど、直線勝負になりやすい
           const onStraight = Math.random() < Math.min(0.88, 0.15 + passEase * 0.85);
           const batt = atk.ersCap ? atk.battery / atk.ersCap : 0;
 
-          let p = 0.035 + (atk.perf - def.perf) * 0.007 + (0.55 - gap) * 0.22;
+          // 射程に入ってからが長い。詰めるところまでは速さの差で行けるが、
+          // 最後の数十センチは、直線の長さと電気の残りが決める。
+          // 「近づけるのに抜けない」時間は、ここで生まれる
+          const merit = Math.max(0, atk.perf - def.perf);
+          let p = 0.010 + merit * 0.010;
           if (onStraight) {
             // 直線：電気が残っているほど伸びる。スリップストリームも効く
-            p += 0.07 + batt * 0.16 + geo.longestShare * 0.46;
+            p += 0.050 + batt * 0.15 + geo.longestShare * 0.42;
           } else {
             // コーナー：腕とマシンのコーナー性能がものを言う
             p += (atk.driver.technique - def.driver.technique) * 0.004
@@ -849,7 +877,12 @@ GP.race = (function () {
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
           // 空力コンセプトが良いほど、前車の乱気流の中でも走れる
           p *= (0.18 + passEase * 1.24) * ((1 + atk.bd.aero * 0.20) / (1 + RIVAL_BODY_REF * 0.20));
-          p = S.clamp(p, 0.01, 0.80);
+          // 一度でしくじると、次の周は前の乱気流でさらに苦しくなる。
+          // 「射程に入っているのに抜けない」時間を作るための締め
+          p *= 0.46;
+          // 何周も張りついていると、しびれを切らして強引に行く
+          p *= 1 + Math.min(0.9, (atk.stuckLaps || 0) * 0.12);
+          p = S.clamp(p, 0.005, 0.72);
 
           if (Math.random() < p) {
             // 成功：前に出る。詰まっていた時間もここで解ける
@@ -984,6 +1017,15 @@ GP.race = (function () {
           }
         });
       }
+
+      // ---- 次の周のために、前後の車間を控えておく ----
+      const now2 = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+      now2.forEach((e, i) => {
+        e.gapAhead = i > 0 ? now2[i - 1].cum[lap - 1] != null
+          ? e.cum[lap - 1] - now2[i - 1].cum[lap - 1] : null : null;
+        e.gapBehind = i < now2.length - 1
+          ? now2[i + 1].cum[lap - 1] - e.cum[lap - 1] : null;
+      });
 
       // ---- チーム無線 ----
       radioTick({ lap: lap, laps: laps, order: order, radio: radio,

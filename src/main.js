@@ -2209,10 +2209,13 @@ window.GP = window.GP || {};
       note: 'マシンの仕上がりが上がる。いちばん素直な使い方',
       run: () => { staffExp('engineer', 10); return 'セットアップが決まった（今日のマシンが少し速い）'; } },
     { k: 'rookie', icon: '🎓', label: 'ルーキーを走らせる', setup: 1.004,
-      note: 'リザーブか若手に経験を積ませる。そのぶんセットアップは進まない',
-      avail: () => !!(g.reserve || (g.youth || []).length),
+      note: '下部組織の若手に実車を走らせる。そのぶんセットアップは進まない',
+      avail: () => (g.youth || []).length > 0,
       run: () => {
-        const d = g.reserve || (g.youth || [])[0];
+        // 乗せるのは自分たちで育てている若手だけ。
+        // いちばん若い（=伸びしろの残っている）一人に走らせる
+        const d = (g.youth || []).slice().sort((a, b) =>
+          (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0];
         if (!d) return null;
         const keys = ['speed', 'technique', 'stamina', 'mental'];
         const ups = [];
@@ -2258,7 +2261,12 @@ window.GP = window.GP || {};
         (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
         '<span class="pb-body"><b>' + x.label + '</b><small>' + x.note +
-        (ok ? '' : '<br><em class="warn">走らせられる若手がいません</em>') + '</small></span>' +
+        (ok ? '' : '<br><em class="warn">下部組織に若手がいません（「👥 人事」→「🎓 育成」で獲得）</em>') +
+        (x.k === 'rookie' && ok ? '<br><em class="free">' +
+          esc((g.youth || []).slice().sort((a, b) =>
+            (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0].name) +
+          ' が乗ります</em>' : '') +
+        '</small></span>' +
         '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%</span></button>';
     });
     body += '</div>';
@@ -4545,7 +4553,43 @@ window.GP = window.GP || {};
     const btn = $('hubEnter');
     if (btn) btn.onclick = hubEnter;
 
+    renderHubList();
+
     if (!hubRaf) { hubLast = performance.now(); hubRaf = requestAnimationFrame(hubStep); }
+  }
+
+  /* ---- いまの場所でできることを、そのままボタンにする ----
+     歩いて近づくのが楽しい人はそれで、まっすぐ選びたい人はここから。
+     どちらでも同じところに行き着くようにしておく                    */
+  function renderHubList() {
+    const box = $('hubList');
+    if (!box) return;
+    const doors = hubDoors();
+    const keys = Object.keys(doors);
+    if (!keys.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<b class="hl-h">ここでできること</b>' +
+      keys.map(k => {
+        const d = doors[k];
+        const done = d.to === '確認済み' || d.to === '済' || d.done;
+        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+          (done ? ' disabled' : '') + '>' +
+          '<i>' + (d.icon || '•') + '</i>' +
+          '<b>' + esc(d.label || k) + '</b>' +
+          '<em>' + esc(d.to || '入る') + '</em></button>';
+      }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
+      b.onclick = () => {
+        const k = b.getAttribute('data-hub');
+        const map = hubMap();
+        // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
+        const dp = map.doorPos ? map.doorPos(k, g) : null;
+        if (dp) { const c = map.clampWalk(dp.x, dp.y); actor.x = c.x; actor.y = c.y; }
+        hubGoal = null; hubAutoEnter = null;
+        hubDoor = k;
+        GP.sound.play('tap');
+        hubEnter();
+      };
+    });
   }
 
   /* キーボード操作。入力欄に文字を打っているときは邪魔しない */

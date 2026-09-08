@@ -658,7 +658,10 @@ GP.ui = (function () {
       '<div class="hubbar">' +
       '<div class="hubhint" id="hubHint">矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」</div>' +
       '<button class="btn hubenter" id="hubEnter" disabled>▲ 入る</button>' +
-      '</div></div></div>';
+      '</div>' +
+      // 歩かなくても、ここに出ている用事はそのまま選べる
+      '<div class="hublist" id="hubList"></div>' +
+      '</div></div>';
   }
 
   /* ---------- ログ ---------- */

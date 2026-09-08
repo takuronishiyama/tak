@@ -1404,6 +1404,25 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* いまの場所でできること（歩かずに選ぶための一覧） */
+.hublist{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:stretch}
+.hl-h{width:100%;font-size:10px;color:var(--ink2);margin:0 0 1px}
+.hlbtn{display:flex;align-items:center;gap:5px;flex:1 1 186px;min-width:168px;
+       padding:5px 8px;cursor:pointer;text-align:left;line-height:1.35;
+       border:2px solid var(--ink);border-radius:6px;background:#fff8e3;color:var(--ink);
+       font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35)}
+.hlbtn i{font-style:normal;font-size:13px;flex:none}
+.hlbtn b{flex:1;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hlbtn em{font-style:normal;font-size:9px;color:#3a2611;flex:none;font-weight:bold;
+          background:#ecd9a4;border-radius:3px;padding:1px 5px}
+.hlbtn:hover:not([disabled]){background:#ffe9a8;transform:translateY(1px);box-shadow:0 1px 0 rgba(74,47,26,.35)}
+.hlbtn[disabled]{opacity:.45;cursor:default;box-shadow:none}
+[data-skin="hd"] .hl-h{color:#cbbb9a}
+[data-skin="hd"] .hlbtn{background:#2f2540;border-color:#5b4a74;color:#efe4cf;
+                        box-shadow:0 2px 0 rgba(0,0,0,.45)}
+[data-skin="hd"] .hlbtn em{color:#efe4cf;background:#4b3d68}
+[data-skin="hd"] .hlbtn:hover:not([disabled]){background:#3c3054}
+
 /* この週末に出ていくお金 */
 .billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
          background:#fff8e3;color:var(--ink)}
@@ -5420,6 +5439,29 @@ GP.race = (function () {
         t *= (1 - use * E.gainPerUnit * ersScale);
         e.lapErs[lap - 1] = { level: Math.round(e.battery), cap: e.ersCap, used: Math.round(use) };
 
+        // ---- 前の車との関係 ----
+        // 直線では前車の後ろが速く（スリップストリーム）、
+        // コーナーでは前車の乱れた空気で曲がらない（乱気流）。
+        // 抜きにくいコースほど乱気流がきつく、張りついたまま抜けない
+        if (e.gapAhead != null && e.gapAhead < 1.5) {
+          const near = 1 - e.gapAhead / 1.5;               // 0..1
+          const dirty = 1.7 - passEase;                    // 抜きにくいほど大きい
+          t -= track.base * 0.0042 * near * (0.35 + geo.longestShare * 2.2);
+          t += track.base * 0.0060 * near * near * dirty
+             * ((1 - e.bd.aero * 0.30) / (1 - RIVAL_BODY_REF * 0.30));
+          if (e.gapAhead < 0.9) e.tyreAge += 0.26;         // 前について走るとタイヤが焼ける
+        }
+        // ---- 後ろから来られている ----
+        // 守るために普段より攻めた走りになる。速くはなるが、そのぶん削れる
+        if (e.gapBehind != null && e.gapBehind < 1.6) {
+          const push = 1 - e.gapBehind / 1.6;
+          t -= track.base * 0.0034 * push * (0.55 + e.driver.mental / 240);
+          e.tyreAge += 0.20 * push;
+          e.defending = push;
+        } else {
+          e.defending = 0;
+        }
+
         // ランダム（精密機械はブレが小さい）
         const jitter = (e.sk('precise') ? 0.45 : 1) * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.42);
         t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
@@ -5437,7 +5479,8 @@ GP.race = (function () {
                  * (0.55 + wx.chaos * 0.45)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
-                 * (e.driver.hurt ? 1.35 : 1);
+                 * (e.driver.hurt ? 1.35 : 1)
+                 * (1 + (e.defending || 0) * 0.45);      // 守っているときほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
@@ -5540,16 +5583,20 @@ GP.race = (function () {
         // 0.8秒以内まで詰めたら仕掛ける。コースの性格で、
         // 「ストレートで刺す」か「コーナーで飛び込む」かが変わる。
         const scNow = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        if (!scNow && gap > 0 && gap < 0.55) {
+        if (!scNow && gap > 0 && gap < 0.90) {
           const atk = running[i], def = running[i - 1];
           // ストレートが長いコースほど、直線勝負になりやすい
           const onStraight = Math.random() < Math.min(0.88, 0.15 + passEase * 0.85);
           const batt = atk.ersCap ? atk.battery / atk.ersCap : 0;
 
-          let p = 0.035 + (atk.perf - def.perf) * 0.007 + (0.55 - gap) * 0.22;
+          // 射程に入ってからが長い。詰めるところまでは速さの差で行けるが、
+          // 最後の数十センチは、直線の長さと電気の残りが決める。
+          // 「近づけるのに抜けない」時間は、ここで生まれる
+          const merit = Math.max(0, atk.perf - def.perf);
+          let p = 0.010 + merit * 0.010;
           if (onStraight) {
             // 直線：電気が残っているほど伸びる。スリップストリームも効く
-            p += 0.07 + batt * 0.16 + geo.longestShare * 0.46;
+            p += 0.050 + batt * 0.15 + geo.longestShare * 0.42;
           } else {
             // コーナー：腕とマシンのコーナー性能がものを言う
             p += (atk.driver.technique - def.driver.technique) * 0.004
@@ -5563,7 +5610,12 @@ GP.race = (function () {
           // 市街地では滅多に抜けず、直線の長いコースでは何度も入れ替わる。
           // 空力コンセプトが良いほど、前車の乱気流の中でも走れる
           p *= (0.18 + passEase * 1.24) * ((1 + atk.bd.aero * 0.20) / (1 + RIVAL_BODY_REF * 0.20));
-          p = S.clamp(p, 0.01, 0.80);
+          // 一度でしくじると、次の周は前の乱気流でさらに苦しくなる。
+          // 「射程に入っているのに抜けない」時間を作るための締め
+          p *= 0.46;
+          // 何周も張りついていると、しびれを切らして強引に行く
+          p *= 1 + Math.min(0.9, (atk.stuckLaps || 0) * 0.12);
+          p = S.clamp(p, 0.005, 0.72);
 
           if (Math.random() < p) {
             // 成功：前に出る。詰まっていた時間もここで解ける
@@ -5698,6 +5750,15 @@ GP.race = (function () {
           }
         });
       }
+
+      // ---- 次の周のために、前後の車間を控えておく ----
+      const now2 = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+      now2.forEach((e, i) => {
+        e.gapAhead = i > 0 ? now2[i - 1].cum[lap - 1] != null
+          ? e.cum[lap - 1] - now2[i - 1].cum[lap - 1] : null : null;
+        e.gapBehind = i < now2.length - 1
+          ? now2[i + 1].cum[lap - 1] - e.cum[lap - 1] : null;
+      });
 
       // ---- チーム無線 ----
       radioTick({ lap: lap, laps: laps, order: order, radio: radio,
@@ -10396,7 +10457,10 @@ GP.ui = (function () {
       '<div class="hubbar">' +
       '<div class="hubhint" id="hubHint">矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」</div>' +
       '<button class="btn hubenter" id="hubEnter" disabled>▲ 入る</button>' +
-      '</div></div></div>';
+      '</div>' +
+      // 歩かなくても、ここに出ている用事はそのまま選べる
+      '<div class="hublist" id="hubList"></div>' +
+      '</div></div>';
   }
 
   /* ---------- ログ ---------- */
@@ -12667,10 +12731,13 @@ window.GP = window.GP || {};
       note: 'マシンの仕上がりが上がる。いちばん素直な使い方',
       run: () => { staffExp('engineer', 10); return 'セットアップが決まった（今日のマシンが少し速い）'; } },
     { k: 'rookie', icon: '🎓', label: 'ルーキーを走らせる', setup: 1.004,
-      note: 'リザーブか若手に経験を積ませる。そのぶんセットアップは進まない',
-      avail: () => !!(g.reserve || (g.youth || []).length),
+      note: '下部組織の若手に実車を走らせる。そのぶんセットアップは進まない',
+      avail: () => (g.youth || []).length > 0,
       run: () => {
-        const d = g.reserve || (g.youth || [])[0];
+        // 乗せるのは自分たちで育てている若手だけ。
+        // いちばん若い（=伸びしろの残っている）一人に走らせる
+        const d = (g.youth || []).slice().sort((a, b) =>
+          (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0];
         if (!d) return null;
         const keys = ['speed', 'technique', 'stamina', 'mental'];
         const ups = [];
@@ -12716,7 +12783,12 @@ window.GP = window.GP || {};
         (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
         '<span class="pb-body"><b>' + x.label + '</b><small>' + x.note +
-        (ok ? '' : '<br><em class="warn">走らせられる若手がいません</em>') + '</small></span>' +
+        (ok ? '' : '<br><em class="warn">下部組織に若手がいません（「👥 人事」→「🎓 育成」で獲得）</em>') +
+        (x.k === 'rookie' && ok ? '<br><em class="free">' +
+          esc((g.youth || []).slice().sort((a, b) =>
+            (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0].name) +
+          ' が乗ります</em>' : '') +
+        '</small></span>' +
         '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%</span></button>';
     });
     body += '</div>';
@@ -15003,7 +15075,43 @@ window.GP = window.GP || {};
     const btn = $('hubEnter');
     if (btn) btn.onclick = hubEnter;
 
+    renderHubList();
+
     if (!hubRaf) { hubLast = performance.now(); hubRaf = requestAnimationFrame(hubStep); }
+  }
+
+  /* ---- いまの場所でできることを、そのままボタンにする ----
+     歩いて近づくのが楽しい人はそれで、まっすぐ選びたい人はここから。
+     どちらでも同じところに行き着くようにしておく                    */
+  function renderHubList() {
+    const box = $('hubList');
+    if (!box) return;
+    const doors = hubDoors();
+    const keys = Object.keys(doors);
+    if (!keys.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<b class="hl-h">ここでできること</b>' +
+      keys.map(k => {
+        const d = doors[k];
+        const done = d.to === '確認済み' || d.to === '済' || d.done;
+        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+          (done ? ' disabled' : '') + '>' +
+          '<i>' + (d.icon || '•') + '</i>' +
+          '<b>' + esc(d.label || k) + '</b>' +
+          '<em>' + esc(d.to || '入る') + '</em></button>';
+      }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
+      b.onclick = () => {
+        const k = b.getAttribute('data-hub');
+        const map = hubMap();
+        // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
+        const dp = map.doorPos ? map.doorPos(k, g) : null;
+        if (dp) { const c = map.clampWalk(dp.x, dp.y); actor.x = c.x; actor.y = c.y; }
+        hubGoal = null; hubAutoEnter = null;
+        hubDoor = k;
+        GP.sound.play('tap');
+        hubEnter();
+      };
+    });
   }
 
   /* キーボード操作。入力欄に文字を打っているときは邪魔しない */
