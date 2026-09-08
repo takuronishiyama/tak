@@ -161,7 +161,8 @@ window.GP = window.GP || {};
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const fc = S.focusOf(g);
-    let body = '<div class="sub">開発リソースの配分</div>' +
+    let body = interiorHTML('factory') +
+      '<div class="sub">開発リソースの配分</div>' +
       '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
       '来季に回したぶんは、次の新型マシンの初期性能になります。</p>' +
       '<div class="focusrow">';
@@ -233,6 +234,7 @@ window.GP = window.GP || {};
     });
     body += '</div>';
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     const tg = $('tkToggle');
     if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
@@ -371,7 +373,8 @@ window.GP = window.GP || {};
      ======================================================= */
   function cmdResearch() {
     const cur = D.CAR_GENS[g.carGen], nx = D.CAR_GENS[g.carGen + 1];
-    let body = '<div class="pick">' +
+    let body = interiorHTML('tunnel') +
+      '<div class="pick">' +
       '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">🔬</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
       '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
@@ -392,6 +395,7 @@ window.GP = window.GP || {};
         '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
     }
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     bindPick(k => (k === '__gain') ? doResearchGain() : doNewCar());
   }
 
@@ -436,13 +440,15 @@ window.GP = window.GP || {};
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
-    const body = '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
+    const body = interiorHTML('pit') +
+      '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">現在の信頼性 <b>' + Math.round(S.reliability(g)) + '%</b></div>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）<br>各パーツのコンディションが大きく回復します。</p>';
     U.modal('🛠️ 分解整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
     ]);
+    paintInterior();
   }
   function doMaintain(cost) {
     g.funds -= cost;
@@ -463,7 +469,8 @@ window.GP = window.GP || {};
   function cmdTrain() {
     if (!g.drivers.length) return U.toast('ドライバーがいません', 'bad');
     const menu = [['speed', '速さ', '🏎️'], ['technique', '技術', '🎯'], ['stamina', '体力', '💪'], ['mental', '精神', '🧠']];
-    let body = '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
+    let body = interiorHTML('sim') +
+      '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
     g.drivers.forEach((d, i) => {
       body += '<div class="trainrow"><div class="tr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="tr-btns">';
       menu.forEach(m => { body += '<button class="pickbtn small" data-k="' + i + ':' + m[0] + '">' + m[2] + ' ' + m[1] + '</button>'; });
@@ -490,6 +497,7 @@ window.GP = window.GP || {};
     body += '</div>';
 
     U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }], { wide: true });
+    paintInterior();
     bindPick(k => {
       if (k.indexOf('skill:') === 0) doSkillTrain(+k.split(':')[1], scost);
       else doTrain(k, cost);
@@ -549,7 +557,8 @@ window.GP = window.GP || {};
     const have = g.sponsors.map(s => s.name);
     const avail = D.SPONSORS.filter(s => S.sponsorOpen(g, s) && have.indexOf(s.name) < 0);
     const ht = S.hypeTier(g);
-    let body = '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
+    let body = interiorHTML('market') +
+      '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>';
 
@@ -592,6 +601,7 @@ window.GP = window.GP || {};
     });
     body += '</div>';
     U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     bindPick(k => {
       if (k === '__ad') return doPromo();
       if (k === '__offer') return doAcceptOffer();
@@ -1228,6 +1238,46 @@ window.GP = window.GP || {};
       pendingStrategy['tyre_' + d.id] = 'medium';
     });
 
+    // ---- ピット回数とタイヤの狙い ----
+    body += '<div class="sub">ピット作戦</div>' +
+      '<p class="desc">ストップが少ないほど1回のロスは減りますが、' +
+      'タイヤを長く使うぶんペースが落ちます。多いほど新しいタイヤで攻められます。</p>';
+    const STOPS = [['auto', 'おまかせ', 'コースに合わせて決める'],
+                   ['1', '1ストップ', '引っ張る'],
+                   ['2', '2ストップ', '標準'],
+                   ['3', '3ストップ', '攻める']];
+    const TBIAS = [['0', '柔らかめ', '速いが減る'],
+                   ['1', 'バランス', ''],
+                   ['2', '硬め', '遅いが保つ']];
+    g.drivers.forEach(d => {
+      body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div>' +
+        '<div class="sr-btns" data-stops="' + d.id + '">';
+      STOPS.forEach(o => {
+        body += '<button class="stratbtn small' + (o[0] === 'auto' ? ' on' : '') + '" data-v="' + o[0] + '">' +
+          o[1] + '<br><small>' + o[2] + '</small></button>';
+      });
+      body += '</div></div>';
+      body += '<div class="stratrow"><div class="sr-nm"><small>タイヤの狙い</small></div>' +
+        '<div class="sr-btns" data-tbias="' + d.id + '">';
+      TBIAS.forEach(o => {
+        body += '<button class="stratbtn small' + (o[0] === '1' ? ' on' : '') + '" data-v="' + o[0] + '">' +
+          o[1] + (o[2] ? '<br><small>' + o[2] + '</small>' : '') + '</button>';
+      });
+      body += '</div></div>';
+      pendingStrategy['stops_' + d.id] = 'auto';
+      pendingStrategy['tbias_' + d.id] = '1';
+    });
+
+    // ---- ライバルの作戦の傾向 ----
+    // 対戦を重ねると読めるように、チームごとの性格を出しておく
+    body += '<div class="sub small">ライバルの作戦傾向</div><div class="stylelist">';
+    (g.rivals || []).slice(0, 10).forEach(r => {
+      const st = D.STRAT_STYLES[r.style] || D.STRAT_STYLES.balanced;
+      body += '<span class="stylechip"><i style="background:' + r.color + '"></i>' +
+        esc(r.name) + ' <b>' + st.icon + st.name + '</b></span>';
+    });
+    body += '</div>';
+
     U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
       { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
@@ -1239,6 +1289,22 @@ window.GP = window.GP || {};
         Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
         b.classList.add('on');
         pendingStrategy[wrap.dataset.drv] = b.dataset.s;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stops] .stratbtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['stops_' + wrap.dataset.stops] = b.dataset.v;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-tbias] .stratbtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['tbias_' + wrap.dataset.tbias] = b.dataset.v;
       };
     });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.tyrebtn'), b => {
@@ -1469,6 +1535,17 @@ window.GP = window.GP || {};
      建物がそのまま入口になる。押すと、その設備の画面が開く。
      「休養」だけは押した瞬間に1週進むので、建物には割り当てない。
      ======================================================= */
+  /* 施設の内装。コマンド画面の先頭に、その施設の部屋を出す。
+     レベルが上がるほど機材と人が増え、部屋が広くなる。            */
+  function interiorHTML(key) {
+    return '<div class="intwrap"><canvas id="intCv" width="' + GP.interior.W +
+           '" height="' + GP.interior.H + '" data-fac="' + key + '"></canvas></div>';
+  }
+  function paintInterior() {
+    const cv = $('intCv');
+    if (cv) GP.interior.render(cv, g, cv.dataset.fac);
+  }
+
   /* パドックで立ち寄れる場所。レースウィークだけこちらを使う */
   const PADDOCK_DOORS = {
     garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
@@ -1497,6 +1574,7 @@ window.GP = window.GP || {};
      操作は 矢印キー／WASD と、画面のタップ（そこまで歩いていく）。   */
   const actor = { x: 264, y: 300, dir: 'down', frame: 0, moving: false, color: '#e04a3f' };
   let hubRaf = null, hubLast = 0, hubGoal = null, hubKeys = {}, hubDoor = null, hubBusy = false;
+  let hubAutoEnter = null;     // 建物を押して向かっているとき、その入口の名前
   const WALK_SPEED = 62;            // 1秒あたりに進むドット数
 
   function stopHub() {
@@ -1516,7 +1594,7 @@ window.GP = window.GP || {};
     // 画面（モーダル）が開いているあいだは操作を受けず、描画もしない。
     // ここで止めてしまうと、閉じたときに再開できないのでループ自体は回し続ける。
     if (/\bshow\b/.test($('modal').className)) {
-      hubKeys = {}; hubGoal = null;
+      hubKeys = {}; hubGoal = null; hubAutoEnter = null;
       hubRaf = requestAnimationFrame(hubStep);
       return;
     }
@@ -1526,12 +1604,25 @@ window.GP = window.GP || {};
     if (hubKeys.right) dx += 1;
     if (hubKeys.up) dy -= 1;
     if (hubKeys.down) dy += 1;
-    if (dx || dy) hubGoal = null;                    // キー操作が入ったら目的地を捨てる
+    if (dx || dy) { hubGoal = null; hubAutoEnter = null; }   // キー操作が入ったら目的地を捨てる
     else if (hubGoal) {                              // タップした場所へ向かう
       const gx = hubGoal.x - actor.x, gy = hubGoal.y - actor.y;
       const d = Math.hypot(gx, gy);
-      if (d < 2.5) { hubGoal = null; }
-      else { dx = gx / d; dy = gy / d; }
+      if (d < 3.0) {
+        hubGoal = null;
+        // 建物を押して向かってきた場合は、着いたらそのまま入る。
+        // 「押したのに入れない」と感じさせないための扱い。
+        if (hubAutoEnter) {
+          const want = hubAutoEnter;
+          hubAutoEnter = null;
+          actor.moving = false;
+          hubDoor = want;
+          hubMap().drawWith(cv, g, hubDoor, actor);
+          setTimeout(() => { if (hubDoor === want) hubEnter(); }, 120);
+          hubRaf = requestAnimationFrame(hubStep);
+          return;
+        }
+      } else { dx = gx / d; dy = gy / d; }
     }
 
     const len = Math.hypot(dx, dy) || 1;
@@ -1574,7 +1665,7 @@ window.GP = window.GP || {};
     if (!d) return;
     hubBusy = true;
     GP.sound.play('click');
-    hubGoal = null; hubKeys = {};
+    hubGoal = null; hubKeys = {}; hubAutoEnter = null;
     d.fn();
     hubBusy = false;
   }
@@ -1606,8 +1697,10 @@ window.GP = window.GP || {};
       const k = hubMap().hit(q.x, q.y);
       if (k && hubDoors()[k]) {
         const dp = hubMap().doorPos(k, g);
-        if (dp) { hubGoal = dp; return; }
+        if (dp) { hubGoal = dp; hubAutoEnter = k; return; }
       }
+      // 地面を押したときは、そこへ歩くだけ
+      hubAutoEnter = null;
       hubGoal = hubMap().clampWalk(q.x, q.y);
     };
     cv.ondblclick = () => hubEnter();
@@ -1722,12 +1815,18 @@ window.GP = window.GP || {};
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
+    const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
+    const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {
-      $(id).onclick = () => {
-        RV.setSpeed(speeds[id]);
-        Object.keys(speeds).forEach(o => $(o).classList.toggle('primary', o === id));
-      };
+      $(id).onclick = () => { RV.setSpeed(speeds[id]); mark(id); };
     });
+    // 実時間：実際のレースと同じ速さで進む。何分かかるかを添えておく
+    const real = $('rvSpeedReal');
+    if (real) real.onclick = () => {
+      const sec = RV.setRealtime();
+      mark('rvSpeedReal');
+      U.toast('⏱ 実時間で進みます（残り約 ' + Math.ceil(sec / 60) + ' 分）', 'good');
+    };
     $('rvSkip').onclick = () => RV.skip();
     Array.prototype.forEach.call($('rvCam').children, b => {
       b.onclick = () => { GP.sound.play('tap'); RV.setCamMode(b.dataset.cam); };

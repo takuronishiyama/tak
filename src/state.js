@@ -412,6 +412,8 @@ GP.state = (function () {
           accel:  base * 3 * r.bias.accel
         },
         rel: clamp(72 + r.power * 18 + season * 1.2 + rnd(-8, 8), 40, 97),
+        // 作戦の性格。チームごとに固定なので、対戦を重ねると読めるようになる
+        style: D.STRAT_STYLE_KEYS[(i + season) % D.STRAT_STYLE_KEYS.length],
         points: 0,
         drivers: [makeDriver(lv), makeDriver(lv * 0.92)]
       };

@@ -1042,3 +1042,22 @@ body[data-skin="hd"]{
   .hubbar{flex-direction:column}
   .btn.hubenter{min-width:0;width:100%;padding:8px}
 }
+
+/* 作戦画面：小さめのボタンと、ライバルの傾向 */
+.stratbtn.small{font-size:11px;padding:3px 6px;line-height:1.25}
+.stratbtn.small small{font-size:9px;opacity:.72}
+.sub.small{font-size:11px}
+.stylelist{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.stylechip{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+           background:var(--paper3);border:2px solid var(--ink);border-radius:5px;padding:1px 6px}
+.stylechip i{width:8px;height:8px;border:1px solid var(--ink);border-radius:2px;display:inline-block}
+[data-skin="hd"] .stylechip{background:linear-gradient(180deg,#2c2340,#211a2f);
+                            border-color:rgba(214,178,106,.30);color:#e8dcc4}
+
+/* 施設の内装 */
+.intwrap{border:3px solid var(--ink);border-radius:10px;overflow:hidden;margin-bottom:10px;
+         background:#2a2436;box-shadow:0 3px 0 rgba(74,47,26,.45)}
+#intCv{display:block;width:100%;height:auto;
+       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+[data-skin="hd"] .intwrap{border-color:var(--gold2);
+  box-shadow:inset 0 0 0 1px rgba(214,178,106,.30), 0 4px 16px rgba(0,0,0,.6)}

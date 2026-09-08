@@ -115,6 +115,20 @@ GP.data = (function () {
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
   ];
 
+  /* ---------- チームごとの作戦の性格 ----------
+     シーズンを通して変わらないので、「あのチームは引っ張る」と覚えられる。
+     stopBias  ストップ回数の増減
+     pitShift  予定周回を早める(-)／遅らせる(+) 割合
+     tyreBias  0=攻め（柔らかいタイヤ） 1=バランス 2=堅実（硬いタイヤ）
+     react     アンダーカットを仕掛ける積極性 0..1                       */
+  const STRAT_STYLES = {
+    aggressive: { name: '強気',   icon: '🔥', stopBias:  1, pitShift: -0.10, tyreBias: 0, react: 0.85 },
+    steady:     { name: '堅実',   icon: '🛡️', stopBias: -1, pitShift:  0.10, tyreBias: 2, react: 0.20 },
+    balanced:   { name: '標準',   icon: '⚖️', stopBias:  0, pitShift:  0.00, tyreBias: 1, react: 0.50 },
+    wild:       { name: '型破り', icon: '🎲', stopBias:  0, pitShift:  0.00, tyreBias: 1, react: 0.65, random: true }
+  };
+  const STRAT_STYLE_KEYS = ['aggressive', 'steady', 'balanced', 'balanced', 'wild'];
+
   /* ---------- コースの景観テーマ ---------- */
   const THEMES = {
     grass:  { sky: '#7fbf5a', dot: '#76b552', edge: '#e8e0c8', road: '#55585f', night: false },
@@ -519,7 +533,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { SPONSOR_BONUS_CAP, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { SPONSOR_BONUS_CAP, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

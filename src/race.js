@@ -39,6 +39,11 @@ GP.race = (function () {
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
+          // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
+          style: t.style || 'balanced',
+          stopPlan: t.isPlayer ? (strategy['stops_' + d.id] || 'auto') : null,
+          tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
+                                  : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
           tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
@@ -123,19 +128,40 @@ GP.race = (function () {
     // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      let stops = (wear > 1.05 || laps > 28) ? 2 : 1;
-      // ライバルはチームごとに作戦を変える。少ないストップなら硬いタイヤで長く走る
-      e.tyreBias = 1;                     // 自チームの2本目以降はバランス型
-      if (!e.isPlayer) {
-        const r = Math.random();
-        if (r < 0.26) { stops = Math.max(1, stops - 1); e.tyreBias = 2; }
-        else if (r < 0.48) { stops = Math.min(3, stops + 1); e.tyreBias = 0; }
-        else { e.tyreBias = S.rint(0, 2); }
+      // コースとマシンから決まる「素直な」ストップ回数
+      const natural = (wear > 1.05 || laps > 28) ? 2 : 1;
+      let stops = natural;
+      e.tyreBias = 1;
+      e.react = 0.45;                     // アンダーカットを仕掛ける積極性
+
+      if (e.isPlayer) {
+        // プレイヤーは自分で選べる。'auto' ならコース任せ
+        const want = e.stopPlan;
+        if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
+        e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
+        e.react = 0.5 + strategist * 0.12;
+      } else {
+        // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
+        const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
+        if (st.random) {                  // 型破りなチームだけは毎回読めない
+          stops = S.clamp(natural + S.rint(-1, 1), 1, 3);
+          e.tyreBias = S.rint(0, 2);
+        } else {
+          stops = S.clamp(natural + st.stopBias, 1, 3);
+          e.tyreBias = st.tyreBias;
+        }
+        e.react = st.react;
+        e.pitShift = st.random ? S.rnd(-0.1, 0.1) : st.pitShift;
       }
-      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.2;
+      e.stops = stops;
+
+      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.4;
+      const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
-        e.pitPlan.push(Math.max(2, Math.round(laps * i / (stops + 1) + S.rnd(-blur, blur))));
+        // 等分だと毎回同じ周回になるので、性格ぶんの前倒し／引っ張りを乗せる
+        const frac = i / (stops + 1) * (1 + shift);
+        e.pitPlan.push(S.clamp(Math.round(laps * frac + S.rnd(-blur, blur)), 2, laps - 2));
       }
       e.pitPlan.sort((a, b) => a - b);
       e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
@@ -274,6 +300,25 @@ GP.race = (function () {
           let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
           if (running[i].sk('passer')) stuck *= 0.45;
           running[i].cum[lap - 1] += stuck;
+        }
+
+        // ---- アンダーカット ----
+        // 前の車に詰まっていて、抜きにくいコースで、自分のピット予定が近いなら、
+        // 1周早く入って新しいタイヤで前に出ることを狙う。
+        // 逆に前の車が先に入ったら、こちらは引っ張って（オーバーカット）応じる。
+        const me = running[i], ahead = running[i - 1];
+        if (!me.dnf && me.pitPlan.length && gap > 0 && gap < 2.6 && passEase < 0.95) {
+          const next = me.pitPlan.find(l => l > lap);
+          if (next != null && next - lap <= 3 && next > lap + 1 &&
+              Math.random() < me.react * 0.34) {
+            me.pitPlan[me.pitPlan.indexOf(next)] = lap + 1;
+            me.pitPlan.sort((a, b) => a - b);
+            me.undercut = (me.undercut || 0) + 1;
+            if (me.isPlayer || ahead.isPlayer) {
+              events.push({ lap: lap + 1, type: 'pit', car: me,
+                text: me.driver.name + ' アンダーカットを狙って1周早くピットへ！' });
+            }
+          }
         }
       }
 

@@ -1372,6 +1372,9 @@ GP.raceview = (function () {
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
+  /* 実時間モード。レースの所要時間そのものを再生時間にする＝等速 */
+  function setRealtime() { speed = duration; return duration; }
+  function raceDuration() { return duration; }
   function skip() {
     running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
@@ -1446,5 +1449,6 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, setCamMode, _drawCar: drawCar, _drawPitCrew: drawPitCrew };
+  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode,
+           _drawCar: drawCar, _drawPitCrew: drawPitCrew };
 })();

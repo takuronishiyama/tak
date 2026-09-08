@@ -1058,6 +1058,25 @@ body[data-skin="hd"]{
   .btn.hubenter{min-width:0;width:100%;padding:8px}
 }
 
+/* 作戦画面：小さめのボタンと、ライバルの傾向 */
+.stratbtn.small{font-size:11px;padding:3px 6px;line-height:1.25}
+.stratbtn.small small{font-size:9px;opacity:.72}
+.sub.small{font-size:11px}
+.stylelist{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.stylechip{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+           background:var(--paper3);border:2px solid var(--ink);border-radius:5px;padding:1px 6px}
+.stylechip i{width:8px;height:8px;border:1px solid var(--ink);border-radius:2px;display:inline-block}
+[data-skin="hd"] .stylechip{background:linear-gradient(180deg,#2c2340,#211a2f);
+                            border-color:rgba(214,178,106,.30);color:#e8dcc4}
+
+/* 施設の内装 */
+.intwrap{border:3px solid var(--ink);border-radius:10px;overflow:hidden;margin-bottom:10px;
+         background:#2a2436;box-shadow:0 3px 0 rgba(74,47,26,.45)}
+#intCv{display:block;width:100%;height:auto;
+       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+[data-skin="hd"] .intwrap{border-color:var(--gold2);
+  box-shadow:inset 0 0 0 1px rgba(214,178,106,.30), 0 4px 16px rgba(0,0,0,.6)}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -1174,6 +1193,7 @@ body[data-skin="hd"]{
       <button class="btn primary" id="rvSpeed1">▶ ゆっくり</button>
       <button class="btn" id="rvSpeed2">▶▶ ふつう</button>
       <button class="btn" id="rvSpeed3">▶▶▶ はやい</button>
+      <button class="btn" id="rvSpeedReal" title="実際のレースと同じ速さで進みます">⏱ 実時間</button>
       <button class="btn primary" id="rvSkip">⏭ 結果へ</button>
     </div>
   </div>
@@ -1704,6 +1724,20 @@ GP.data = (function () {
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
   ];
 
+  /* ---------- チームごとの作戦の性格 ----------
+     シーズンを通して変わらないので、「あのチームは引っ張る」と覚えられる。
+     stopBias  ストップ回数の増減
+     pitShift  予定周回を早める(-)／遅らせる(+) 割合
+     tyreBias  0=攻め（柔らかいタイヤ） 1=バランス 2=堅実（硬いタイヤ）
+     react     アンダーカットを仕掛ける積極性 0..1                       */
+  const STRAT_STYLES = {
+    aggressive: { name: '強気',   icon: '🔥', stopBias:  1, pitShift: -0.10, tyreBias: 0, react: 0.85 },
+    steady:     { name: '堅実',   icon: '🛡️', stopBias: -1, pitShift:  0.10, tyreBias: 2, react: 0.20 },
+    balanced:   { name: '標準',   icon: '⚖️', stopBias:  0, pitShift:  0.00, tyreBias: 1, react: 0.50 },
+    wild:       { name: '型破り', icon: '🎲', stopBias:  0, pitShift:  0.00, tyreBias: 1, react: 0.65, random: true }
+  };
+  const STRAT_STYLE_KEYS = ['aggressive', 'steady', 'balanced', 'balanced', 'wild'];
+
   /* ---------- コースの景観テーマ ---------- */
   const THEMES = {
     grass:  { sky: '#7fbf5a', dot: '#76b552', edge: '#e8e0c8', road: '#55585f', night: false },
@@ -2108,7 +2142,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { SPONSOR_BONUS_CAP, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { SPONSOR_BONUS_CAP, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
@@ -2735,6 +2769,8 @@ GP.state = (function () {
           accel:  base * 3 * r.bias.accel
         },
         rel: clamp(72 + r.power * 18 + season * 1.2 + rnd(-8, 8), 40, 97),
+        // 作戦の性格。チームごとに固定なので、対戦を重ねると読めるようになる
+        style: D.STRAT_STYLE_KEYS[(i + season) % D.STRAT_STYLE_KEYS.length],
         points: 0,
         drivers: [makeDriver(lv), makeDriver(lv * 0.92)]
       };
@@ -3030,6 +3066,11 @@ GP.race = (function () {
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
+          // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
+          style: t.style || 'balanced',
+          stopPlan: t.isPlayer ? (strategy['stops_' + d.id] || 'auto') : null,
+          tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
+                                  : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
           tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
@@ -3114,19 +3155,40 @@ GP.race = (function () {
     // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      let stops = (wear > 1.05 || laps > 28) ? 2 : 1;
-      // ライバルはチームごとに作戦を変える。少ないストップなら硬いタイヤで長く走る
-      e.tyreBias = 1;                     // 自チームの2本目以降はバランス型
-      if (!e.isPlayer) {
-        const r = Math.random();
-        if (r < 0.26) { stops = Math.max(1, stops - 1); e.tyreBias = 2; }
-        else if (r < 0.48) { stops = Math.min(3, stops + 1); e.tyreBias = 0; }
-        else { e.tyreBias = S.rint(0, 2); }
+      // コースとマシンから決まる「素直な」ストップ回数
+      const natural = (wear > 1.05 || laps > 28) ? 2 : 1;
+      let stops = natural;
+      e.tyreBias = 1;
+      e.react = 0.45;                     // アンダーカットを仕掛ける積極性
+
+      if (e.isPlayer) {
+        // プレイヤーは自分で選べる。'auto' ならコース任せ
+        const want = e.stopPlan;
+        if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
+        e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
+        e.react = 0.5 + strategist * 0.12;
+      } else {
+        // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
+        const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
+        if (st.random) {                  // 型破りなチームだけは毎回読めない
+          stops = S.clamp(natural + S.rint(-1, 1), 1, 3);
+          e.tyreBias = S.rint(0, 2);
+        } else {
+          stops = S.clamp(natural + st.stopBias, 1, 3);
+          e.tyreBias = st.tyreBias;
+        }
+        e.react = st.react;
+        e.pitShift = st.random ? S.rnd(-0.1, 0.1) : st.pitShift;
       }
-      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.2;
+      e.stops = stops;
+
+      const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.4;
+      const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
-        e.pitPlan.push(Math.max(2, Math.round(laps * i / (stops + 1) + S.rnd(-blur, blur))));
+        // 等分だと毎回同じ周回になるので、性格ぶんの前倒し／引っ張りを乗せる
+        const frac = i / (stops + 1) * (1 + shift);
+        e.pitPlan.push(S.clamp(Math.round(laps * frac + S.rnd(-blur, blur)), 2, laps - 2));
       }
       e.pitPlan.sort((a, b) => a - b);
       e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
@@ -3265,6 +3327,25 @@ GP.race = (function () {
           let stuck = (0.9 - gap) * (1.5 - passEase * 0.6);
           if (running[i].sk('passer')) stuck *= 0.45;
           running[i].cum[lap - 1] += stuck;
+        }
+
+        // ---- アンダーカット ----
+        // 前の車に詰まっていて、抜きにくいコースで、自分のピット予定が近いなら、
+        // 1周早く入って新しいタイヤで前に出ることを狙う。
+        // 逆に前の車が先に入ったら、こちらは引っ張って（オーバーカット）応じる。
+        const me = running[i], ahead = running[i - 1];
+        if (!me.dnf && me.pitPlan.length && gap > 0 && gap < 2.6 && passEase < 0.95) {
+          const next = me.pitPlan.find(l => l > lap);
+          if (next != null && next - lap <= 3 && next > lap + 1 &&
+              Math.random() < me.react * 0.34) {
+            me.pitPlan[me.pitPlan.indexOf(next)] = lap + 1;
+            me.pitPlan.sort((a, b) => a - b);
+            me.undercut = (me.undercut || 0) + 1;
+            if (me.isPlayer || ahead.isPlayer) {
+              events.push({ lap: lap + 1, type: 'pit', car: me,
+                text: me.driver.name + ' アンダーカットを狙って1周早くピットへ！' });
+            }
+          }
         }
       }
 
@@ -4839,6 +4920,9 @@ GP.raceview = (function () {
     raf = requestAnimationFrame(tick);
   }
   function setSpeed(s) { speed = s; }
+  /* 実時間モード。レースの所要時間そのものを再生時間にする＝等速 */
+  function setRealtime() { speed = duration; return duration; }
+  function raceDuration() { return duration; }
   function skip() {
     running = false; lights = 1; chequer = 1;
     if (raf) cancelAnimationFrame(raf);
@@ -4913,7 +4997,8 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, skip, stop, setCamMode, _drawCar: drawCar, _drawPitCrew: drawPitCrew };
+  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode,
+           _drawCar: drawCar, _drawPitCrew: drawPitCrew };
 })();
 
 </script>
@@ -5841,6 +5926,314 @@ GP.paddock = (function () {
 
 </script>
 <script>
+/* ===== src/interior.js ===== */
+/* =========================================================
+   施設の内装
+   拠点の建物に入ったときに見える部屋。
+   施設レベルが上がると、機材が増え、人が増え、部屋そのものが広がる。
+   横から見た絵で、いちばん手前に自分（チームプリンシパル）が立つ。
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.interior = (function () {
+  'use strict';
+
+  const W = 520, H = 190;
+
+  function seeded(n) {
+    let h = (n * 2654435761) >>> 0;
+    return function () { h = (h * 1103515245 + 12345) >>> 0; return h / 4294967296; };
+  }
+
+  function mix(hex, amt) {
+    if (!hex || hex[0] !== '#') return hex;
+    const n = parseInt(hex.slice(1), 16);
+    const c = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+    return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
+  }
+
+  /* 働いている人。レベルが上がるほど増える */
+  function worker(g, x, y, col, phase) {
+    const bob = Math.sin(phase) * 0.8;
+    g.fillStyle = 'rgba(0,0,0,.26)'; g.fillRect(x - 4, y + 1, 8, 2);
+    g.fillStyle = mix(col, -0.20); g.fillRect(x - 4, y - 13 + bob, 8, 13);
+    g.fillStyle = col;             g.fillRect(x - 4, y - 13 + bob, 8, 5);
+    g.fillStyle = '#e8b98e';       g.fillRect(x - 3, y - 19 + bob, 6, 6);   // 顔
+    g.fillStyle = '#3a2718';       g.fillRect(x - 3, y - 20 + bob, 6, 3);   // 髪
+  }
+
+  /* 部屋の枠。レベルが上がるほど天井が高く、明かりが増える */
+  function room(g, lv, tint, dusk) {
+    const grow = Math.min(1, (lv - 1) / 9);
+    const floorY = H - 22;
+    // 奥の壁
+    g.fillStyle = dusk ? '#2a2436' : '#cfc6b2';
+    g.fillRect(0, 0, W, floorY);
+    g.fillStyle = dusk ? '#312b3e' : '#d8cfbb';
+    g.fillRect(0, 0, W, 16 + grow * 10);                       // 天井
+    // 壁の帯（チームカラー）
+    g.fillStyle = tint;
+    g.fillRect(0, 22 + grow * 10, W, 5);
+    g.fillStyle = 'rgba(255,255,255,.28)';
+    g.fillRect(0, 22 + grow * 10, W, 1.5);
+    // 天井の照明。レベルで数が増える
+    const lamps = 2 + Math.round(grow * 4);
+    for (let i = 0; i < lamps; i++) {
+      const x = (i + 0.5) * (W / lamps);
+      g.fillStyle = '#5c5648'; g.fillRect(x - 1, 0, 2, 6);
+      g.fillStyle = '#fff6d8'; g.fillRect(x - 9, 6, 18, 4);
+      const gl = g.createRadialGradient(x, 10, 2, x, 10, 46);
+      gl.addColorStop(0, 'rgba(255,240,190,.28)');
+      gl.addColorStop(1, 'rgba(255,240,190,0)');
+      g.fillStyle = gl; g.fillRect(x - 46, 6, 92, 70);
+    }
+    // 床
+    g.fillStyle = dusk ? '#3a3346' : '#9a9384';
+    g.fillRect(0, floorY, W, H - floorY);
+    g.fillStyle = dusk ? '#413a4e' : '#a49d8c';
+    for (let x = 0; x < W; x += 30) g.fillRect(x, floorY, 28, H - floorY);
+    g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(0, floorY, W, 2);
+    return floorY;
+  }
+
+  /* ---------- 施設ごとの中身 ---------- */
+  const ROOMS = {
+    /* ファクトリー：作業台とマシン、レベルが上がると設備が並ぶ */
+    factory: function (g, lv, col, fy, rnd) {
+      const n = Math.min(5, 1 + Math.floor(lv / 2.2));
+      for (let i = 0; i < n; i++) {                     // 部品棚
+        const x = 14 + i * 42;
+        g.fillStyle = '#4a4034'; g.fillRect(x, fy - 46, 34, 46);
+        g.fillStyle = '#5e5344'; g.fillRect(x + 1, fy - 45, 32, 44);
+        for (let r = 0; r < 3; r++) {
+          g.fillStyle = '#3a3229'; g.fillRect(x + 2, fy - 42 + r * 14, 30, 2);
+          for (let c = 0; c < 3; c++) {
+            if (((i + r + c) % 4) === 0) continue;
+            g.fillStyle = ['#8d94a0', col, '#a08860'][(i + c) % 3];
+            g.fillRect(x + 4 + c * 10, fy - 40 + r * 14, 7, 8);
+          }
+        }
+      }
+      // 組み立て中のマシン
+      const cx = W - 150, cy = fy - 8;
+      g.fillStyle = '#3a3d46'; g.fillRect(cx - 4, cy - 4, 118, 6);          // 作業台
+      g.fillRect(cx + 4, cy + 2, 6, 6); g.fillRect(cx + 96, cy + 2, 6, 6);
+      g.fillStyle = mix(col, -0.18); g.fillRect(cx + 10, cy - 20, 86, 16);
+      g.fillStyle = col; g.fillRect(cx + 14, cy - 20, 78, 12);
+      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx + 14, cy - 20, 78, 3);
+      g.fillStyle = '#17181c';
+      g.fillRect(cx + 16, cy - 10, 14, 8); g.fillRect(cx + 76, cy - 10, 14, 8);
+      g.fillStyle = '#2b2e36'; g.fillRect(cx + 4, cy - 24, 14, 4);          // ウイング
+      g.fillRect(cx + 92, cy - 26, 16, 5);
+      if (lv >= 5) {                                                        // ロボットアーム
+        g.fillStyle = '#f0a020'; g.fillRect(cx + 44, fy - 74, 6, 30);
+        g.fillRect(cx + 44, fy - 76, 26, 6);
+        g.fillStyle = '#8d94a0'; g.fillRect(cx + 66, fy - 74, 5, 14);
+      }
+      return [30, 100, W - 60].slice(0, 1 + Math.floor(lv / 3));
+    },
+
+    /* 風洞：送風管と、模型を載せた台 */
+    tunnel: function (g, lv, col, fy, rnd) {
+      const r = 30 + lv * 2.2;
+      const cx = 96, cy = fy - r - 6;
+      g.fillStyle = '#3a3f48';
+      g.beginPath(); g.arc(cx, cy, r + 5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#8d959e';
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#5f6870';
+      g.beginPath(); g.arc(cx, cy, r * 0.42, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#dfe6ec'; g.lineWidth = 3;                           // 羽根
+      for (let a = 0; a < 5; a++) {
+        const t = a * Math.PI * 2 / 5 + lv * 0.4;
+        g.beginPath(); g.moveTo(cx, cy);
+        g.lineTo(cx + Math.cos(t) * r * 0.8, cy + Math.sin(t) * r * 0.8); g.stroke();
+      }
+      // 風の筋。レベルが上がるほど本数が増える
+      const lines = 3 + Math.floor(lv * 0.7);
+      for (let i = 0; i < lines; i++) {
+        const y = cy - r + (i + 0.5) * (r * 2 / lines);
+        g.fillStyle = 'rgba(200,230,255,' + (0.16 + (i % 3) * 0.06).toFixed(2) + ')';
+        g.fillRect(cx + r + 8, y, 130 + (i % 4) * 26, 2);
+      }
+      // 模型を載せた台
+      const mx = W - 150;
+      g.fillStyle = '#3a3d46'; g.fillRect(mx, fy - 10, 110, 10);
+      g.fillStyle = mix(col, -0.16); g.fillRect(mx + 18, fy - 24, 70, 12);
+      g.fillStyle = col; g.fillRect(mx + 22, fy - 24, 62, 9);
+      g.fillStyle = '#17181c';
+      g.fillRect(mx + 24, fy - 16, 11, 6); g.fillRect(mx + 72, fy - 16, 11, 6);
+      if (lv >= 4) {                                                        // 計測モニター
+        g.fillStyle = '#241a10'; g.fillRect(W - 62, fy - 74, 52, 36);
+        g.fillStyle = '#12202c'; g.fillRect(W - 60, fy - 72, 48, 32);
+        for (let i = 0; i < 4; i++) {
+          g.fillStyle = 'rgba(120,220,255,.7)';
+          g.fillRect(W - 56, fy - 66 + i * 7, 10 + (i * 11) % 30, 3);
+        }
+      }
+      return [200, 300, 380].slice(0, 1 + Math.floor(lv / 4));
+    },
+
+    /* シミュレーター：ドーム型の機体と画面 */
+    sim: function (g, lv, col, fy, rnd) {
+      const n = lv >= 7 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const x = 70 + i * 170;
+        g.fillStyle = '#3a3d46'; g.fillRect(x - 44, fy - 12, 88, 12);       // 土台
+        g.fillStyle = '#4e535e';
+        for (let k = 0; k < 3; k++) g.fillRect(x - 34 + k * 30, fy - 30, 8, 20);  // 脚
+        g.fillStyle = mix(col, -0.22);
+        g.beginPath(); g.ellipse(x, fy - 34, 42, 26, 0, Math.PI, 0); g.fill();
+        g.fillStyle = col;
+        g.beginPath(); g.ellipse(x, fy - 34, 38, 22, 0, Math.PI, 0); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.28)';
+        g.beginPath(); g.ellipse(x - 10, fy - 42, 16, 8, 0, Math.PI, 0); g.fill();
+        g.fillStyle = '#12202c'; g.fillRect(x - 26, fy - 36, 52, 14);        // 画面
+        g.fillStyle = 'rgba(120,220,255,.55)';
+        g.fillRect(x - 22, fy - 32, 44, 2); g.fillRect(x - 18, fy - 28, 30, 2);
+      }
+      if (lv >= 3) {                                                         // 解析席
+        const dx = W - 130;
+        g.fillStyle = '#4a4034'; g.fillRect(dx, fy - 22, 96, 22);
+        g.fillStyle = '#241a10'; g.fillRect(dx + 8, fy - 52, 36, 30);
+        g.fillStyle = '#12202c'; g.fillRect(dx + 10, fy - 50, 32, 26);
+        g.fillStyle = '#241a10'; g.fillRect(dx + 52, fy - 46, 36, 24);
+        g.fillStyle = '#12202c'; g.fillRect(dx + 54, fy - 44, 32, 20);
+        for (let i = 0; i < 3; i++) {
+          g.fillStyle = 'rgba(120,220,255,.6)';
+          g.fillRect(dx + 13, fy - 46 + i * 7, 8 + (i * 9) % 20, 2);
+        }
+      }
+      return [150, 250, 340].slice(0, 1 + Math.floor(lv / 4));
+    },
+
+    /* マーケティング室：机とスポンサーの壁、トロフィー */
+    market: function (g, lv, col, fy, rnd) {
+      const desks = Math.min(4, 1 + Math.floor(lv / 2.6));
+      for (let i = 0; i < desks; i++) {
+        const x = 24 + i * 74;
+        g.fillStyle = '#4a4034'; g.fillRect(x, fy - 20, 58, 20);
+        g.fillStyle = '#5e5344'; g.fillRect(x + 1, fy - 19, 56, 6);
+        g.fillStyle = '#241a10'; g.fillRect(x + 12, fy - 40, 26, 20);        // 画面
+        g.fillStyle = '#12202c'; g.fillRect(x + 14, fy - 38, 22, 16);
+        g.fillStyle = 'rgba(120,220,255,.55)'; g.fillRect(x + 16, fy - 34, 14, 2);
+      }
+      // スポンサーの壁
+      const cols = 3 + Math.floor(lv * 0.6);
+      for (let i = 0; i < cols; i++) {
+        const x = W - 180 + (i % 4) * 44, y = 40 + Math.floor(i / 4) * 22;
+        if (x > W - 12) continue;
+        g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#ffc93c', '#b06fd0'][i % 5];
+        g.fillRect(x, y, 38, 16);
+        g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x, y, 38, 4);
+      }
+      if (lv >= 4) {                                                         // トロフィー棚
+        const tx = W - 96;
+        g.fillStyle = '#4a4034'; g.fillRect(tx, fy - 46, 84, 46);
+        g.fillStyle = '#3a3229'; g.fillRect(tx + 2, fy - 30, 80, 2);
+        for (let i = 0; i < Math.min(6, lv - 2); i++) {
+          const x = tx + 8 + (i % 3) * 26, y = fy - (i < 3 ? 32 : 4);
+          g.fillStyle = '#e8c24a'; g.fillRect(x, y - 12, 10, 8);
+          g.fillRect(x + 3, y - 5, 4, 4); g.fillRect(x, y - 2, 10, 2);
+          g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(x + 1, y - 11, 3, 6);
+        }
+      }
+      return [60, 140, 220].slice(0, 1 + Math.floor(lv / 3));
+    },
+
+    /* ユース：カートと黒板 */
+    youth: function (g, lv, col, fy, rnd) {
+      g.fillStyle = '#241a10'; g.fillRect(20, 40, 130, 62);                  // 黒板
+      g.fillStyle = '#26463a'; g.fillRect(23, 43, 124, 56);
+      g.fillStyle = 'rgba(255,255,255,.55)';
+      g.fillRect(32, 54, 60, 2); g.fillRect(32, 62, 88, 2); g.fillRect(32, 70, 44, 2);
+      // コースの見取り図らしきもの
+      g.strokeStyle = 'rgba(255,220,120,.7)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(36, 88); g.lineTo(70, 80); g.lineTo(104, 92); g.lineTo(134, 82); g.stroke();
+      // カート。レベルで台数が増える
+      const karts = Math.min(4, 1 + Math.floor(lv / 2.6));
+      for (let i = 0; i < karts; i++) {
+        const x = 190 + i * 78, y = fy - 4;
+        g.fillStyle = '#17181c';
+        g.fillRect(x - 18, y - 8, 8, 8); g.fillRect(x + 10, y - 8, 8, 8);
+        g.fillStyle = mix(col, -0.18); g.fillRect(x - 14, y - 16, 30, 9);
+        g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#ffc93c'][i % 4];
+        g.fillRect(x - 12, y - 16, 26, 6);
+        g.fillStyle = '#2b2e36'; g.fillRect(x - 4, y - 22, 8, 6);            // シート
+        g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(x - 12, y - 16, 26, 2);
+      }
+      return [170, 260, 350].slice(0, 1 + Math.floor(lv / 3));
+    },
+
+    /* ピット設備：ジャッキに載ったマシンと工具棚 */
+    pit: function (g, lv, col, fy, rnd) {
+      const cx = 150, cy = fy - 16;
+      g.fillStyle = '#3a3d46'; g.fillRect(cx - 66, cy + 8, 132, 8);          // ジャッキ
+      g.fillRect(cx - 58, cy + 2, 10, 8); g.fillRect(cx + 48, cy + 2, 10, 8);
+      g.fillStyle = mix(col, -0.18); g.fillRect(cx - 56, cy - 16, 112, 18);
+      g.fillStyle = col; g.fillRect(cx - 52, cy - 16, 104, 13);
+      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx - 52, cy - 16, 104, 3);
+      g.fillStyle = '#2b2e36'; g.fillRect(cx - 66, cy - 20, 16, 5);
+      g.fillRect(cx + 50, cy - 22, 18, 6);
+      // 外したタイヤ
+      for (let i = 0; i < 4; i++) {
+        const x = cx - 40 + i * 26;
+        g.fillStyle = '#17181c'; g.fillRect(x, fy - 8, 18, 8);
+        g.fillStyle = '#2a2c33'; g.fillRect(x, fy - 8, 18, 2);
+      }
+      // 工具棚。レベルで増える
+      const cab = Math.min(4, 1 + Math.floor(lv / 2.6));
+      for (let i = 0; i < cab; i++) {
+        const x = W - 40 - i * 46;
+        g.fillStyle = '#241a10'; g.fillRect(x - 1, fy - 43, 38, 43);
+        g.fillStyle = mix(col, -0.05); g.fillRect(x, fy - 42, 36, 42);
+        for (let r = 0; r < 4; r++) {
+          g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(x + 2, fy - 38 + r * 10, 32, 2);
+          g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(x + 14, fy - 35 + r * 10, 8, 2);
+        }
+      }
+      return [70, 240, 330].slice(0, 1 + Math.floor(lv / 3));
+    }
+  };
+
+  /* ---------- 描画 ---------- */
+  function render(cv, g2, key) {
+    const dusk = document.body.getAttribute('data-skin') === 'hd';
+    const lv = Math.max(1, Math.min(10, (g2.facilities && g2.facilities[key]) || 1));
+    const out = cv.getContext('2d');
+    out.imageSmoothingEnabled = false;
+    if (dusk) GP.fx.init(W, H);
+    const g = dusk ? GP.fx.begin() : out;
+    g.imageSmoothingEnabled = false;
+    const rnd = seeded(lv * 31 + key.length * 7);
+    const col = g2.color || '#e04a3f';
+
+    const fy = room(g, lv, col, dusk);
+    const spots = (ROOMS[key] || ROOMS.factory)(g, lv, col, fy, rnd);
+
+    // 働いている人。レベルが上がるほど増える
+    (spots || []).forEach((x, i) => worker(g, x, fy, col, i * 1.7 + lv));
+
+    // いちばん手前に自分が立つ
+    if (GP.base && GP.base.drawActor) {
+      GP.base.drawActor(g, { x: W - 34, y: H - 6, dir: 'left', frame: 0,
+                             moving: false, color: col });
+    }
+
+    // レベルの表示
+    g.font = 'bold 10px sans-serif'; g.textAlign = 'left';
+    g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, 62, 14);
+    g.fillStyle = '#ffe9b0'; g.fillText('Lv.' + lv + ' / 10', 11, 16);
+
+    if (!dusk) return;
+    GP.fx.composite(out, { dof: 0, bloom: 0.9, warm: 1.0, vignette: 0.85, night: true });
+  }
+
+  return { render, W, H };
+})();
+
+</script>
+<script>
 /* ===== src/ui.js ===== */
 /* =========================================================
    UI 描画
@@ -6712,7 +7105,8 @@ window.GP = window.GP || {};
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const fc = S.focusOf(g);
-    let body = '<div class="sub">開発リソースの配分</div>' +
+    let body = interiorHTML('factory') +
+      '<div class="sub">開発リソースの配分</div>' +
       '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
       '来季に回したぶんは、次の新型マシンの初期性能になります。</p>' +
       '<div class="focusrow">';
@@ -6784,6 +7178,7 @@ window.GP = window.GP || {};
     });
     body += '</div>';
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     const tg = $('tkToggle');
     if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
@@ -6922,7 +7317,8 @@ window.GP = window.GP || {};
      ======================================================= */
   function cmdResearch() {
     const cur = D.CAR_GENS[g.carGen], nx = D.CAR_GENS[g.carGen + 1];
-    let body = '<div class="pick">' +
+    let body = interiorHTML('tunnel') +
+      '<div class="pick">' +
       '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">🔬</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
       '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
@@ -6943,6 +7339,7 @@ window.GP = window.GP || {};
         '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
     }
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     bindPick(k => (k === '__gain') ? doResearchGain() : doNewCar());
   }
 
@@ -6987,13 +7384,15 @@ window.GP = window.GP || {};
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
-    const body = '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
+    const body = interiorHTML('pit') +
+      '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">現在の信頼性 <b>' + Math.round(S.reliability(g)) + '%</b></div>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）<br>各パーツのコンディションが大きく回復します。</p>';
     U.modal('🛠️ 分解整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
     ]);
+    paintInterior();
   }
   function doMaintain(cost) {
     g.funds -= cost;
@@ -7014,7 +7413,8 @@ window.GP = window.GP || {};
   function cmdTrain() {
     if (!g.drivers.length) return U.toast('ドライバーがいません', 'bad');
     const menu = [['speed', '速さ', '🏎️'], ['technique', '技術', '🎯'], ['stamina', '体力', '💪'], ['mental', '精神', '🧠']];
-    let body = '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
+    let body = interiorHTML('sim') +
+      '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
     g.drivers.forEach((d, i) => {
       body += '<div class="trainrow"><div class="tr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="tr-btns">';
       menu.forEach(m => { body += '<button class="pickbtn small" data-k="' + i + ':' + m[0] + '">' + m[2] + ' ' + m[1] + '</button>'; });
@@ -7041,6 +7441,7 @@ window.GP = window.GP || {};
     body += '</div>';
 
     U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }], { wide: true });
+    paintInterior();
     bindPick(k => {
       if (k.indexOf('skill:') === 0) doSkillTrain(+k.split(':')[1], scost);
       else doTrain(k, cost);
@@ -7100,7 +7501,8 @@ window.GP = window.GP || {};
     const have = g.sponsors.map(s => s.name);
     const avail = D.SPONSORS.filter(s => S.sponsorOpen(g, s) && have.indexOf(s.name) < 0);
     const ht = S.hypeTier(g);
-    let body = '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
+    let body = interiorHTML('market') +
+      '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>';
 
@@ -7143,6 +7545,7 @@ window.GP = window.GP || {};
     });
     body += '</div>';
     U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
     bindPick(k => {
       if (k === '__ad') return doPromo();
       if (k === '__offer') return doAcceptOffer();
@@ -7779,6 +8182,46 @@ window.GP = window.GP || {};
       pendingStrategy['tyre_' + d.id] = 'medium';
     });
 
+    // ---- ピット回数とタイヤの狙い ----
+    body += '<div class="sub">ピット作戦</div>' +
+      '<p class="desc">ストップが少ないほど1回のロスは減りますが、' +
+      'タイヤを長く使うぶんペースが落ちます。多いほど新しいタイヤで攻められます。</p>';
+    const STOPS = [['auto', 'おまかせ', 'コースに合わせて決める'],
+                   ['1', '1ストップ', '引っ張る'],
+                   ['2', '2ストップ', '標準'],
+                   ['3', '3ストップ', '攻める']];
+    const TBIAS = [['0', '柔らかめ', '速いが減る'],
+                   ['1', 'バランス', ''],
+                   ['2', '硬め', '遅いが保つ']];
+    g.drivers.forEach(d => {
+      body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div>' +
+        '<div class="sr-btns" data-stops="' + d.id + '">';
+      STOPS.forEach(o => {
+        body += '<button class="stratbtn small' + (o[0] === 'auto' ? ' on' : '') + '" data-v="' + o[0] + '">' +
+          o[1] + '<br><small>' + o[2] + '</small></button>';
+      });
+      body += '</div></div>';
+      body += '<div class="stratrow"><div class="sr-nm"><small>タイヤの狙い</small></div>' +
+        '<div class="sr-btns" data-tbias="' + d.id + '">';
+      TBIAS.forEach(o => {
+        body += '<button class="stratbtn small' + (o[0] === '1' ? ' on' : '') + '" data-v="' + o[0] + '">' +
+          o[1] + (o[2] ? '<br><small>' + o[2] + '</small>' : '') + '</button>';
+      });
+      body += '</div></div>';
+      pendingStrategy['stops_' + d.id] = 'auto';
+      pendingStrategy['tbias_' + d.id] = '1';
+    });
+
+    // ---- ライバルの作戦の傾向 ----
+    // 対戦を重ねると読めるように、チームごとの性格を出しておく
+    body += '<div class="sub small">ライバルの作戦傾向</div><div class="stylelist">';
+    (g.rivals || []).slice(0, 10).forEach(r => {
+      const st = D.STRAT_STYLES[r.style] || D.STRAT_STYLES.balanced;
+      body += '<span class="stylechip"><i style="background:' + r.color + '"></i>' +
+        esc(r.name) + ' <b>' + st.icon + st.name + '</b></span>';
+    });
+    body += '</div>';
+
     U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
       { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
@@ -7790,6 +8233,22 @@ window.GP = window.GP || {};
         Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
         b.classList.add('on');
         pendingStrategy[wrap.dataset.drv] = b.dataset.s;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stops] .stratbtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['stops_' + wrap.dataset.stops] = b.dataset.v;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-tbias] .stratbtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['tbias_' + wrap.dataset.tbias] = b.dataset.v;
       };
     });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.tyrebtn'), b => {
@@ -8020,6 +8479,17 @@ window.GP = window.GP || {};
      建物がそのまま入口になる。押すと、その設備の画面が開く。
      「休養」だけは押した瞬間に1週進むので、建物には割り当てない。
      ======================================================= */
+  /* 施設の内装。コマンド画面の先頭に、その施設の部屋を出す。
+     レベルが上がるほど機材と人が増え、部屋が広くなる。            */
+  function interiorHTML(key) {
+    return '<div class="intwrap"><canvas id="intCv" width="' + GP.interior.W +
+           '" height="' + GP.interior.H + '" data-fac="' + key + '"></canvas></div>';
+  }
+  function paintInterior() {
+    const cv = $('intCv');
+    if (cv) GP.interior.render(cv, g, cv.dataset.fac);
+  }
+
   /* パドックで立ち寄れる場所。レースウィークだけこちらを使う */
   const PADDOCK_DOORS = {
     garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
@@ -8048,6 +8518,7 @@ window.GP = window.GP || {};
      操作は 矢印キー／WASD と、画面のタップ（そこまで歩いていく）。   */
   const actor = { x: 264, y: 300, dir: 'down', frame: 0, moving: false, color: '#e04a3f' };
   let hubRaf = null, hubLast = 0, hubGoal = null, hubKeys = {}, hubDoor = null, hubBusy = false;
+  let hubAutoEnter = null;     // 建物を押して向かっているとき、その入口の名前
   const WALK_SPEED = 62;            // 1秒あたりに進むドット数
 
   function stopHub() {
@@ -8067,7 +8538,7 @@ window.GP = window.GP || {};
     // 画面（モーダル）が開いているあいだは操作を受けず、描画もしない。
     // ここで止めてしまうと、閉じたときに再開できないのでループ自体は回し続ける。
     if (/\bshow\b/.test($('modal').className)) {
-      hubKeys = {}; hubGoal = null;
+      hubKeys = {}; hubGoal = null; hubAutoEnter = null;
       hubRaf = requestAnimationFrame(hubStep);
       return;
     }
@@ -8077,12 +8548,25 @@ window.GP = window.GP || {};
     if (hubKeys.right) dx += 1;
     if (hubKeys.up) dy -= 1;
     if (hubKeys.down) dy += 1;
-    if (dx || dy) hubGoal = null;                    // キー操作が入ったら目的地を捨てる
+    if (dx || dy) { hubGoal = null; hubAutoEnter = null; }   // キー操作が入ったら目的地を捨てる
     else if (hubGoal) {                              // タップした場所へ向かう
       const gx = hubGoal.x - actor.x, gy = hubGoal.y - actor.y;
       const d = Math.hypot(gx, gy);
-      if (d < 2.5) { hubGoal = null; }
-      else { dx = gx / d; dy = gy / d; }
+      if (d < 3.0) {
+        hubGoal = null;
+        // 建物を押して向かってきた場合は、着いたらそのまま入る。
+        // 「押したのに入れない」と感じさせないための扱い。
+        if (hubAutoEnter) {
+          const want = hubAutoEnter;
+          hubAutoEnter = null;
+          actor.moving = false;
+          hubDoor = want;
+          hubMap().drawWith(cv, g, hubDoor, actor);
+          setTimeout(() => { if (hubDoor === want) hubEnter(); }, 120);
+          hubRaf = requestAnimationFrame(hubStep);
+          return;
+        }
+      } else { dx = gx / d; dy = gy / d; }
     }
 
     const len = Math.hypot(dx, dy) || 1;
@@ -8125,7 +8609,7 @@ window.GP = window.GP || {};
     if (!d) return;
     hubBusy = true;
     GP.sound.play('click');
-    hubGoal = null; hubKeys = {};
+    hubGoal = null; hubKeys = {}; hubAutoEnter = null;
     d.fn();
     hubBusy = false;
   }
@@ -8157,8 +8641,10 @@ window.GP = window.GP || {};
       const k = hubMap().hit(q.x, q.y);
       if (k && hubDoors()[k]) {
         const dp = hubMap().doorPos(k, g);
-        if (dp) { hubGoal = dp; return; }
+        if (dp) { hubGoal = dp; hubAutoEnter = k; return; }
       }
+      // 地面を押したときは、そこへ歩くだけ
+      hubAutoEnter = null;
       hubGoal = hubMap().clampWalk(q.x, q.y);
     };
     cv.ondblclick = () => hubEnter();
@@ -8273,12 +8759,18 @@ window.GP = window.GP || {};
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
+    const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
+    const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {
-      $(id).onclick = () => {
-        RV.setSpeed(speeds[id]);
-        Object.keys(speeds).forEach(o => $(o).classList.toggle('primary', o === id));
-      };
+      $(id).onclick = () => { RV.setSpeed(speeds[id]); mark(id); };
     });
+    // 実時間：実際のレースと同じ速さで進む。何分かかるかを添えておく
+    const real = $('rvSpeedReal');
+    if (real) real.onclick = () => {
+      const sec = RV.setRealtime();
+      mark('rvSpeedReal');
+      U.toast('⏱ 実時間で進みます（残り約 ' + Math.ceil(sec / 60) + ' 分）', 'good');
+    };
     $('rvSkip').onclick = () => RV.skip();
     Array.prototype.forEach.call($('rvCam').children, b => {
       b.onclick = () => { GP.sound.play('tap'); RV.setCamMode(b.dataset.cam); };
