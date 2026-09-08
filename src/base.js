@@ -29,9 +29,9 @@ GP.base = (function () {
   const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
 
   /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
-  const YARD_X = [58, 148, 262, 352, 442, 528];
+  const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516];
   let yard = [];             // [{key,label,color,hair,face,hat,done}]
-  function setYard(list) { yard = list || []; }
+  function setYard(list) { yard = (list || []).slice(0, YARD_X.length); }
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
@@ -561,7 +561,7 @@ GP.base = (function () {
         const x = YARD_X[i];
         person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
-        sign(bg, x, py - 44 - (i % 2) * 12, q.label, sel === q.key ? '#e04a3f' : '#3f3a30');
+        sign(bg, x, py - 42 - (i % 3) * 13, q.label, sel === q.key ? '#e04a3f' : '#3f3a30');
       });
     }
 

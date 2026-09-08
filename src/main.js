@@ -47,7 +47,6 @@ window.GP = window.GP || {};
     GP.base.invalidate();
     g.week++;
     g.special = null;
-    randomEvent();
     offerSpecial();
     offerSponsor();
 
@@ -55,6 +54,8 @@ window.GP = window.GP || {};
     S.save(g);
     render();
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
+    // 週の終わりの出来事。選ばせるものが出なければ、流れるものを1つ
+    if (!choiceEvent()) randomEvent();
   }
 
   /* チームが何をしたかを、関わったスタッフの経験にする */
@@ -133,6 +134,135 @@ window.GP = window.GP || {};
     { p: 0.02, run: () => { const f = Math.round(g.fans * 0.06) + 50; g.fans += f; return '🎪 ファン感謝祭が大盛況！ ファン +' + money(f); } },
     { p: 0.02, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.exp += 25; levelCheck(d); return '📚 ' + d.name + ' が自主練に励んだ！'; } }
   ];
+  /* ---------- その場で決める小事件 ----------
+     結果が流れるだけのイベントとは別に、こちらは選ばせる。
+     どちらを選んでも得と損があり、チームの状況で出るものが変わる。   */
+  const CHOICES = [
+    {
+      key: 'expo', p: 0.05, icon: '🎪',
+      when: () => g.fans >= 800,
+      title: 'ファンイベントの打診',
+      text: () => '街の主催者から「週末にファンイベントを開かないか」と話が来た。' +
+                  'マシンを持ち出せば人は集まるが、そのぶん整備の手は止まる。',
+      opts: () => [
+        { label: 'マシンを持ち出す', note: 'ファンが大きく増えるが、パーツが少し傷む',
+          run: () => { const f = Math.round(g.fans * 0.09) + 220;
+            g.fans += f; S.addHype(g, 3.2); S.wearParts(g, S.rnd(2, 5));
+            return '🎪 会場は満員。ファン +' + money(f) + '／注目度 +3.2（パーツは少し傷んだ）'; } },
+        { label: 'パネル展示だけにする', note: '無難。少しだけファンが増える',
+          run: () => { const f = Math.round(g.fans * 0.02) + 60; g.fans += f;
+            return '🎪 落ち着いた催しになった。ファン +' + money(f); } },
+        { label: '断る', note: '何も起きない。整備に集中できる',
+          run: () => { D.PART_CATS.forEach(c => { const q = g.equipped[c.key];
+              if (q) q.cond = S.clamp(q.cond + 4, 10, 100); });
+            return '🔧 断ってファクトリーに籠った。パーツのコンディションが整った'; } }
+      ]
+    },
+    {
+      key: 'poach', p: 0.05, icon: '📨', when: () => (g.staff || []).length >= 2,
+      title: '技術情報の売り込み',
+      text: () => 'どこかのチームを辞めた人物から「うちの資料を買わないか」と連絡が来た。' +
+                  '中身は本物らしいが、褒められた話ではない。',
+      opts: () => [
+        { label: '買う（💰2,400万）', note: '研究Pが一気に入る。ただし露見すると評判が落ちる',
+          run: () => { if (g.funds < 2400) return '💸 資金が足りず、話は流れた';
+            g.funds -= 2400; const r = S.rint(45, 90); g.rp += r;
+            if (Math.random() < 0.30) { S.addHype(g, -6); g.fans = Math.max(120, g.fans - Math.round(g.fans * 0.04));
+              return '📨 資料は本物だった。研究P +' + r + '…が、噂が広まった（注目度 -6／ファン減）'; }
+            return '📨 資料は本物だった。研究P +' + r; } },
+        { label: '断る', note: '何も起きないが、筋は通る',
+          run: () => { S.addHype(g, 1.2); return '📨 丁重に断った。筋を通す姿勢は伝わったようだ（注目度 +1.2）'; } }
+      ]
+    },
+    {
+      key: 'burn', p: 0.05, icon: '🌙', when: () => (g.staff || []).length >= 1,
+      title: '現場からの相談',
+      text: () => '「このままだと次の週末までに間に合いません」と相談が来た。' +
+                  '人を増やすか、今いる面々に踏ん張ってもらうか。',
+      opts: () => [
+        { label: '応援を呼ぶ（💰1,600万）', note: '金で解決する',
+          run: () => { if (g.funds < 1600) return '💸 資金が足りない。頭を下げて回るしかなかった';
+            g.funds -= 1600; capSpend(1600);
+            D.PART_CATS.forEach(c => { const q = g.equipped[c.key];
+              if (q) q.cond = S.clamp(q.cond + 8, 10, 100); });
+            return '👥 応援を呼んで間に合わせた。パーツのコンディションが回復（予算 -1,600万）'; } },
+        { label: '踏ん張ってもらう', note: '無料だが、クルーが消耗する',
+          run: () => { S.restCrew(g, -S.rnd(8, 14));
+            staffExp('mechanic', 10);
+            return '🌙 徹夜でしのいだ。クルーは疲れたが、現場の経験にはなった'; } }
+      ]
+    },
+    {
+      key: 'young', p: 0.04, icon: '🎓',
+      when: () => (g.youth || []).length > 0 && g.drivers.length >= 2,
+      title: '若手の直訴',
+      text: () => '下部組織の ' + esc((g.youth[0] || {}).name || '若手') +
+                  ' が「一度でいいから乗らせてください」と言ってきた。',
+      opts: () => [
+        { label: 'テストに乗せる', note: '大きく伸びるが、マシンを傷めるかもしれない',
+          run: () => { const d = g.youth[0];
+            ['speed', 'technique'].forEach(k => { d[k] = S.clamp(d[k] + S.rnd(2, 5) * S.potOf(d).growth, 1, 199); });
+            if (Math.random() < 0.28) { S.wearParts(g, S.rnd(3, 7));
+              return '🎓 ' + d.name + ' は伸びた。ただしマシンを少し傷めた'; }
+            return '🎓 ' + d.name + ' がテストで大きく伸びた！'; } },
+        { label: 'まだ早いと諭す', note: '本人は納得しないが、マシンは無事',
+          run: () => { const d = g.youth[0];
+            d.mental = S.clamp(d.mental + S.rnd(2, 4), 1, 199);
+            return '🎓 ' + d.name + ' は悔しがったが、そのぶん芯が強くなった（精神 +）'; } }
+      ]
+    },
+    {
+      key: 'title', p: 0.04, icon: '📺', when: () => (g.hype || 0) >= 30,
+      title: '密着取材の申し込み',
+      text: () => 'テレビ局から「1週間、チームに張り付かせてほしい」と依頼が来た。' +
+                  '露出は大きいが、現場は落ち着かなくなる。',
+      opts: () => [
+        { label: '受ける', note: '注目度とファンが大きく伸びるが、開発が乱れる',
+          run: () => { S.addHype(g, 9); const f = Math.round(g.fans * 0.10) + 300; g.fans += f;
+            const c = S.pick(D.PART_CATS); const q = g.equipped[c.key];
+            if (q) q.power = Math.max(1, Math.round((q.power - 2) * 10) / 10);
+            return '📺 密着が入った。注目度 +9／ファン +' + money(f) + '（開発は少し遅れた）'; } },
+        { label: '断る', note: '静かに仕事ができる',
+          run: () => { staffExp('engineer', 8); return '📺 断った。現場は落ち着いて仕事ができた'; } }
+      ]
+    }
+  ];
+
+  /* 週の終わりに、選ばせる事件が起きることがある */
+  function choiceEvent() {
+    if (g.offseason || isRaceWeek()) return false;
+    const pool = CHOICES.filter(c => !c.when || c.when());
+    for (const c of pool) {
+      if (Math.random() >= c.p) continue;
+      const opts = c.opts();
+      let settled = false;
+      const finish = fn => {
+        if (settled) return;
+        settled = true;
+        const msg = fn();
+        U.closeModal();
+        if (msg) { U.log(g, msg); U.toast(msg); }
+        S.save(g); render();
+      };
+      const body = '<p class="lead">' + c.text() + '</p><div class="pick">' +
+        opts.map((o, i) => '<button class="pickbtn" data-k="ce:' + i + '">' +
+          '<span class="pb-ic" style="background:#8a6ad0">' + c.icon + '</span>' +
+          '<span class="pb-body"><b>' + o.label + '</b><small>' + o.note + '</small></span>' +
+          '<span class="pb-cost">選ぶ</span></button>').join('') + '</div>';
+      U.modal(c.icon + ' ' + c.title, body, []);
+      GP.sound.play('light');
+      bindPick(k => finish(opts[+k.split(':')[1]].run));
+      // ✕で閉じたときは、いちばん無難な選択（最後の項目）にする
+      const prevClose = $('modalClose').onclick;
+      $('modalClose').onclick = () => {
+        $('modalClose').onclick = prevClose;
+        finish(opts[opts.length - 1].run);
+      };
+      return true;
+    }
+    return false;
+  }
+
   function randomEvent() {
     for (const e of EVENTS) {
       if (Math.random() < e.p) {
@@ -3241,11 +3371,26 @@ window.GP = window.GP || {};
       list.push({ key: 'yd:drv' + i, label: d.name, color: g.color,
                   hair: '#3a2718', face: '#f0c49a', done: done.indexOf('yd:drv' + i) >= 0 });
     });
-    const eng = (g.staff || []).slice().sort((a, b) => b.skill - a.skill)[0];
+    // 職種ごとに、その道のいちばんが出てくる
+    const topOf = keys => (g.staff || []).filter(x => keys.indexOf(x.type) >= 0)
+      .sort((a, b) => b.skill - a.skill)[0];
+    const eng = topOf(['engineer', 'designer']);
     if (eng) {
       list.push({ key: 'yd:eng', label: eng.name, color: '#5a6270',
                   hair: '#2b1d12', face: '#e8bd94', hat: '#c9a86a',
                   done: done.indexOf('yd:eng') >= 0 });
+    }
+    const mech = topOf(['mechanic']);
+    if (mech) {
+      list.push({ key: 'yd:mech', label: mech.name, color: '#3a5a86',
+                  hair: '#241c14', face: '#eec49a', hat: '#2a4a6a',
+                  done: done.indexOf('yd:mech') >= 0 });
+    }
+    const strat = topOf(['strategist']);
+    if (strat) {
+      list.push({ key: 'yd:strat', label: strat.name, color: '#8a4a86',
+                  hair: '#2b1d12', face: '#f0c49a',
+                  done: done.indexOf('yd:strat') >= 0 });
     }
     list.push({ key: 'yd:crew', label: 'ピットクルー', color: '#3f8a4a',
                 hair: '#4a3018', face: '#f2cba4', hat: '#e8c24a',
@@ -3277,6 +3422,12 @@ window.GP = window.GP || {};
       } else if (q.key === 'yd:eng') {
         m[q.key] = { icon: '👷', label: q.label, to: dn ? '話した' : '技術の話',
                      fn: () => dn ? yardAgain(q.label) : doYardEngineer() };
+      } else if (q.key === 'yd:mech') {
+        m[q.key] = { icon: '🔩', label: q.label, to: dn ? '話した' : 'マシンを見る',
+                     fn: () => dn ? yardAgain(q.label) : doYardMech() };
+      } else if (q.key === 'yd:strat') {
+        m[q.key] = { icon: '🧠', label: q.label, to: dn ? '話した' : '作戦の相談',
+                     fn: () => dn ? yardAgain(q.label) : doYardStrat() };
       } else if (q.key === 'yd:crew') {
         m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', to: dn ? '話した' : 'ねぎらう',
                      fn: () => dn ? yardAgain('ピットクルー') : doYardCrew() };
@@ -3332,6 +3483,63 @@ window.GP = window.GP || {};
       '「いま気になっているのは' + esc(t.name === 'エンジニア' ? '車体のねじれ' : t.desc) +
       'のあたりです。少し数字を持ってきました」',
       '研究P +' + rp + '／' + esc(st.name) + 'にも経験が入った');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  /* メカニックと話す。マシンの状態がいちばん悪いところを見てくれる */
+  function doYardMech() {
+    const st = (g.staff || []).filter(x => x.type === 'mechanic')
+      .sort((a, b) => b.skill - a.skill)[0];
+    if (!st) return;
+    yardMark('yd:mech');
+    const skill = 1 + st.skill * 0.02;
+    // いちばんくたびれているパーツを見てもらう
+    let worst = null;
+    D.PART_CATS.forEach(c => {
+      const q = g.equipped[c.key];
+      if (q && (!worst || q.cond < worst.cond)) worst = q;
+    });
+    const lines = [];
+    if (worst) {
+      const up = Math.round(S.rnd(5, 11) * skill);
+      worst.cond = S.clamp(worst.cond + up, 10, 100);
+      lines.push(worst.name + ' のコンディション +' + up + '（いま ' + Math.round(worst.cond) + '%）');
+    }
+    const pu = S.puOf(g);
+    const puUp = S.nursePU(g, S.rnd(3, 7) * skill);
+    if (puUp > 0) lines.push('パワーユニットの残り +' + puUp + '%（いま ' + Math.round(pu.life) + '%）');
+    staffExp('mechanic', 8);
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const talk = pu.life < 30
+      ? '「このユニット、次でだいたい限界です。載せ替えの週を作ってください」'
+      : t.risk >= 1.1
+        ? '「' + esc(t.name) + 'は壁が近い。足まわりは念入りに見ておきます」'
+        : '「今のところ、目立った悪いところはありません。気持ちよく走れるはずです」';
+    yardResult('🔩 ' + esc(st.name) + 'とマシンを見る', talk,
+      lines.length ? lines.join('／') : '特に手を入れるところはなかった');
+    GP.sound.play('good');
+    S.save(g); render();
+  }
+
+  /* ストラテジストと話す。次戦の作戦の当たりをつけてくれる */
+  function doYardStrat() {
+    const st = (g.staff || []).filter(x => x.type === 'strategist')
+      .sort((a, b) => b.skill - a.skill)[0];
+    if (!st) return;
+    yardMark('yd:strat');
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const laps = t.laps;
+    const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
+    const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
+                   : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
+    const rp = Math.round(3 + st.skill * 0.12);
+    g.rp += rp;
+    staffExp('strategist', 8);
+    yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
+      '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
+      'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
+      '推奨ストップ数 ' + stops + '回／研究P +' + rp);
     GP.sound.play('good');
     S.save(g); render();
   }
