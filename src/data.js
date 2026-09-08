@@ -591,7 +591,7 @@ GP.data = (function () {
       promote: ['technical'] },
     { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: '信頼性とピット作業が上がる',   salary: 50,
       promote: ['pitchief'] },
-    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピット戦略が最適化される',     salary: 65,
+    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピットのタイミングが正確になり、作業も速くなる', salary: 65,
       promote: ['pitchief', 'principal'] },
     { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増える',         salary: 55,
       promote: ['technical', 'logistics'] },

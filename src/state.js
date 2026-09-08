@@ -941,6 +941,8 @@ GP.state = (function () {
       title: null,          // タイトルスポンサー（冠）
       capSpent: 0,          // 今季ここまでの開発・設備への支出
       yardDone: [],         // 今週すでに声をかけた相手
+      debrief: 0,           // レースの次の週だけ、反省会ができる
+      lastRace: null,       // 直前のレースの要点（反省会で使う）
       capPenalty: false,    // 前季に予算上限を超えたか
       managers: {},         // 役職（空席から始まる）
       fans: 500,

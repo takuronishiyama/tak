@@ -42,6 +42,7 @@ window.GP = window.GP || {};
     g.fans = Math.max(120, g.fans - Math.round(g.fans * 0.006));
     S.addHype(g, -(g.hype || 0) * 0.035);
 
+    if (g.debrief > 0) g.debrief--;   // 反省会ができるのはレースの次の週まで
     g.yardDone = [];             // 週が変われば、また声をかけて回れる
     GP.base.setYard(isRaceWeek() || g.offseason ? [] : yardPeople());
     GP.base.invalidate();
@@ -2308,6 +2309,27 @@ window.GP = window.GP || {};
     staffExpAll(7);
     staffExp('strategist', 14);
     staffExp('mechanic', 8);
+    // 次の週は、持ち帰ったデータを囲んでの反省会になる
+    if (currentRes) {
+      const me = currentRes.classified.filter(e => e.isPlayer).sort((a, b) => a.pos - b.pos)[0];
+      const win = currentRes.classified.filter(e => !e.dnf).sort((a, b) => a.pos - b.pos)[0];
+      const laps = currentRes.laps;
+      const lap = e => {
+        const arr = (e.lapTimes || []).filter(v => v != null);
+        const pit = (e.pitTime || []).reduce((a, v) => a + (v || 0), 0);
+        return arr.length ? (arr.reduce((a, v) => a + v, 0) - pit) / arr.length : 0;
+      };
+      g.lastRace = me ? {
+        track: currentRes.track.name,
+        pos: me.dnf ? 0 : me.pos,
+        dnf: !!me.dnf,
+        gap: (me && win && lap(me) && lap(win)) ? Math.round((lap(me) - lap(win)) * 100) / 100 : 0,
+        pits: (me.pits || []).length,
+        pen: me.penalty || 0,
+        laps: laps
+      } : null;
+      g.debrief = 2;                 // endWeek で1つ減り、次の週に反省会ができる
+    }
     // よそのチームが、うちの誰かに声をかけてくることがある
     const raid = S.poachAttempt(g);
     if (raid) { askPoach(raid); return; }
@@ -3420,13 +3442,17 @@ window.GP = window.GP || {};
         m[q.key] = { icon: '🧑‍✈️', label: q.label, to: dn ? '話した' : '話す',
                      fn: () => dn ? yardAgain(q.label) : doYardDriver(i) };
       } else if (q.key === 'yd:eng') {
-        m[q.key] = { icon: '👷', label: q.label, to: dn ? '話した' : '技術の話',
+        const br = g.debrief > 0 && g.lastRace;
+        m[q.key] = { icon: br ? '🔍' : '👷', label: q.label,
+                     to: dn ? '話した' : (br ? 'デブリーフィング' : '技術の話'),
                      fn: () => dn ? yardAgain(q.label) : doYardEngineer() };
       } else if (q.key === 'yd:mech') {
         m[q.key] = { icon: '🔩', label: q.label, to: dn ? '話した' : 'マシンを見る',
                      fn: () => dn ? yardAgain(q.label) : doYardMech() };
       } else if (q.key === 'yd:strat') {
-        m[q.key] = { icon: '🧠', label: q.label, to: dn ? '話した' : '作戦の相談',
+        const br2 = g.debrief > 0 && g.lastRace && !g.lastRace.dnf;
+        m[q.key] = { icon: br2 ? '🔍' : '🧠', label: q.label,
+                     to: dn ? '話した' : (br2 ? '前戦の振り返り' : '作戦の相談'),
                      fn: () => dn ? yardAgain(q.label) : doYardStrat() };
       } else if (q.key === 'yd:crew') {
         m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', to: dn ? '話した' : 'ねぎらう',
@@ -3472,20 +3498,44 @@ window.GP = window.GP || {};
   }
 
   function doYardEngineer() {
-    const st = (g.staff || []).slice().sort((a, b) => b.skill - a.skill)[0];
+    const st = (g.staff || []).filter(x => x.type === 'engineer' || x.type === 'designer')
+      .sort((a, b) => b.skill - a.skill)[0]
+      || (g.staff || []).slice().sort((a, b) => b.skill - a.skill)[0];
     if (!st) return;
     yardMark('yd:eng');
-    const rp = Math.round(4 + st.skill * 0.22 + S.osk(g, 'eye'));
+    const lr = g.lastRace;
+    const brief = g.debrief > 0 && lr;
+    let rp = Math.round(4 + st.skill * 0.22 + S.osk(g, 'eye'));
+    let talk, note;
+    if (brief) {
+      // 持ち帰ったデータを囲んでの反省会。
+      // 前を走る車との差が大きいほど、拾えるものも多い（負けから学ぶ）
+      const fromGap = Math.min(26, Math.max(0, lr.gap) * 11);
+      const fromDnf = lr.dnf ? 10 : 0;
+      rp = Math.round((rp * 1.8 + fromGap + fromDnf) * (1 + S.osk(g, 'eye') * 0.1));
+      staffExpAll(6);
+      staffExp(st.type, 12);
+      talk = lr.dnf
+        ? '「止まった原因は洗い出しました。次に同じことは起こさせません」'
+        : lr.gap > 0.05
+          ? '「' + esc(lr.track) + 'のデータです。優勝車とは1周 ' + lr.gap.toFixed(2) +
+            '秒。どこで失っているかは、だいたい見えました」'
+          : '「' + esc(lr.track) + 'のデータです。悪くない。この方向で詰めましょう」';
+      note = '🔍 レース後のデブリーフィング／研究P +' + rp + '（全員に経験も入った）';
+    } else {
+      const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+      talk = '「いま気になっているのは' + esc(t.name === 'エンジニア' ? '車体のねじれ' : t.desc) +
+             'のあたりです。少し数字を持ってきました」';
+      note = '研究P +' + rp + '／' + esc(st.name) + 'にも経験が入った';
+      staffExp(st.type, 8);
+    }
     g.rp += rp;
-    staffExp(st.type, 8);
-    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
-    yardResult('👷 ' + esc(st.name) + 'と技術の話',
-      '「いま気になっているのは' + esc(t.name === 'エンジニア' ? '車体のねじれ' : t.desc) +
-      'のあたりです。少し数字を持ってきました」',
-      '研究P +' + rp + '／' + esc(st.name) + 'にも経験が入った');
-    GP.sound.play('good');
+    yardResult((brief ? '🔍 ' : '👷 ') + esc(st.name) + (brief ? 'とデブリーフィング' : 'と技術の話'),
+      talk, note);
+    GP.sound.play(brief ? 'crit' : 'good');
     S.save(g); render();
   }
+
 
   /* メカニックと話す。マシンの状態がいちばん悪いところを見てくれる */
   function doYardMech() {
@@ -3533,14 +3583,30 @@ window.GP = window.GP || {};
     const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
     const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
                    : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
-    const rp = Math.round(3 + st.skill * 0.12);
+    const lr = g.lastRace;
+    const brief = g.debrief > 0 && lr && !lr.dnf;
+    let rp = Math.round(3 + st.skill * 0.12);
+    let talk, note;
+    if (brief) {
+      rp = Math.round(rp * 1.6 + (lr.pen ? 8 : 0) + 6);
+      const back = lr.pen
+        ? '「' + lr.pen + '秒の加算が痛かった。仕掛けどころを整理しておきます」'
+        : lr.pits >= 2
+          ? '「' + lr.track + 'は' + lr.pits + 'ストップでした。1回に減らせた可能性はあります」'
+          : '「' + lr.track + 'は' + lr.pits + 'ストップ。読みは当たっていました」';
+      talk = back + '<br>「次は ' + esc(t.name) + '。' + laps + '周で' + tyreTalk +
+             '。<b>' + stops + 'ストップ</b>を軸に組み立てます」';
+      note = '🔍 前戦の振り返り／推奨ストップ数 ' + stops + '回／研究P +' + rp;
+    } else {
+      talk = '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
+             'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」';
+      note = '推奨ストップ数 ' + stops + '回／研究P +' + rp;
+    }
     g.rp += rp;
-    staffExp('strategist', 8);
-    yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
-      '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
-      'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
-      '推奨ストップ数 ' + stops + '回／研究P +' + rp);
-    GP.sound.play('good');
+    staffExp('strategist', brief ? 12 : 8);
+    yardResult((brief ? '🔍 ' : '🧠 ') + esc(st.name) + (brief ? 'と前戦の振り返り' : 'と作戦の相談'),
+      talk, note);
+    GP.sound.play(brief ? 'crit' : 'good');
     S.save(g); render();
   }
 
