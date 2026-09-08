@@ -951,6 +951,23 @@ window.GP = window.GP || {};
     });
     body += '<p class="desc">🛡️ 安全第一＝ペースは落ちるがリタイアしにくい／🔥 攻める＝速いがミスとタイヤ消耗のリスク大</p>';
 
+    // ---- スタートタイヤ ----
+    const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
+    body += '<div class="sub">スタートタイヤ</div>' +
+      '<p class="desc">最初のスティントで履くタイヤです。以降は残り周回に合わせて自動で選ばれます。<br>' +
+      '雨の場合は自動的に雨用タイヤになります。</p>';
+    g.drivers.forEach(d => {
+      body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div><div class="sr-btns tyres" data-tdrv="' + d.id + '">';
+      D.DRY_TYRES.forEach((k, i) => {
+        const t = D.TYRES.find(x => x.key === k);
+        body += '<button class="tyrebtn' + (i === 1 ? ' on' : '') + '" data-t="' + k + '"' +
+          ' title="' + esc(t.desc) + '" style="--tc:' + t.color + ';--tt:' + t.text + '">' +
+          '<b>' + t.short + '</b><small>' + t.name + '<br>目安' + t.life + '周</small></button>';
+      });
+      body += '</div></div>';
+      pendingStrategy['tyre_' + d.id] = 'medium';
+    });
+
     U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
       { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
@@ -962,6 +979,14 @@ window.GP = window.GP || {};
         Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
         b.classList.add('on');
         pendingStrategy[wrap.dataset.drv] = b.dataset.s;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.tyrebtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['tyre_' + wrap.dataset.tdrv] = b.dataset.t;
       };
     });
   }
@@ -1215,8 +1240,8 @@ window.GP = window.GP || {};
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
-    // 数値は「レース全体を何秒で再生するか」
-    const speeds = { rvSpeed1: 95, rvSpeed2: 40, rvSpeed3: 13 };
+    // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
+    const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
     Object.keys(speeds).forEach(id => {
       $(id).onclick = () => {
         RV.setSpeed(speeds[id]);

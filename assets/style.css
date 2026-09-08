@@ -81,6 +81,41 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   font-size:13px;white-space:nowrap;
 }
 .tb-next.race-imminent{background:var(--red);color:#fff;animation:pulse .7s ease-in-out infinite alternate}
+.tb-next.race-soon{background:#8a5a1a}
+.tb-next b{color:var(--yellow)}
+.tb-next em{font-style:normal;font-size:10px;opacity:.85;margin-left:6px}
+.pips{display:inline-flex;gap:3px;margin:0 6px;vertical-align:middle}
+.pips i{width:8px;height:8px;border-radius:2px;background:var(--yellow);
+        border:1px solid rgba(0,0,0,.35);display:inline-block}
+
+/* ---------- 次戦までの残りコマンド ---------- */
+.countdown{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:8px;
+           background:linear-gradient(#fff8e3,#f2e4bc);border:3px solid var(--ink);
+           border-radius:8px;padding:6px 10px;box-shadow:0 2px 0 rgba(74,47,26,.4)}
+.countdown b{font-size:14px}
+.countdown span{font-size:10px;opacity:.8}
+.countdown .pips i{width:12px;height:12px;background:linear-gradient(var(--yellow),#e8a800);
+                   border:2px solid var(--ink);border-radius:3px}
+.countdown.now{background:linear-gradient(#ffd0c0,#ff9a80);border-color:var(--red)}
+.countdown.now b{color:#a01a10}
+
+/* ---------- タイヤ ---------- */
+.tyres{gap:5px}
+.tyrebtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.25;
+         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 2px;font-size:9px}
+.tyrebtn b{width:22px;height:22px;border-radius:50%;background:var(--tc);color:var(--tt);
+           border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px}
+.tyrebtn small{font-size:8px;opacity:.8}
+.tyrebtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.rv-ty{min-width:26px;display:inline-flex;align-items:center;justify-content:center;gap:1px;
+       border:1px solid var(--ink);border-radius:8px;font-size:9px;font-weight:bold;padding:0 3px;
+       background:#666;color:#fff;flex-shrink:0}
+.rv-ty em{font-style:normal;font-size:8px;opacity:.85;font-weight:normal}
+.rv-ty.old{box-shadow:inset 0 0 0 2px rgba(255,180,0,.9)}
+.rv-ty.worn{box-shadow:inset 0 0 0 2px rgba(255,40,20,.95);animation:blink 1s steps(2,end) infinite}
+.rv-row.pitting{background:rgba(255,243,77,.28)}
+.rv-row.pitting .rv-gap{color:#c88000;font-weight:bold}
 @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
 @keyframes blink{50%{opacity:.45}}
 
@@ -482,6 +517,15 @@ body.preboot .topbar{visibility:hidden}
 .sc-nm{flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .sc-nm i{width:8px;height:8px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
+.sc-ty{display:inline-flex;align-items:center;gap:3px;width:96px;flex-shrink:0}
+.sc-ty b{width:16px;height:16px;border-radius:50%;border:1px solid #000;display:flex;
+         align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.sc-ty i{flex:1;height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;display:block}
+.sc-ty i u{display:block;height:100%;text-decoration:none;transition:width .4s}
+.sc-ty em{font-style:normal;font-size:9px;opacity:.8;width:26px;text-align:right}
+.sc-ty.old i u{background:#f0a020 !important}
+.sc-ty.worn i u{background:#e04a3f !important}
+.sc-ty.worn b{animation:blink 1s steps(2,end) infinite}
 .sc-t{width:56px;text-align:right;color:#e8dcc0}
 .sc-t.green{color:#6cf06c;font-weight:bold}
 .sc-t.purple{color:#d88cff;font-weight:bold}
@@ -557,6 +601,8 @@ body.preboot .topbar{visibility:hidden}
   #raceCanvas{width:100%;height:auto}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
+  .sc-ty{width:72px}
+  .sc-ty em{display:none}
   .sc-lap{width:60px;font-size:10px}
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }

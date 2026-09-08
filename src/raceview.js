@@ -7,7 +7,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
-  let vt = 0, speed = 40, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
+  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
   let shownEvents = 0;
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -57,6 +57,31 @@ GP.raceview = (function () {
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const lt = e.lapTimes[lap] || 1;
     return { done: false, p: lap + (t - prev) / lt };
+  }
+
+  /* いま何周目のどのあたりを走っているか */
+  function lapInfo(e, t) {
+    const n = e.cum.length;
+    let lap = 0;
+    while (lap < n && e.cum[lap] <= t) lap++;
+    if (lap >= n) lap = n - 1;
+    const prev = lap === 0 ? 0 : e.cum[lap - 1];
+    return { lap: lap + 1, into: t - prev, lapTime: e.lapTimes[lap] || 1 };
+  }
+
+  /* ピット作業中か（その周のピット停止時間ぶんを、周の終わりに割り当てている） */
+  function inPit(e, t) {
+    if (e.dnf && t >= (e.cum[e.dnfLap - 1] || 0)) return false;
+    const li = lapInfo(e, t);
+    const pt = (e.pitTime || [])[li.lap - 1] || 0;
+    if (pt <= 0) return false;
+    return li.into > li.lapTime - pt;
+  }
+
+  /* いま履いているタイヤ */
+  function tyreNow(e, t) {
+    const li = lapInfo(e, t);
+    return (e.lapTyre || [])[li.lap - 1] || (e.lapTyre || [])[0] || null;
   }
 
   function orderAt(t) {
@@ -371,10 +396,29 @@ GP.raceview = (function () {
 
     // 車
     const ord = orderAt(t);
+    const pit = pitSpan();
+    let pitSlot = 0;
     for (let i = ord.length - 1; i >= 0; i--) {
       const o = ord[i], e = o.e;
-      const pt = placeInLap(e, o.p);
-      drawCar(pt.x, pt.y, pt.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt.v == null ? 1 : pt.v);
+      if (!o.out && pit && inPit(e, t)) {
+        // ピット作業中はガレージ前に停めて、作業中と分かるようにする
+        const idx = (pit.from + 6 + (pitSlot++ % 5) * 7) % poly.n;
+        const nm = normalAt(idx);
+        const px = nm.x + nm.nx * pit.side * 20, py = nm.y + nm.ny * pit.side * 20;
+        const ang = Math.atan2(nm.dy, nm.dx);
+        drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
+        // 作業中の目印
+        ctx.save();
+        ctx.translate(px, py - 12);
+        ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+        ctx.fillRect(-7, -6, 14, 10); ctx.strokeRect(-7, -6, 14, 10);
+        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('PIT', 0, 2);
+        ctx.restore();
+        continue;
+      }
+      const pt2 = placeInLap(e, o.p);
+      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
     }
   }
 
@@ -473,11 +517,22 @@ GP.raceview = (function () {
     ord.forEach((o, i) => {
       const e = o.e;
       const gapNum = leader.p - o.p;
-      const gap = o.out ? 'DNF' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
-      html += '<div class="rv-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') + '">' +
+      const pitting = !o.out && inPit(e, vt);
+      const gap = o.out ? 'DNF' : pitting ? 'PIT' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
+      const ty = tyreNow(e, vt);
+      let chip = '<span class="rv-ty">–</span>';
+      if (ty) {
+        const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
+        const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.75 ? ' old' : '';
+        chip = '<span class="rv-ty' + worn + '" style="background:' + td.color + ';color:' + td.text +
+          '" title="' + td.name + '／' + ty.age + '周使用（寿命' + td.life + '周）">' + td.short +
+          '<em>' + ty.age + '</em></span>';
+      }
+      html += '<div class="rv-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') + (pitting ? ' pitting' : '') + '">' +
         '<span class="rv-pos">' + (i + 1) + '</span>' +
         '<span class="rv-chip" style="background:' + e.color + '"></span>' +
         '<span class="rv-name">' + e.driver.name + '</span>' +
+        chip +
         '<span class="rv-gap">' + gap + '</span></div>';
     });
     box.innerHTML = html;
@@ -569,8 +624,19 @@ GP.raceview = (function () {
     let h = '';
     mine.forEach(e => {
       const c = liveCar[e.id];
+      const ty = tyreNow(e, vt);
+      let tychip = '';
+      if (ty) {
+        const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
+        const leftPct = Math.max(0, Math.min(100, (1 - ty.age / td.life) * 100));
+        const cls = leftPct < 12 ? ' worn' : leftPct < 35 ? ' old' : '';
+        tychip = '<span class="sc-ty' + cls + '" title="' + td.name + '／' + ty.age + '周使用（寿命の目安 ' + td.life + '周）">' +
+          '<b style="background:' + td.color + ';color:' + td.text + '">' + td.short + '</b>' +
+          '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
+          '<em>' + ty.age + '周</em></span>';
+      }
       h += '<div class="sc-row"><span class="sc-nm">' +
-        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>';
+        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip;
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];
         let cls = '';
@@ -584,7 +650,7 @@ GP.raceview = (function () {
       }
       h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
     });
-    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span>' +
+    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span>' +
       [0, 1, 2].map(k => '<span class="sc-t purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';
@@ -603,7 +669,7 @@ GP.raceview = (function () {
     buildSectorTimeline();
     trackArt = buildTrackArt();
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 40; lights = 0;
+    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }

@@ -38,6 +38,7 @@ GP.race = (function () {
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
+          startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           rel: t.rel,
           tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
@@ -47,6 +48,22 @@ GP.race = (function () {
       });
     });
     return list;
+  }
+
+  const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
+
+  /* このスティント（区間）を走りきるのに向いたタイヤを選ぶ。
+     攻めるチームは寿命ぎりぎりの速いタイヤを、
+     堅実なチームは余裕のある硬いタイヤを選ぶ                        */
+  function pickTyre(stintLaps, weather, prefer, bias) {
+    if (weather.key === 'storm') return 'wet';
+    if (weather.key === 'rain') return 'inter';
+    if (prefer && D.DRY_TYRES.indexOf(prefer) >= 0) return prefer;
+    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * 0.9);
+    if (!fit.length) return 'hard';
+    // bias 0=攻め（寿命ぎりぎりの速いタイヤ） 1=バランス 2=堅実（余裕のある硬いタイヤ）
+    const i = bias >= 2 ? fit.length - 1 : bias === 1 ? Math.floor((fit.length - 1) / 2) : 0;
+    return fit[i].key;
   }
 
   function autoStrategy(team, track) {
@@ -99,19 +116,41 @@ GP.race = (function () {
     const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
     const strategist = S.staffBonus(g, 'strategist');
 
-    // ピット戦略決定
+    // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
-      // 摩耗の速さから最適なストップ数を見積もる。ストラテジストがいるほど読みが正確
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      const stops = (wear > 1.05 || laps > 28) ? 2 : 1;
+      let stops = (wear > 1.05 || laps > 28) ? 2 : 1;
+      // ライバルはチームごとに作戦を変える。少ないストップなら硬いタイヤで長く走る
+      e.tyreBias = 1;                     // 自チームの2本目以降はバランス型
+      if (!e.isPlayer) {
+        const r = Math.random();
+        if (r < 0.26) { stops = Math.max(1, stops - 1); e.tyreBias = 2; }
+        else if (r < 0.48) { stops = Math.min(3, stops + 1); e.tyreBias = 0; }
+        else { e.tyreBias = S.rint(0, 2); }
+      }
       const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.2;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
         e.pitPlan.push(Math.max(2, Math.round(laps * i / (stops + 1) + S.rnd(-blur, blur))));
       }
+      e.pitPlan.sort((a, b) => a - b);
       e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
+
+      // 各スティントの長さから履くタイヤを決める。最初のスティントだけは指定できる
+      const bounds = [0].concat(e.pitPlan, [laps]);
+      e.stints = [];
+      for (let i = 0; i < bounds.length - 1; i++) {
+        const len = bounds[i + 1] - bounds[i];
+        const prefer = (i === 0 && e.isPlayer) ? e.startTyre : null;
+        e.stints.push({ from: bounds[i] + 1, to: bounds[i + 1],
+                        key: pickTyre(len, weather, prefer, e.tyreBias), laps: len });
+      }
+      e.tyreKey = e.stints[0].key;
+      e.stintIdx = 0;
+      e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
+      e.pitTime = [];       // 各周のピット停止時間
     });
 
     let order = grid.slice();
@@ -126,9 +165,16 @@ GP.race = (function () {
         t *= (1 - e.st.pace);
         t /= weather.grip;
 
-        // タイヤ摩耗
+        // タイヤの銘柄によるペース差
+        const ty = tyreOf(e.tyreKey);
+        t *= ty.pace;
+
+        // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre;
+        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
+        const over = e.tyreAge - ty.life;
+        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
+        e.lapTyre[lap - 1] = { key: e.tyreKey, age: e.tyreAge, life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
         if (lap > laps * 0.6 && !e.sk('stamina')) {
@@ -145,7 +191,7 @@ GP.race = (function () {
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
-        // ピットイン
+        // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
           const loss = e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
@@ -153,8 +199,15 @@ GP.race = (function () {
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
-          if (e.isPlayer) events.push({ lap, type: 'pit', car: e, text: e.driver.name + ' ピットイン！ (' + loss.toFixed(1) + '秒)' });
+          e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
+          e.tyreKey = e.stints[e.stintIdx].key;
+          if (e.isPlayer) {
+            const nt = tyreOf(e.tyreKey);
+            events.push({ lap, type: 'pit', car: e,
+              text: e.driver.name + ' ピットイン！ ' + nt.name + 'に交換 (' + loss.toFixed(1) + '秒)' });
+          }
         }
+        e.pitTime[lap - 1] = pitAdd;
 
         e.lapTimes[lap - 1] = t;
         const prev = lap === 1 ? 0 : e.cum[lap - 2];

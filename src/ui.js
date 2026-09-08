@@ -22,10 +22,21 @@ GP.ui = (function () {
     $('tRp').textContent = money(g.rp);
     $('tSeason').textContent = g.season;
     $('tWeek').textContent = g.week;
-    $('tNext').textContent = g.nextRace >= D.TRACKS.length
-      ? 'シーズン終了'
-      : (left === 0 ? '★ 今週レース！' : '第' + (g.nextRace + 1) + '戦まで あと' + left + '週');
-    $('tNext').className = left === 0 ? 'race-imminent' : '';
+    if (g.nextRace >= D.TRACKS.length) {
+      $('tNext').innerHTML = 'シーズン終了';
+      $('tNext').className = '';
+    } else if (left === 0) {
+      $('tNext').innerHTML = '★ 今週レース！';
+      $('tNext').className = 'race-imminent';
+    } else {
+      // 1コマンド＝1週なので、残り週数がそのまま「あと何回動けるか」になる
+      let pips = '';
+      for (let i = 0; i < left; i++) pips += '<i></i>';
+      $('tNext').innerHTML = '第' + (g.nextRace + 1) + '戦まで <b>あと' + left + '週</b>' +
+        '<span class="pips" title="レースまでに実行できるコマンド数">' + pips + '</span>' +
+        '<em>コマンドあと' + left + '回</em>';
+      $('tNext').className = left <= 1 ? 'race-soon' : '';
+    }
     const ht = S.hypeTier(g);
     $('tHypeIc').textContent = ht.icon;
     $('tHypeVal').textContent = Math.round(g.hype || 0);
@@ -60,8 +71,17 @@ GP.ui = (function () {
     }
     const t = D.TRACKS[g.nextRace];
     const sc = S.carScore(g, t);
+    const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
+    const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
     return '<div class="card"><div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) + '</div>' +
       '<div class="pad">' +
+      '<div class="countdown' + (left === 0 ? ' now' : '') + '">' +
+      (left === 0
+        ? '<b>★ 今週が決勝です</b><span>「レースへ向かう！」を押してください</span>'
+        : '<b>準備できるのは あと ' + left + ' 回</b>' +
+          '<span class="pips">' + pips + '</span>' +
+          '<span>コマンドを1つ選ぶと1週進みます</span>') +
+      '</div>' +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
       '<div class="seclegend">' +

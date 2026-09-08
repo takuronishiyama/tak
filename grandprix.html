@@ -96,6 +96,41 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   font-size:13px;white-space:nowrap;
 }
 .tb-next.race-imminent{background:var(--red);color:#fff;animation:pulse .7s ease-in-out infinite alternate}
+.tb-next.race-soon{background:#8a5a1a}
+.tb-next b{color:var(--yellow)}
+.tb-next em{font-style:normal;font-size:10px;opacity:.85;margin-left:6px}
+.pips{display:inline-flex;gap:3px;margin:0 6px;vertical-align:middle}
+.pips i{width:8px;height:8px;border-radius:2px;background:var(--yellow);
+        border:1px solid rgba(0,0,0,.35);display:inline-block}
+
+/* ---------- 次戦までの残りコマンド ---------- */
+.countdown{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:8px;
+           background:linear-gradient(#fff8e3,#f2e4bc);border:3px solid var(--ink);
+           border-radius:8px;padding:6px 10px;box-shadow:0 2px 0 rgba(74,47,26,.4)}
+.countdown b{font-size:14px}
+.countdown span{font-size:10px;opacity:.8}
+.countdown .pips i{width:12px;height:12px;background:linear-gradient(var(--yellow),#e8a800);
+                   border:2px solid var(--ink);border-radius:3px}
+.countdown.now{background:linear-gradient(#ffd0c0,#ff9a80);border-color:var(--red)}
+.countdown.now b{color:#a01a10}
+
+/* ---------- タイヤ ---------- */
+.tyres{gap:5px}
+.tyrebtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.25;
+         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 2px;font-size:9px}
+.tyrebtn b{width:22px;height:22px;border-radius:50%;background:var(--tc);color:var(--tt);
+           border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px}
+.tyrebtn small{font-size:8px;opacity:.8}
+.tyrebtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.rv-ty{min-width:26px;display:inline-flex;align-items:center;justify-content:center;gap:1px;
+       border:1px solid var(--ink);border-radius:8px;font-size:9px;font-weight:bold;padding:0 3px;
+       background:#666;color:#fff;flex-shrink:0}
+.rv-ty em{font-style:normal;font-size:8px;opacity:.85;font-weight:normal}
+.rv-ty.old{box-shadow:inset 0 0 0 2px rgba(255,180,0,.9)}
+.rv-ty.worn{box-shadow:inset 0 0 0 2px rgba(255,40,20,.95);animation:blink 1s steps(2,end) infinite}
+.rv-row.pitting{background:rgba(255,243,77,.28)}
+.rv-row.pitting .rv-gap{color:#c88000;font-weight:bold}
 @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
 @keyframes blink{50%{opacity:.45}}
 
@@ -497,6 +532,15 @@ body.preboot .topbar{visibility:hidden}
 .sc-nm{flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .sc-nm i{width:8px;height:8px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
+.sc-ty{display:inline-flex;align-items:center;gap:3px;width:96px;flex-shrink:0}
+.sc-ty b{width:16px;height:16px;border-radius:50%;border:1px solid #000;display:flex;
+         align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.sc-ty i{flex:1;height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;display:block}
+.sc-ty i u{display:block;height:100%;text-decoration:none;transition:width .4s}
+.sc-ty em{font-style:normal;font-size:9px;opacity:.8;width:26px;text-align:right}
+.sc-ty.old i u{background:#f0a020 !important}
+.sc-ty.worn i u{background:#e04a3f !important}
+.sc-ty.worn b{animation:blink 1s steps(2,end) infinite}
 .sc-t{width:56px;text-align:right;color:#e8dcc0}
 .sc-t.green{color:#6cf06c;font-weight:bold}
 .sc-t.purple{color:#d88cff;font-weight:bold}
@@ -572,6 +616,8 @@ body.preboot .topbar{visibility:hidden}
   #raceCanvas{width:100%;height:auto}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
+  .sc-ty{width:72px}
+  .sc-ty em{display:none}
   .sc-lap{width:60px;font-size:10px}
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }
@@ -687,8 +733,9 @@ body.preboot .topbar{visibility:hidden}
     <div id="rvSectors" class="rv-sectors"></div>
     <div id="rvLog" class="rv-loglist"></div>
     <div class="rv-ctrl">
-      <button class="btn" id="rvSpeed1">▶ じっくり</button>
-      <button class="btn primary" id="rvSpeed2">▶▶ ふつう</button>
+      <button class="btn" id="rvSpeed0">🐢 とてもゆっくり</button>
+      <button class="btn primary" id="rvSpeed1">▶ ゆっくり</button>
+      <button class="btn" id="rvSpeed2">▶▶ ふつう</button>
       <button class="btn" id="rvSpeed3">▶▶▶ はやい</button>
       <button class="btn primary" id="rvSkip">⏭ 結果へ</button>
     </div>
@@ -1235,6 +1282,23 @@ GP.data = (function () {
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
   const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
 
+  /* ---------- タイヤ ----------
+     pace はラップタイムの倍率（小さいほど速い）、
+     wear は摩耗の速さ、life は性能が落ちきるまでの目安周回数        */
+  const TYRES = [
+    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
+      pace: 0.986, wear: 1.60, life: 15, wet: false, desc: 'いちばん速いが、あっという間に摩耗する' },
+    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
+      pace: 1.000, wear: 1.00, life: 25, wet: false, desc: '速さと保ちのバランス型' },
+    { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
+      pace: 1.014, wear: 0.66, life: 38, wet: false, desc: '遅いが長く保つ。ストップを減らせる' },
+    { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
+      pace: 1.000, wear: 1.15, life: 24, wet: true,  desc: '小雨〜半乾き路面用' },
+    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
+      pace: 1.000, wear: 0.95, life: 30, wet: true,  desc: '大雨用。水を大量に掻き出す' }
+  ];
+  const DRY_TYRES = ['soft', 'medium', 'hard'];
+
   /* ---------- 天候 ---------- */
   const WEATHER = [
     { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00 },
@@ -1244,7 +1308,7 @@ GP.data = (function () {
   ];
 
   return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
 
 </script>
@@ -2020,6 +2084,7 @@ GP.race = (function () {
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
           perf: perf, strat: strat, st: st, sk: sk,
+          startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           rel: t.rel,
           tyreSkill: (sk('tyre') ? 0.55 : 1) * (1 - d.technique / 420),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
@@ -2029,6 +2094,22 @@ GP.race = (function () {
       });
     });
     return list;
+  }
+
+  const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
+
+  /* このスティント（区間）を走りきるのに向いたタイヤを選ぶ。
+     攻めるチームは寿命ぎりぎりの速いタイヤを、
+     堅実なチームは余裕のある硬いタイヤを選ぶ                        */
+  function pickTyre(stintLaps, weather, prefer, bias) {
+    if (weather.key === 'storm') return 'wet';
+    if (weather.key === 'rain') return 'inter';
+    if (prefer && D.DRY_TYRES.indexOf(prefer) >= 0) return prefer;
+    const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * 0.9);
+    if (!fit.length) return 'hard';
+    // bias 0=攻め（寿命ぎりぎりの速いタイヤ） 1=バランス 2=堅実（余裕のある硬いタイヤ）
+    const i = bias >= 2 ? fit.length - 1 : bias === 1 ? Math.floor((fit.length - 1) / 2) : 0;
+    return fit[i].key;
   }
 
   function autoStrategy(team, track) {
@@ -2081,19 +2162,41 @@ GP.race = (function () {
     const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4;
     const strategist = S.staffBonus(g, 'strategist');
 
-    // ピット戦略決定
+    // ピット戦略とタイヤの割り当て
     entries.forEach(e => {
-      // 摩耗の速さから最適なストップ数を見積もる。ストラテジストがいるほど読みが正確
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
-      const stops = (wear > 1.05 || laps > 28) ? 2 : 1;
+      let stops = (wear > 1.05 || laps > 28) ? 2 : 1;
+      // ライバルはチームごとに作戦を変える。少ないストップなら硬いタイヤで長く走る
+      e.tyreBias = 1;                     // 自チームの2本目以降はバランス型
+      if (!e.isPlayer) {
+        const r = Math.random();
+        if (r < 0.26) { stops = Math.max(1, stops - 1); e.tyreBias = 2; }
+        else if (r < 0.48) { stops = Math.min(3, stops + 1); e.tyreBias = 0; }
+        else { e.tyreBias = S.rint(0, 2); }
+      }
       const blur = e.isPlayer ? Math.max(0, 1.6 - strategist * 0.5) : 1.2;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
         e.pitPlan.push(Math.max(2, Math.round(laps * i / (stops + 1) + S.rnd(-blur, blur))));
       }
+      e.pitPlan.sort((a, b) => a - b);
       e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0);
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
+
+      // 各スティントの長さから履くタイヤを決める。最初のスティントだけは指定できる
+      const bounds = [0].concat(e.pitPlan, [laps]);
+      e.stints = [];
+      for (let i = 0; i < bounds.length - 1; i++) {
+        const len = bounds[i + 1] - bounds[i];
+        const prefer = (i === 0 && e.isPlayer) ? e.startTyre : null;
+        e.stints.push({ from: bounds[i] + 1, to: bounds[i + 1],
+                        key: pickTyre(len, weather, prefer, e.tyreBias), laps: len });
+      }
+      e.tyreKey = e.stints[0].key;
+      e.stintIdx = 0;
+      e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
+      e.pitTime = [];       // 各周のピット停止時間
     });
 
     let order = grid.slice();
@@ -2108,9 +2211,16 @@ GP.race = (function () {
         t *= (1 - e.st.pace);
         t /= weather.grip;
 
-        // タイヤ摩耗
+        // タイヤの銘柄によるペース差
+        const ty = tyreOf(e.tyreKey);
+        t *= ty.pace;
+
+        // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre;
+        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
+        const over = e.tyreAge - ty.life;
+        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
+        e.lapTyre[lap - 1] = { key: e.tyreKey, age: e.tyreAge, life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
         if (lap > laps * 0.6 && !e.sk('stamina')) {
@@ -2127,7 +2237,7 @@ GP.race = (function () {
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
-        // ピットイン
+        // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
           const loss = e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
@@ -2135,8 +2245,15 @@ GP.race = (function () {
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
-          if (e.isPlayer) events.push({ lap, type: 'pit', car: e, text: e.driver.name + ' ピットイン！ (' + loss.toFixed(1) + '秒)' });
+          e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
+          e.tyreKey = e.stints[e.stintIdx].key;
+          if (e.isPlayer) {
+            const nt = tyreOf(e.tyreKey);
+            events.push({ lap, type: 'pit', car: e,
+              text: e.driver.name + ' ピットイン！ ' + nt.name + 'に交換 (' + loss.toFixed(1) + '秒)' });
+          }
         }
+        e.pitTime[lap - 1] = pitAdd;
 
         e.lapTimes[lap - 1] = t;
         const prev = lap === 1 ? 0 : e.cum[lap - 2];
@@ -2358,7 +2475,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
-  let vt = 0, speed = 40, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
+  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, duration = 1;
   let shownEvents = 0;
 
   /* ---------- コース形状（geom.js と共有）---------- */
@@ -2408,6 +2525,31 @@ GP.raceview = (function () {
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const lt = e.lapTimes[lap] || 1;
     return { done: false, p: lap + (t - prev) / lt };
+  }
+
+  /* いま何周目のどのあたりを走っているか */
+  function lapInfo(e, t) {
+    const n = e.cum.length;
+    let lap = 0;
+    while (lap < n && e.cum[lap] <= t) lap++;
+    if (lap >= n) lap = n - 1;
+    const prev = lap === 0 ? 0 : e.cum[lap - 1];
+    return { lap: lap + 1, into: t - prev, lapTime: e.lapTimes[lap] || 1 };
+  }
+
+  /* ピット作業中か（その周のピット停止時間ぶんを、周の終わりに割り当てている） */
+  function inPit(e, t) {
+    if (e.dnf && t >= (e.cum[e.dnfLap - 1] || 0)) return false;
+    const li = lapInfo(e, t);
+    const pt = (e.pitTime || [])[li.lap - 1] || 0;
+    if (pt <= 0) return false;
+    return li.into > li.lapTime - pt;
+  }
+
+  /* いま履いているタイヤ */
+  function tyreNow(e, t) {
+    const li = lapInfo(e, t);
+    return (e.lapTyre || [])[li.lap - 1] || (e.lapTyre || [])[0] || null;
   }
 
   function orderAt(t) {
@@ -2722,10 +2864,29 @@ GP.raceview = (function () {
 
     // 車
     const ord = orderAt(t);
+    const pit = pitSpan();
+    let pitSlot = 0;
     for (let i = ord.length - 1; i >= 0; i--) {
       const o = ord[i], e = o.e;
-      const pt = placeInLap(e, o.p);
-      drawCar(pt.x, pt.y, pt.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt.v == null ? 1 : pt.v);
+      if (!o.out && pit && inPit(e, t)) {
+        // ピット作業中はガレージ前に停めて、作業中と分かるようにする
+        const idx = (pit.from + 6 + (pitSlot++ % 5) * 7) % poly.n;
+        const nm = normalAt(idx);
+        const px = nm.x + nm.nx * pit.side * 20, py = nm.y + nm.ny * pit.side * 20;
+        const ang = Math.atan2(nm.dy, nm.dx);
+        drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
+        // 作業中の目印
+        ctx.save();
+        ctx.translate(px, py - 12);
+        ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+        ctx.fillRect(-7, -6, 14, 10); ctx.strokeRect(-7, -6, 14, 10);
+        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('PIT', 0, 2);
+        ctx.restore();
+        continue;
+      }
+      const pt2 = placeInLap(e, o.p);
+      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
     }
   }
 
@@ -2824,11 +2985,22 @@ GP.raceview = (function () {
     ord.forEach((o, i) => {
       const e = o.e;
       const gapNum = leader.p - o.p;
-      const gap = o.out ? 'DNF' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
-      html += '<div class="rv-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') + '">' +
+      const pitting = !o.out && inPit(e, vt);
+      const gap = o.out ? 'DNF' : pitting ? 'PIT' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
+      const ty = tyreNow(e, vt);
+      let chip = '<span class="rv-ty">–</span>';
+      if (ty) {
+        const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
+        const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.75 ? ' old' : '';
+        chip = '<span class="rv-ty' + worn + '" style="background:' + td.color + ';color:' + td.text +
+          '" title="' + td.name + '／' + ty.age + '周使用（寿命' + td.life + '周）">' + td.short +
+          '<em>' + ty.age + '</em></span>';
+      }
+      html += '<div class="rv-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') + (pitting ? ' pitting' : '') + '">' +
         '<span class="rv-pos">' + (i + 1) + '</span>' +
         '<span class="rv-chip" style="background:' + e.color + '"></span>' +
         '<span class="rv-name">' + e.driver.name + '</span>' +
+        chip +
         '<span class="rv-gap">' + gap + '</span></div>';
     });
     box.innerHTML = html;
@@ -2920,8 +3092,19 @@ GP.raceview = (function () {
     let h = '';
     mine.forEach(e => {
       const c = liveCar[e.id];
+      const ty = tyreNow(e, vt);
+      let tychip = '';
+      if (ty) {
+        const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
+        const leftPct = Math.max(0, Math.min(100, (1 - ty.age / td.life) * 100));
+        const cls = leftPct < 12 ? ' worn' : leftPct < 35 ? ' old' : '';
+        tychip = '<span class="sc-ty' + cls + '" title="' + td.name + '／' + ty.age + '周使用（寿命の目安 ' + td.life + '周）">' +
+          '<b style="background:' + td.color + ';color:' + td.text + '">' + td.short + '</b>' +
+          '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
+          '<em>' + ty.age + '周</em></span>';
+      }
       h += '<div class="sc-row"><span class="sc-nm">' +
-        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>';
+        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip;
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];
         let cls = '';
@@ -2935,7 +3118,7 @@ GP.raceview = (function () {
       }
       h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
     });
-    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span>' +
+    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span>' +
       [0, 1, 2].map(k => '<span class="sc-t purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';
@@ -2954,7 +3137,7 @@ GP.raceview = (function () {
     buildSectorTimeline();
     trackArt = buildTrackArt();
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 40; lights = 0;
+    vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0;
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }
@@ -3329,10 +3512,21 @@ GP.ui = (function () {
     $('tRp').textContent = money(g.rp);
     $('tSeason').textContent = g.season;
     $('tWeek').textContent = g.week;
-    $('tNext').textContent = g.nextRace >= D.TRACKS.length
-      ? 'シーズン終了'
-      : (left === 0 ? '★ 今週レース！' : '第' + (g.nextRace + 1) + '戦まで あと' + left + '週');
-    $('tNext').className = left === 0 ? 'race-imminent' : '';
+    if (g.nextRace >= D.TRACKS.length) {
+      $('tNext').innerHTML = 'シーズン終了';
+      $('tNext').className = '';
+    } else if (left === 0) {
+      $('tNext').innerHTML = '★ 今週レース！';
+      $('tNext').className = 'race-imminent';
+    } else {
+      // 1コマンド＝1週なので、残り週数がそのまま「あと何回動けるか」になる
+      let pips = '';
+      for (let i = 0; i < left; i++) pips += '<i></i>';
+      $('tNext').innerHTML = '第' + (g.nextRace + 1) + '戦まで <b>あと' + left + '週</b>' +
+        '<span class="pips" title="レースまでに実行できるコマンド数">' + pips + '</span>' +
+        '<em>コマンドあと' + left + '回</em>';
+      $('tNext').className = left <= 1 ? 'race-soon' : '';
+    }
     const ht = S.hypeTier(g);
     $('tHypeIc').textContent = ht.icon;
     $('tHypeVal').textContent = Math.round(g.hype || 0);
@@ -3367,8 +3561,17 @@ GP.ui = (function () {
     }
     const t = D.TRACKS[g.nextRace];
     const sc = S.carScore(g, t);
+    const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
+    const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
     return '<div class="card"><div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) + '</div>' +
       '<div class="pad">' +
+      '<div class="countdown' + (left === 0 ? ' now' : '') + '">' +
+      (left === 0
+        ? '<b>★ 今週が決勝です</b><span>「レースへ向かう！」を押してください</span>'
+        : '<b>準備できるのは あと ' + left + ' 回</b>' +
+          '<span class="pips">' + pips + '</span>' +
+          '<span>コマンドを1つ選ぶと1週進みます</span>') +
+      '</div>' +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
       '<div class="seclegend">' +
@@ -4729,6 +4932,23 @@ window.GP = window.GP || {};
     });
     body += '<p class="desc">🛡️ 安全第一＝ペースは落ちるがリタイアしにくい／🔥 攻める＝速いがミスとタイヤ消耗のリスク大</p>';
 
+    // ---- スタートタイヤ ----
+    const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
+    body += '<div class="sub">スタートタイヤ</div>' +
+      '<p class="desc">最初のスティントで履くタイヤです。以降は残り周回に合わせて自動で選ばれます。<br>' +
+      '雨の場合は自動的に雨用タイヤになります。</p>';
+    g.drivers.forEach(d => {
+      body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div><div class="sr-btns tyres" data-tdrv="' + d.id + '">';
+      D.DRY_TYRES.forEach((k, i) => {
+        const t = D.TYRES.find(x => x.key === k);
+        body += '<button class="tyrebtn' + (i === 1 ? ' on' : '') + '" data-t="' + k + '"' +
+          ' title="' + esc(t.desc) + '" style="--tc:' + t.color + ';--tt:' + t.text + '">' +
+          '<b>' + t.short + '</b><small>' + t.name + '<br>目安' + t.life + '周</small></button>';
+      });
+      body += '</div></div>';
+      pendingStrategy['tyre_' + d.id] = 'medium';
+    });
+
     U.modal(special ? special.icon + ' ' + special.name : '🏁 レースウィーク', body, [
       { label: '🏁 コースイン！', cls: 'primary', fn: startRace },
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
@@ -4740,6 +4960,14 @@ window.GP = window.GP || {};
         Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
         b.classList.add('on');
         pendingStrategy[wrap.dataset.drv] = b.dataset.s;
+      };
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.tyrebtn'), b => {
+      b.onclick = () => {
+        const wrap = b.parentElement;
+        Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+        b.classList.add('on');
+        pendingStrategy['tyre_' + wrap.dataset.tdrv] = b.dataset.t;
       };
     });
   }
@@ -4993,8 +5221,8 @@ window.GP = window.GP || {};
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
-    // 数値は「レース全体を何秒で再生するか」
-    const speeds = { rvSpeed1: 95, rvSpeed2: 40, rvSpeed3: 13 };
+    // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
+    const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
     Object.keys(speeds).forEach(id => {
       $(id).onclick = () => {
         RV.setSpeed(speeds[id]);

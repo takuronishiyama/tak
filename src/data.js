@@ -399,6 +399,23 @@ GP.data = (function () {
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
   const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
 
+  /* ---------- タイヤ ----------
+     pace はラップタイムの倍率（小さいほど速い）、
+     wear は摩耗の速さ、life は性能が落ちきるまでの目安周回数        */
+  const TYRES = [
+    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
+      pace: 0.986, wear: 1.60, life: 15, wet: false, desc: 'いちばん速いが、あっという間に摩耗する' },
+    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
+      pace: 1.000, wear: 1.00, life: 25, wet: false, desc: '速さと保ちのバランス型' },
+    { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
+      pace: 1.014, wear: 0.66, life: 38, wet: false, desc: '遅いが長く保つ。ストップを減らせる' },
+    { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
+      pace: 1.000, wear: 1.15, life: 24, wet: true,  desc: '小雨〜半乾き路面用' },
+    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
+      pace: 1.000, wear: 0.95, life: 30, wet: true,  desc: '大雨用。水を大量に掻き出す' }
+  ];
+  const DRY_TYRES = ['soft', 'medium', 'hard'];
+
   /* ---------- 天候 ---------- */
   const WEATHER = [
     { key: 'sunny', name: '晴れ',   icon: '☀️', grip: 1.00, chaos: 1.00 },
@@ -408,5 +425,5 @@ GP.data = (function () {
   ];
 
   return { TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           NATIONS, PERSONALITIES, QUOTES, SPECIALS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();
