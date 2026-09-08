@@ -193,7 +193,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
           box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
 .focusbtn b{font-size:12px}
 .focusbtn small{font-size:9px;opacity:.75}
-.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));background-color:#ffcf4d;transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
          background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
 .nextcar i{flex:1;height:10px;background:var(--trough);border:2px solid var(--ink);border-radius:5px;overflow:hidden}
@@ -226,7 +226,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
        box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.skbar{display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
+.skbar{position:relative;display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
 .skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
 .srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
@@ -509,9 +509,9 @@ body.preboot .topbar{visibility:hidden}
 [data-skin="hd"] .pb-body small b.warn{color:#ffb3a4}
 .pb-cost{font-size:11px;text-align:right;white-space:nowrap;line-height:1.3}
 .pb-cost em{font-style:normal;opacity:.65;font-size:9px}
-.mini{background:linear-gradient(#fff8e3,#e8d8ae);border:2px solid var(--ink);
+.mini{background:linear-gradient(#fff8e3,#e8d8ae);background-color:#f4eecb;border:2px solid var(--ink);
       border-radius:5px;font-size:10px;padding:2px 6px}
-.mini.danger{background:linear-gradient(#ff9a8a,var(--red));color:#fff}
+.mini.danger{background:linear-gradient(#ff9a8a,var(--red));background-color:#c8352a;color:#fff}
 .bigbox{background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;
         padding:10px;text-align:center;font-size:14px;margin:8px 0}
 .bigbox b{font-size:24px;color:var(--red)}
@@ -1267,7 +1267,7 @@ body[data-skin="hd"]{
 .fromteam{font-style:normal;padding:1px 6px;border-radius:9px;font-size:10px;
   background:#f0d2c8;border:1px solid #8a4a3a;color:#6a2a1c}
 .staffrow .mini.good,
-.mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
+.mini.good{background:linear-gradient(#8ee08a,#4ea63f);background-color:#6bc466;border-color:#2e6a2e;color:#12310f}
 .poachbox{display:flex;justify-content:space-between;align-items:center;gap:8px;
   margin:5px 0;padding:6px 10px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
@@ -1389,6 +1389,44 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* 開発：1回で何がどれだけ動くか */
+.skbar u{position:absolute;top:-2px;width:2px;height:calc(100% + 4px);
+         background:#b02a20;opacity:.7;text-decoration:none}
+.overchip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;padding:1px 5px;
+          border-radius:3px;background:#2e6a2e;color:#e6ffe0;vertical-align:middle}
+[data-skin="hd"] .skbar u{background:#ff9a8a}
+[data-skin="hd"] .overchip{background:#3f7a3f;color:#eaffe4}
+
+.devnow,.devup{display:block;font-size:9.5px;line-height:1.5;margin-top:2px}
+.devnow{color:var(--ink2)}
+.devup{color:#2f5f7a;font-weight:bold}
+.devup b{color:#1f4a1f}
+.devrow.weak{border-color:#c98b10;border-left-width:6px}
+.weakchip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;padding:1px 5px;
+          border-radius:3px;background:#c98b10;color:#2a1c08;vertical-align:middle}
+[data-skin="hd"] .devnow{color:#cbbb9a}
+[data-skin="hd"] .devup{color:#8fd6f0}
+[data-skin="hd"] .devup b{color:#8ef08e}
+[data-skin="hd"] .devrow.weak{border-color:#ffd23a;border-left-width:6px}
+[data-skin="hd"] .weakchip{background:#ffd23a;color:#2a1c08}
+
+/* 首脳陣：昇進と招聘を並べて比べる */
+.mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.mgeffs em{font-style:normal;font-size:9px;padding:1px 5px;border-radius:3px;
+           background:#ecd9a4;color:#3a2611}
+.mgeffs em b{font-size:9px}
+.nowchip,.upchip,.hirechip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;
+  padding:1px 5px;border-radius:3px;vertical-align:middle}
+.nowchip{background:#4a2f1a;color:#ffe9b0}
+.upchip{background:#2e6a2e;color:#e6ffe0}
+.hirechip{background:#7a4a10;color:#ffe9b0}
+.mgmtrow.up{border-color:#2e6a2e}
+[data-skin="hd"] .mgeffs em{background:#4b3d68;color:#efe4cf}
+[data-skin="hd"] .nowchip{background:#6a4fa0;color:#f4ead6}
+[data-skin="hd"] .upchip{background:#3f7a3f;color:#eaffe4}
+[data-skin="hd"] .hirechip{background:#8a5a2a;color:#ffe9b0}
+[data-skin="hd"] .mgmtrow.up{border-color:#5aa85a}
+
 /* いまの場所でできること（歩かずに選ぶための一覧） */
 .hublist{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:stretch}
 .hl-h{width:100%;font-size:10px;color:var(--ink2);margin:0 0 1px}
@@ -1572,3 +1610,10 @@ body[data-skin="hd"]{
 .gridmine{margin:0 0 6px;padding:5px 9px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
 [data-skin="hd"] .gridmine{background:#241c30;color:#efe4cf}
+
+/* HD のときは面が暗くなるので、緑・赤のボタンだけは色を組み直す */
+[data-skin="hd"] .mini.good{background:linear-gradient(180deg,#4e9a4e,#2a6a2a);background-color:#3b7f3b;
+  border-color:#8ee08a;color:#eaffe4}
+[data-skin="hd"] .mini.danger{background:linear-gradient(180deg,#c8483c,#8a2a20);background-color:#a83428;
+  border-color:#ff9a8a;color:#fff2ee}
+[data-skin="hd"] .focusbtn.on{background:linear-gradient(#ffd76a,#ffc93c);background-color:#ffcf4d}

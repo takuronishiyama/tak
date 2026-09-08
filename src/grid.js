@@ -434,6 +434,7 @@ GP.grid = (function () {
     c.fillStyle = '#2b1d12'; c.fillRect(x - 4, py - 30, 8, 4);
     c.fillStyle = '#2a2028'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
     c.globalAlpha = 1;
+    if (done && GP.base && GP.base.doneMark) GP.base.doneMark(c, x + 12, py - 24);
   }
 
   /* 名札 */

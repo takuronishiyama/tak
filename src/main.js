@@ -367,7 +367,21 @@ window.GP = window.GP || {};
         '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
         '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
     }
-    body += '<div class="sub">装着中パーツの改良</div><div class="pick">';
+    // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている。
+    // どれも似た仕上がりのときは、わざわざ名指ししない
+    let weakest = null;
+    {
+      const rs = D.PART_CATS.map(c => {
+        const q = g.equipped[c.key];
+        if (!q || (c.key === 'pu' && q.supplied)) return null;
+        return { key: c.key, r: q.power / S.partCap(g, q) };
+      }).filter(Boolean).sort((a, b) => a.r - b.r);
+      if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
+    }
+    body += '<div class="sub">装着中パーツの改良</div>' +
+      '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
+      '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
+      '同じ金額なら、伸びしろの大きいところに入れたほうが効きます。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -380,34 +394,74 @@ window.GP = window.GP || {};
       const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
       // 供給を受けているパワーユニットは、こちらでは手を入れられない
       const locked = c.key === 'pu' && p.supplied;
-      body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
+      const pv = improvePreview(c);
+      const pct = Math.round(pv.ratio * 100);
+      const num = v => (v >= 0 ? '+' : '') + (Math.round(v * 10) / 10);
+      // いま何を担っていて、1回でどこがどれだけ動くか
+      const nowLine = [['速さ', pv.cur.speed], ['コーナー', pv.cur.corner], ['加速', pv.cur.accel]]
+        .filter(x => x[1] > 0.05)
+        .map(x => x[0] + ' ' + (Math.round(x[1] * 10) / 10)).join('／');
+      const upLine = [['速さ', pv.dSpeed], ['コーナー', pv.dCorner], ['加速', pv.dAccel]]
+        .filter(x => Math.abs(x[1]) > 0.02)
+        .map(x => x[0] + ' ' + num(x[1])).join('／');
+      body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
+        '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
-        '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
-        '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
+        '<span class="pb-body"><b>' + esc(p.name) +
+        (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') + '</b>' +
+        '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
+        '（' + pct + '%）' +
         (locked ? ' <em class="warn">供給中は開発できません</em>'
-                : (capped ? ' <em class="warn">上限到達</em>' : '')) + '</small></span>' +
+                : (capped ? ' <em class="warn">上限到達。伸びは3割まで落ちます</em>' : '')) +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
+        '<span class="devnow">いまの寄与 ' + (nowLine || '—') + '</span>' +
+        (locked ? '' :
+          '<span class="devup">1回で 性能 +' + (Math.round(pv.gain * 10) / 10) +
+          (upLine ? '　→　' + upLine : '') +
+          '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
+          (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
+        '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
     // ---- 車体開発 ----
     const cap = S.bodyCap(g);
+    // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
+    const bodyStep = a => {
+      const facBonus = 1 + g.facilities.factory * 0.10;
+      const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+      const drvBonus = 1 + g.drivers.reduce((x, d) => x + S.persOf(d).dev, 0);
+      let gain = 3.4 * facBonus * engBonus * drvBonus * planMul(a.gain) * S.devRate(g);
+      if (((g.body && g.body[a.key]) || 0) >= cap) gain *= 0.30;
+      const fc = S.focusOf(g);
+      return { now: gain * fc.cur, next: gain * fc.next };
+    };
     body += '</div><div class="sub">車体の熟成</div>' +
-      '<p class="desc">パーツは速さを、車体は<b>壊れにくさ・タイヤの保ち・ピット作業・維持費</b>を担当します。' +
-      '効果は「上限に対して何割まで煮詰めたか」で決まるので、世代が変わっても価値は変わりません。<br>' +
-      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + '。パーツを仕上げて世代が上がると、ここも上がります。' +
-      'ライバルはおおむね50%の仕上がりです。</p><div class="pick">';
+      '<p class="desc">パーツが<b>速さ</b>なら、車体は<b>壊れにくさ・タイヤの保ち・乗りやすさ・ピット作業</b>です。' +
+      '効き方は「その項目の上限に対して何割まで煮詰めたか」で決まります。<br>' +
+      '車体の各項目の上限は、いまのマシン（' + D.CAR_GENS[g.carGen].name + '）で <b>' + cap + '</b>' +
+      '（パーツの上限とは別ものです）。世代が上がると、ここも上がります。' +
+      'ライバルはおおむね<b>50%</b>の仕上がりなので、そこを超えたぶんが差になります。</p><div class="pick">';
     D.BODY_ATTRS.forEach(a => {
       const v = (g.body && g.body[a.key]) || 0;
       const cost = bodyCost(v);
       const capped = v >= cap;
       const ok = useTicket || (g.funds >= cost && g.rp >= 8);
       const pct = Math.min(100, v / cap * 100);
-      body += '<button class="pickbtn" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+      const st = bodyStep(a);
+      const pct2 = Math.min(100, (v + st.now) / cap * 100);
+      body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-        '<span class="pb-body"><b>' + a.name + '</b>' +
-        '<small>' + a.desc + '<br><span class="bd-eff">' + a.eff +
-        '<b>（いま ' + Math.round(pct) + '%）</b></span>' +
-        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span> ' +
-        Math.round(v * 10) / 10 + ' / ' + cap + (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
+        '<span class="pb-body"><b>' + a.name +
+        (pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
+        '<small>' + a.desc +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
+        '<u style="left:50%"></u></span>' +
+        '<span class="devnow">仕上がり <b>' + Math.round(pct) + '%</b>' +
+        '（' + (Math.round(v * 10) / 10) + ' / ' + cap + '）　' + a.eff + '</span>' +
+        '<span class="devup">1回で ' + Math.round(pct) + '% → <b>' + Math.round(pct2) + '%</b>' +
+        (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
+        (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
+        '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
@@ -593,6 +647,42 @@ window.GP = window.GP || {};
     if (w >= 0.5) return 1.22;
     if (w <= 0.15) return 0.92;
     return 1;
+  }
+
+  /* ---- この1回で何がどれだけ動くのか ----
+     金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
+     判断できない。実際に使っている式から、平均的な伸びと、
+     それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  function improvePreview(c) {
+    const p = g.equipped[c.key];
+    if (!p) return null;
+    const cap = S.partCap(g, p);
+    const fc = S.focusOf(g);
+    const facBonus = 1 + g.facilities.factory * 0.10 +
+      ((c.key === 'aero' || c.key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
+    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
+    if (p.power >= cap) gain *= 0.30;
+    const now = gain * fc.cur, next = gain * fc.next;
+    // 伸びたぶんが、車の速さにどう出るか
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const before = S.carStats(g);
+    const keep = p.power;
+    p.power = keep + now;
+    const after = S.carStats(g);
+    p.power = keep;
+    const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
+    return {
+      cur: S.partStats(p), gain: now, toNext: next, cap: cap,
+      ratio: Math.min(1, p.power / cap),
+      dSpeed: after.speed - before.speed,
+      dCorner: after.corner - before.corner,
+      dAccel: after.accel - before.accel,
+      dCar: dCar,
+      // perf は 車 0.60 ぶん。1周のタイムに直す
+      dSec: t.base * PERF_TO_SEC * 0.60 * dCar
+    };
   }
 
   function doImprove(key) {
@@ -1787,39 +1877,107 @@ window.GP = window.GP || {};
   }
 
   /* ---- 首脳陣 ---- */
+  /* 役職に技能◯の人を据えたら、実際に何がどれだけ変わるか。
+     説明文ではなく、いまゲームが使っている式から数字を出す。
+     こうしないと「誰を据えるべきか」が比べられない            */
+  function mgrEffect(role, skill) {
+    const n = Math.max(0, skill || 0);
+    const pc = v => (v >= 0 ? '+' : '') + v.toFixed(v < 10 ? 1 : 0) + '%';
+    if (role === 'principal') return [
+      ['スポンサー収入', pc(n * 0.6)],
+      ['注目度の伸び', pc(n * 0.4)],
+      ['広報の成果', '+' + (n * 0.6).toFixed(0)]
+    ];
+    if (role === 'technical') return [
+      ['開発の伸び', pc(n * 0.8)],
+      ['設計のレアリティ', '+' + (n * 0.06).toFixed(1)]
+    ];
+    if (role === 'pitchief') return [
+      ['ピット作業', '-' + (n * 0.06).toFixed(2) + '秒'],
+      ['マシンの信頼性', '+' + (n * 0.15).toFixed(1)]
+    ];
+    if (role === 'logistics') return [
+      ['週の運営費', '-' + Math.min(45, n * 1.0).toFixed(0) + '%'],
+      ['輸送費', '-' + Math.min(45, n * 1.2).toFixed(0) + '%'],
+      ['荷の遅延', '-' + Math.min(70, n * 2.0).toFixed(0) + '%'],
+      ['クルーの疲労', '-' + Math.min(50, n * 1.0).toFixed(0) + '%']
+    ];
+    return [];
+  }
+  const effChips = (role, skill) => '<span class="mgeffs">' +
+    mgrEffect(role, skill).map(e => '<em>' + e[0] + ' <b>' + e[1] + '</b></em>').join('') + '</span>';
+
   function hrManagement() {
-    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。</p><div class="pick">';
+    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。<br>' +
+      '各役職に、<b>自前のスタッフからの昇進</b>と<b>外からの招聘</b>を並べてあります。' +
+      '数字は「その技能なら実際にどれだけ効くか」です。</p>';
+
     D.MANAGERS.forEach(m => {
       const cur = g.managers && g.managers[m.key];
+      body += '<div class="sub">' + m.icon + ' ' + m.name + '</div>' +
+        '<p class="desc">' + m.desc + '</p><div class="pick">';
+
+      // ---- 現任 ----
       if (cur) {
         body += '<div class="pickbtn done mgmtrow">' +
           '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
-          '<span class="pb-body"><b>' + m.name + '：' + esc(cur.name) + '</b>' +
+          '<span class="pb-body"><b>' + esc(cur.name) + '<em class="nowchip">現任</em></b>' +
           '<small><span class="skbar"><i style="width:' + Math.min(100, cur.skill / 60 * 100) + '%"></i></span> 技能 <b>' + cur.skill + '</b>' +
-          '<br>' + m.desc + '<br><em class="mgeff">' + m.effect + '</em></small></span>' +
+          effChips(m.key, cur.skill) + '</small></span>' +
           '<span class="pb-cost">週' + money(cur.salary) + '万<br>' +
           '<button class="mini danger" data-firemgr="' + m.key + '">解任</button></span></div>';
-      } else {
-        body += '<div class="pickbtn done mgmtrow empty">' +
-          '<span class="pb-ic" style="background:#a89878">' + m.icon + '</span>' +
-          '<span class="pb-body"><b>' + m.name + '</b><small>空席<br>' + m.desc + '</small></span>' +
-          '<span class="pb-cost">—</span></div>';
       }
+
+      // ---- 自前のスタッフからの昇進 ----
+      const ups = (g.staff || []).filter(st => S.promotableRoles(g, st).indexOf(m.key) >= 0)
+        .sort((a, b) => b.skill - a.skill);
+      ups.forEach(st => {
+        const after = Math.max(10, Math.round(st.skill * 0.85));
+        const sal = Math.round(m.salary * (0.6 + after / 30));
+        const diff = cur ? after - cur.skill : null;
+        const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+        body += '<div class="pickbtn mgmtrow up">' +
+          '<span class="pb-ic" style="background:#4a7a3a">⬆</span>' +
+          '<span class="pb-body"><b>' + esc(st.name) + '<em class="upchip">昇進</em></b>' +
+          '<small>' + t.name + '（技能 ' + st.skill + '）→ ' + m.name + ' <b>技能 ' + after + '</b>' +
+          (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
+            (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
+          '<br><span class="skbar"><i style="width:' + Math.min(100, after / 60 * 100) + '%"></i></span>' +
+          effChips(m.key, after) +
+          '<br><em class="warn">現場からは1人減ります（' + t.name + ' の厚み -' +
+          (st.skill / 20).toFixed(1) + '）</em></small></span>' +
+          '<span class="pb-cost">契約金なし<br><em>週' + money(sal) + '</em><br>' +
+          '<button class="mini good" data-promote-staff="' + st.id + ':' + m.key + '">昇進させる</button>' +
+          '</span></div>';
+      });
+
+      // ---- 外からの招聘 ----
+      mgrMarket.forEach((cand, i) => {
+        if (cand.role !== m.key) return;
+        const fee = mgrFee(cand);
+        const diff = cur ? cand.skill - cur.skill : null;
+        const poor = g.funds < fee;
+        body += '<button class="pickbtn mgmtrow" data-k="mm:' + i + '"' + (poor ? ' disabled' : '') + '>' +
+          '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(cand.name) + '<em class="hirechip">招聘</em></b>' +
+          '<small>技能 <b>' + cand.skill + '</b>' +
+          (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
+            (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
+          '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
+          effChips(m.key, cand.skill) +
+          (poor ? '<br><em class="warn">いまの資金では契約できません</em>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
+      });
+
+      if (!cur && !ups.length && !mgrMarket.some(c => c.role === m.key)) {
+        body += '<p class="desc">いまは空席です。技能 ' + S.PROMOTE_MIN +
+          ' 以上のスタッフが育つか、市場に候補が出るのを待ちましょう' +
+          '（「🔄 市場を更新」で入れ替わります）。</p>';
+      }
+      body += '</div>';
     });
-    body += '</div><div class="sub">候補者</div><div class="pick">';
-    mgrMarket.forEach((cand, i) => {
-      const m = D.MANAGERS.find(x => x.key === cand.role);
-      const cur = g.managers && g.managers[cand.role];
-      const fee = mgrFee(cand);
-      const better = cur ? cand.skill - cur.skill : null;
-      body += '<button class="pickbtn" data-k="mm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(cand.name) + '</b><small>' + m.name + '／技能 ' + cand.skill +
-        (better !== null ? '（現任と<em class="' + (better > 0 ? 'good' : 'bad') + '">' + (better > 0 ? '+' : '') + better + '</em>）' : '') +
-        '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
-        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
-    });
-    return body + '</div>';
+    return body;
   }
 
   /* ---- 操作 ---- */
@@ -3084,14 +3242,14 @@ window.GP = window.GP || {};
       const dn = q.done;
       if (q.key.indexOf('gd:mine') === 0) {
         const i = +q.key.slice(7);
-        m[q.key] = { icon: '🔥', label: q.label || 'マシン',
+        m[q.key] = { icon: '🔥', label: q.label || 'マシン', done: dn,
                      to: dn ? '送り出した' : '鼓舞する',
                      fn: () => dn ? yardAgain(q.label || 'ドライバー') : doCheer(i) };
       } else if (q.key === 'gd:look') {
-        m[q.key] = { icon: '🔍', label: '並んだマシン', to: dn ? '見て回った' : '見る',
+        m[q.key] = { icon: '🔍', label: '並んだマシン', done: dn, to: dn ? '見て回った' : '見る',
                      fn: () => dn ? yardAgain('マシン') : doGridLook() };
       } else if (q.key === 'gd:guest') {
-        m[q.key] = { icon: '🗣️', label: q.label, to: dn ? '話した' : '話す',
+        m[q.key] = { icon: '🗣️', label: q.label, done: dn, to: dn ? '話した' : '話す',
                      fn: () => dn ? yardAgain(q.label) : doGridGuest() };
       } else if (q.key === 'gd:go') {
         m[q.key] = { icon: '🚦', label: 'スタート進行', to: '決勝へ', fn: () => leaveGrid(true) };
@@ -3616,19 +3774,25 @@ window.GP = window.GP || {};
       const gi = ri < GP.paddock.MINE_AT ? ri : ri + 1;
       const done = (g.scouted || []).indexOf(r.name) >= 0;
       map['scout' + gi] = {
-        icon: done ? '✓' : '👀', label: r.name + ' のガレージ',
+        icon: done ? '✓' : '👀', label: r.name + ' のガレージ', done: done,
         to: done ? '確認済み' : '覗く',
         fn: () => doScout(r)
       };
     });
+    const spoke = k => (g.talked || []).indexOf(k) >= 0;
     (g.drivers || []).slice(0, 2).forEach((d, i) => {
-      map['drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す', fn: () => doTalk(d) };
+      const dn = spoke('talk:' + d.id);
+      map['drv' + i] = { icon: '🧑‍✈️', label: d.name, done: dn,
+                         to: dn ? '話した' : '話す', fn: () => doTalk(d) };
     });
-    map.press = { icon: '📰', label: '記者たち', to: '取材', fn: doPress };
+    const pdn = spoke('press');
+    map.press = { icon: '📰', label: '記者たち', done: pdn,
+                  to: pdn ? '取材済み' : '取材', fn: doPress };
     GP.paddock.visitors(g).forEach(v => {
+      const dn = spoke('poach:' + v.team.name + ':' + v.driver.name);
       map[v.spot.key] = {
-        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）',
-        to: '接触', fn: () => doPoach(v.driver, v.team)
+        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）', done: dn,
+        to: dn ? '接触済み' : '接触', fn: () => doPoach(v.driver, v.team)
       };
     });
     return map;
@@ -3946,32 +4110,32 @@ window.GP = window.GP || {};
     yardPeople().forEach(q => {
       const dn = q.done;
       if (q.key === 'yd:brief') {
-        m[q.key] = { icon: '🔍', label: '合同デブリーフィング',
+        m[q.key] = { icon: '🔍', label: '合同デブリーフィング', done: dn,
                      to: dn ? '終わった' : '集まる',
                      fn: () => dn ? yardAgain('チーム') : doDebrief() };
         return;
       }
       if (q.key.indexOf('yd:drv') === 0) {
         const i = +q.key.slice(6);
-        m[q.key] = { icon: '🧑‍✈️', label: q.label, to: dn ? '話した' : '話す',
+        m[q.key] = { icon: '🧑‍✈️', label: q.label, done: dn, to: dn ? '話した' : '話す',
                      fn: () => dn ? yardAgain(q.label) : doYardDriver(i) };
       } else if (q.key === 'yd:eng') {
-        m[q.key] = { icon: '👷', label: q.label, to: dn ? '話した' : '技術の話',
+        m[q.key] = { icon: '👷', label: q.label, done: dn, to: dn ? '話した' : '技術の話',
                      fn: () => dn ? yardAgain(q.label) : doYardEngineer() };
       } else if (q.key === 'yd:mech') {
-        m[q.key] = { icon: '🔩', label: q.label, to: dn ? '話した' : 'マシンを見る',
+        m[q.key] = { icon: '🔩', label: q.label, done: dn, to: dn ? '話した' : 'マシンを見る',
                      fn: () => dn ? yardAgain(q.label) : doYardMech() };
       } else if (q.key === 'yd:strat') {
-        m[q.key] = { icon: '🧠', label: q.label, to: dn ? '話した' : '作戦の相談',
+        m[q.key] = { icon: '🧠', label: q.label, done: dn, to: dn ? '話した' : '作戦の相談',
                      fn: () => dn ? yardAgain(q.label) : doYardStrat() };
       } else if (q.key === 'yd:crew') {
-        m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', to: dn ? '話した' : 'ねぎらう',
+        m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', done: dn, to: dn ? '話した' : 'ねぎらう',
                      fn: () => dn ? yardAgain('ピットクルー') : doYardCrew() };
       } else if (q.key === 'yd:press') {
-        m[q.key] = { icon: '📰', label: '記者', to: dn ? '話した' : '取材を受ける',
+        m[q.key] = { icon: '📰', label: '記者', done: dn, to: dn ? '話した' : '取材を受ける',
                      fn: () => dn ? yardAgain('記者') : doYardPress() };
       } else if (q.key === 'yd:youth') {
-        m[q.key] = { icon: '🎓', label: q.label, to: dn ? '話した' : '激励する',
+        m[q.key] = { icon: '🎓', label: q.label, done: dn, to: dn ? '話した' : '激励する',
                      fn: () => dn ? yardAgain(q.label) : doYardYouth() };
       }
     });
@@ -4570,10 +4734,10 @@ window.GP = window.GP || {};
     box.innerHTML = '<b class="hl-h">ここでできること</b>' +
       keys.map(k => {
         const d = doors[k];
-        const done = d.to === '確認済み' || d.to === '済' || d.done;
-        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
-          (done ? ' disabled' : '') + '>' +
-          '<i>' + (d.icon || '•') + '</i>' +
+        const done = !!d.done;
+        // 済んだ用事はチェックを付けて、まだのものだけが目に入るようにする
+        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '">' +
+          '<i>' + (done ? '✓' : (d.icon || '•')) + '</i>' +
           '<b>' + esc(d.label || k) + '</b>' +
           '<em>' + esc(d.to || '入る') + '</em></button>';
       }).join('');

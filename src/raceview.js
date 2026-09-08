@@ -56,7 +56,10 @@ GP.raceview = (function () {
     return r;
   }
 
-  /* ---------- 各車の周回進捗 ---------- */
+  /* ---------- 各車の周回進捗 ----------
+     ピットに入っている間、車はコース上を進んでいない。
+     ここで停止時間を差し引かないと、止まっているのに順位が落ちず、
+     出てきた瞬間に一気に入れ替わる、という妙な見え方になる        */
   function progress(e, t) {
     if (e.dnf && e.dnfLap > 0 && t >= (e.cum[e.dnfLap - 1] || 0)) {
       return { done: true, p: e.dnfLap };
@@ -67,7 +70,21 @@ GP.raceview = (function () {
     while (lap < n && e.cum[lap] <= t) lap++;
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const lt = e.lapTimes[lap] || 1;
-    return { done: false, p: lap + (t - prev) / lt };
+    const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
+    const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
+    return { done: false, p: lap + Math.min(1, (t - prev) / drive) };
+  }
+
+  /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
+     順位表の「◯秒差」を、周回数の差ではなく本当の時間差で出すために使う */
+  function timeAt(e, p) {
+    const n = e.cum.length;
+    const lap = Math.max(0, Math.min(n - 1, Math.floor(p)));
+    const f = Math.max(0, Math.min(1, p - lap));
+    const prev = lap === 0 ? 0 : e.cum[lap - 1];
+    const pt = (e.pitTime || [])[lap] || 0;
+    const drive = Math.max(0.1, (e.lapTimes[lap] || 1) - pt);
+    return prev + f * drive;
   }
 
   /* いま何周目のどのあたりを走っているか */
@@ -1268,9 +1285,11 @@ GP.raceview = (function () {
     let html = '';
     ord.forEach((o, i) => {
       const e = o.e;
-      const gapNum = leader.p - o.p;
       const pitting = !o.out && inPit(e, vt);
-      const gap = o.out ? 'DNF' : pitting ? 'PIT' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
+      // 先頭がこの位置を通過したのは何秒前か＝本当の意味での差
+      const behind = i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p));
+      const gap = o.out ? 'DNF' : pitting ? 'PIT'
+                : (i === 0 ? '先頭' : '-' + behind.toFixed(1) + 's');
       const ty = tyreNow(e, vt);
       let chip = '<span class="rv-ty">–</span>';
       if (ty) {

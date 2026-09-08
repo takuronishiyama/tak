@@ -407,8 +407,11 @@ GP.paddock = (function () {
       ctx.fillStyle = '#2a2028'; ctx.fillRect(x + 1, y - 26, 2, 2);
     };
     const py = WALK.y1 - 4;
+    const spoke = k => (g2.talked || []).indexOf(k) >= 0;
+    const mark = (x, y) => { if (GP.base && GP.base.doneMark) GP.base.doneMark(ctx, x, y); };
     (g2.drivers || []).slice(0, 2).forEach((d, i) => {
       person(PEOPLE[i].x, py, g2.color, '#3a2718', '#f0c49a');
+      if (spoke('talk:' + d.id)) mark(PEOPLE[i].x + 12, py - 24);
       hitBoxes.push({ key: PEOPLE[i].key, x: PEOPLE[i].x - 12, y: py - 32, w: 24, h: 34 });
       // ヘルメットを小脇に抱えている
       ctx.fillStyle = mix(g2.color, 0.18);
@@ -418,6 +421,7 @@ GP.paddock = (function () {
     // ライバルのドライバー。自チームの色ではなく、その人のチームの色を着ている
     visitors(g2).forEach(v => {
       person(v.spot.x, py, v.team.color, '#2b1d12', '#ecc196');
+      if (spoke('poach:' + v.team.name + ':' + v.driver.name)) mark(v.spot.x + 12, py - 24);
       // 胸元にチームカラーの識別帯
       ctx.fillStyle = mix(v.team.color, 0.28);
       ctx.fillRect(v.spot.x - 5, py - 14, 10, 2);
@@ -428,6 +432,7 @@ GP.paddock = (function () {
     });
 
     // 記者たち（カメラを持っている）
+    if (spoke('press')) mark(PEOPLE[2].x + 24, py - 24);
     hitBoxes.push({ key: 'press', x: PEOPLE[2].x - 24, y: py - 34, w: 48, h: 36 });
     [0, 1, 2].forEach(k => {
       const x = PEOPLE[2].x - 14 + k * 14;
@@ -506,6 +511,7 @@ GP.paddock = (function () {
     return [document.body.getAttribute('data-skin'), sel || '',
             Math.floor(g2.fans), g2.season, g2.nextRace, g2.color, g2.team,
             (g2.scouted || []).join(','),
+            (g2.talked || []).join(','),
             visitors(g2).map(v => v.driver.name).join(',')].join('|');
   }
 

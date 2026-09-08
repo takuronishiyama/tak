@@ -208,7 +208,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
           box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
 .focusbtn b{font-size:12px}
 .focusbtn small{font-size:9px;opacity:.75}
-.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));background-color:#ffcf4d;transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
          background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
 .nextcar i{flex:1;height:10px;background:var(--trough);border:2px solid var(--ink);border-radius:5px;overflow:hidden}
@@ -241,7 +241,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
        box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.skbar{display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
+.skbar{position:relative;display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
 .skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
 .srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
@@ -524,9 +524,9 @@ body.preboot .topbar{visibility:hidden}
 [data-skin="hd"] .pb-body small b.warn{color:#ffb3a4}
 .pb-cost{font-size:11px;text-align:right;white-space:nowrap;line-height:1.3}
 .pb-cost em{font-style:normal;opacity:.65;font-size:9px}
-.mini{background:linear-gradient(#fff8e3,#e8d8ae);border:2px solid var(--ink);
+.mini{background:linear-gradient(#fff8e3,#e8d8ae);background-color:#f4eecb;border:2px solid var(--ink);
       border-radius:5px;font-size:10px;padding:2px 6px}
-.mini.danger{background:linear-gradient(#ff9a8a,var(--red));color:#fff}
+.mini.danger{background:linear-gradient(#ff9a8a,var(--red));background-color:#c8352a;color:#fff}
 .bigbox{background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;
         padding:10px;text-align:center;font-size:14px;margin:8px 0}
 .bigbox b{font-size:24px;color:var(--red)}
@@ -1282,7 +1282,7 @@ body[data-skin="hd"]{
 .fromteam{font-style:normal;padding:1px 6px;border-radius:9px;font-size:10px;
   background:#f0d2c8;border:1px solid #8a4a3a;color:#6a2a1c}
 .staffrow .mini.good,
-.mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
+.mini.good{background:linear-gradient(#8ee08a,#4ea63f);background-color:#6bc466;border-color:#2e6a2e;color:#12310f}
 .poachbox{display:flex;justify-content:space-between;align-items:center;gap:8px;
   margin:5px 0;padding:6px 10px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
@@ -1404,6 +1404,44 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* 開発：1回で何がどれだけ動くか */
+.skbar u{position:absolute;top:-2px;width:2px;height:calc(100% + 4px);
+         background:#b02a20;opacity:.7;text-decoration:none}
+.overchip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;padding:1px 5px;
+          border-radius:3px;background:#2e6a2e;color:#e6ffe0;vertical-align:middle}
+[data-skin="hd"] .skbar u{background:#ff9a8a}
+[data-skin="hd"] .overchip{background:#3f7a3f;color:#eaffe4}
+
+.devnow,.devup{display:block;font-size:9.5px;line-height:1.5;margin-top:2px}
+.devnow{color:var(--ink2)}
+.devup{color:#2f5f7a;font-weight:bold}
+.devup b{color:#1f4a1f}
+.devrow.weak{border-color:#c98b10;border-left-width:6px}
+.weakchip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;padding:1px 5px;
+          border-radius:3px;background:#c98b10;color:#2a1c08;vertical-align:middle}
+[data-skin="hd"] .devnow{color:#cbbb9a}
+[data-skin="hd"] .devup{color:#8fd6f0}
+[data-skin="hd"] .devup b{color:#8ef08e}
+[data-skin="hd"] .devrow.weak{border-color:#ffd23a;border-left-width:6px}
+[data-skin="hd"] .weakchip{background:#ffd23a;color:#2a1c08}
+
+/* 首脳陣：昇進と招聘を並べて比べる */
+.mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.mgeffs em{font-style:normal;font-size:9px;padding:1px 5px;border-radius:3px;
+           background:#ecd9a4;color:#3a2611}
+.mgeffs em b{font-size:9px}
+.nowchip,.upchip,.hirechip{font-style:normal;font-size:8px;font-weight:bold;margin-left:5px;
+  padding:1px 5px;border-radius:3px;vertical-align:middle}
+.nowchip{background:#4a2f1a;color:#ffe9b0}
+.upchip{background:#2e6a2e;color:#e6ffe0}
+.hirechip{background:#7a4a10;color:#ffe9b0}
+.mgmtrow.up{border-color:#2e6a2e}
+[data-skin="hd"] .mgeffs em{background:#4b3d68;color:#efe4cf}
+[data-skin="hd"] .nowchip{background:#6a4fa0;color:#f4ead6}
+[data-skin="hd"] .upchip{background:#3f7a3f;color:#eaffe4}
+[data-skin="hd"] .hirechip{background:#8a5a2a;color:#ffe9b0}
+[data-skin="hd"] .mgmtrow.up{border-color:#5aa85a}
+
 /* いまの場所でできること（歩かずに選ぶための一覧） */
 .hublist{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:stretch}
 .hl-h{width:100%;font-size:10px;color:var(--ink2);margin:0 0 1px}
@@ -1587,6 +1625,13 @@ body[data-skin="hd"]{
 .gridmine{margin:0 0 6px;padding:5px 9px;border:2px solid var(--ink);border-radius:6px;
   background:var(--paper2);color:var(--ink);font-size:12px}
 [data-skin="hd"] .gridmine{background:#241c30;color:#efe4cf}
+
+/* HD のときは面が暗くなるので、緑・赤のボタンだけは色を組み直す */
+[data-skin="hd"] .mini.good{background:linear-gradient(180deg,#4e9a4e,#2a6a2a);background-color:#3b7f3b;
+  border-color:#8ee08a;color:#eaffe4}
+[data-skin="hd"] .mini.danger{background:linear-gradient(180deg,#c8483c,#8a2a20);background-color:#a83428;
+  border-color:#ff9a8a;color:#fff2ee}
+[data-skin="hd"] .focusbtn.on{background:linear-gradient(#ffd76a,#ffc93c);background-color:#ffcf4d}
 
 </style>
 <!--
@@ -6127,7 +6172,10 @@ GP.raceview = (function () {
     return r;
   }
 
-  /* ---------- 各車の周回進捗 ---------- */
+  /* ---------- 各車の周回進捗 ----------
+     ピットに入っている間、車はコース上を進んでいない。
+     ここで停止時間を差し引かないと、止まっているのに順位が落ちず、
+     出てきた瞬間に一気に入れ替わる、という妙な見え方になる        */
   function progress(e, t) {
     if (e.dnf && e.dnfLap > 0 && t >= (e.cum[e.dnfLap - 1] || 0)) {
       return { done: true, p: e.dnfLap };
@@ -6138,7 +6186,21 @@ GP.raceview = (function () {
     while (lap < n && e.cum[lap] <= t) lap++;
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const lt = e.lapTimes[lap] || 1;
-    return { done: false, p: lap + (t - prev) / lt };
+    const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
+    const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
+    return { done: false, p: lap + Math.min(1, (t - prev) / drive) };
+  }
+
+  /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
+     順位表の「◯秒差」を、周回数の差ではなく本当の時間差で出すために使う */
+  function timeAt(e, p) {
+    const n = e.cum.length;
+    const lap = Math.max(0, Math.min(n - 1, Math.floor(p)));
+    const f = Math.max(0, Math.min(1, p - lap));
+    const prev = lap === 0 ? 0 : e.cum[lap - 1];
+    const pt = (e.pitTime || [])[lap] || 0;
+    const drive = Math.max(0.1, (e.lapTimes[lap] || 1) - pt);
+    return prev + f * drive;
   }
 
   /* いま何周目のどのあたりを走っているか */
@@ -7339,9 +7401,11 @@ GP.raceview = (function () {
     let html = '';
     ord.forEach((o, i) => {
       const e = o.e;
-      const gapNum = leader.p - o.p;
       const pitting = !o.out && inPit(e, vt);
-      const gap = o.out ? 'DNF' : pitting ? 'PIT' : (i === 0 ? '先頭' : '-' + (gapNum * res.track.base).toFixed(1) + 's');
+      // 先頭がこの位置を通過したのは何秒前か＝本当の意味での差
+      const behind = i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p));
+      const gap = o.out ? 'DNF' : pitting ? 'PIT'
+                : (i === 0 ? '先頭' : '-' + behind.toFixed(1) + 's');
       const ty = tyreNow(e, vt);
       let chip = '<span class="rv-ty">–</span>';
       if (ty) {
@@ -7776,7 +7840,8 @@ GP.base = (function () {
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const s = tierOf(g2.facilities[key] || 1);
-    return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
+    // 外からも使えるようにしておく（パドックやグリッドで共用する）
+  return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
   }
 
   function clampWalk(x, y) {
@@ -8432,9 +8497,24 @@ GP.base = (function () {
     mini(x - 17, color);
     mini(x + 17, '#5a6270');
     bg.globalAlpha = 1;
+    if (done) doneMark(bg, x + 22, py - 24);
   }
 
   /* 敷地に立っている人。オフ期間の描き方と同じ形にそろえてある */
+  /* 用事を済ませた相手の頭の上に出す印。
+     「誰にまだ声をかけていないか」が、ひと目で分かるようにする */
+  function doneMark(bg, x, y) {
+    bg.globalAlpha = 1;
+    bg.fillStyle = '#1c3a1c';
+    bg.beginPath(); bg.arc(x, y, 7, 0, Math.PI * 2); bg.fill();
+    bg.fillStyle = '#8ef08e';
+    bg.beginPath(); bg.arc(x, y, 5.6, 0, Math.PI * 2); bg.fill();
+    bg.strokeStyle = '#12310f'; bg.lineWidth = 2; bg.lineJoin = 'round';
+    bg.beginPath();
+    bg.moveTo(x - 3, y); bg.lineTo(x - 1, y + 2.6); bg.lineTo(x + 3.2, y - 2.6);
+    bg.stroke();
+  }
+
   function person(bg, x, py, suit, hair, faceC, hat, done) {
     bg.globalAlpha = done ? 0.45 : 1;
     bg.fillStyle = 'rgba(0,0,0,.30)';
@@ -8450,6 +8530,7 @@ GP.base = (function () {
     bg.fillRect(x + 1, py - 26, 2, 2);
     if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
     bg.globalAlpha = 1;
+    if (done) doneMark(bg, x + 12, py - 24);
   }
 
   /* チームの規模（施設・ファン・タイトルの総合）*/
@@ -8468,7 +8549,7 @@ GP.base = (function () {
   }
 
   return { render, scene, drawWith, invalidate, hit, scale, setYard,
-           drawActor, doorOf, doorPos, clampWalk, WALK, W, H };
+           drawActor, doneMark, doorOf, doorPos, clampWalk, WALK, W, H };
 })();
 
 </script>
@@ -8883,8 +8964,11 @@ GP.paddock = (function () {
       ctx.fillStyle = '#2a2028'; ctx.fillRect(x + 1, y - 26, 2, 2);
     };
     const py = WALK.y1 - 4;
+    const spoke = k => (g2.talked || []).indexOf(k) >= 0;
+    const mark = (x, y) => { if (GP.base && GP.base.doneMark) GP.base.doneMark(ctx, x, y); };
     (g2.drivers || []).slice(0, 2).forEach((d, i) => {
       person(PEOPLE[i].x, py, g2.color, '#3a2718', '#f0c49a');
+      if (spoke('talk:' + d.id)) mark(PEOPLE[i].x + 12, py - 24);
       hitBoxes.push({ key: PEOPLE[i].key, x: PEOPLE[i].x - 12, y: py - 32, w: 24, h: 34 });
       // ヘルメットを小脇に抱えている
       ctx.fillStyle = mix(g2.color, 0.18);
@@ -8894,6 +8978,7 @@ GP.paddock = (function () {
     // ライバルのドライバー。自チームの色ではなく、その人のチームの色を着ている
     visitors(g2).forEach(v => {
       person(v.spot.x, py, v.team.color, '#2b1d12', '#ecc196');
+      if (spoke('poach:' + v.team.name + ':' + v.driver.name)) mark(v.spot.x + 12, py - 24);
       // 胸元にチームカラーの識別帯
       ctx.fillStyle = mix(v.team.color, 0.28);
       ctx.fillRect(v.spot.x - 5, py - 14, 10, 2);
@@ -8904,6 +8989,7 @@ GP.paddock = (function () {
     });
 
     // 記者たち（カメラを持っている）
+    if (spoke('press')) mark(PEOPLE[2].x + 24, py - 24);
     hitBoxes.push({ key: 'press', x: PEOPLE[2].x - 24, y: py - 34, w: 48, h: 36 });
     [0, 1, 2].forEach(k => {
       const x = PEOPLE[2].x - 14 + k * 14;
@@ -8982,6 +9068,7 @@ GP.paddock = (function () {
     return [document.body.getAttribute('data-skin'), sel || '',
             Math.floor(g2.fans), g2.season, g2.nextRace, g2.color, g2.team,
             (g2.scouted || []).join(','),
+            (g2.talked || []).join(','),
             visitors(g2).map(v => v.driver.name).join(',')].join('|');
   }
 
@@ -9449,6 +9536,7 @@ GP.grid = (function () {
     c.fillStyle = '#2b1d12'; c.fillRect(x - 4, py - 30, 8, 4);
     c.fillStyle = '#2a2028'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
     c.globalAlpha = 1;
+    if (done && GP.base && GP.base.doneMark) GP.base.doneMark(c, x + 12, py - 24);
   }
 
   /* 名札 */
@@ -10889,7 +10977,21 @@ window.GP = window.GP || {};
         '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
         '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
     }
-    body += '<div class="sub">装着中パーツの改良</div><div class="pick">';
+    // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている。
+    // どれも似た仕上がりのときは、わざわざ名指ししない
+    let weakest = null;
+    {
+      const rs = D.PART_CATS.map(c => {
+        const q = g.equipped[c.key];
+        if (!q || (c.key === 'pu' && q.supplied)) return null;
+        return { key: c.key, r: q.power / S.partCap(g, q) };
+      }).filter(Boolean).sort((a, b) => a.r - b.r);
+      if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
+    }
+    body += '<div class="sub">装着中パーツの改良</div>' +
+      '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
+      '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
+      '同じ金額なら、伸びしろの大きいところに入れたほうが効きます。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -10902,34 +11004,74 @@ window.GP = window.GP || {};
       const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
       // 供給を受けているパワーユニットは、こちらでは手を入れられない
       const locked = c.key === 'pu' && p.supplied;
-      body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
+      const pv = improvePreview(c);
+      const pct = Math.round(pv.ratio * 100);
+      const num = v => (v >= 0 ? '+' : '') + (Math.round(v * 10) / 10);
+      // いま何を担っていて、1回でどこがどれだけ動くか
+      const nowLine = [['速さ', pv.cur.speed], ['コーナー', pv.cur.corner], ['加速', pv.cur.accel]]
+        .filter(x => x[1] > 0.05)
+        .map(x => x[0] + ' ' + (Math.round(x[1] * 10) / 10)).join('／');
+      const upLine = [['速さ', pv.dSpeed], ['コーナー', pv.dCorner], ['加速', pv.dAccel]]
+        .filter(x => Math.abs(x[1]) > 0.02)
+        .map(x => x[0] + ' ' + num(x[1])).join('／');
+      body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
+        '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
-        '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
-        '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
+        '<span class="pb-body"><b>' + esc(p.name) +
+        (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') + '</b>' +
+        '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
+        '（' + pct + '%）' +
         (locked ? ' <em class="warn">供給中は開発できません</em>'
-                : (capped ? ' <em class="warn">上限到達</em>' : '')) + '</small></span>' +
+                : (capped ? ' <em class="warn">上限到達。伸びは3割まで落ちます</em>' : '')) +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
+        '<span class="devnow">いまの寄与 ' + (nowLine || '—') + '</span>' +
+        (locked ? '' :
+          '<span class="devup">1回で 性能 +' + (Math.round(pv.gain * 10) / 10) +
+          (upLine ? '　→　' + upLine : '') +
+          '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
+          (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
+        '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
     // ---- 車体開発 ----
     const cap = S.bodyCap(g);
+    // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
+    const bodyStep = a => {
+      const facBonus = 1 + g.facilities.factory * 0.10;
+      const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+      const drvBonus = 1 + g.drivers.reduce((x, d) => x + S.persOf(d).dev, 0);
+      let gain = 3.4 * facBonus * engBonus * drvBonus * planMul(a.gain) * S.devRate(g);
+      if (((g.body && g.body[a.key]) || 0) >= cap) gain *= 0.30;
+      const fc = S.focusOf(g);
+      return { now: gain * fc.cur, next: gain * fc.next };
+    };
     body += '</div><div class="sub">車体の熟成</div>' +
-      '<p class="desc">パーツは速さを、車体は<b>壊れにくさ・タイヤの保ち・ピット作業・維持費</b>を担当します。' +
-      '効果は「上限に対して何割まで煮詰めたか」で決まるので、世代が変わっても価値は変わりません。<br>' +
-      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + '。パーツを仕上げて世代が上がると、ここも上がります。' +
-      'ライバルはおおむね50%の仕上がりです。</p><div class="pick">';
+      '<p class="desc">パーツが<b>速さ</b>なら、車体は<b>壊れにくさ・タイヤの保ち・乗りやすさ・ピット作業</b>です。' +
+      '効き方は「その項目の上限に対して何割まで煮詰めたか」で決まります。<br>' +
+      '車体の各項目の上限は、いまのマシン（' + D.CAR_GENS[g.carGen].name + '）で <b>' + cap + '</b>' +
+      '（パーツの上限とは別ものです）。世代が上がると、ここも上がります。' +
+      'ライバルはおおむね<b>50%</b>の仕上がりなので、そこを超えたぶんが差になります。</p><div class="pick">';
     D.BODY_ATTRS.forEach(a => {
       const v = (g.body && g.body[a.key]) || 0;
       const cost = bodyCost(v);
       const capped = v >= cap;
       const ok = useTicket || (g.funds >= cost && g.rp >= 8);
       const pct = Math.min(100, v / cap * 100);
-      body += '<button class="pickbtn" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+      const st = bodyStep(a);
+      const pct2 = Math.min(100, (v + st.now) / cap * 100);
+      body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-        '<span class="pb-body"><b>' + a.name + '</b>' +
-        '<small>' + a.desc + '<br><span class="bd-eff">' + a.eff +
-        '<b>（いま ' + Math.round(pct) + '%）</b></span>' +
-        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span> ' +
-        Math.round(v * 10) / 10 + ' / ' + cap + (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
+        '<span class="pb-body"><b>' + a.name +
+        (pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
+        '<small>' + a.desc +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
+        '<u style="left:50%"></u></span>' +
+        '<span class="devnow">仕上がり <b>' + Math.round(pct) + '%</b>' +
+        '（' + (Math.round(v * 10) / 10) + ' / ' + cap + '）　' + a.eff + '</span>' +
+        '<span class="devup">1回で ' + Math.round(pct) + '% → <b>' + Math.round(pct2) + '%</b>' +
+        (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
+        (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
+        '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
@@ -11115,6 +11257,42 @@ window.GP = window.GP || {};
     if (w >= 0.5) return 1.22;
     if (w <= 0.15) return 0.92;
     return 1;
+  }
+
+  /* ---- この1回で何がどれだけ動くのか ----
+     金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
+     判断できない。実際に使っている式から、平均的な伸びと、
+     それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  function improvePreview(c) {
+    const p = g.equipped[c.key];
+    if (!p) return null;
+    const cap = S.partCap(g, p);
+    const fc = S.focusOf(g);
+    const facBonus = 1 + g.facilities.factory * 0.10 +
+      ((c.key === 'aero' || c.key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
+    const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.14;
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
+    if (p.power >= cap) gain *= 0.30;
+    const now = gain * fc.cur, next = gain * fc.next;
+    // 伸びたぶんが、車の速さにどう出るか
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const before = S.carStats(g);
+    const keep = p.power;
+    p.power = keep + now;
+    const after = S.carStats(g);
+    p.power = keep;
+    const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
+    return {
+      cur: S.partStats(p), gain: now, toNext: next, cap: cap,
+      ratio: Math.min(1, p.power / cap),
+      dSpeed: after.speed - before.speed,
+      dCorner: after.corner - before.corner,
+      dAccel: after.accel - before.accel,
+      dCar: dCar,
+      // perf は 車 0.60 ぶん。1周のタイムに直す
+      dSec: t.base * PERF_TO_SEC * 0.60 * dCar
+    };
   }
 
   function doImprove(key) {
@@ -12309,39 +12487,107 @@ window.GP = window.GP || {};
   }
 
   /* ---- 首脳陣 ---- */
+  /* 役職に技能◯の人を据えたら、実際に何がどれだけ変わるか。
+     説明文ではなく、いまゲームが使っている式から数字を出す。
+     こうしないと「誰を据えるべきか」が比べられない            */
+  function mgrEffect(role, skill) {
+    const n = Math.max(0, skill || 0);
+    const pc = v => (v >= 0 ? '+' : '') + v.toFixed(v < 10 ? 1 : 0) + '%';
+    if (role === 'principal') return [
+      ['スポンサー収入', pc(n * 0.6)],
+      ['注目度の伸び', pc(n * 0.4)],
+      ['広報の成果', '+' + (n * 0.6).toFixed(0)]
+    ];
+    if (role === 'technical') return [
+      ['開発の伸び', pc(n * 0.8)],
+      ['設計のレアリティ', '+' + (n * 0.06).toFixed(1)]
+    ];
+    if (role === 'pitchief') return [
+      ['ピット作業', '-' + (n * 0.06).toFixed(2) + '秒'],
+      ['マシンの信頼性', '+' + (n * 0.15).toFixed(1)]
+    ];
+    if (role === 'logistics') return [
+      ['週の運営費', '-' + Math.min(45, n * 1.0).toFixed(0) + '%'],
+      ['輸送費', '-' + Math.min(45, n * 1.2).toFixed(0) + '%'],
+      ['荷の遅延', '-' + Math.min(70, n * 2.0).toFixed(0) + '%'],
+      ['クルーの疲労', '-' + Math.min(50, n * 1.0).toFixed(0) + '%']
+    ];
+    return [];
+  }
+  const effChips = (role, skill) => '<span class="mgeffs">' +
+    mgrEffect(role, skill).map(e => '<em>' + e[0] + ' <b>' + e[1] + '</b></em>').join('') + '</span>';
+
   function hrManagement() {
-    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。</p><div class="pick">';
+    let body = '<p class="lead">役職は1人ずつ。据えるとチーム全体に効きます。<br>' +
+      '各役職に、<b>自前のスタッフからの昇進</b>と<b>外からの招聘</b>を並べてあります。' +
+      '数字は「その技能なら実際にどれだけ効くか」です。</p>';
+
     D.MANAGERS.forEach(m => {
       const cur = g.managers && g.managers[m.key];
+      body += '<div class="sub">' + m.icon + ' ' + m.name + '</div>' +
+        '<p class="desc">' + m.desc + '</p><div class="pick">';
+
+      // ---- 現任 ----
       if (cur) {
         body += '<div class="pickbtn done mgmtrow">' +
           '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
-          '<span class="pb-body"><b>' + m.name + '：' + esc(cur.name) + '</b>' +
+          '<span class="pb-body"><b>' + esc(cur.name) + '<em class="nowchip">現任</em></b>' +
           '<small><span class="skbar"><i style="width:' + Math.min(100, cur.skill / 60 * 100) + '%"></i></span> 技能 <b>' + cur.skill + '</b>' +
-          '<br>' + m.desc + '<br><em class="mgeff">' + m.effect + '</em></small></span>' +
+          effChips(m.key, cur.skill) + '</small></span>' +
           '<span class="pb-cost">週' + money(cur.salary) + '万<br>' +
           '<button class="mini danger" data-firemgr="' + m.key + '">解任</button></span></div>';
-      } else {
-        body += '<div class="pickbtn done mgmtrow empty">' +
-          '<span class="pb-ic" style="background:#a89878">' + m.icon + '</span>' +
-          '<span class="pb-body"><b>' + m.name + '</b><small>空席<br>' + m.desc + '</small></span>' +
-          '<span class="pb-cost">—</span></div>';
       }
+
+      // ---- 自前のスタッフからの昇進 ----
+      const ups = (g.staff || []).filter(st => S.promotableRoles(g, st).indexOf(m.key) >= 0)
+        .sort((a, b) => b.skill - a.skill);
+      ups.forEach(st => {
+        const after = Math.max(10, Math.round(st.skill * 0.85));
+        const sal = Math.round(m.salary * (0.6 + after / 30));
+        const diff = cur ? after - cur.skill : null;
+        const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+        body += '<div class="pickbtn mgmtrow up">' +
+          '<span class="pb-ic" style="background:#4a7a3a">⬆</span>' +
+          '<span class="pb-body"><b>' + esc(st.name) + '<em class="upchip">昇進</em></b>' +
+          '<small>' + t.name + '（技能 ' + st.skill + '）→ ' + m.name + ' <b>技能 ' + after + '</b>' +
+          (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
+            (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
+          '<br><span class="skbar"><i style="width:' + Math.min(100, after / 60 * 100) + '%"></i></span>' +
+          effChips(m.key, after) +
+          '<br><em class="warn">現場からは1人減ります（' + t.name + ' の厚み -' +
+          (st.skill / 20).toFixed(1) + '）</em></small></span>' +
+          '<span class="pb-cost">契約金なし<br><em>週' + money(sal) + '</em><br>' +
+          '<button class="mini good" data-promote-staff="' + st.id + ':' + m.key + '">昇進させる</button>' +
+          '</span></div>';
+      });
+
+      // ---- 外からの招聘 ----
+      mgrMarket.forEach((cand, i) => {
+        if (cand.role !== m.key) return;
+        const fee = mgrFee(cand);
+        const diff = cur ? cand.skill - cur.skill : null;
+        const poor = g.funds < fee;
+        body += '<button class="pickbtn mgmtrow" data-k="mm:' + i + '"' + (poor ? ' disabled' : '') + '>' +
+          '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(cand.name) + '<em class="hirechip">招聘</em></b>' +
+          '<small>技能 <b>' + cand.skill + '</b>' +
+          (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
+            (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
+          '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
+          effChips(m.key, cand.skill) +
+          (poor ? '<br><em class="warn">いまの資金では契約できません</em>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
+      });
+
+      if (!cur && !ups.length && !mgrMarket.some(c => c.role === m.key)) {
+        body += '<p class="desc">いまは空席です。技能 ' + S.PROMOTE_MIN +
+          ' 以上のスタッフが育つか、市場に候補が出るのを待ちましょう' +
+          '（「🔄 市場を更新」で入れ替わります）。</p>';
+      }
+      body += '</div>';
     });
-    body += '</div><div class="sub">候補者</div><div class="pick">';
-    mgrMarket.forEach((cand, i) => {
-      const m = D.MANAGERS.find(x => x.key === cand.role);
-      const cur = g.managers && g.managers[cand.role];
-      const fee = mgrFee(cand);
-      const better = cur ? cand.skill - cur.skill : null;
-      body += '<button class="pickbtn" data-k="mm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(cand.name) + '</b><small>' + m.name + '／技能 ' + cand.skill +
-        (better !== null ? '（現任と<em class="' + (better > 0 ? 'good' : 'bad') + '">' + (better > 0 ? '+' : '') + better + '</em>）' : '') +
-        '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
-        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';
-    });
-    return body + '</div>';
+    return body;
   }
 
   /* ---- 操作 ---- */
@@ -13606,14 +13852,14 @@ window.GP = window.GP || {};
       const dn = q.done;
       if (q.key.indexOf('gd:mine') === 0) {
         const i = +q.key.slice(7);
-        m[q.key] = { icon: '🔥', label: q.label || 'マシン',
+        m[q.key] = { icon: '🔥', label: q.label || 'マシン', done: dn,
                      to: dn ? '送り出した' : '鼓舞する',
                      fn: () => dn ? yardAgain(q.label || 'ドライバー') : doCheer(i) };
       } else if (q.key === 'gd:look') {
-        m[q.key] = { icon: '🔍', label: '並んだマシン', to: dn ? '見て回った' : '見る',
+        m[q.key] = { icon: '🔍', label: '並んだマシン', done: dn, to: dn ? '見て回った' : '見る',
                      fn: () => dn ? yardAgain('マシン') : doGridLook() };
       } else if (q.key === 'gd:guest') {
-        m[q.key] = { icon: '🗣️', label: q.label, to: dn ? '話した' : '話す',
+        m[q.key] = { icon: '🗣️', label: q.label, done: dn, to: dn ? '話した' : '話す',
                      fn: () => dn ? yardAgain(q.label) : doGridGuest() };
       } else if (q.key === 'gd:go') {
         m[q.key] = { icon: '🚦', label: 'スタート進行', to: '決勝へ', fn: () => leaveGrid(true) };
@@ -14138,19 +14384,25 @@ window.GP = window.GP || {};
       const gi = ri < GP.paddock.MINE_AT ? ri : ri + 1;
       const done = (g.scouted || []).indexOf(r.name) >= 0;
       map['scout' + gi] = {
-        icon: done ? '✓' : '👀', label: r.name + ' のガレージ',
+        icon: done ? '✓' : '👀', label: r.name + ' のガレージ', done: done,
         to: done ? '確認済み' : '覗く',
         fn: () => doScout(r)
       };
     });
+    const spoke = k => (g.talked || []).indexOf(k) >= 0;
     (g.drivers || []).slice(0, 2).forEach((d, i) => {
-      map['drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す', fn: () => doTalk(d) };
+      const dn = spoke('talk:' + d.id);
+      map['drv' + i] = { icon: '🧑‍✈️', label: d.name, done: dn,
+                         to: dn ? '話した' : '話す', fn: () => doTalk(d) };
     });
-    map.press = { icon: '📰', label: '記者たち', to: '取材', fn: doPress };
+    const pdn = spoke('press');
+    map.press = { icon: '📰', label: '記者たち', done: pdn,
+                  to: pdn ? '取材済み' : '取材', fn: doPress };
     GP.paddock.visitors(g).forEach(v => {
+      const dn = spoke('poach:' + v.team.name + ':' + v.driver.name);
       map[v.spot.key] = {
-        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）',
-        to: '接触', fn: () => doPoach(v.driver, v.team)
+        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）', done: dn,
+        to: dn ? '接触済み' : '接触', fn: () => doPoach(v.driver, v.team)
       };
     });
     return map;
@@ -14468,32 +14720,32 @@ window.GP = window.GP || {};
     yardPeople().forEach(q => {
       const dn = q.done;
       if (q.key === 'yd:brief') {
-        m[q.key] = { icon: '🔍', label: '合同デブリーフィング',
+        m[q.key] = { icon: '🔍', label: '合同デブリーフィング', done: dn,
                      to: dn ? '終わった' : '集まる',
                      fn: () => dn ? yardAgain('チーム') : doDebrief() };
         return;
       }
       if (q.key.indexOf('yd:drv') === 0) {
         const i = +q.key.slice(6);
-        m[q.key] = { icon: '🧑‍✈️', label: q.label, to: dn ? '話した' : '話す',
+        m[q.key] = { icon: '🧑‍✈️', label: q.label, done: dn, to: dn ? '話した' : '話す',
                      fn: () => dn ? yardAgain(q.label) : doYardDriver(i) };
       } else if (q.key === 'yd:eng') {
-        m[q.key] = { icon: '👷', label: q.label, to: dn ? '話した' : '技術の話',
+        m[q.key] = { icon: '👷', label: q.label, done: dn, to: dn ? '話した' : '技術の話',
                      fn: () => dn ? yardAgain(q.label) : doYardEngineer() };
       } else if (q.key === 'yd:mech') {
-        m[q.key] = { icon: '🔩', label: q.label, to: dn ? '話した' : 'マシンを見る',
+        m[q.key] = { icon: '🔩', label: q.label, done: dn, to: dn ? '話した' : 'マシンを見る',
                      fn: () => dn ? yardAgain(q.label) : doYardMech() };
       } else if (q.key === 'yd:strat') {
-        m[q.key] = { icon: '🧠', label: q.label, to: dn ? '話した' : '作戦の相談',
+        m[q.key] = { icon: '🧠', label: q.label, done: dn, to: dn ? '話した' : '作戦の相談',
                      fn: () => dn ? yardAgain(q.label) : doYardStrat() };
       } else if (q.key === 'yd:crew') {
-        m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', to: dn ? '話した' : 'ねぎらう',
+        m[q.key] = { icon: '🧑‍🔧', label: 'ピットクルー', done: dn, to: dn ? '話した' : 'ねぎらう',
                      fn: () => dn ? yardAgain('ピットクルー') : doYardCrew() };
       } else if (q.key === 'yd:press') {
-        m[q.key] = { icon: '📰', label: '記者', to: dn ? '話した' : '取材を受ける',
+        m[q.key] = { icon: '📰', label: '記者', done: dn, to: dn ? '話した' : '取材を受ける',
                      fn: () => dn ? yardAgain('記者') : doYardPress() };
       } else if (q.key === 'yd:youth') {
-        m[q.key] = { icon: '🎓', label: q.label, to: dn ? '話した' : '激励する',
+        m[q.key] = { icon: '🎓', label: q.label, done: dn, to: dn ? '話した' : '激励する',
                      fn: () => dn ? yardAgain(q.label) : doYardYouth() };
       }
     });
@@ -15092,10 +15344,10 @@ window.GP = window.GP || {};
     box.innerHTML = '<b class="hl-h">ここでできること</b>' +
       keys.map(k => {
         const d = doors[k];
-        const done = d.to === '確認済み' || d.to === '済' || d.done;
-        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
-          (done ? ' disabled' : '') + '>' +
-          '<i>' + (d.icon || '•') + '</i>' +
+        const done = !!d.done;
+        // 済んだ用事はチェックを付けて、まだのものだけが目に入るようにする
+        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '">' +
+          '<i>' + (done ? '✓' : (d.icon || '•')) + '</i>' +
           '<b>' + esc(d.label || k) + '</b>' +
           '<em>' + esc(d.to || '入る') + '</em></button>';
       }).join('');

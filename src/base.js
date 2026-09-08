@@ -87,7 +87,8 @@ GP.base = (function () {
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const s = tierOf(g2.facilities[key] || 1);
-    return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
+    // 外からも使えるようにしておく（パドックやグリッドで共用する）
+  return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
   }
 
   function clampWalk(x, y) {
@@ -743,9 +744,24 @@ GP.base = (function () {
     mini(x - 17, color);
     mini(x + 17, '#5a6270');
     bg.globalAlpha = 1;
+    if (done) doneMark(bg, x + 22, py - 24);
   }
 
   /* 敷地に立っている人。オフ期間の描き方と同じ形にそろえてある */
+  /* 用事を済ませた相手の頭の上に出す印。
+     「誰にまだ声をかけていないか」が、ひと目で分かるようにする */
+  function doneMark(bg, x, y) {
+    bg.globalAlpha = 1;
+    bg.fillStyle = '#1c3a1c';
+    bg.beginPath(); bg.arc(x, y, 7, 0, Math.PI * 2); bg.fill();
+    bg.fillStyle = '#8ef08e';
+    bg.beginPath(); bg.arc(x, y, 5.6, 0, Math.PI * 2); bg.fill();
+    bg.strokeStyle = '#12310f'; bg.lineWidth = 2; bg.lineJoin = 'round';
+    bg.beginPath();
+    bg.moveTo(x - 3, y); bg.lineTo(x - 1, y + 2.6); bg.lineTo(x + 3.2, y - 2.6);
+    bg.stroke();
+  }
+
   function person(bg, x, py, suit, hair, faceC, hat, done) {
     bg.globalAlpha = done ? 0.45 : 1;
     bg.fillStyle = 'rgba(0,0,0,.30)';
@@ -761,6 +777,7 @@ GP.base = (function () {
     bg.fillRect(x + 1, py - 26, 2, 2);
     if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
     bg.globalAlpha = 1;
+    if (done) doneMark(bg, x + 12, py - 24);
   }
 
   /* チームの規模（施設・ファン・タイトルの総合）*/
@@ -779,5 +796,5 @@ GP.base = (function () {
   }
 
   return { render, scene, drawWith, invalidate, hit, scale, setYard,
-           drawActor, doorOf, doorPos, clampWalk, WALK, W, H };
+           drawActor, doneMark, doorOf, doorPos, clampWalk, WALK, W, H };
 })();
