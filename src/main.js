@@ -2294,6 +2294,34 @@ window.GP = window.GP || {};
         '「🚚 輸送」で運びかたと積荷を見直せます。</small></div>';
     }
 
+    // ---- 雨になったときに、誰の判断で走ることになるのか ----
+    {
+      const f = S.foresightOf(g);
+      const strat = (g.staff || []).filter(x => x.type === 'strategist')
+        .sort((a, b) => b.skill - a.skill)[0];
+      const fName = f >= 0.7 ? '先を読める' : f >= 0.5 ? '読める' : f >= 0.32 ? 'やや後手' : '後手';
+      body += '<div class="stratbox">' +
+        '<b>🧠 路面を読む力 <em class="' + (f >= 0.5 ? 'good' : f >= 0.32 ? '' : 'bad') + '">' +
+        Math.round(f * 100) + '／100（' + fName + '）</em></b>' +
+        '<small>' + (strat
+          ? 'ストラテジスト ' + esc(strat.name) + '（技能 ' + strat.skill + '）' +
+            (g.managers && g.managers.principal ? '' : '') + '。'
+          : '<b class="warn">ストラテジストがいません。</b>') +
+        '路面がこれからどうなるかを、どこまで織り込んでタイヤを選べるかです。' +
+        '読みが浅いと、いまの路面に合わせてしまい、次の周にはもう外しています。<br>' +
+        '雨が絡むレースで、合わないタイヤで走る周が減ります' +
+        '（読み20→3.6周／読み47→3.3周／読み77→3.1周）。</small>' +
+        '<div class="wetdrv">' + lineup.map(d => {
+          const ws = S.wetSkillOf(d), ts = S.tyreSkillOf(d);
+          return '<span><b>' + esc(d.name) + '</b>' +
+            '<em>🌧️ 雨 ' + Math.round(ws * 100) + '</em>' +
+            '<em>🛞 タイヤ ' + Math.round(ts * 100) + '</em>' +
+            (S.hasSkill && S.hasSkill(d, 'rain') ? '<i>雨の魔術師</i>' : '') + '</span>';
+        }).join('') + '</div>' +
+        '<small>雨適性が高い人は、合わないタイヤでも粘れて、濡れた路面そのものでも速く、ミスも減ります。</small>' +
+        '</div>';
+    }
+
     // ---- パワーユニットの状態と載せ替え ----
     body += puBoxHTML(t);
 

@@ -1490,6 +1490,30 @@ body[data-skin="hd"]{
 [data-skin="hd"] .hlbtn em{color:#efe4cf;background:#4b3d68}
 [data-skin="hd"] .hlbtn:hover:not([disabled]){background:#3c3054}
 
+/* 路面を読む力と、ドライバーの適性 */
+.stratbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+          background:#fff8e3;color:var(--ink)}
+.stratbox>b{font-size:12px}
+.stratbox>b em{font-style:normal;font-size:11px}
+.stratbox .good{color:#2f7a34}.stratbox .bad{color:#b02a20}
+.stratbox small{display:block;margin-top:4px;font-size:10px;line-height:1.65;color:var(--ink2)}
+.stratbox small b.warn{color:#8f1f16}
+.wetdrv{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.wetdrv span{flex:1 1 180px;min-width:160px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+             padding:4px 7px;border:2px solid var(--ink);border-radius:5px;background:#f6ecc9}
+.wetdrv b{font-size:10.5px;flex:1 1 100%}
+.wetdrv em{font-style:normal;font-size:9px;font-weight:bold;padding:1px 5px;border-radius:3px;
+           background:#ecd9a4;color:#3a2611}
+.wetdrv i{font-style:normal;font-size:9px;font-weight:bold;padding:1px 5px;border-radius:3px;
+          background:#3a7ad9;color:#fff}
+[data-skin="hd"] .stratbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .stratbox small{color:#cbbb9a}
+[data-skin="hd"] .stratbox small b.warn{color:#ffb3a4}
+[data-skin="hd"] .stratbox .good{color:#8ef08e}
+[data-skin="hd"] .stratbox .bad{color:#ff9a8a}
+[data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
+[data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
+
 /* この週末に出ていくお金 */
 .billbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
          background:#fff8e3;color:var(--ink)}

@@ -587,11 +587,12 @@ GP.race = (function () {
     /* コース全体としての濡れ具合（セクターの長さで重みづけ） */
     const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
     /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
-    function wetLoss(ty, w) {
+    function wetLoss(ty, w, e) {
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
-      const tol = ty.wetTol != null ? ty.wetTol : 0.2;
+      // うまい人ほど、合わないタイヤでも許容できる幅が広い
+      const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
       const d = Math.max(0, Math.abs(w - ideal) - tol);
-      return d * D.WET_MISMATCH;
+      return d * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
     }
     /* いま入ったとして、どのタイヤを履くか。
        予定していた銘柄を基本にしつつ、路面が変わっていれば合わせ直す。
@@ -599,24 +600,30 @@ GP.race = (function () {
     function tyreForNow(e, lap) {
       const planned = e.stints[e.stintIdx] ? e.stints[e.stintIdx].key : 'medium';
       const w = wx.level == null ? 0 : wx.level;
-      // 路面がこれから向かう先。乾きかけならドライに、降り出しなら雨用に
-      const ahead = w + (wetTarget - w) * 0.55;
+      // このスティントのあいだ、路面は実際にはこのあたりに落ち着く
+      const truth = w + (wetTarget - w) * 0.62;
+      // ストラテジストの読み＝その「落ち着く先」をどれだけ正しく当てられるか。
+      // 読みが浅いと、いまの路面に引きずられ、しかも当て推量が混じる
+      const f = e.foresight == null ? 0.5 : e.foresight;
+      const ahead = S.clamp(w + (truth - w) * f + S.rnd(-0.24, 0.24) * (1 - f), 0, 1);
       const dry = pickTyre(laps - lap, { key: 'sunny' }, D.DRY_TYRES.indexOf(planned) >= 0 ? planned : null, e.tyreBias);
-      const want = bestWetTyre(ahead, dry);
+      const want = bestWetTyre(ahead, dry, e);
       // 予定どおりで大きく損をしないなら、予定を尊重する
-      const lossPlanned = wetLoss(tyreOf(planned), ahead);
-      return lossPlanned <= wetLoss(tyreOf(want), ahead) + 0.012 ? planned : want;
+      const lossPlanned = wetLoss(tyreOf(planned), ahead, e);
+      return lossPlanned <= wetLoss(tyreOf(want), ahead, e) + 0.012 ? planned : want;
     }
 
     /* いまの路面にいちばん合うタイヤ */
-    function bestWetTyre(w, dryPick) {
+    function bestWetTyre(w, dryPick, e) {
       if (w < 0.20) return dryPick;
       let best = null, bl = 9;
       D.TYRES.forEach(t => {
         if (!t.wet) return;
-        const l = wetLoss(t, w);
+        const l = wetLoss(t, w, e);
         if (l < bl) { bl = l; best = t.key; }
       });
+      // 雨に強い人なら、半端な路面でドライのまま行く手もある
+      if (wetLoss(tyreOf(dryPick), w, e) < bl) return dryPick;
       return best || 'inter';
     }
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
@@ -674,6 +681,15 @@ GP.race = (function () {
       e.pitLoss = pitLoss - (e.isPlayer ? strategist * 0.5 : 0) - (e.bd.svc - RIVAL_BODY_REF) * 2.2;
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
+      /* ---- ストラテジストの読み ----
+         路面が「いまどうか」ではなく「これからどうなるか」を、
+         どこまで織り込んでタイヤを選べるか。0.1（後手）〜0.92（先読み）  */
+      e.foresight = e.isPlayer ? S.foresightOf(g)
+                               : S.clamp(0.22 + (e.react || 0.45) * 0.55, 0.10, 0.88);
+      /* ---- ドライバーの雨・路面への適性 ----
+         合わないタイヤでも、うまい人はある程度なんとかしてしまう。
+         ここが高いほど「もう1周だけ引っぱる」判断が成立する          */
+      e.wetSkill = S.wetSkillOf(e.driver);
 
       // 各スティントの長さから履くタイヤを決める。最初のスティントだけは指定できる
       const bounds = [0].concat(e.pitPlan, [laps]);
@@ -758,6 +774,25 @@ GP.race = (function () {
       wx.wet = wnow >= 0.30;
       wx.level = wnow;
 
+      // ---- レーダーを読む ----
+      // 読みの鋭いチームだけは、変わる前に動ける。
+      // ここで先に入れたチームは、路面が変わった瞬間に正解を履いている
+      if (wxTo && lap === wxAt - 2) {
+        order.forEach(e => {
+          if (e.dnf || e.readRadar) return;
+          if ((e.foresight || 0) < 0.55) return;
+          if (Math.random() > (e.foresight - 0.48) * 1.6) return;
+          e.readRadar = true;
+          e.pitPlan = e.pitPlan.filter(p2 => p2 > wxAt + 2);
+          e.pitPlan.push(wxAt);
+          e.pitPlan.sort((a, b) => a - b);
+          if (e.isPlayer) {
+            events.push({ lap: lap, type: 'pit', car: e,
+              text: '📡 ' + e.driver.name + ' 陣営、レーダーを読んで先にピットを組み替えた！' });
+          }
+        });
+      }
+
       // 天候の急変。全車があわててタイヤを替えに来る
       if (wxTo && lap === wxAt) {
         wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
@@ -771,9 +806,11 @@ GP.race = (function () {
         order.forEach(e => {
           if (e.dnf || lap >= laps - 1) return;
           // いま履いているもので大きく損をしないなら、慌てて入らない
-          if (wetLoss(tyreOf(e.tyreKey), wetTarget) < 0.02) return;
+          if (wetLoss(tyreOf(e.tyreKey), wetTarget, e) < 0.02) return;
           // 読みの速いチームほど早く動ける
-          const delay = S.clamp(Math.round(3.4 - e.react * 2.8 + S.rnd(-0.5, 1.4)), 1, 6);
+          // 読みの鋭いチームほど、動き出しが早い
+          const delay = S.clamp(Math.round(3.4 - e.react * 2.8 - (e.foresight || 0.4) * 1.8
+                                           + S.rnd(-0.5, 1.4)), 1, 6);
           const at = Math.min(laps - 1, lap + delay);
           e.pitPlan = e.pitPlan.filter(p => p > at + 3);
           e.pitPlan.push(at);
@@ -795,7 +832,9 @@ GP.race = (function () {
 
         // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
         // 「合っている／合っていない」ではなく、ずれた量で効く
-        t *= 1 + wetLoss(ty, wx.level);
+        t *= 1 + wetLoss(ty, wx.level, e);
+        // 雨に強い人は、濡れた路面そのものでも速い
+        t *= 1 - e.wetSkill * wx.level * 0.012;
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
@@ -845,11 +884,14 @@ GP.race = (function () {
         e.tyreAge += ord.wear;
         e.lapOrder[lap - 1] = ordKey;
 
+        // 隊列を流しているあいだは、スリップも乱気流も守りも働かない
+        const flowing = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+
         // ---- 前の車との関係 ----
         // 直線では前車の後ろが速く（スリップストリーム）、
         // コーナーでは前車の乱れた空気で曲がらない（乱気流）。
         // 抜きにくいコースほど乱気流がきつく、張りついたまま抜けない
-        if (e.gapAhead != null && e.gapAhead < 1.5) {
+        if (!flowing && e.gapAhead != null && e.gapAhead < 1.5) {
           const near = 1 - e.gapAhead / 1.5;               // 0..1
           const dirty = 1.7 - passEase;                    // 抜きにくいほど大きい
           t -= track.base * 0.0042 * near * (0.35 + geo.longestShare * 2.2);
@@ -859,7 +901,7 @@ GP.race = (function () {
         }
         // ---- 後ろから来られている ----
         // 守るために普段より攻めた走りになる。速くはなるが、そのぶん削れる
-        if (e.gapBehind != null && e.gapBehind < 1.6) {
+        if (!flowing && e.gapBehind != null && e.gapBehind < 1.6) {
           const push = 1 - e.gapBehind / 1.6;
           t -= track.base * 0.0034 * push * (0.55 + e.driver.mental / 240);
           e.tyreAge += 0.20 * push;
@@ -882,7 +924,7 @@ GP.race = (function () {
                  * (1 + (e.st.risk - 1) * 0.50)
                  * (1.55 - e.driver.mental / 190)
                  * (1 + tyreOver * 0.075)
-                 * (0.55 + wx.chaos * 0.45)
+                 * (0.55 + wx.chaos * 0.45) * (1 - e.wetSkill * wx.level * 0.55)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
@@ -916,15 +958,20 @@ GP.race = (function () {
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
-        // セーフティカー中は全車そろって流す。差はほとんど開かない
+        /* ---- セーフティカー中 ----
+           どちらも「全車が同じラップタイムで走る」のが正しい。
+           割合で落とすと、もともと遅い車ほど失う秒数が大きくなり、
+           バーチャル中なのに差が開いていってしまう。
+           指定タイムに合わせて走るのだから、みな同じ1周になる       */
         const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
         if (underSC) {
           if (scInfo.virtual) {
-            // バーチャル：全車が同じ割合で落とすので、差はそのまま残る
-            t *= 1.26;
+            // バーチャル：直前までの差を、コンマ1くらいの揺れで保つ
+            t = track.base * 1.28 + S.rnd(-0.05, 0.05);
             e.tyreAge = Math.max(0, e.tyreAge - 0.2);
           } else {
-            t = track.base * 1.34 + S.rnd(-0.15, 0.15);
+            // 実車：隊列に詰まっているので、さらに差は動かない
+            t = track.base * 1.34 + S.rnd(-0.03, 0.03);
             e.tyreAge = Math.max(0, e.tyreAge - 0.35);    // 流している間はタイヤも保つ
           }
         }
@@ -1123,10 +1170,13 @@ GP.race = (function () {
         scInfo.from = scFrom; scInfo.laps = scLaps; scInfo.virtual = virtual;
         const run = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
         if (!virtual) {
-          const lead = run.length ? run[0].cum[lap - 1] : 0;
+          // 先導車の後ろに一列に並び直す。
+          // 前の車との差を積み上げていく（i 倍していたため、
+          // 後ろほど間隔が開き、順番まで入れ替わってしまっていた）
+          let acc = run.length ? run[0].cum[lap - 1] : 0;
           run.forEach((e, i) => {
-            // 先導車の後ろに一列に並び直す
-            e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
+            if (i > 0) acc += S.rnd(0.55, 0.95);
+            e.cum[lap - 1] = acc;
             e.scBunched = true;
           });
         }

@@ -642,6 +642,24 @@ GP.state = (function () {
     });
   }
 
+  /* ---------- 路面を読む力・濡れた路面での強さ ----------
+     レース中の判断（どのタイヤをいつ履くか）を決める値。
+     画面でも同じ数字を出したいので、ここに置いて race.js と共有する  */
+  function foresightOf(g2) {
+    return clamp(0.18 + staffBonus(g2, 'strategist') * 0.16 + osk(g2, 'call') * 0.08, 0.10, 0.92);
+  }
+  function wetSkillOf(d) {
+    if (!d) return 0;
+    return clamp((hasSkill(d, 'rain') ? 0.42 : 0)
+               + (d.technique || 0) / 480 + (d.mental || 0) / 900, 0, 0.86);
+  }
+  /* タイヤをどれだけ保たせられるか（0..1。高いほど減りが遅い） */
+  function tyreSkillOf(d) {
+    if (!d) return 0;
+    const v = (hasSkill(d, 'tyre') ? 0.45 : 0) + (d.technique || 0) / 420;
+    return clamp(v, 0, 0.95);
+  }
+
   /* ---------- マシン信頼性（0-100）---------- */
   function reliability(g) {
     let sum = 0, bonus = 0, n = 0;
@@ -1632,7 +1650,7 @@ GP.state = (function () {
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
-    carStats, carScore, carScoreOf, machineChar, reliability, staffBonus, weeklyCost,
+    carStats, carScore, carScoreOf, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe
