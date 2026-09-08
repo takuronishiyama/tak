@@ -1025,3 +1025,9 @@ body[data-skin="hd"]{
 [data-skin="hd"] .hubhint.on{background:linear-gradient(180deg,#6a5220,#3d2e12);
                              border-color:var(--gold);color:#ffeec0;
                              box-shadow:0 0 14px rgba(214,178,106,.40)}
+
+/* パーツのアイコンは自前のドット絵。下地の色は薄く敷いて、絵を主役にする */
+.ic-art{overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center}
+.ic-art svg.picon{display:block;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+.p-ic.ic-art{filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
+[data-skin="hd"] .ic-art{box-shadow:inset 0 0 0 1px rgba(0,0,0,.45)}

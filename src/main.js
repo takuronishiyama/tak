@@ -185,7 +185,7 @@ window.GP = window.GP || {};
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
-        body += '<div class="pickbtn done"><span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        body += '<div class="pickbtn done"><span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
           '<span class="pb-body"><b>' + c.name + '</b><small>パーツが未装着です</small></span><span class="pb-cost">—</span></div>';
         return;
       }
@@ -193,7 +193,7 @@ window.GP = window.GP || {};
       const capped = p.power >= cap;
       const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
       body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
         '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
         (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
@@ -226,7 +226,7 @@ window.GP = window.GP || {};
     D.PART_CATS.forEach(c => {
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
       body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
         '<span class="pb-body"><b>' + esc(c.names[Math.min(c.names.length - 1, g.carGen)]) + ' を設計</b>' +
         '<small>' + c.name + '／' + D.CAR_GENS[g.carGen].name + '世代</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';

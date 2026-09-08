@@ -1041,6 +1041,12 @@ body[data-skin="hd"]{
                              border-color:var(--gold);color:#ffeec0;
                              box-shadow:0 0 14px rgba(214,178,106,.40)}
 
+/* パーツのアイコンは自前のドット絵。下地の色は薄く敷いて、絵を主役にする */
+.ic-art{overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center}
+.ic-art svg.picon{display:block;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+.p-ic.ic-art{filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
+[data-skin="hd"] .ic-art{box-shadow:inset 0 0 0 1px rgba(0,0,0,.45)}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -5201,7 +5207,7 @@ GP.ui = (function () {
     const cap = S.partCap(g, p);
     const pct = Math.min(100, p.power / cap * 100);
     return '<div class="part">' +
-      '<span class="p-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+      '<span class="p-ic ic-art" style="background:' + c.color + '">' + partIcon(c.key, 18, p.rar) + '</span>' +
       '<span class="p-nm">' + esc(p.name) +
         '<small><span class="p-rar" style="color:' + rr.color + '">' + stars(p.rarity) + '</span> ' + c.name + '</small></span>' +
       '<span class="p-lv">' + Math.round(p.power) + '<small>/' + cap + '</small></span>' +
@@ -5219,7 +5225,7 @@ GP.ui = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       parts += p ? partRow(g, p)
-        : '<div class="part empty"><span class="p-ic">' + c.icon + '</span>' +
+        : '<div class="part empty"><span class="p-ic ic-art">' + partIcon(c.key, 18, 0) + '</span>' +
           '<span class="p-nm">' + c.name + '<small>未装着</small></span></div>';
     });
     const ers = S.ersOf(g);
@@ -5288,6 +5294,78 @@ GP.ui = (function () {
   const HAIR  = ['#2b1c12', '#4a2f1a', '#8a5a2a', '#c8a040', '#d8d2c8', '#8a2a2a', '#2a4a8a', '#1c1c1c'];
   const EYES  = ['#3a2a18', '#2a4a70', '#2f5a3a', '#5a3a6a', '#1c1c22'];
   const SUITS = ['#c8362c', '#2f66c0', '#3f9440', '#d8a020', '#9a4fc0', '#2aa0b8'];
+
+  /* ---------- パーツのアイコン ----------
+     カテゴリごとに、そのものの形を16×16のドット絵で描く。
+     絵文字だと端末ごとに絵が変わってしまうので、自前で持つ。
+     rar（レア度 0..4）が上がるほど、金属の照りと縁の輝きが強くなる。   */
+  function partIcon(key, px, rar) {
+    px = px || 20; rar = rar || 0;
+    const r = (x, y, w, h, c) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + c + '"/>';
+    const shine = 0.10 + rar * 0.10;                       // レアほど光る
+    const hi = 'rgba(255,255,255,' + (0.30 + shine).toFixed(2) + ')';
+    let g = '';
+
+    if (key === 'pu') {
+      // パワーユニット：Vバンクのエンジンブロック
+      g += r(3, 5, 10, 8, '#5a5f6a') + r(3, 5, 10, 2, '#7c828e');
+      g += r(2, 7, 1, 5, '#454a54') + r(13, 7, 1, 5, '#454a54');
+      g += r(4, 2, 2, 4, '#8d94a0') + r(7, 2, 2, 4, '#8d94a0') + r(10, 2, 2, 4, '#8d94a0'); // 排気管
+      g += r(4, 2, 2, 1, hi) + r(7, 2, 2, 1, hi) + r(10, 2, 2, 1, hi);
+      g += r(4, 8, 8, 1, '#2f333b') + r(4, 10, 8, 1, '#2f333b');                            // 冷却フィン
+      g += r(5, 13, 6, 2, '#3a3f48');                                                       // オイルパン
+      g += r(3, 5, 3, 1, hi);
+
+    } else if (key === 'aero') {
+      // エアロ：多段のリアウイングと翼端板
+      g += r(2, 4, 12, 2, '#2b2f38') + r(2, 4, 12, 1, hi);        // 上段
+      g += r(3, 8, 10, 2, '#343945') + r(3, 8, 10, 1, hi);        // 下段
+      g += r(1, 3, 2, 9, '#4a5160') + r(1, 3, 1, 9, '#5f6778');   // 翼端板
+      g += r(13, 3, 2, 9, '#4a5160');
+      g += r(7, 6, 2, 3, '#2b2f38');                              // 支柱
+      g += r(4, 12, 8, 2, '#242830') + r(4, 12, 8, 1, 'rgba(255,255,255,.18)');  // ディフューザー
+
+    } else if (key === 'chas') {
+      // シャシー：モノコックの骨組み
+      g += r(3, 3, 10, 11, '#4a4f5a');
+      g += r(4, 4, 8, 9, '#6a707d');
+      g += r(4, 4, 8, 2, hi);
+      g += r(6, 6, 4, 5, '#343945');                              // コクピット開口
+      g += r(2, 5, 1, 7, '#3a3f48') + r(13, 5, 1, 7, '#3a3f48');
+      g += r(3, 13, 10, 2, '#2c3038');                            // フロア
+      // 織り目（カーボン）
+      g += r(4, 8, 8, 1, 'rgba(0,0,0,.22)') + r(4, 11, 8, 1, 'rgba(0,0,0,.22)');
+
+    } else if (key === 'susp') {
+      // サスペンション：コイルスプリングとダンパー
+      g += r(7, 2, 2, 12, '#5a606c');                             // シャフト
+      g += r(7, 2, 1, 12, '#7a818e');
+      for (let y = 3; y < 12; y += 2) {                           // コイル
+        g += r(4, y, 8, 1, '#9aa2b0') + r(4, y, 8, 0.5, hi);
+        g += r(4, y + 1, 8, 1, '#5e6572');
+      }
+      g += r(5, 1, 6, 2, '#454a54') + r(5, 13, 6, 2, '#454a54');  // 上下のマウント
+      g += r(5, 1, 6, 1, hi);
+
+    } else {
+      // エレクトロニクス：基板とチップ
+      g += r(2, 3, 12, 10, '#1e5a35') + r(2, 3, 12, 1, '#2f7a48');
+      g += r(5, 6, 6, 5, '#22262e') + r(5, 6, 6, 1, '#3c414c');   // チップ
+      g += r(6, 7, 4, 3, '#2f353f');
+      for (let x = 3; x < 13; x += 3) {                           // 配線
+        g += r(x, 4, 1, 2, '#c8a53a') + r(x, 11, 1, 2, '#c8a53a');
+      }
+      g += r(3, 8, 2, 1, '#c8a53a') + r(11, 8, 2, 1, '#c8a53a');
+      g += r(4, 5, 1, 1, hi) + r(10, 5, 1, 1, hi);                // はんだの光
+      if (rar >= 2) g += r(11, 4, 2, 2, '#7ce8ff');               // 動作ランプ
+    }
+
+    // レアなパーツは縁が光る
+    const edge = rar >= 3 ? '<rect x="0.5" y="0.5" width="15" height="15" fill="none" stroke="rgba(255,224,150,'
+                            + (0.35 + rar * 0.12).toFixed(2) + ')" stroke-width="1"/>' : '';
+    return '<svg class="picon" viewBox="0 0 16 16" width="' + px + '" height="' + px +
+      '" shape-rendering="crispEdges">' + g + edge + '</svg>';
+  }
 
   /* ---------- ドライバーの顔 ----------
      24×24 のドット絵。d.face を種にして、肌・髪・目・髪型・特徴を決める。
@@ -5700,7 +5778,7 @@ GP.ui = (function () {
   }
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, hubCard, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
            money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
 
@@ -5894,7 +5972,7 @@ window.GP = window.GP || {};
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
-        body += '<div class="pickbtn done"><span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        body += '<div class="pickbtn done"><span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
           '<span class="pb-body"><b>' + c.name + '</b><small>パーツが未装着です</small></span><span class="pb-cost">—</span></div>';
         return;
       }
@@ -5902,7 +5980,7 @@ window.GP = window.GP || {};
       const capped = p.power >= cap;
       const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
       body += '<button class="pickbtn" data-k="imp:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) + '</b>' +
         '<small>' + c.name + '／性能 ' + Math.round(p.power) + ' / 上限 ' + cap +
         (capped ? ' <em class="warn">上限到達</em>' : '') + '</small></span>' +
@@ -5935,7 +6013,7 @@ window.GP = window.GP || {};
     D.PART_CATS.forEach(c => {
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
       body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
         '<span class="pb-body"><b>' + esc(c.names[Math.min(c.names.length - 1, g.carGen)]) + ' を設計</b>' +
         '<small>' + c.name + '／' + D.CAR_GENS[g.carGen].name + '世代</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
