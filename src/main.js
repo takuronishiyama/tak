@@ -25,6 +25,9 @@ window.GP = window.GP || {};
       U.toast('⚠️ 資金がマイナスです！', 'bad');
       if (g.funds < -20000) return gameOver();
     }
+    // パーツを煮詰めきると、マシンそのものが次の世代へ進む
+    const up = S.tryAdvanceGen(g);
+    if (up) announceGen(up);
     // 研究ポイントの自然増
     g.rp += 2 + Math.round(S.staffBonus(g, 'analyst'));
     // ライバルも毎週マシンを煮詰めている
@@ -187,7 +190,7 @@ window.GP = window.GP || {};
     let body = interiorHTML('factory') +
       '<div class="sub">開発リソースの配分</div>' +
       '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
-      '来季に回したぶんは、次の新型マシンの初期性能になります。</p>' +
+      '来季に回したぶんは、次の世代のマシンの初期性能になります。</p>' +
       '<div class="focusrow">';
     D.FOCUS_LEVELS.forEach(f => {
       body += '<button class="focusbtn' + (f.key === g.focus ? ' on' : '') + '" data-focus="' + f.key + '"' +
@@ -240,7 +243,7 @@ window.GP = window.GP || {};
     body += '</div><div class="sub">車体の熟成</div>' +
       '<p class="desc">パーツは速さを、車体は<b>壊れにくさ・タイヤの保ち・ピット作業・維持費</b>を担当します。' +
       '効果は「上限に対して何割まで煮詰めたか」で決まるので、世代が変わっても価値は変わりません。<br>' +
-      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + '。' +
+      '上限は現在のマシン（' + D.CAR_GENS[g.carGen].name + '）で ' + cap + '。パーツを仕上げて世代が上がると、ここも上がります。' +
       'ライバルはおおむね50%の仕上がりです。</p><div class="pick">';
     D.BODY_ATTRS.forEach(a => {
       const v = (g.body && g.body[a.key]) || 0;
@@ -312,7 +315,7 @@ window.GP = window.GP || {};
     let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul();
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
-    if (v >= cap) gain *= 0.14;
+    if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
     g.nextCar = (g.nextCar || 0) + toNext;
@@ -324,7 +327,7 @@ window.GP = window.GP || {};
     U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) + (crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
     U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
     if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
-    if (g.body[key] >= cap) U.toast('この車体は煮詰まりました。新型マシンが必要です。', 'warn');
+    if (g.body[key] >= cap) U.toast('この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
     endWeek();
   }
 
@@ -427,7 +430,7 @@ window.GP = window.GP || {};
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul();
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
-    if (p.power >= cap) gain *= 0.16;
+    if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     // 来季に回したぶんは今季に乗らない
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
@@ -440,7 +443,7 @@ window.GP = window.GP || {};
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
     GP.sound.play(crit ? 'crit' : 'confirm');
-    if (p.power >= cap) U.toast('このパーツは限界です。新型マシンか、より高レアなパーツが必要です。', 'warn');
+    if (p.power >= cap) U.toast('このパーツは限界です。残りも仕上げれば、マシンが次の世代へ進みます。', 'warn');
     // 手を入れた実感が出るように、伸びを見せてから週を進める
     showDevResult({
       icon: U.partIcon(c.key, 44, p.rar), color: c.color,
@@ -537,22 +540,24 @@ window.GP = window.GP || {};
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
       '<span class="pb-cost">+' + Math.round(12 + S.staffBonus(g, 'analyst') * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
 
-    body += '<div class="sub">新型マシンの開発</div>';
+    body += '<div class="sub">マシンの世代</div>';
     body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>' +
       '（パーツの開発上限 ' + cur.cap + '／車体の熟成上限 ' + S.bodyCap(g) + '）</p>';
     if (!nx) {
       body += '<div class="bigbox">🏁 最終型 <b>' + cur.name + '</b> に到達済み</div>';
     } else {
-      const ok = g.rp >= nx.rp && g.funds >= nx.cost;
-      body += '<div class="pick"><button class="pickbtn" data-k="__gen"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:#e04a3f">🏎️</span>' +
-        '<span class="pb-body"><b>' + cur.name + ' → ' + nx.name + '</b>' +
-        '<small>パーツ上限 ' + cur.cap + ' → ' + nx.cap +
+      const prog = Math.round(S.genProgress(g) / S.GEN_STEP_AT * 100);
+      const nv = S.nextCarPreview(g);
+      body += '<div class="genbox">' +
+        '<b>' + cur.name + ' → ' + nx.name + '</b>' +
+        '<span class="skbar big"><i style="width:' + Math.min(100, prog) + '%"></i></span>' +
+        '<em>' + Math.min(100, prog) + '%</em>' +
+        '<small>装着中のパーツを上限まで煮詰めると、マシンはひとりでに次の世代へ更新されます。' +
+        '買い物ではないので、資金も研究Pも要りません。<br>' +
+        'パーツ上限 ' + cur.cap + ' → ' + nx.cap +
         '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
-        '<br>車体は各項目 <b>' + S.nextCarPreview(g).withStock + '</b> から再スタート' +
-        (S.nextCarPreview(g).gain > 0
-          ? '（うち +' + S.nextCarPreview(g).gain + ' は来季ぶんの仕込み）' : '') + '</small></span>' +
-        '<span class="pb-cost">💰' + money(nx.cost) + '<br>🔬' + nx.rp + '</span></button></div>';
+        '（各項目 <b>' + nv.withStock + '</b> から再スタート' +
+        (nv.gain > 0 ? '／うち +' + nv.gain + ' は来季ぶんの仕込み' : '') + '）</small></div>';
     }
     // ---- パワーユニットの供給 ----
     // 自前で育てるか、強いチームから買うか。買えばすぐ速くなるが、
@@ -600,7 +605,6 @@ window.GP = window.GP || {};
       if (k === '__gain') return doResearchGain();
       if (k === '__engoff') return doEngineOff();
       if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
-      return doNewCar();
     });
   }
 
@@ -675,31 +679,7 @@ window.GP = window.GP || {};
     endWeek();
   }
 
-  function doNewCar() {
-    const nx = D.CAR_GENS[g.carGen + 1];
-    if (!nx || g.rp < nx.rp || g.funds < nx.cost) return;
-    g.rp -= nx.rp; g.funds -= nx.cost; g.carGen++;
-    // 新車のシェイクダウンで各パーツのコンディションが整う
-    D.PART_CATS.forEach(c => {
-      const p = g.equipped[c.key];
-      if (p) p.cond = S.clamp(p.cond + 15, 10, 100);
-    });
-    // 車体を新造する。前の車体の知見を4割引き継ぐ
-    const prev = g.body;
-    const stock = g.nextCar || 0;
-    g.body = S.makeBody(g, prev, stock);
-    if (stock > 0) {
-      U.log(g, '🌱 前もって進めていた来季ぶんの開発が、新型マシンに反映された。', 'good');
-    }
-    g.nextCar = 0;
-    U.closeModal();
-    U.log(g, '🎊 新型マシン「' + nx.name + '」がロールアウト！ 車体の上限が ' +
-      S.bodyCap(g) + ' に上がった（前の知見を引き継いで再スタート）', 'good');
-    GP.sound.play('crit');
-    U.toast('🎊 新型マシン「' + nx.name + '」ロールアウト！', 'good');
-    U.pop('🏎️ ' + nx.name, 'crit');
-    endWeek();
-  }
+
 
   /* =======================================================
      コマンド：整備
@@ -2140,7 +2120,7 @@ window.GP = window.GP || {};
     });
     if (left.length) U.toast('🎩 ' + left.map(x => x.name).join('、') + ' が引退', 'warn');
     // ライバル強化
-    g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name));
+    g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name), S.diffOf(g), g.carGen);
     refreshMarkets(true);
     U.log(g, '🚩 シーズン' + g.season + ' 開幕！', 'good');
     GP.sound.play('confirm');
@@ -2160,6 +2140,15 @@ window.GP = window.GP || {};
       GP.sound.play('light');
     }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
+  }
+
+  /* マシンが次の世代に上がったことを知らせる */
+  function announceGen(up) {
+    GP.sound.play('crit');
+    U.log(g, '🎊 パーツが出そろい、マシンが「' + up.to + '」に更新された！ ' +
+             'パーツ上限 ' + up.cap + '／車体上限 ' + up.bodyCap, 'good');
+    U.toast('🎊 マシンが「' + up.to + '」に更新！', 'good');
+    U.pop('🏎️ ' + up.to, 'crit');
   }
 
   function gameOver() {

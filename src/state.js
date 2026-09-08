@@ -224,6 +224,35 @@ GP.state = (function () {
   function bodyCap(g2) {
     return Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
   }
+  /* いまの世代でどれだけ煮詰まっているか（0..1）。
+     ここが満ちると、マシンは次の世代へ自動的に進む            */
+  function genProgress(g2) {
+    const parts = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean);
+    if (!parts.length) return 0;
+    const avg = parts.reduce((a, p) => a + Math.min(1, p.power / partCap(g2, p)), 0) / parts.length;
+    return clamp(avg, 0, 1);
+  }
+  const GEN_STEP_AT = 0.86;          // ここまで煮詰まったら次の世代へ
+  /* パーツを煮詰めきると、マシンそのものが新しい世代に更新される。
+     買い忘れて置いていかれる、ということが起きないようにしている  */
+  function tryAdvanceGen(g2) {
+    if (g2.carGen >= D.CAR_GENS.length - 1) return null;
+    if (genProgress(g2) < GEN_STEP_AT) return null;
+    const from = D.CAR_GENS[g2.carGen];
+    g2.carGen++;
+    const to = D.CAR_GENS[g2.carGen];
+    // 車体は新造される。前の知見と、来季ぶんの仕込みを引き継ぐ
+    const stock = g2.nextCar || 0;
+    g2.body = makeBody(g2, g2.body, stock);
+    g2.nextCar = 0;
+    // パーツのコンディションもシェイクダウンで整う
+    D.PART_CATS.forEach(c => {
+      const p = g2.equipped[c.key];
+      if (p) p.cond = clamp(p.cond + 15, 10, 100);
+    });
+    return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2) };
+  }
+
   /* 新しい車体を作る。前の知見を一部引き継ぐ */
   function makeBody(g2, prev, stock) {
     const cap = Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
@@ -403,14 +432,19 @@ GP.state = (function () {
     // 供給を受けていたエンジンも新規則では使えない
     g2.engine = null;
     g2.engineStash = null;
-    // ライバルも同じだけ戻す
+    // ライバルも同じところまで戻す。
+    // プレイヤーだけが白紙になって、ライバルが前の水準を持ち越すと、
+    // 規則変更のたびに一方的に置いていかれることになる
     (g2.rivals || []).forEach(r => {
-      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
-      const base = 18 * power + rnd(-3, 3);
+      const src = D.RIVALS.find(x => x.name === r.name) || { power: 1, bias: { speed: 1, corner: 1, accel: 1 } };
+      const power = src.power;
+      // 世代0のマシンで、いまのシーズンに見合った水準
+      const base = 18 * power + g2.season * 4 * power + rnd(-3, 3);
       ['speed', 'corner', 'accel'].forEach(k => {
-        // 元の強さを完全には失わない（強豪はやはり強い）
-        r.stats[k] = base * 3 * 0.55 + r.stats[k] * 0.22;
+        // 強豪はやはり強い、ぶんだけ少し上乗せする
+        r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
       });
+      r.base0 = null;
     });
     return g2.reg;
   }
@@ -428,7 +462,8 @@ GP.state = (function () {
       // 1週あたりの伸び。season が進むほど全体の水準も上がる。
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
-      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * (1 + g2.season * 0.06);
+      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1)
+                 * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
       ['speed', 'corner', 'accel'].forEach(k => {
         r.stats[k] = r.stats[k] + step * (0.8 + Math.random() * 0.5);
       });
@@ -636,13 +671,16 @@ GP.state = (function () {
   function weeklyCost(g) { return finances(g).weekly; }
 
   /* ---------- ライバルチーム生成 ---------- */
-  function makeRivals(season, keepNames, diff) {
+  /* 技術の世代は業界全体で進む。自分だけが新しいマシンに乗るわけではない。
+     ここが無いと、世代を上げた瞬間に永久に一方的な展開になる            */
+  function makeRivals(season, keepNames, diff, era) {
     resetNames(keepNames);
     const dp = diff ? diff.rivalPower : 1;
     const dg = diff ? diff.rivalGrow : 1;
+    const ep = (era || 0) * D.ERA_STEP;
     return D.RIVALS.map((r, i) => {
       const lv = (3 + season * 2.1 * dg) * r.power * dp;
-      const base = (18 * r.power + season * 10 * r.power * dg) * dp + rnd(-4, 4);
+      const base = (18 * r.power + (season * 4 + ep) * r.power * dg) * dp + rnd(-4, 4);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
@@ -726,7 +764,7 @@ GP.state = (function () {
     // イージーは産油国の大口スポンサーが最初から付く
     if (diff.oilSponsor) g.sponsors.push(Object.assign({}, D.OIL_SPONSOR));
 
-    g.rivals = makeRivals(1, g.drivers.map(d => d.name), diff);
+    g.rivals = makeRivals(1, g.drivers.map(d => d.name), diff, 0);
     // 最初から若手を1人抱えている
     g.youth = [makeYouth(1)];
     return g;
@@ -1097,7 +1135,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, focusOf, nextCarProgress, nextCarPreview,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview,
     logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,

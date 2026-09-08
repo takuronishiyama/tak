@@ -1226,3 +1226,12 @@ body[data-skin="hd"]{
 .staffrow .sage,.staffrow .spot,.staffrow .scap{font-style:normal;font-size:10px}
 .staffrow .scap{opacity:.75}
 [data-skin="hd"] .skbar.exp i{background:linear-gradient(#9fd8ff,#3a7ad9)}
+
+/* マシンの世代の進み具合 */
+.genbox{margin:0 0 8px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper3);color:var(--ink)}
+.genbox b{display:inline-block;font-size:13px;margin-right:8px}
+.genbox em{font-style:normal;font-weight:bold;margin-left:7px;font-size:12px}
+.genbox small{display:block;margin-top:5px;font-size:10px;line-height:1.6;color:var(--ink2)}
+[data-skin="hd"] .genbox{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .genbox small{color:#cbbb9a}
