@@ -36,7 +36,7 @@ window.GP = window.GP || {};
     g.drivers.forEach(d => { drift(d); levelCheck(d); });
     g.rivals.forEach(t => t.drivers.forEach(drift));   // ライバルも同じ条件で
     // ファンの自然減と、話題の風化
-    g.fans = Math.max(0, g.fans - Math.round(g.fans * 0.006));
+    g.fans = Math.max(120, g.fans - Math.round(g.fans * 0.006));
     S.addHype(g, -(g.hype || 0) * 0.035);
 
     g.week++;
@@ -1611,7 +1611,13 @@ window.GP = window.GP || {};
       if (res.safetyCar) topics.push('🚨 セーフティカー（' + res.safetyCar.from + '周目から' + res.safetyCar.laps + '周）');
       if (res.weatherChange) topics.push(res.weatherChange.icon + ' ' + res.weatherChange.at + '周目に'
         + res.weatherChange.from + '→' + res.weatherChange.to);
-      if (res.hotTeam) topics.push('🔥 ' + esc(res.hotTeam) + ' が絶好調');
+      // 「絶好調」は、実際に前に出てきたときだけ書く。毎回出すと意味がなくなる
+      const hotCar = res.classified.filter(e => e.hot && !e.dnf).sort((a, b) => a.pos - b.pos)[0];
+      if (res.hotTeam && hotCar &&
+          (hotCar.pos <= 3 || (hotCar.pos <= 6 && hotCar.grid - hotCar.pos >= 3))) {
+        topics.push('🔥 ' + esc(res.hotTeam) + ' が週末を通して絶好調（' +
+          hotCar.grid + '番手→' + hotCar.pos + '位）');
+      }
       if (topics.length) body += '<div class="racetopics">' + topics.join('<span>／</span>') + '</div>';
       body += '<div class="gridlist">';
       res.classified.slice(0, 22).forEach(e => {
