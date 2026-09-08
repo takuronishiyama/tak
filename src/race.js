@@ -47,7 +47,8 @@ GP.race = (function () {
         // 乗りやすいマシンほど、ドライバーは持っているものをそのまま出せる
         const bd0 = t.isPlayer ? myBody : evenBody;
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
-        const perf = (t.car * 0.60 + drv * 0.40) * form[ti];
+        const perf = (t.car * 0.60 + drv * 0.40) * form[ti]
+                   * (t.isPlayer ? S.logiPlan(g).perf : 1);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
@@ -155,8 +156,10 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
+    const cw = S.crewPenalty(g);          // クルーの疲労
     const pitLoss = 20.5 - g.facilities.pit * 0.7 - S.staffBonus(g, 'mechanic') * 0.4
-                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5;   // 采配
+                  - S.mgr(g, 'pitchief') * 0.06 - S.osk(g, 'call') * 0.5   // 采配
+                  + cw.pit;
     const strategist = S.staffBonus(g, 'strategist');
 
     // ピット戦略とタイヤの割り当て
@@ -334,7 +337,8 @@ GP.race = (function () {
         if (e.pitPlan.indexOf(lap) >= 0) {
           // セーフティカー中は隊列が遅いので、失う時間が小さい
           const scCheap = underSC ? 0.42 : 1;
-          const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0)) * scCheap;
+          const miss = e.isPlayer ? 0.035 + cw.mistake : 0.035;
+          const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < miss ? S.rnd(3, 9) : 0)) * scCheap;
           t += loss;
           pitAdd = loss;
           e.tyreAge = 0;
@@ -650,6 +654,16 @@ GP.race = (function () {
 
     // パーツの消耗
     S.wearParts(g, S.rnd(1.5, 4.5) * res.track.risk * (sp ? sp.wear : 1));
+    // 輸送費の支払いと、クルーの消耗
+    const ship = S.logiCost(g, res.track);
+    g.funds -= ship;
+    const crewBefore = S.crewPenalty(g).level;
+    S.tireCrew(g);
+    const crewNow = S.crewPenalty(g).level;
+    notes.push('🚚 ' + S.logiPlan(g).icon + ' ' + res.track.country + ' への輸送費 -' + ship + '万');
+    if (crewNow >= 70 && crewBefore < 70) {
+      notes.push('🧑‍🔧 クルーの疲れが限界に近い。ピット作業が遅れ、ミスも出はじめている。休養を。');
+    }
 
     // 入賞できない状態が続いたら、開発チケットが届く（選手権のみ）
     if (!sp) {

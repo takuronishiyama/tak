@@ -11,84 +11,84 @@ GP.data = (function () {
      path  : 0..1 正規化されたコース形状（描画・走行用の閉ループ）      */
   const TRACKS = [
     {
-      name: 'ベイサイド・ストリート', country: '🇦🇪', laps: 24, base: 92,
+      name: 'ベイサイド・ストリート', country: '🇦🇪', far: 1.30, laps: 24, base: 92,
       weight: { speed: 0.30, corner: 0.34, accel: 0.36 }, tyre: 1.15, risk: 1.20,
       desc: '低速コーナーの続く市街地。壁が近い。',
       landmarks: ['ハーバーヘアピン', 'マリーナ・シケイン', 'ブリッジコーナー'],
       path: [[.14,.72],[.1,.52],[.16,.4],[.12,.3],[.12,.2],[.62,.2],[.72,.26],[.72,.44],[.86,.44],[.9,.52],[.86,.62],[.55,.62],[.48,.72],[.3,.8]]
     },
     {
-      name: 'シルバーウッド・パーク', country: '🇬🇧', laps: 26, base: 88,
+      name: 'シルバーウッド・パーク', country: '🇬🇧', far: 0.70, laps: 26, base: 88,
       weight: { speed: 0.32, corner: 0.46, accel: 0.22 }, tyre: 1.25, risk: 0.95,
       desc: '高速コーナーの連続。エアロが物を言う。',
       landmarks: ['ウッドランド', 'ハイスピードS', 'オークカーブ'],
       path: [[.28,.2],[.42,.18],[.54,.24],[.6,.36],[.72,.3],[.84,.34],[.88,.46],[.8,.54],[.66,.52],[.56,.58],[.58,.7],[.68,.78],[.6,.86],[.44,.86],[.32,.8],[.3,.68],[.2,.6],[.1,.46],[.16,.3]]
     },
     {
-      name: 'モンテローザ市街地', country: '🇲🇨', laps: 30, base: 78,
+      name: 'モンテローザ市街地', country: '🇲🇨', far: 0.65, laps: 30, base: 78,
       weight: { speed: 0.14, corner: 0.44, accel: 0.42 }, tyre: 0.85, risk: 1.45,
       desc: '抜けない。予選が全て。ミスは即クラッシュ。',
       landmarks: ['カジノヘアピン', 'トンネル出口', 'ポートシケイン'],
       path: [[.52,.18],[.66,.24],[.62,.36],[.74,.42],[.84,.56],[.72,.66],[.56,.62],[.48,.7],[.52,.82],[.34,.86],[.22,.76],[.28,.62],[.18,.52],[.24,.38],[.18,.24]]
     },
     {
-      name: 'グランデ・ロッソ', country: '🇮🇹', laps: 25, base: 84,
+      name: 'グランデ・ロッソ', country: '🇮🇹', far: 0.70, laps: 25, base: 84,
       weight: { speed: 0.56, corner: 0.20, accel: 0.24 }, tyre: 0.95, risk: 1.05,
       desc: '超高速。パワーユニットの馬力勝負。',
       landmarks: ['グランデ・カーブ', '第1シケイン', 'パラボリカ'],
       path: [[.55,.24],[.8,.23],[.89,.3],[.8,.36],[.86,.44],[.9,.58],[.7,.64],[.45,.66],[.25,.64],[.3,.55],[.18,.5],[.09,.38],[.08,.26],[.3,.25]]
     },
     {
-      name: 'アルペン・リンク', country: '🇦🇹', laps: 28, base: 76,
+      name: 'アルペン・リンク', country: '🇦🇹', far: 0.68, laps: 28, base: 76,
       weight: { speed: 0.44, corner: 0.26, accel: 0.30 }, tyre: 1.05, risk: 1.00,
       desc: '短いラップに登り坂。ブレーキ勝負の一発勝負。',
       landmarks: ['マウンテンターン', 'ダウンヒル', 'サミット'],
       path: [[.2,.36],[.34,.26],[.56,.3],[.62,.44],[.78,.44],[.86,.56],[.76,.7],[.52,.74],[.4,.66],[.28,.76],[.16,.66]]
     },
     {
-      name: 'サクラ・エイト', country: '🇯🇵', laps: 27, base: 95,
+      name: 'サクラ・エイト', country: '🇯🇵', far: 1.55, laps: 27, base: 95,
       weight: { speed: 0.30, corner: 0.42, accel: 0.28 }, tyre: 1.30, risk: 1.10,
       desc: '立体交差の8の字。総合力が問われる名コース。',
       landmarks: ['スプーンカーブ', '逆バンク', 'デグナー'],
       path: [[.62,.18],[.38,.14],[.2,.2],[.12,.36],[.2,.26],[.32,.22],[.4,.28],[.34,.36],[.42,.42],[.36,.5],[.44,.56],[.58,.54],[.7,.46],[.8,.48],[.84,.58],[.76,.66],[.64,.64],[.56,.7],[.6,.8],[.74,.84],[.86,.78],[.88,.62],[.8,.34]]
     },
     {
-      name: 'デザート・ドーム', country: '🇧🇭', laps: 26, base: 90,
+      name: 'デザート・ドーム', country: '🇧🇭', far: 1.30, laps: 26, base: 90,
       weight: { speed: 0.38, corner: 0.24, accel: 0.38 }, tyre: 1.35, risk: 0.90,
       desc: '路面が荒くタイヤに厳しい。ナイトレース。',
       landmarks: ['ドーム・ターン', 'サンドトラップ', 'オアシスベンド'],
       path: [[.3,.82],[.16,.7],[.24,.52],[.14,.42],[.16,.28],[.48,.24],[.56,.36],[.72,.32],[.86,.44],[.8,.6],[.6,.64],[.52,.76]]
     },
     {
-      name: 'メイプル・アイランド', country: '🇨🇦', laps: 29, base: 82,
+      name: 'メイプル・アイランド', country: '🇨🇦', far: 1.25, laps: 29, base: 82,
       weight: { speed: 0.42, corner: 0.22, accel: 0.36 }, tyre: 1.10, risk: 1.25,
       desc: '低速シケイン＋長い直線。壁が待っている。',
       landmarks: ['ウォール・オブ・メイプル', 'アイランド・シケイン', 'ラストヘアピン'],
       path: [[.4,.32],[.68,.3],[.78,.34],[.72,.4],[.82,.44],[.9,.54],[.86,.66],[.62,.72],[.36,.74],[.26,.7],[.3,.62],[.2,.58],[.1,.46],[.1,.34]]
     },
     {
-      name: 'グリーンヒル・フォレスト', country: '🇧🇪', laps: 24, base: 106,
+      name: 'グリーンヒル・フォレスト', country: '🇧🇪', far: 0.62, laps: 24, base: 106,
       weight: { speed: 0.40, corner: 0.40, accel: 0.20 }, tyre: 1.20, risk: 1.15,
       desc: '長大な1周と天候の急変。ドライバーの腕が出る。',
       landmarks: ['オー・ルージュ', 'フォレストバンク', 'ラ・コンブ'],
       path: [[.34,.34],[.5,.3],[.66,.32],[.78,.38],[.86,.48],[.82,.58],[.7,.6],[.6,.54],[.52,.58],[.5,.68],[.58,.76],[.52,.86],[.36,.88],[.22,.84],[.14,.82],[.1,.74],[.14,.56],[.22,.42]]
     },
     {
-      name: 'リオ・エストレラ', country: '🇧🇷', laps: 30, base: 74,
+      name: 'リオ・エストレラ', country: '🇧🇷', far: 1.60, laps: 30, base: 74,
       weight: { speed: 0.34, corner: 0.32, accel: 0.34 }, tyre: 1.15, risk: 1.20,
       desc: '反時計回りの短いラップ。雨が多い。',
       landmarks: ['エストレラ・カーブ', 'スタジアム区間', 'セニーニャ'],
       path: [[.16,.68],[.18,.44],[.22,.24],[.54,.2],[.74,.3],[.82,.46],[.7,.58],[.5,.56],[.42,.66],[.5,.8],[.3,.84]]
     },
     {
-      name: 'ラスベガス・ネオン', country: '🇺🇸', laps: 28, base: 96,
+      name: 'ラスベガス・ネオン', country: '🇺🇸', far: 1.35, laps: 28, base: 96,
       weight: { speed: 0.52, corner: 0.24, accel: 0.24 }, tyre: 0.90, risk: 1.30,
       desc: 'ネオン輝く超高速ストリート。低温がタイヤを苦しめる。',
       landmarks: ['ネオンベンド', 'ストリップ・ターン', 'ダウンタウン'],
       path: [[.55,.78],[.2,.77],[.09,.62],[.36,.52],[.07,.38],[.07,.22],[.35,.21],[.65,.205],[.9,.2],[.94,.34],[.62,.4],[.9,.5],[.88,.7]]
     },
     {
-      name: 'ファイナル・オアシス', country: '🇦🇪', laps: 27, base: 88,
+      name: 'ファイナル・オアシス', country: '🇦🇪', far: 1.30, laps: 27, base: 88,
       weight: { speed: 0.34, corner: 0.34, accel: 0.32 }, tyre: 1.05, risk: 0.85,
       desc: '最終戦。ここまでの全てが試される。',
       landmarks: ['ファイナルターン', 'パームコーナー', 'サンセットベンド'],
@@ -315,6 +315,27 @@ GP.data = (function () {
   /* ---------- 難易度 ----------
      数値はすべて実際の計算に掛かる倍率。ticket は
      「何戦入賞できなければ開発チケットが1枚もらえるか」        */
+  /* ---------- ロジスティクス ----------
+     サーカスをどう運ぶか。安く運べば金は浮くが、クルーが消耗し、
+     現地でのセットアップ時間も削られる。                          */
+  const LOGI_BASE = 380;          // 1戦あたりの輸送費の基準
+  const LOGI_PLANS = [
+    { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
+      cost: 2.10, fatigue: -7, perf: 1.006,
+      desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
+      note: '費用は約2倍' },
+    { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
+      cost: 1.00, fatigue: 4, perf: 1.000,
+      desc: 'ふつうの空輸。過不足なく間に合う',
+      note: '標準' },
+    { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
+      cost: 0.38, fatigue: 10, perf: 0.992,
+      desc: '安いが到着がぎりぎりで、セットアップの時間が足りない。積み下ろしでクルーも消耗する',
+      note: '費用は約4割' }
+  ];
+  /* クルーの疲労が満タンのときの悪影響 */
+  const CREW_FULL = { pit: 2.0, rel: 8, mistake: 0.05 };
+
   const DIFFICULTIES = [
     {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
@@ -605,7 +626,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20 }
   ];
 
-  return { SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { LOGI_BASE, LOGI_PLANS, CREW_FULL, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
 })();

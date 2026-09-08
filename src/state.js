@@ -428,7 +428,44 @@ GP.state = (function () {
     });
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
-    return clamp(avg + bonus + bodyRel + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
+    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel
+               + g.facilities.pit * 2.5 + staffBonus(g, 'mechanic') * 1.2 + mgr(g, 'pitchief') * 0.15, 5, 99);
+  }
+
+  /* =======================================================
+     ロジスティクス
+     世界を転戦するサーカスをどう運ぶか。安く運べば金は浮くが、
+     クルーが消耗し、現地でのセットアップ時間も足りなくなる。
+     ======================================================= */
+  function logiPlan(g2) {
+    const k = (g2.logi && g2.logi.plan) || 'std';
+    return D.LOGI_PLANS.find(p => p.key === k) || D.LOGI_PLANS[1];
+  }
+  /* 1戦ぶんの輸送費。遠いコースほど高い */
+  function logiCost(g2, track) {
+    const far = (track && track.far) || 1;
+    const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
+    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * (1 - cut));
+  }
+  /* クルーの疲労（0..100） */
+  const crew = g2 => clamp((g2.logi && g2.logi.crew) || 0, 0, 100);
+  /* 疲労が生む悪影響。ロジ責任者が付いていれば効きが小さい */
+  function crewPenalty(g2) {
+    const r = crew(g2) / 100 * (1 - Math.min(0.4, mgr(g2, 'logistics') * 0.008));
+    return { pit: r * D.CREW_FULL.pit, rel: r * D.CREW_FULL.rel,
+             mistake: r * D.CREW_FULL.mistake, level: crew(g2) };
+  }
+  /* レースを1戦こなしたぶんの消耗。輸送手段で増減する */
+  function tireCrew(g2) {
+    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
+    const d = logiPlan(g2).fatigue - 2;      // レースの合間にいくらかは休める
+    g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft : d), 0, 100);
+  }
+  /* 休養・オフシーズンでの回復 */
+  function restCrew(g2, amount) {
+    if (!g2.logi) g2.logi = { plan: 'std', crew: 0 };
+    g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
   /* ---------- パーツの消耗（レース後）---------- */
@@ -525,6 +562,8 @@ GP.state = (function () {
     const rpRace = Math.round(g2.sponsors.reduce((a, sp) => a + (sp.rp || 0) * scale, 0));
 
     const PREP = raceWeek(0);                       // レース1回あたりの週数
+    // 次のレースへの輸送費（コースの遠さで変わる）
+    const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
     return {
       staff: staff, managers: mgrs, drivers: drivers, youth: youth,
       facilities: facilities, engine: engine, other: other, cut: cut,
@@ -532,9 +571,10 @@ GP.state = (function () {
       sponsorPerRace: perRace,
       sponsorRpPerRace: rpRace,
       // レース1回ぶん（準備週＋レース週）の収支
-      cycleCost: weekly * PREP,
+      shipping: shipping,
+      cycleCost: weekly * PREP + shipping,
       cycleIncome: perRace,
-      net: perRace - weekly * PREP
+      net: perRace - weekly * PREP - shipping
     };
   }
 
@@ -602,6 +642,7 @@ GP.state = (function () {
       history: [],
       carGen: 0,
       body: null,
+      logi: { plan: 'std', crew: 0 },   // 輸送手段とクルーの疲労
       focus: 'now',         // 開発リソースの配分
       nextCar: 0,           // 来季マシンに積み上げた開発量
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
@@ -797,6 +838,7 @@ GP.state = (function () {
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
+      if (!g.logi) g.logi = { plan: 'std', crew: 0 };
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
         D.BODY_ATTRS.forEach(a => { if (g.body[a.key] == null) g.body[a.key] = min; });
@@ -815,6 +857,7 @@ GP.state = (function () {
     REG_EVERY, regulationDue, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, focusOf, nextCarProgress,
+    logiPlan, logiCost, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

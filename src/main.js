@@ -1881,6 +1881,7 @@ window.GP = window.GP || {};
     g.history.push({ season: g.season, points: g.points, rank: S.constructorTable(g).findIndex(r => r.isPlayer) + 1 });
     g.season++;
     g.week = 1;
+    S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
     g.nextRace = 0;
     // 4シーズンに一度、マシンの規則が変わる
     const regChange = S.regulationDue(g);
@@ -2884,6 +2885,7 @@ window.GP = window.GP || {};
     const map = {
       cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
+      cLogi: cmdLogi, cLogiR: cmdLogi, cLogiO: cmdLogi,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
       cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
@@ -2919,9 +2921,63 @@ window.GP = window.GP || {};
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(3, 7), 10, 100);
     });
-    U.log(g, '☕ チーム全体で休養をとった。コンディションが回復した。');
+    S.restCrew(g, S.rnd(14, 22));
+    U.log(g, '☕ チーム全体で休養をとった。コンディションとクルーの疲労が回復した。');
     U.pop('☕ 回復', 'good');
     endWeek();
+  }
+
+  /* ---------- ロジスティクス（週を消費しない）---------- */
+  function cmdLogi() {
+    const cur = S.logiPlan(g);
+    const cw = S.crewPenalty(g);
+    const nextTrack = D.TRACKS[g.nextRace] || D.TRACKS[0];
+    const lvl = Math.round(cw.level);
+    const state = lvl < 20 ? { t: '万全', c: 'good' } : lvl < 45 ? { t: 'ふつう', c: '' }
+                : lvl < 70 ? { t: '疲れが見える', c: 'warn' } : { t: '限界', c: 'bad' };
+    let body = '<p class="desc">レースごとに、マシンと機材を世界中へ運びます。' +
+      '安く運べば資金は残りますが、クルーが消耗し、現地でのセットアップ時間も足りなくなります。</p>';
+
+    body += '<div class="logi-crew"><b>🧑‍🔧 クルーの疲労</b>' +
+      '<span class="skbar big"><i class="f' + (lvl < 45 ? '0' : lvl < 70 ? '1' : '2') +
+      '" style="width:' + lvl + '%"></i></span>' +
+      '<em class="' + state.c + '">' + lvl + ' / 100　' + state.t + '</em>' +
+      '<small>ピット作業 +' + cw.pit.toFixed(1) + '秒／信頼性 -' + cw.rel.toFixed(1) +
+      '／作業ミス +' + (cw.mistake * 100).toFixed(1) + '%<br>' +
+      '「☕ 休養」で回復します。オフシーズンには抜けます。</small></div>';
+
+    body += '<div class="sub">次戦 ' + nextTrack.country + ' ' + esc(nextTrack.name) +
+      ' への輸送</div><div class="pick">';
+    D.LOGI_PLANS.forEach(pl => {
+      const save = { plan: (g.logi || {}).plan };
+      g.logi = g.logi || { plan: 'std', crew: 0 };
+      const before = g.logi.plan;
+      g.logi.plan = pl.key;
+      const cost = S.logiCost(g, nextTrack);
+      g.logi.plan = before;
+      const on = pl.key === cur.key;
+      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-k="logi:' + pl.key + '">' +
+        '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
+        '<span class="pb-body"><b>' + pl.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+        '<small>' + pl.desc + '<br>' +
+        'クルーの疲労 ' + (pl.fatigue > 0 ? '+' + pl.fatigue : pl.fatigue) + '／' +
+        'マシンの仕上がり ' + (pl.perf === 1 ? '±0' :
+          (pl.perf > 1 ? '+' : '') + ((pl.perf - 1) * 100).toFixed(1) + '%') +
+        '</small></span>' +
+        '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pl.note) + '</b></span></button>';
+    });
+    body += '</div><p class="desc">遠いコースほど輸送費は高くつきます。' +
+      'ロジスティクス責任者を雇うと、費用も疲労も抑えられます。</p>';
+    U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindPick(k => {
+      const key = k.split(':')[1];
+      g.logi = g.logi || { plan: 'std', crew: 0 };
+      g.logi.plan = key;
+      const pl = S.logiPlan(g);
+      GP.sound.play('confirm');
+      U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
+      S.save(g); render(); cmdLogi();
+    });
   }
 
   function cmdInfo() {

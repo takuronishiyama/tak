@@ -1172,3 +1172,23 @@ body[data-skin="hd"]{
 .bd-eff b{color:#6a4a22}
 [data-skin="hd"] .bd-eff{background:#332a44;color:#ffe4a6}
 [data-skin="hd"] .bd-eff b{color:#ffc96a}
+
+/* ---------- ロジスティクス ---------- */
+.logi-crew{margin:0 0 8px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper3);color:var(--ink)}
+.logi-crew b{display:block;font-size:12px;margin-bottom:5px}
+.logi-crew em{font-style:normal;font-size:11px;margin-left:7px;font-weight:bold}
+.logi-crew em.good{color:#2e7a2e}
+.logi-crew em.warn{color:#a86a10}
+.logi-crew em.bad{color:#b02a20}
+.logi-crew small{display:block;margin-top:5px;font-size:10px;line-height:1.5;color:var(--ink2)}
+.skbar.big{width:180px;height:10px;vertical-align:middle}
+.skbar i.f0{background:linear-gradient(var(--green),#2e7a2e)}
+.skbar i.f1{background:linear-gradient(#ffc93c,#c98b10)}
+.skbar i.f2{background:linear-gradient(#e8705a,#a82a1c)}
+.pickbtn.on{outline:3px solid var(--yellow);outline-offset:-3px}
+[data-skin="hd"] .logi-crew{background:#241c30;color:#efe4cf}
+[data-skin="hd"] .logi-crew small{color:#cbbb9a}
+[data-skin="hd"] .logi-crew em.good{color:#8ee08a}
+[data-skin="hd"] .logi-crew em.warn{color:#ffcf6a}
+[data-skin="hd"] .logi-crew em.bad{color:#ff9a8a}
