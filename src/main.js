@@ -261,6 +261,13 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
     });
 
+    const at2 = S.atrLabel(g);
+    if (g.lastRank) {
+      body += '<div class="atrbox slim" style="--ac:' + at2.color + '">' +
+        '<b>' + at2.icon + ' 風洞・CFD使用時間：' + at2.name + '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
+        '<small>昨季コンストラクターズ ' + g.lastRank + '位。上位ほど使える時間が減ります。</small></div>';
+    }
+
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
       '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
@@ -312,7 +319,7 @@ window.GP = window.GP || {};
     const engBonus = 1 + S.staffBonus(g, 'engineer') * 0.12 + S.mgr(g, 'technical') * 0.008;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul();
+    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.atrOf(g);
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
@@ -427,7 +434,7 @@ window.GP = window.GP || {};
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul();
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.atrOf(g);
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
@@ -1804,6 +1811,42 @@ window.GP = window.GP || {};
     return h;
   }
 
+  /* =======================================================
+     選手権の重み
+     いまの順位が賞金にしていくらなのか、1つ上げると／落とすといくら動くのか。
+     終盤ほど1点の意味が重くなることを、そのまま数字で見せる。
+     ======================================================= */
+  function stakeBlock(compact) {
+    const st = S.championshipStake(g);
+    if (!st.of) return '';
+    const heat = st.racesLeft <= 3 ? ' hot' : st.racesLeft <= 6 ? ' warm' : '';
+    let h = '<div class="stake' + heat + '">' +
+      '<div class="stake-head"><b>コンストラクターズ ' + st.rank + '位</b>' +
+      '<span>' + st.points + 'pt／残り ' + st.racesLeft + '戦' +
+      (st.racesLeft ? '（最大 ' + st.maxGain + 'pt）' : '') + '</span></div>';
+    h += '<div class="stake-money">' +
+      '<span>いまの順位の賞金 <b>' + money(st.prizeNow) + '万</b></span>' +
+      (st.upGain ? '<span class="up">1つ上げると <b>+' + money(st.upGain) + '万</b></span>' : '') +
+      (st.downLoss ? '<span class="down">1つ落とすと <b>-' + money(st.downLoss) + '万</b></span>' : '') +
+      '</div>';
+    const near = [];
+    if (st.ahead) near.push('<span class="stake-nb"><i style="background:' + st.ahead.color + '"></i>' +
+      esc(st.ahead.name) + ' が <b>' + st.ahead.gap + 'pt</b> 前</span>');
+    if (st.behind) near.push('<span class="stake-nb"><i style="background:' + st.behind.color + '"></i>' +
+      esc(st.behind.name) + ' が <b>' + st.behind.gap + 'pt</b> 後ろ</span>');
+    if (near.length) h += '<div class="stake-near">' + near.join('') + '</div>';
+    if (!compact) {
+      if (st.rank === 1 && st.racesLeft === 0) h += '<p class="stake-msg win">🏆 タイトル獲得！</p>';
+      else if (st.titleAlive && st.titleGap > 0 && st.racesLeft <= 6) {
+        h += '<p class="stake-msg">🔥 まだタイトルの可能性がある。首位と <b>' + st.titleGap +
+             'pt</b>、残り <b>' + st.racesLeft + '戦</b>で最大 <b>' + st.maxGain + 'pt</b>。</p>';
+      } else if (!st.titleAlive && st.racesLeft > 0 && st.titleGap > 0) {
+        h += '<p class="stake-msg">今季のタイトルは届かない。1つでも上の順位で終えることが、来季の資金になる。</p>';
+      }
+    }
+    return h + '</div>';
+  }
+
   function fmtTime(s) {
     const m = Math.floor(s / 60);
     const r = (s - m * 60);
@@ -1863,6 +1906,8 @@ window.GP = window.GP || {};
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
+      // いまの順位に、どれだけの重みがあるのか
+      if (!res.special) body += stakeBlock(false);
       // なぜその順位だったのかを分解して見せる
       body += raceDebrief(res);
       if (res.fastestLap) {
@@ -2158,6 +2203,14 @@ window.GP = window.GP || {};
     if (myChamp) body += '<p class="note big">🎉 ' + esc(myChamp.name) + ' がドライバーズタイトルを獲得！</p>';
     body += '<div class="rewardbox"><div>💰 シーズン賞金 <b>+' + money(prize) + '万</b></div></div>';
 
+    // 来季の風洞・CFD使用時間は、この順位で決まる
+    g.lastRank = rank;
+    const at = S.atrLabel(g);
+    body += '<div class="atrbox" style="--ac:' + at.color + '">' +
+      '<b>' + at.icon + ' 来季の風洞・CFD使用時間：' + at.name +
+      '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
+      '<small>上位で終えたチームほど、翌年に使える開発時間が減ります。' +
+      '勝てば勝つほど次は苦しく、負ければ作り直す時間がもらえる、という制度です。</small></div>';
     U.modal('🎊 シーズン終了', body,
       [{ label: '🌱 オフへ →', cls: 'primary', fn: enterOffseason }], { wide: true });
     U.log(g, '🎊 シーズン' + g.season + ' 終了。コンストラクターズ ' + rank + '位。賞金 +' + money(prize) + '万', 'good');
@@ -3341,7 +3394,8 @@ window.GP = window.GP || {};
   }
 
   function cmdInfo() {
-    let body = teamDiag();
+    let body = stakeBlock(false);
+    body += teamDiag();
     body += U.finance(g);
     body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
     body += U.standings(g);

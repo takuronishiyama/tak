@@ -655,6 +655,17 @@ GP.data = (function () {
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
   /* ---------- 賞金（シーズン末・コンストラクターズ順位）---------- */
+  /* ---------- 風洞・CFDの使用時間 ----------
+     実際のF1と同じで、前年の順位が上のチームほど開発に使える時間が減る。
+     勝てば勝つほど次が苦しくなり、負ければ負けるほど作り直す時間がもらえる。
+     順位そのものに重みを持たせつつ、独走も抑える仕組み                */
+  const ATR = [0.84, 0.87, 0.90, 0.93, 0.96, 0.99, 1.02, 1.05, 1.08, 1.11, 1.13];
+  const ATR_LABEL = [
+    { max: 0.91, name: '厳しい', icon: '🪫', color: '#e04a3f' },
+    { max: 1.00, name: '標準',   icon: '⚖️', color: '#f0a020' },
+    { max: 9.99, name: '恵まれている', icon: '🔋', color: '#4ea63f' }
+  ];
+
   const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
 
   /* ---------- タイヤ ----------
@@ -684,5 +695,5 @@ GP.data = (function () {
 
   return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, WEATHER };
+           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, WEATHER };
 })();

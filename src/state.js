@@ -453,8 +453,49 @@ GP.state = (function () {
      これが無いと、プレイヤーだけが毎週伸びて途中から一方的になる。
      強いチームほど開発が速く、下位はゆっくり。難易度でも変わる。
      ただしプレイヤーほどは伸びないので、手を入れただけ前に出られる。 */
+  /* ---------- 風洞・CFDの使用時間 ----------
+     前年の順位で決まる開発の伸びの倍率。1年を通して変わらない       */
+  function atrOf(g2) {
+    const r = g2.lastRank || 0;
+    if (!r) return 1;                                  // 1年目は傾斜なし
+    return D.ATR[Math.min(D.ATR.length - 1, r - 1)];
+  }
+  function atrLabel(g2) {
+    const v = atrOf(g2);
+    return D.ATR_LABEL.find(x => v <= x.max) || D.ATR_LABEL[1];
+  }
+
+  /* ---------- 選手権の重み ----------
+     いまの順位が賞金にしていくらなのか。1つ上げると／落とすといくら動くのか */
+  function championshipStake(g2) {
+    const table = constructorTable(g2);
+    const i = table.findIndex(r => r.isPlayer);
+    const rank = i < 0 ? table.length : i + 1;
+    const prize = k => Math.round(D.PRIZE[Math.min(D.PRIZE.length - 1, k - 1)]
+                                  * (1 + osk(g2, 'money') * 0.05));
+    const left = Math.max(0, D.TRACKS.length - (g2.nextRace || 0));
+    const maxGain = left * (D.POINTS[0] + D.POINTS[1] + D.FASTEST_LAP_POINT);
+    const me = table[i] || { points: 0 };
+    const ahead = i > 0 ? table[i - 1] : null;
+    const behind = (i >= 0 && i < table.length - 1) ? table[i + 1] : null;
+    return {
+      rank: rank, of: table.length, points: me.points || 0,
+      racesLeft: left, maxGain: maxGain,
+      prizeNow: prize(rank),
+      upGain: rank > 1 ? prize(rank - 1) - prize(rank) : 0,
+      downLoss: rank < table.length ? prize(rank) - prize(rank + 1) : 0,
+      ahead: ahead ? { name: ahead.name, color: ahead.color, gap: (ahead.points || 0) - (me.points || 0) } : null,
+      behind: behind ? { name: behind.name, color: behind.color, gap: (me.points || 0) - (behind.points || 0) } : null,
+      titleAlive: left > 0 && ((table[0].points || 0) - (me.points || 0)) <= maxGain,
+      titleGap: (table[0].points || 0) - (me.points || 0)
+    };
+  }
+
   function developRivals(g2) {
     const diff = diffOf(g2);
+    // いまの選手権順位。上位のチームほど開発に使える時間が少ない
+    const rivalRank = {};
+    constructorTable(g2).forEach((t, i) => { rivalRank[t.name] = i + 1; });
     (g2.rivals || []).forEach(r => {
       // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
       if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
@@ -462,7 +503,8 @@ GP.state = (function () {
       // 1週あたりの伸び。season が進むほど全体の水準も上がる。
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
-      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1)
+      const atr = D.ATR[Math.min(D.ATR.length - 1, (rivalRank[r.name] || 6) - 1)];
+      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * atr
                  * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
       ['speed', 'corner', 'accel'].forEach(k => {
         r.stats[k] = r.stats[k] + step * (0.8 + Math.random() * 0.5);
@@ -737,6 +779,7 @@ GP.state = (function () {
       logi: { plan: 'std', crew: 0 },   // 輸送手段とクルーの疲労
       focus: 'now',         // 開発リソースの配分
       nextCar: 0,           // 来季マシンに積み上げた開発量
+      lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       standings: [], results: [],
       log: [],
@@ -1130,7 +1173,7 @@ GP.state = (function () {
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
-    hypeTier, hypeBonus, addHype, sponsorOpen,
+    hypeTier, hypeBonus, addHype, sponsorOpen, atrOf, atrLabel, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, applyRegulation,
