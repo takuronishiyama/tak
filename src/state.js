@@ -509,7 +509,16 @@ GP.state = (function () {
 
   /* ---------- スタッフ効果 ---------- */
   function staffBonus(g, key) {
-    return g.staff.filter(s => s.type === key).reduce((a, s) => a + s.skill, 0) / 20;
+    let sum = 0;
+    g.staff.forEach(s => {
+      if (s.type === key) { sum += s.skill; return; }
+      // 「肩書きは違うが、あの人はそこも見られる」ぶん
+      (s.traits || []).forEach(tk => {
+        const t = D.STAFF_TRAITS.find(x => x.key === tk);
+        if (t && t.cross === key) sum += s.skill * D.STAFF_TRAIT_CROSS;
+      });
+    });
+    return sum / 20;
   }
 
   /* =======================================================
@@ -547,7 +556,11 @@ GP.state = (function () {
 
   function addHype(g2, v) {
     // 知名度が高いオーナーほど、同じ結果でも話題になりやすい
-    if (v > 0) v = v * (1 + osk(g2, 'fame') * 0.20);
+    if (v > 0) {
+      // 名の知れたスタッフを抱えていると、それだけで話題になる
+      const stars = (g2.staff || []).filter(s2 => stTrait(s2, 'star')).length;
+      v = v * (1 + osk(g2, 'fame') * 0.20) * (1 + stars * 0.07);
+    }
     g2.hype = clamp((g2.hype || 0) + v, 0, 100);
     return g2.hype;
   }
@@ -719,15 +732,115 @@ GP.state = (function () {
     return g;
   }
 
-  function makeStaff(type, quality) {
+  function makeStaff(type, quality, opts) {
+    opts = opts || {};
     const t = D.STAFF_TYPES.find(s => s.key === type);
     // チームの規模が大きいほど、良い人材が応募してくる
-    const skill = clamp(Math.round(rint(8, 22) + (quality || 0) * 0.28), 5, 60);
-    return {
+    const skill = clamp(Math.round(rint(8, 22) + (quality || 0) * 0.28 + (opts.bonus || 0)), 5, 60);
+    const st = {
       id: 's' + Math.random().toString(36).slice(2, 8),
       type: type, name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: skill, salary: Math.round(t.salary * (0.6 + skill / 30))
+      skill: skill, traits: rollStaffTraits(type, opts.traitBonus || 0), salary: 0,
+      years: 0                    // 在籍年数（昇進の条件に使う）
     };
+    st.salary = staffSalary(st);
+    return st;
+  }
+  /* 固有スキルの抽選。専門外へ効くものは、自分の職能とは違うものだけ選ぶ */
+  function rollStaffTraits(type, bonus) {
+    const pool = D.STAFF_TRAITS.filter(x => x.cross !== type);
+    const out = [];
+    const n = Math.random() < 0.30 + bonus ? 2 : (Math.random() < 0.72 + bonus ? 1 : 0);
+    while (out.length < n && out.length < pool.length) {
+      const k = pick(pool).key;
+      if (out.indexOf(k) < 0) out.push(k);
+    }
+    return out;
+  }
+  const stTrait = (st, k) => !!(st && st.traits && st.traits.indexOf(k) >= 0);
+  const traitOf = k => D.STAFF_TRAITS.find(x => x.key === k);
+  function staffSalary(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || D.STAFF_TYPES[0];
+    let v = t.salary * (0.6 + st.skill / 30);
+    if (stTrait(st, 'cheap')) v *= 0.80;
+    if (stTrait(st, 'star'))  v *= 1.30;
+    return Math.round(v * (st.raise || 1));
+  }
+  /* この人が就ける首脳陣の役職。技能が足りていることが条件 */
+  const PROMOTE_MIN = 38;
+  function promotableRoles(g2, st) {
+    if (!st || st.skill < PROMOTE_MIN) return [];
+    const t = D.STAFF_TYPES.find(x => x.key === st.type);
+    return (t && t.promote ? t.promote : []).filter(r => !(g2.managers && g2.managers[r]));
+  }
+  /* 現場から首脳陣へ。技能は少し目減りするが、効き方が変わる */
+  function promoteStaff(g2, id, role) {
+    const i = g2.staff.findIndex(x => x.id === id);
+    if (i < 0) return null;
+    const st = g2.staff[i];
+    if (promotableRoles(g2, st).indexOf(role) < 0) return null;
+    const m = D.MANAGERS.find(x => x.key === role);
+    const skill = Math.max(10, Math.round(st.skill * 0.85));
+    g2.staff.splice(i, 1);
+    g2.managers = g2.managers || {};
+    g2.managers[role] = {
+      name: st.name, role: role, skill: skill,
+      salary: Math.round(m.salary * (0.6 + skill / 30)),
+      fromStaff: true
+    };
+    return { name: st.name, role: role, skill: skill, salary: g2.managers[role].salary };
+  }
+
+  /* ---------- 引き抜き ----------
+     人はチームの間を行き来する。こちらから抜くこともあれば、抜かれることもある。 */
+
+  /* よそのチームで働いている人。市場より腕は良いが、その代わり高い */
+  function makeRivalStaff(g2, quality) {
+    const names = (g2.rivals || []).map(r => r.name);
+    const st = makeStaff(pick(D.STAFF_TYPES).key, quality, { bonus: rint(4, 14), traitBonus: 0.18 });
+    st.team = names.length ? pick(names) : 'よそのチーム';
+    return st;
+  }
+  /* 引き抜きにかかる金。一途な人ほど高く、腕が良いほど高い */
+  function poachFee(g2, st) {
+    let v = st.salary * 14 + st.skill * 90;
+    if (stTrait(st, 'loyal')) v *= 1.9;
+    if (stTrait(st, 'star'))  v *= 1.35;
+    v *= Math.max(0.55, 1 - osk(g2, 'nego') * 0.05);      // 交渉術
+    return Math.round(v);
+  }
+
+  /* よそのチームが、うちの誰かに声をかけてくる。
+     腕の立つ人ほど狙われ、「一途」は靡きにくく、「名うて」はよく狙われる */
+  function poachAttempt(g2) {
+    const pool = (g2.staff || []).filter(s => s.skill >= 24);
+    if (!pool.length) return null;
+    const cand = pool.slice().sort((a, b) => b.skill - a.skill)[rint(0, Math.min(2, pool.length - 1))];
+    let p = 0.10 + (cand.skill - 24) / 220;
+    if (stTrait(cand, 'loyal')) p *= 0.35;
+    if (stTrait(cand, 'star'))  p *= 1.8;
+    p *= Math.max(0.5, 1 - osk(g2, 'nego') * 0.04);       // 交渉術で引き止めやすい
+    if (Math.random() > Math.min(0.34, p)) return null;
+    const names = (g2.rivals || []).map(r => r.name);
+    return {
+      id: cand.id, name: cand.name, skill: cand.skill, type: cand.type,
+      from: names.length ? pick(names) : 'よそのチーム',
+      keep: Math.round(cand.salary * 16),                 // 引き止めに要る金
+      raise: 1.20                                          // 引き止めると給料が上がる
+    };
+  }
+  function keepStaff(g2, id, raise) {
+    const st = (g2.staff || []).find(x => x.id === id);
+    if (!st) return false;
+    st.raise = (st.raise || 1) * raise;
+    st.salary = staffSalary(st);
+    return true;
+  }
+  function loseStaff(g2, id) {
+    const i = (g2.staff || []).findIndex(x => x.id === id);
+    if (i < 0) return false;
+    g2.staff.splice(i, 1);
+    return true;
   }
 
   /* =======================================================
@@ -809,12 +922,14 @@ GP.state = (function () {
   /* ---------- スタッフの成長（シーズン明け）---------- */
   function growStaff(g) {
     const grown = [];
+    // 指導者がいるチームは、全体の伸びが良くなる
+    const mentors = g.staff.filter(s => stTrait(s, 'mentor')).length;
     g.staff.forEach(st => {
-      if (Math.random() < 0.55) {
-        const up = rint(1, 3);
-        st.skill += up;
-        const t = D.STAFF_TYPES.find(x => x.key === st.type);
-        st.salary = Math.round(t.salary * (0.6 + st.skill / 30));
+      st.years = (st.years || 0) + 1;
+      const p = 0.55 + mentors * 0.10 + (stTrait(st, 'grower') ? 0.20 : 0);
+      if (Math.random() < p) {
+        st.skill += rint(1, 3) + (stTrait(st, 'grower') ? 1 : 0);
+        st.salary = staffSalary(st);
         grown.push(st.name + '（技能 ' + st.skill + '）');
       }
     });
@@ -891,7 +1006,9 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
+    makeDriver, makeStaff, staffSalary, stTrait, traitOf, rollStaffTraits,
+    promotableRoles, promoteStaff, PROMOTE_MIN,
+    makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     hypeTier, hypeBonus, addHype, sponsorOpen,
     fanTier, fanIncome, fanExpectation,

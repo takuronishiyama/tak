@@ -1141,6 +1141,7 @@ window.GP = window.GP || {};
      フリーメニュー：人事
      ======================================================= */
   let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
+  let rivalStaffMarket = null;      // よそのチームで働いている人（引き抜きの相手）
   let hrTab = 'drivers';
 
   function teamQuality() { return GP.base.scale(g).value; }
@@ -1151,6 +1152,7 @@ window.GP = window.GP || {};
     if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
+    if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
   }
 
   const youthFee = d => Math.round(600 + S.driverRating(d) * 26 + d.pot * 900);
@@ -1171,6 +1173,18 @@ window.GP = window.GP || {};
   }
 
   /* スタッフ1人の能力表示 */
+  /* 固有スキルの札。専門外へ効くものは、どの職能に乗るかも書く */
+  function traitChips(st) {
+    if (!st.traits || !st.traits.length) return '';
+    return '<span class="trchips">' + st.traits.map(k => {
+      const t = S.traitOf(k);
+      if (!t) return '';
+      const to = t.cross ? (D.STAFF_TYPES.find(x => x.key === t.cross) || {}).name : '';
+      return '<em class="trchip' + (t.cross ? ' cross' : '') + '" title="' + esc(t.desc) + '">' +
+        t.icon + ' ' + t.name + (to ? '<b>→' + to + '</b>' : '') + '</em>';
+    }).join('') + '</span>';
+  }
+
   function staffRow(st, actions, extra) {
     const t = D.STAFF_TYPES.find(x => x.key === st.type);
     const pct = Math.min(100, st.skill / 60 * 100);
@@ -1180,7 +1194,7 @@ window.GP = window.GP || {};
       '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
       '<small>' + t.name + '　<em class="srank">' + rank + '</em>' +
       '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 技能 <b>' + st.skill + '</b>' +
-      '<br>' + t.desc + (extra || '') + '</small></span>' +
+      '<br>' + t.desc + traitChips(st) + (extra || '') + '</small></span>' +
       '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
   }
 
@@ -1273,9 +1287,19 @@ window.GP = window.GP || {};
     const byType = {};
     g.staff.forEach(st => { byType[st.type] = (byType[st.type] || 0) + st.skill; });
     g.staff.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
-      body += staffRow(st, '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>');
+      const roles = S.promotableRoles(g, st);
+      const up = roles.map(r => {
+        const m = D.MANAGERS.find(x => x.key === r);
+        return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
+          m.icon + ' ' + m.name + 'へ</button>';
+      }).join('');
+      body += staffRow(st,
+        up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
+        st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
     });
     body += '</div>';
+    body += '<p class="desc">技能 ' + S.PROMOTE_MIN + ' 以上の人は、空いている首脳陣の役職に' +
+      '<b>昇進</b>させられます。技能は少し目減りしますが、効き方がチーム全体に変わります。</p>';
     body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
     D.STAFF_TYPES.forEach(t => {
       const v = byType[t.key] || 0;
@@ -1292,7 +1316,26 @@ window.GP = window.GP || {};
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
         (D.STAFF_TYPES.find(x => x.key === st.type) || {}).name + '／技能 ' + st.skill +
         '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        traitChips(st) +
         '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
+    });
+    body += '</div>';
+
+    // ---- よそのチームから引き抜く ----
+    body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
+      '<p class="desc">よそで働いている人は、市場の応募者より腕が立ちます。' +
+      'そのぶん要る金は高く、「一途」な人はなかなか動きません。' +
+      'オーナーの交渉術があると安く済みます。</p><div class="pick">';
+    rivalStaffMarket.forEach((st, i) => {
+      const fee = S.poachFee(g, st);
+      const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+      body += '<button class="pickbtn" data-k="ps:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:#8a4a3a">' + t.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
+        t.name + '／技能 ' + st.skill + '　<em class="fromteam">' + esc(st.team) + '</em>' +
+        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / 60 * 100) + '%"></i></span>' +
+        traitChips(st) +
+        '</small></span><span class="pb-cost">引き抜き<br>💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
     });
     return body + '</div>';
   }
@@ -1360,6 +1403,19 @@ window.GP = window.GP || {};
       staffMarket.splice(idx, 1);
       U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
       U.toast('👥 ' + st.name + ' が加入！', 'good');
+    } else if (kind === 'ps') {
+      const st = rivalStaffMarket[idx];
+      if (!st) return;
+      const fee = S.poachFee(g, st);
+      if (g.funds < fee) return;
+      g.funds -= fee;
+      const from = st.team;
+      delete st.team;
+      g.staff.push(st);
+      rivalStaffMarket.splice(idx, 1);
+      GP.sound.play('crit');
+      U.log(g, '🕵️ ' + from + ' から ' + st.name + '（技能 ' + st.skill + '）を引き抜いた！', 'good');
+      U.toast('🕵️ ' + st.name + ' を引き抜いた！', 'good');
     } else if (kind === 'mm') {
       const cand = mgrMarket[idx], fee = mgrFee(cand);
       if (g.funds < fee) return;
@@ -1386,6 +1442,19 @@ window.GP = window.GP || {};
         GP.sound.play('levelup');
         U.log(g, '🎉 ' + d.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
         U.toast('🎉 ' + d.name + ' が昇格！', 'good');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-promote-staff]'), b => {
+      b.onclick = () => {
+        const [id, role] = b.dataset.promoteStaff.split(':');
+        const r = S.promoteStaff(g, id, role);
+        if (!r) return;
+        const m = D.MANAGERS.find(x => x.key === role);
+        GP.sound.play('levelup');
+        U.log(g, '👔 ' + r.name + ' が ' + m.name + ' に昇進した！（技能 ' + r.skill +
+                 '／週' + money(r.salary) + '万）', 'good');
+        U.toast('👔 ' + r.name + ' が' + m.name + 'に昇進！', 'good');
         S.save(g); render(); cmdStaff();
       };
     });
@@ -1712,7 +1781,52 @@ window.GP = window.GP || {};
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
     g.drivers.forEach(d => levelCheck(d));
+    // よそのチームが、うちの誰かに声をかけてくることがある
+    const raid = S.poachAttempt(g);
+    if (raid) { askPoach(raid); return; }
     endWeek();
+  }
+
+  /* ---- 引き抜きの申し出。引き止めるか、送り出すか ---- */
+  function askPoach(raid) {
+    const t = D.STAFF_TYPES.find(x => x.key === raid.type) || {};
+    const canPay = g.funds >= raid.keep;
+    const body = '<p class="lead">' + esc(raid.from) + ' が <b>' + esc(raid.name) + '</b>' +
+      '（' + t.icon + t.name + '／技能 ' + raid.skill + '）に声をかけています。</p>' +
+      '<p class="desc">引き止めるには支度金が要り、そのあとの給料も上がります。' +
+      '送り出せば、その腕はライバルのものになります。</p>' +
+      '<div class="poachbox"><span>💰 引き止めの支度金</span><b>' + money(raid.keep) + '万</b></div>' +
+      '<div class="poachbox"><span>📈 これからの給料</span><b>+' +
+        Math.round((raid.raise - 1) * 100) + '%</b></div>' +
+      (canPay ? '' : '<p class="note">いまの資金では引き止められません。</p>');
+    let settled = false, prevClose = null;
+    const finish = fn => {
+      if (settled) return;
+      settled = true;
+      if (prevClose !== null) $('modalClose').onclick = prevClose;   // ✕を元に戻す
+      fn(); U.closeModal(); endWeek();
+    };
+    U.modal('🕵️ 引き抜きの申し出', body, [
+      { label: '引き止める', cls: 'primary', disabled: !canPay, fn: () => finish(() => {
+          g.funds -= raid.keep;
+          S.keepStaff(g, raid.id, raid.raise);
+          GP.sound.play('confirm');
+          U.log(g, '🤝 ' + raid.name + ' を引き止めた（支度金 ' + money(raid.keep) + '万）。', 'good');
+          U.toast('🤝 ' + raid.name + ' は残ってくれた', 'good');
+        }) },
+      { label: '送り出す', fn: () => finish(() => {
+          S.loseStaff(g, raid.id);
+          GP.sound.play('dnf');
+          U.log(g, '👋 ' + raid.name + ' が ' + raid.from + ' へ移籍した…', 'bad');
+          U.toast('👋 ' + raid.name + ' が去った', 'bad');
+        }) }
+    ]);
+    // ✕で閉じたときも「送り出す」と同じ扱いにする（週が飛ばないように）
+    prevClose = $('modalClose').onclick;
+    $('modalClose').onclick = () => finish(() => {
+      S.loseStaff(g, raid.id);
+      U.log(g, '👋 ' + raid.name + ' が ' + raid.from + ' へ移籍した…', 'bad');
+    });
   }
 
   /* =======================================================

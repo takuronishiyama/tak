@@ -1201,3 +1201,22 @@ body[data-skin="hd"]{
 [data-skin="hd"] .nextcar-note{background:#332a44;color:#ffe4a6}
 [data-skin="hd"] .nextcar-note b{color:#ffc96a}
 [data-skin="hd"] .nextcar-note b.up{color:#8ee08a}
+
+/* ---------- スタッフの固有スキル・引き抜き ---------- */
+.trchips{display:block;margin-top:3px}
+.trchip{display:inline-block;margin:2px 3px 0 0;padding:1px 6px;border-radius:9px;
+  border:1px solid var(--ink);background:#f2e6c6;color:#3a2413;
+  font-style:normal;font-size:10px;line-height:1.5}
+.trchip.cross{background:#d8e8f6;border-color:#2a4a6a;color:#12314d}
+.trchip b{font-weight:bold}
+.fromteam{font-style:normal;padding:1px 6px;border-radius:9px;font-size:10px;
+  background:#f0d2c8;border:1px solid #8a4a3a;color:#6a2a1c}
+.staffrow .mini.good{background:linear-gradient(#8ee08a,#4ea63f);border-color:#2e6a2e;color:#12310f}
+.poachbox{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  margin:5px 0;padding:6px 10px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper2);color:var(--ink);font-size:12px}
+.poachbox b{font-size:13px}
+[data-skin="hd"] .trchip{background:#3a3050;border-color:#6a5a86;color:#ffe4a6}
+[data-skin="hd"] .trchip.cross{background:#26364d;border-color:#4a6a90;color:#a6d8ff}
+[data-skin="hd"] .fromteam{background:#4a2a26;border-color:#8a4a3a;color:#ffc0a8}
+[data-skin="hd"] .poachbox{background:#241c30;color:#efe4cf}

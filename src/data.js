@@ -560,13 +560,49 @@ GP.data = (function () {
   };
 
   /* ---------- スタッフ ---------- */
+  /* 職能。promote は、経験を積んだときに就ける首脳陣の役職 */
   const STAFF_TYPES = [
-    { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60 },
-    { key: 'designer',   name: 'デザイナー',     icon: '🎨', desc: '設計するパーツのレアリティが上がる', salary: 62 },
-    { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: '信頼性とピット作業が上がる',   salary: 50 },
-    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピット戦略が最適化される',     salary: 65 },
-    { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増える',         salary: 55 },
-    { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45 }
+    { key: 'engineer',   name: 'エンジニア',     icon: '👷', desc: '開発の伸びが上がる',           salary: 60,
+      promote: ['technical'] },
+    { key: 'designer',   name: 'デザイナー',     icon: '🎨', desc: '設計するパーツのレアリティが上がる', salary: 62,
+      promote: ['technical'] },
+    { key: 'mechanic',   name: 'メカニック',     icon: '🔩', desc: '信頼性とピット作業が上がる',   salary: 50,
+      promote: ['pitchief'] },
+    { key: 'strategist', name: 'ストラテジスト', icon: '🧠', desc: 'ピット戦略が最適化される',     salary: 65,
+      promote: ['pitchief', 'principal'] },
+    { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増える',         salary: 55,
+      promote: ['technical', 'logistics'] },
+    { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45,
+      promote: ['principal', 'logistics'] }
+  ];
+
+  /* ---------- スタッフの固有スキル ----------
+     cross があるものは、専門外の職能にも技能の一部が乗る。
+     「肩書きは違うが、あの人はピットも見られる」を作るための仕組み。   */
+  const STAFF_TRAIT_CROSS = 0.45;      // 専門外に乗る割合
+  const STAFF_TRAITS = [
+    { key: 'xEngineer',   name: '元エンジニア',   icon: '👷', cross: 'engineer',
+      desc: '専門外だが、開発の現場も分かっている' },
+    { key: 'xMechanic',   name: '手が動く',       icon: '🔩', cross: 'mechanic',
+      desc: '自分で工具を握る。信頼性とピット作業にも効く' },
+    { key: 'xAnalyst',    name: 'データ好き',     icon: '📊', cross: 'analyst',
+      desc: '数字を追うのが趣味。研究ポイントにも効く' },
+    { key: 'xStrategist', name: '読みが鋭い',     icon: '🧠', cross: 'strategist',
+      desc: 'レースの流れが見えている。ピット戦略にも効く' },
+    { key: 'xDesigner',   name: '絵が描ける',     icon: '🎨', cross: 'designer',
+      desc: '手が速い。設計のレアリティにも効く' },
+    { key: 'xTrainer',    name: '面倒見がいい',   icon: '💪', cross: 'trainer',
+      desc: '人を伸ばすのが上手い。ドライバー育成にも効く' },
+    { key: 'mentor',      name: '指導者',         icon: '🎓',
+      desc: 'まわりのスタッフが育ちやすくなる' },
+    { key: 'loyal',       name: '一途',           icon: '🤝',
+      desc: 'よそから誘われても、めったに靡かない' },
+    { key: 'cheap',       name: '安月給',         icon: '💴',
+      desc: '腕のわりに給料が安い（-20%）' },
+    { key: 'grower',      name: '伸びしろ',       icon: '📈',
+      desc: '技能がぐんぐん伸びる' },
+    { key: 'star',        name: '名うて',         icon: '⭐',
+      desc: '名前が知られている。注目度は上がるが、給料は高く、よそからも狙われる' }
   ];
 
   /* ---------- 特別戦 ----------
@@ -644,5 +680,5 @@ GP.data = (function () {
 
   return { LOGI_BASE, LOGI_PLANS, CREW_FULL, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, POINTS, PRIZE, WEATHER };
+           SPONSOR_KINDS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, WEATHER };
 })();
