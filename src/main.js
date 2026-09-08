@@ -378,6 +378,22 @@ window.GP = window.GP || {};
       }).filter(Boolean).sort((a, b) => a.r - b.r);
       if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
     }
+    // 世代の進み具合は、手を入れるこの画面にも出しておく
+    {
+      const nxg = D.CAR_GENS[g.carGen + 1];
+      if (nxg) {
+        const gp = Math.round(S.genProgress(g) / S.GEN_STEP_AT * 100);
+        const lag = S.genLagging(g);
+        body += '<div class="genline">' +
+          '<b>🏎️ ' + D.CAR_GENS[g.carGen].name + ' → ' + nxg.name + '</b>' +
+          '<span class="skbar big"><i style="width:' + Math.min(100, gp) + '%"></i></span>' +
+          '<em>' + Math.min(100, gp) + '%</em>' +
+          '<small>' + (lag.length
+            ? '残り：' + lag.slice(0, 3).map(x => x.name + ' ' + Math.round(x.ratio * 100) + '%').join('・') +
+              '　※上限に届いたパーツを叩いても、ここは進みません'
+            : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
+      }
+    }
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
@@ -825,12 +841,21 @@ window.GP = window.GP || {};
     } else {
       const prog = Math.round(S.genProgress(g) / S.GEN_STEP_AT * 100);
       const nv = S.nextCarPreview(g);
+      const lag = S.genLagging(g);
       body += '<div class="genbox">' +
         '<b>' + cur.name + ' → ' + nx.name + '</b>' +
         '<span class="skbar big"><i style="width:' + Math.min(100, prog) + '%"></i></span>' +
         '<em>' + Math.min(100, prog) + '%</em>' +
         '<small>装着中のパーツを上限まで煮詰めると、マシンはひとりでに次の世代へ更新されます。' +
-        '買い物ではないので、資金も研究Pも要りません。<br>' +
+        '買い物ではないので、資金も研究Pも要りません。' +
+        (lag.length
+          ? '<br><b>残っているのは ' + lag.slice(0, 3).map(x => x.name + '（' +
+            Math.round(x.ratio * 100) + '%）').join('・') + '</b>。' +
+            '上限に届いたパーツをさらに叩いても、ここは進みません。'
+          : '<br><b>パーツはすべて上限に届いています。次の週で世代が上がります。</b>') +
+        (g.engine ? '<br>供給を受けているパワーユニットは、この計算に入りません' +
+                    '（自分で開発できないため）。世代が上がると供給元の最新型に載せ替わります。' : '') +
+        '<br>' +
         'パーツ上限 ' + cur.cap + ' → ' + nx.cap +
         '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
         '（各項目 <b>' + nv.withStock + '</b> から再スタート' +

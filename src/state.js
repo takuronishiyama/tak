@@ -230,10 +230,22 @@ GP.state = (function () {
   /* いまの世代でどれだけ煮詰まっているか（0..1）。
      ここが満ちると、マシンは次の世代へ自動的に進む            */
   function genProgress(g2) {
-    const parts = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean);
+    // 供給を受けているパワーユニットは自分では開発できない。
+    // これを勘定に入れていたため、世代が上がって上限だけが伸びると
+    // 進み具合が永久に閾値へ届かず、バーが途中で止まってしまっていた
+    const parts = D.PART_CATS.map(c => g2.equipped[c.key])
+      .filter(p => p && !p.supplied);
     if (!parts.length) return 0;
     const avg = parts.reduce((a, p) => a + Math.min(1, p.power / partCap(g2, p)), 0) / parts.length;
     return clamp(avg, 0, 1);
+  }
+  /* 世代を進めるのに、あとどのパーツが足りていないか（画面で言うために使う） */
+  function genLagging(g2) {
+    return D.PART_CATS.map(c => {
+      const p = g2.equipped[c.key];
+      if (!p || p.supplied) return null;
+      return { key: c.key, name: c.name, ratio: Math.min(1, p.power / partCap(g2, p)) };
+    }).filter(x => x && x.ratio < 1).sort((a, b) => a.ratio - b.ratio);
   }
   const GEN_STEP_AT = 0.86;          // ここまで煮詰まったら次の世代へ
   /* パーツを煮詰めきると、マシンそのものが新しい世代に更新される。
@@ -253,6 +265,17 @@ GP.state = (function () {
       const p = g2.equipped[c.key];
       if (p) p.cond = clamp(p.cond + 15, 10, 100);
     });
+    // 供給を受けているパワーユニットは、供給元の最新型に載せ替わる。
+    // 契約した年の性能のまま取り残されると、買った意味がなくなってしまう
+    const spu = g2.equipped.pu;
+    if (g2.engine && spu && spu.supplied) {
+      const ratio = g2.engine.ratio != null ? g2.engine.ratio
+                  : (g2.engine.power || spu.power) / Math.max(1, from.cap);
+      g2.engine.ratio = ratio;
+      spu.power = Math.round(to.cap * ratio * 10) / 10;
+      g2.engine.power = spu.power;
+      spu.gen = g2.carGen;
+    }
     return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2) };
   }
 
@@ -1573,7 +1596,7 @@ GP.state = (function () {
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,

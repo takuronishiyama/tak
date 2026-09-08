@@ -1404,6 +1404,15 @@ body[data-skin="hd"]{
 [data-skin="hd"] .pubox{background:#241c30;color:#efe4cf}
 [data-skin="hd"] .pubox small{color:#cbbb9a}
 [data-skin="hd"] .pubox small b.warn{color:#ff9a8a}
+/* 開発画面に出す、世代の進み具合 */
+.genline{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
+         background:#fff8e3;color:var(--ink)}
+.genline b{font-size:12px;margin-right:8px}
+.genline em{font-style:normal;font-weight:bold;font-size:11px;margin-left:7px}
+.genline small{display:block;margin-top:4px;font-size:10px;line-height:1.6;color:var(--ink2)}
+[data-skin="hd"] .genline{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .genline small{color:#cbbb9a}
+
 /* 開発：1回で何がどれだけ動くか */
 .skbar u{position:absolute;top:-2px;width:2px;height:calc(100% + 4px);
          background:#b02a20;opacity:.7;text-decoration:none}
@@ -3417,10 +3426,22 @@ GP.state = (function () {
   /* いまの世代でどれだけ煮詰まっているか（0..1）。
      ここが満ちると、マシンは次の世代へ自動的に進む            */
   function genProgress(g2) {
-    const parts = D.PART_CATS.map(c => g2.equipped[c.key]).filter(Boolean);
+    // 供給を受けているパワーユニットは自分では開発できない。
+    // これを勘定に入れていたため、世代が上がって上限だけが伸びると
+    // 進み具合が永久に閾値へ届かず、バーが途中で止まってしまっていた
+    const parts = D.PART_CATS.map(c => g2.equipped[c.key])
+      .filter(p => p && !p.supplied);
     if (!parts.length) return 0;
     const avg = parts.reduce((a, p) => a + Math.min(1, p.power / partCap(g2, p)), 0) / parts.length;
     return clamp(avg, 0, 1);
+  }
+  /* 世代を進めるのに、あとどのパーツが足りていないか（画面で言うために使う） */
+  function genLagging(g2) {
+    return D.PART_CATS.map(c => {
+      const p = g2.equipped[c.key];
+      if (!p || p.supplied) return null;
+      return { key: c.key, name: c.name, ratio: Math.min(1, p.power / partCap(g2, p)) };
+    }).filter(x => x && x.ratio < 1).sort((a, b) => a.ratio - b.ratio);
   }
   const GEN_STEP_AT = 0.86;          // ここまで煮詰まったら次の世代へ
   /* パーツを煮詰めきると、マシンそのものが新しい世代に更新される。
@@ -3440,6 +3461,17 @@ GP.state = (function () {
       const p = g2.equipped[c.key];
       if (p) p.cond = clamp(p.cond + 15, 10, 100);
     });
+    // 供給を受けているパワーユニットは、供給元の最新型に載せ替わる。
+    // 契約した年の性能のまま取り残されると、買った意味がなくなってしまう
+    const spu = g2.equipped.pu;
+    if (g2.engine && spu && spu.supplied) {
+      const ratio = g2.engine.ratio != null ? g2.engine.ratio
+                  : (g2.engine.power || spu.power) / Math.max(1, from.cap);
+      g2.engine.ratio = ratio;
+      spu.power = Math.round(to.cap * ratio * 10) / 10;
+      g2.engine.power = spu.power;
+      spu.gen = g2.carGen;
+    }
     return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2) };
   }
 
@@ -4760,7 +4792,7 @@ GP.state = (function () {
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
+    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, tireCrew, restCrew,
     makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
@@ -10988,6 +11020,22 @@ window.GP = window.GP || {};
       }).filter(Boolean).sort((a, b) => a.r - b.r);
       if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
     }
+    // 世代の進み具合は、手を入れるこの画面にも出しておく
+    {
+      const nxg = D.CAR_GENS[g.carGen + 1];
+      if (nxg) {
+        const gp = Math.round(S.genProgress(g) / S.GEN_STEP_AT * 100);
+        const lag = S.genLagging(g);
+        body += '<div class="genline">' +
+          '<b>🏎️ ' + D.CAR_GENS[g.carGen].name + ' → ' + nxg.name + '</b>' +
+          '<span class="skbar big"><i style="width:' + Math.min(100, gp) + '%"></i></span>' +
+          '<em>' + Math.min(100, gp) + '%</em>' +
+          '<small>' + (lag.length
+            ? '残り：' + lag.slice(0, 3).map(x => x.name + ' ' + Math.round(x.ratio * 100) + '%').join('・') +
+              '　※上限に届いたパーツを叩いても、ここは進みません'
+            : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
+      }
+    }
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
@@ -11435,12 +11483,21 @@ window.GP = window.GP || {};
     } else {
       const prog = Math.round(S.genProgress(g) / S.GEN_STEP_AT * 100);
       const nv = S.nextCarPreview(g);
+      const lag = S.genLagging(g);
       body += '<div class="genbox">' +
         '<b>' + cur.name + ' → ' + nx.name + '</b>' +
         '<span class="skbar big"><i style="width:' + Math.min(100, prog) + '%"></i></span>' +
         '<em>' + Math.min(100, prog) + '%</em>' +
         '<small>装着中のパーツを上限まで煮詰めると、マシンはひとりでに次の世代へ更新されます。' +
-        '買い物ではないので、資金も研究Pも要りません。<br>' +
+        '買い物ではないので、資金も研究Pも要りません。' +
+        (lag.length
+          ? '<br><b>残っているのは ' + lag.slice(0, 3).map(x => x.name + '（' +
+            Math.round(x.ratio * 100) + '%）').join('・') + '</b>。' +
+            '上限に届いたパーツをさらに叩いても、ここは進みません。'
+          : '<br><b>パーツはすべて上限に届いています。次の週で世代が上がります。</b>') +
+        (g.engine ? '<br>供給を受けているパワーユニットは、この計算に入りません' +
+                    '（自分で開発できないため）。世代が上がると供給元の最新型に載せ替わります。' : '') +
+        '<br>' +
         'パーツ上限 ' + cur.cap + ' → ' + nx.cap +
         '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
         '（各項目 <b>' + nv.withStock + '</b> から再スタート' +
