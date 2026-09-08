@@ -17,7 +17,15 @@ GP.race = (function () {
   /* ---------- エントリーリスト作成 ---------- */
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
+    // 週ごとの調子。金曜のセットアップがはまったかどうかで、チームごとに少し上下する。
+    // そして毎レース、どこか1チームが「当たり週」を引いて前に出てくる
+    const form = teams.map(t => t.isPlayer ? 1 : 1 + S.rnd(-0.014, 0.014));
+    const ri = [];
+    teams.forEach((t, i) => { if (!t.isPlayer) ri.push(i); });
+    let hot = -1;
+    if (ri.length) { hot = ri[S.rint(0, ri.length - 1)]; form[hot] += 0.052; }
     const list = [];
+    list.hotTeam = hot >= 0 ? teams[hot].name : '';
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track);
@@ -26,7 +34,7 @@ GP.race = (function () {
         let drv = S.driverRating(d);
         // スキルによる補正
         if (sk('rain') && (weather.key === 'rain' || weather.key === 'storm')) drv *= 1.18;
-        const perf = t.car * 0.60 + drv * 0.40;
+        const perf = (t.car * 0.60 + drv * 0.40) * form[ti];
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
         list.push({
@@ -37,7 +45,7 @@ GP.race = (function () {
           // このマシンがコース上でどう速度を出すか。区間タイムの配分もここから来る
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
-          perf: perf, strat: strat, st: st, sk: sk,
+          perf: perf, strat: strat, st: st, sk: sk, hot: ti === hot,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
           style: t.style || 'balanced',
@@ -105,16 +113,23 @@ GP.race = (function () {
   /* ---------- 決勝シミュレーション ---------- */
   function simulate(g, trackIndex, strategy, special) {
     const track = D.TRACKS[trackIndex];
-    const weather = special && special.force
+    // 途中で書き換えるので、天気表そのものではなく複製を持つ
+    const weather = Object.assign({}, special && special.force
       ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
-      : rollWeather(track);
+      : rollWeather(track));
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
+    let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
     const bestSectorBy = [null, null, null];
+    const scInfo = { from: 0, laps: 0 };
+    // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
+    let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
+    let wxTo = null, wxAt = 0;
+    const wxInfo = { at: 0, from: weather.name, to: '', icon: '' };
     // 追い抜きやすさ：最長ストレートの長さ（実際の形状）と、コースの速度特性から決める
     const geo = GP.geom.analyze(track);
     const passEase = 0.25 + geo.longestShare * 1.1 + track.weight.speed * 0.5;
@@ -212,25 +227,56 @@ GP.race = (function () {
     let order = grid.slice();
     const posHistory = [];
 
+    // 途中で天気が変わるかどうかを先に決めておく（実況では出さない）
+    if (!special && laps >= 12 && Math.random() < 0.30) {
+      wxTo = weather.wetTyres
+        ? D.WEATHER[Math.random() < 0.55 ? 1 : 0]                    // 雨が上がる
+        : D.WEATHER[Math.random() < 0.30 ? 3 : 2];                   // 降り出す
+      wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
+    }
+
     for (let lap = 1; lap <= laps; lap++) {
+      // 天候の急変。全車があわててタイヤを替えに来る
+      if (wxTo && lap === wxAt) {
+        wx = { key: wxTo.key, grip: wxTo.grip, chaos: wxTo.chaos,
+               wet: wxTo.key === 'rain' || wxTo.key === 'storm' };
+        wxInfo.at = lap; wxInfo.to = wxTo.name; wxInfo.icon = wxTo.icon;
+        events.push({ lap, type: 'weather',
+          text: wxTo.icon + ' 天候が変わった！ ' + weather.name + ' → ' + wxTo.name
+              + '（' + (wx.wet ? 'ウェットタイヤへ' : 'ドライタイヤへ') + '）' });
+        order.forEach(e => {
+          if (e.dnf || lap >= laps - 1) return;
+          // 読みの速いチームほど早く動ける
+          const delay = S.clamp(Math.round(3.4 - e.react * 2.8 + S.rnd(-0.5, 1.4)), 1, 6);
+          const at = Math.min(laps - 1, lap + delay);
+          e.pitPlan = e.pitPlan.filter(p => p > at + 3);
+          e.pitPlan.push(at);
+          e.pitPlan.sort((a, b) => a - b);
+        });
+        wxTo = null;
+      }
       order.forEach(e => {
         if (e.dnf) return;
 
         // 基準ラップタイム
         let t = track.base * (1 + (refPerf - e.perf) * 0.00092);
         t *= (1 - e.st.pace);
-        t /= weather.grip;
+        t /= wx.grip;
 
         // タイヤの銘柄によるペース差
         const ty = tyreOf(e.tyreKey);
         t *= ty.pace;
+
+        // 路面と銘柄が噛み合っていないと、とたんに走れなくなる
+        if (wx.wet && !ty.wet) t *= (wx.key === 'storm' ? 1.175 : 1.105);
+        else if (!wx.wet && ty.wet) t *= (ty.key === 'wet' ? 1.135 : 1.055);
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
         t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
         if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
-        e.lapTyre[lap - 1] = { key: e.tyreKey, age: e.tyreAge, life: ty.life };
+        e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
         if (lap > laps * 0.6 && !e.sk('stamina')) {
@@ -250,21 +296,35 @@ GP.race = (function () {
 
         // ランダム（精密機械はブレが小さい）
         const jitter = e.sk('precise') ? 0.45 : 1;
-        t += track.base * S.rnd(-0.0035, 0.0045) * jitter * weather.chaos * (1 - e.driver.mental / 400);
+        t += track.base * S.rnd(-0.0035, 0.0045) * jitter * wx.chaos * (1 - e.driver.mental / 400);
 
         // スタート（1周目）
         if (lap === 1) t += e.grid * 0.42 - e.startBoost + track.base * 0.10;
 
+        // セーフティカー中は全車そろって流す。差はほとんど開かない
+        const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        if (underSC) {
+          t = track.base * 1.34 + S.rnd(-0.15, 0.15);
+          e.tyreAge = Math.max(0, e.tyreAge - 0.35);      // 流している間はタイヤも保つ
+        }
+
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
-          const loss = e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0);
+          // セーフティカー中は隊列が遅いので、失う時間が小さい
+          const scCheap = underSC ? 0.42 : 1;
+          const loss = (e.pitLoss + S.rnd(-0.8, 2.2) + (Math.random() < 0.035 ? S.rnd(3, 9) : 0)) * scCheap;
           t += loss;
           pitAdd = loss;
           e.tyreAge = 0;
           e.pits.push(lap);
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
           e.tyreKey = e.stints[e.stintIdx].key;
+          // 路面が変わっていたら、履くタイヤもそれに合わせる
+          if (wx.wet !== tyreOf(e.tyreKey).wet) {
+            e.tyreKey = wx.wet ? (wx.key === 'storm' ? 'wet' : 'inter')
+                               : pickTyre(laps - lap, { key: 'sunny' }, null, e.tyreBias);
+          }
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             events.push({ lap, type: 'pit', car: e,
@@ -300,7 +360,8 @@ GP.race = (function () {
         // ---- 追い抜きの攻防 ----
         // 0.8秒以内まで詰めたら仕掛ける。コースの性格で、
         // 「ストレートで刺す」か「コーナーで飛び込む」かが変わる。
-        if (gap > 0 && gap < 0.55) {
+        const scNow = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        if (!scNow && gap > 0 && gap < 0.55) {
           const atk = running[i], def = running[i - 1];
           // ストレートが長いコースほど、直線勝負になりやすい
           const onStraight = Math.random() < Math.min(0.88, 0.15 + passEase * 0.85);
@@ -376,7 +437,7 @@ GP.race = (function () {
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
         const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
-        const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * weather.chaos * e.st.risk
+        const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * wx.chaos * e.st.risk
                       * (e.sk('heart') ? 0.40 : 1);
         const r = Math.random();
         if (r < mech) {
@@ -385,8 +446,48 @@ GP.race = (function () {
         } else if (r < mech + crash) {
           e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['クラッシュ', 'コースアウト', '接触']);
           events.push({ lap, type: 'dnf', car: e, text: e.driver.name + ' が' + e.dnfReason + '！ ここでレースを終える…' });
+          // マシンがコース上に止まると、セーフティカーが入ることがある
+          if (scLaps <= 0 && lap < laps - 2 && e.dnfReason !== 'コースアウト' &&
+              Math.random() < 0.62 + track.risk * 0.18) {
+            scPending = true;
+          }
         }
       });
+
+      // ---- セーフティカー ----
+      // 隊列が詰まるので、大きなリードも一度リセットされる。
+      // ここで入るか引っ張るかが、レースの分かれ目になる。
+      if (scPending && !scDone) {
+        scPending = false; scDone = true;
+        scLaps = S.rint(3, 5);
+        scFrom = lap + 1;
+        scInfo.from = scFrom; scInfo.laps = scLaps;
+        const run = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+        const lead = run.length ? run[0].cum[lap - 1] : 0;
+        run.forEach((e, i) => {
+          // 先頭のすぐ後ろに一列に並び直す
+          e.cum[lap - 1] = lead + i * S.rnd(0.55, 0.95);
+          e.scBunched = true;
+        });
+        events.push({ lap: lap, type: 'sc',
+          text: '🚨 セーフティカー！ 隊列が一列に詰まる（' + scLaps + '周）' });
+        // セーフティカー中はピットの損失が小さい。作戦が動く
+        run.forEach(e => {
+          const next = e.pitPlan.find(l => l > lap);
+          if (next == null) return;
+          // 予定が遠くても、安いピットなら前倒しする価値がある
+          const worth = (next - lap) <= Math.round(laps * 0.45);
+          if (worth && Math.random() < 0.55 + (e.react || 0.4) * 0.4) {
+            e.pitPlan[e.pitPlan.indexOf(next)] = lap + 1;
+            e.pitPlan.sort((a, b) => a - b);
+            e.scPit = true;
+            if (e.isPlayer) {
+              events.push({ lap: lap + 1, type: 'pit', car: e,
+                text: e.driver.name + ' セーフティカー中にピットへ！ ロスが小さい' });
+            }
+          }
+        });
+      }
 
       // 順位変動の記録
       const newOrder = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
@@ -416,6 +517,9 @@ GP.race = (function () {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
       events, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
+      safetyCar: scInfo.laps ? scInfo : null,
+      hotTeam: entries.hotTeam || '',
+      weatherChange: wxInfo.at ? wxInfo : null,
       totalTime: laps * track.base * 1.05
     };
   }

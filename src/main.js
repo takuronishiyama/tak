@@ -1590,6 +1590,13 @@ window.GP = window.GP || {};
       let body = '<div class="racehead"><b>' +
         (res.special ? res.special.icon + ' ' + esc(res.special.name) : '第' + (res.trackIndex + 1) + '戦') +
         ' ' + esc(res.track.name) + '</b><span>' + res.weather.icon + ' ' + res.weather.name + '</span></div>';
+      // このレースを荒らしたできごと
+      const topics = [];
+      if (res.safetyCar) topics.push('🚨 セーフティカー（' + res.safetyCar.from + '周目から' + res.safetyCar.laps + '周）');
+      if (res.weatherChange) topics.push(res.weatherChange.icon + ' ' + res.weatherChange.at + '周目に'
+        + res.weatherChange.from + '→' + res.weatherChange.to);
+      if (res.hotTeam) topics.push('🔥 ' + esc(res.hotTeam) + ' が絶好調');
+      if (topics.length) body += '<div class="racetopics">' + topics.join('<span>／</span>') + '</div>';
       body += '<div class="gridlist">';
       res.classified.slice(0, 22).forEach(e => {
         body += '<div class="gridrow' + (e.isPlayer ? ' me' : '') + (e.dnf ? ' dnf' : '') + '">' +

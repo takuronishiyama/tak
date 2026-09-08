@@ -624,6 +624,23 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-pass{color:#8ef08e}
 .rv-ev.rv-dnf{color:#ff9a8a}
 .rv-ev.rv-pit{color:#8ecfff}
+.rv-ev.rv-sc{color:#ffd23a;font-weight:bold}
+.rv-ev.rv-weather{color:#7fe4ff;font-weight:bold}
+
+/* レース中の急変を、画面いっぱいの帯で知らせる */
+.rv-flash{position:absolute;left:0;right:0;top:15%;padding:10px 8px;text-align:center;
+  font-size:15px;font-weight:bold;letter-spacing:1px;color:#2a1c08;
+  background:linear-gradient(#ffe07a,#f0b419);border-top:3px solid #7a4a10;border-bottom:3px solid #7a4a10;
+  text-shadow:0 1px 0 rgba(255,255,255,.5);opacity:0;pointer-events:none;transform:scaleY(.4);
+  transition:opacity .18s ease,transform .18s ease;z-index:6}
+.rv-flash.show{opacity:1;transform:scaleY(1)}
+.rv-flash.wet{background:linear-gradient(#9fe6ff,#3aa7dd);border-color:#0d3d5c;color:#06263a}
+/* セーフティカー中に出しっぱなしにする表示 */
+.rv-badge{position:absolute;left:8px;top:8px;padding:3px 9px;border-radius:4px;
+  font-size:11px;font-weight:bold;color:#2a1c08;background:#ffd23a;border:2px solid #7a4a10;
+  display:none;z-index:6;animation:rvBadge 1s steps(2) infinite}
+.rv-badge.show{display:block}
+@keyframes rvBadge{0%,100%{background:#ffd23a}50%{background:#fff3c0}}
 .rv-ctrl{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ---------- エラー表示 ---------- */
@@ -1142,3 +1159,9 @@ body[data-skin="hd"]{
          border-radius:7px;padding:4px;animation:sppop .3s cubic-bezier(.3,1.5,.6,1)}
 [data-skin="hd"] .dv-gain{color:#6ee06a}
 [data-skin="hd"] .dv-crit{color:#3a2a10}
+
+/* レース結果の「今日のできごと」 */
+.racetopics{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin:0 0 8px;
+  padding:6px 9px;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper2);font-size:11px;color:var(--ink)}
+.racetopics span{opacity:.5}

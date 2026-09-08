@@ -11,6 +11,7 @@ GP.raceview = (function () {
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
+  let wetNow = false;        // いま雨が降っているか（途中で変わる）
 
   /* ---------- コース形状（geom.js と共有）---------- */
   function buildPoly(path, w, h, pad) { return GP.geom.buildPoly(path, w, h, pad); }
@@ -770,7 +771,7 @@ GP.raceview = (function () {
   /* ---------- 毎フレームの描画 ---------- */
   function draw(t) {
     const w = cv.width, h = cv.height;
-    const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
+    const wet = wetNow;
     const night = !!(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'] || {}).night;
 
     updateCam(t);
@@ -1197,6 +1198,14 @@ GP.raceview = (function () {
     const leader = ord[0];
     const lap = Math.min(res.laps, Math.floor(leader.p) + 1);
     document.getElementById('rvLap').textContent = 'LAP ' + lap + ' / ' + res.laps;
+    // セーフティカーが出ている間は、ずっと分かるようにしておく
+    const badge = document.getElementById('rvBadge');
+    if (badge) {
+      const sc = res.safetyCar;
+      const on = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
+      badge.textContent = '🚨 SAFETY CAR';
+      badge.className = 'rv-badge' + (on ? ' show' : '');
+    }
 
     const box = document.getElementById('rvOrder');
     let html = '';
@@ -1227,6 +1236,18 @@ GP.raceview = (function () {
     flushEvents(false);
   }
 
+  /* レース中の急変を、画面いっぱいの帯で数秒だけ知らせる */
+  let flashTimer = 0;
+  function flash(text, wet) {
+    const el = document.getElementById('rvFlash');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'rv-flash show' + (wet ? ' wet' : '');
+    wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { el.className = 'rv-flash' + (wet ? ' wet' : ''); }, 2600);
+  }
+
   function flushEvents(all) {
     const lapNow = vt / (res.track.base) + 1;
     const log = document.getElementById('rvLog');
@@ -1237,6 +1258,16 @@ GP.raceview = (function () {
         if (ev.type === 'pass') GP.sound.play('pass', 140);
         else if (ev.type === 'pit') GP.sound.play('pit', 140);
         else if (ev.type === 'dnf') GP.sound.play('dnf', 300);
+        else if (ev.type === 'sc') { GP.sound.play('dnf', 260); flash('🚨 SAFETY CAR', false); }
+        else if (ev.type === 'weather') {
+          GP.sound.play('pit', 240);
+          const wet = res.weatherChange && (res.weatherChange.to === '雨' || res.weatherChange.to === '大雨');
+          wetNow = !!wet;
+          flash((res.weatherChange ? res.weatherChange.icon + ' ' : '') + '天候が変わった！ '
+                + (res.weatherChange ? res.weatherChange.to : ''), wet);
+          const wl = document.getElementById('rvWeather');
+          if (wl && res.weatherChange) wl.textContent = res.weatherChange.icon + ' ' + res.weatherChange.to;
+        }
       }
       const div = document.createElement('div');
       div.className = 'rv-ev rv-' + ev.type;
@@ -1369,6 +1400,9 @@ GP.raceview = (function () {
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
     vt = 0; shownEvents = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    clearTimeout(flashTimer);
+    const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
+    const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
     document.getElementById('rvLog').innerHTML = '';
     raf = requestAnimationFrame(tick);
   }

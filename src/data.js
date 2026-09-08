@@ -304,8 +304,8 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルはシーズン中もあまりマシンを煮詰めてこないので、追い抜きやすい。',
-      rivalPower: 0.88, rivalGrow: 0.60, funds: 1.45, prize: 1.15, sponsor: 1.15,
+            'ライバルの土台が弱く、賞金もスポンサー料も多めに入ります。',
+      rivalPower: 0.84, rivalGrow: 1.05, funds: 1.45, prize: 1.15, sponsor: 1.15,
       ticket: 3, oilSponsor: true
     },
     {
@@ -321,7 +321,7 @@ GP.data = (function () {
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
             '手を止めるとすぐ置いていかれ、資金も賞金も渋い。',
-      rivalPower: 1.12, rivalGrow: 1.50, funds: 0.82, prize: 0.88, sponsor: 0.88,
+      rivalPower: 1.05, rivalGrow: 1.15, funds: 0.82, prize: 0.88, sponsor: 0.88,
       ticket: 5, oilSponsor: false
     }
   ];
