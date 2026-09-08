@@ -7,6 +7,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
+  let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
 
@@ -115,8 +116,37 @@ GP.raceview = (function () {
     g.setLineDash([]);
   }
 
+  /* 彩度と明度をいじる（HD-2Dは地面を深く沈めて、光った所を際立たせる） */
+  function grade(hex, satMul, valMul) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16 & 255) / 255, g2 = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g2, b), mn = Math.min(r, g2, b), l = (mx + mn) / 2;
+    r = l + (r - l) * satMul; g2 = l + (g2 - l) * satMul; b = l + (b - l) * satMul;
+    const cl = v => Math.max(0, Math.min(255, Math.round(v * valMul * 255)));
+    return '#' + ((1 << 24) + (cl(r) << 16) + (cl(g2) << 8) + cl(b)).toString(16).slice(1);
+  }
+
+  /* レース画面用に色を作り直す。メニュー側のテーマ色はそのまま使う */
+  function hdTheme(base) {
+    return {
+      sky:  grade(base.sky,  1.35, base.night ? 0.92 : 0.80),
+      dot:  grade(base.dot,  1.45, base.night ? 0.86 : 0.72),
+      edge: grade(base.edge, 1.9,  0.80),      // 白いランオフは光りすぎるので暖色に落とす
+      road: grade(base.road, 1.25, 0.68),      // 路面を深く沈めて明暗差を作る
+      night: base.night
+    };
+  }
+
+  /* 世界座標へ移すカメラ変換。描画と発光レイヤーで同じものを使う */
+  function camTransform(g) {
+    g.translate(cv.width / 2, cv.height / 2);
+    g.scale(cam.z, cam.z);
+    g.translate(-cam.x, -cam.y);
+  }
+
   function buildTrackArt() {
-    const th = GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'];
+    emissive = [];
+    const th = hdTheme(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass']);
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
     const c = document.createElement('canvas');
     c.width = cv.width; c.height = cv.height;
@@ -128,8 +158,40 @@ GP.raceview = (function () {
     g.fillStyle = wet && !th.night ? shade(th.dot, -0.22) : th.dot;
     for (let y = 0; y < c.height; y += 8) for (let x = (y % 16 ? 0 : 4); x < c.width; x += 16) g.fillRect(x, y, 4, 4);
 
-    // コースの外に景色を置く
-    drawScenery(g, GP.data.TRACK_THEME[res.track.name] || 'grass', c.width, c.height);
+    // コースの外に景色を置く。
+    // 影を実際のシルエットから作りたいので、いったん別レイヤーに描く。
+    const pl = document.createElement('canvas');
+    pl.width = c.width; pl.height = c.height;
+    const pg = pl.getContext('2d');
+    pg.imageSmoothingEnabled = false;
+    drawScenery(pg, GP.data.TRACK_THEME[res.track.name] || 'grass', c.width, c.height);
+
+    // 落ち影：同じ絵を真っ黒にして、光の向きへ少しずつずらして重ねる。
+    // 一枚ずつは薄いが、重なって奥に伸びる影になる（HD-2Dらしさの要）。
+    if (GP.fx.supportsBlur()) {
+      const sil = document.createElement('canvas');
+      sil.width = c.width; sil.height = c.height;
+      const sg = sil.getContext('2d');
+      sg.filter = 'brightness(0)';
+      sg.drawImage(pl, 0, 0);
+      sg.filter = 'none';
+      g.save();
+      g.globalAlpha = 0.10;
+      for (let k = 1; k <= 6; k++) g.drawImage(sil, k * 2.4, k * 1.5);
+      g.restore();
+      // 景色そのものは彩度を上げ、明度を落として地面になじませる
+      g.save();
+      g.filter = 'saturate(1.3) brightness(0.86)';
+      g.drawImage(pl, 0, 0);
+      g.filter = 'none';
+      g.restore();
+    } else {
+      g.save();
+      g.globalAlpha = 0.16;
+      for (let k = 1; k <= 4; k++) { g.globalAlpha = 0.055; g.drawImage(pl, k * 2.4, k * 1.5); }
+      g.restore();
+      g.drawImage(pl, 0, 0);
+    }
 
     // ランオフ／コース
     strokeOn(g, 30, th.edge);
@@ -294,6 +356,22 @@ GP.raceview = (function () {
         g.restore();
       }
     }
+    // 夜のコースには照明を立てる。路面を照らす円と、光源そのもの
+    if (GP.data.THEMES[theme].night) {
+      for (let i = 0; i < poly.n; i += 26) {
+        const nm = normalAt(i);
+        const lx = nm.x + nm.nx * 20, ly = nm.y + nm.ny * 20;
+        if (lx < 6 || ly < 6 || lx > W - 6 || ly > H - 6) continue;
+        const pool = g.createRadialGradient(lx, ly, 1, lx, ly, 34);
+        pool.addColorStop(0, 'rgba(255,236,190,.30)');
+        pool.addColorStop(1, 'rgba(255,236,190,0)');
+        g.fillStyle = pool; g.beginPath(); g.arc(lx, ly, 34, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#3a3f52'; g.fillRect(lx - 1, ly - 9, 2, 9);
+        g.fillStyle = '#fff2c8'; g.fillRect(lx - 2, ly - 12, 5, 3);
+        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff2c8' });
+      }
+    }
+
     // 木・建物・岩など
     for (let i = 0; i < poly.n; i += 11) {
       for (const side of [1, -1]) {
@@ -327,6 +405,9 @@ GP.raceview = (function () {
       g.fillStyle = nc;
       g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
       g.fillRect(x - w / 2 + 2, y - h + 9, Math.max(3, w - 8), 3);
+      // 看板は光源として登録し、あとでにじませる
+      emissive.push({ x: x - w / 2 + 2, y: y - h + 3, w: w - 4, h: 3, c: nc });
+      emissive.push({ x: x - w / 2 + 2, y: y - h + 9, w: Math.max(3, w - 8), h: 3, c: nc });
       g.fillStyle = 'rgba(255,255,255,.25)';
       for (let b = 16; b < h - 3; b += 6) g.fillRect(x - w / 2 + 3, y - h + b, w - 6, 2);
     } else if (theme === 'desert') {
@@ -451,8 +532,15 @@ GP.raceview = (function () {
   function draw(t) {
     const w = cv.width, h = cv.height;
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
+    const night = !!(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'] || {}).night;
 
     updateCam(t);
+
+    // 世界はいったん裏画面に描き、あとから光と色を乗せて画面に出す
+    const out = ctx;
+    const buf = GP.fx.begin();
+    if (buf) ctx = buf;
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.save();
@@ -510,10 +598,60 @@ GP.raceview = (function () {
         continue;
       }
       const pt2 = placeInLap(e, o.p);
-      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
+      const vel = pt2.v == null ? 1 : pt2.v;
+      emit(e, pt2, vel, o.out, wet);
+      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel);
     }
+    GP.fx.drawParticles(ctx);
     ctx.restore();
+
+    // 光・被写界深度・色調をまとめて乗せる
+    ctx = out;
+    if (buf) {
+      // ネオンや照明は、明るさだけでは足りないので光源として別に足す
+      if (emissive.length) {
+        GP.fx.addLight(function (lg) {
+          lg.save();
+          camTransform(lg);
+          for (let i = 0; i < emissive.length; i++) {
+            const em = emissive[i];
+            lg.fillStyle = em.c;
+            lg.fillRect(em.x, em.y, em.w, em.h);
+          }
+          lg.restore();
+        });
+      }
+      // カメラが寄っているときほど、周りをぼかしてジオラマらしく見せる
+      const dof = Math.max(0, Math.min(1, (cam.z - 1) / 1.5));
+      GP.fx.composite(out, {
+        focus: { x: w / 2, y: h / 2 },
+        focusR: w * (0.46 - dof * 0.14),
+        dof: dof,
+        bloom: night ? 1.15 : (wet ? 0.85 : 0.72),
+        warm: night ? 1.1 : 0.85,
+        vignette: 0.9,
+        night: night
+      });
+    }
     drawOverlay(t);
+  }
+
+  /* ---------- 走行にともなう粒子 ----------
+     火花はコーナー立ち上がりの底打ち、砂ぼこりはコースアウト、
+     水しぶきは雨のときの後輪から。走っている車だけが出す。        */
+  function emit(e, pt, vel, out, wet) {
+    if (out) {
+      if (Math.random() < 0.35) GP.fx.spawn(pt.x, pt.y, 'dust', Math.random() * 6.283, 0.6);
+      return;
+    }
+    const back = pt.ang + Math.PI;
+    if (wet && Math.random() < 0.5) {
+      GP.fx.spawn(pt.x - Math.cos(pt.ang) * 7, pt.y - Math.sin(pt.ang) * 7, 'spray', back, 0.5 + vel);
+    }
+    // 速度が乗った状態＝路面を強く押しつけている所で火花が散る
+    if (vel > 0.88 && Math.random() < 0.16) {
+      GP.fx.spawn(pt.x - Math.cos(pt.ang) * 8, pt.y - Math.sin(pt.ang) * 8, 'spark', back, 1);
+    }
   }
 
   /* ---------- 画面に重ねる情報 ---------- */
@@ -612,6 +750,7 @@ GP.raceview = (function () {
     if (!running) return;
     const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
     lastTs = ts;
+    GP.fx.stepParticles(dt);
     if (lights < 1) {
       lights = Math.min(1, lights + dt / 2.4);
       draw(0); drawLights(lights); updateHud();
@@ -809,6 +948,7 @@ GP.raceview = (function () {
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
+    GP.fx.init(cv.width, cv.height);
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));

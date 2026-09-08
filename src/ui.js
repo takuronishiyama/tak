@@ -341,7 +341,7 @@ GP.ui = (function () {
     // セクターごとに色分けし、どこで速さが要るのか一目で分かるようにする
     let secPaths = '';
     (geo.sectors || []).forEach((sc, i) => {
-      secPaths += '<path d="' + seg(sc.from, sc.to) + '" fill="none" stroke="' + SECTOR_COLORS[i] +
+      secPaths += '<path class="sec" d="' + seg(sc.from, sc.to) + '" fill="none" stroke="' + SECTOR_COLORS[i] +
         '" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>';
     });
     // 名物コーナーの位置

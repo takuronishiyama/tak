@@ -26,6 +26,16 @@
   --board2:#b8955a;
   --red:#e04a3f; --blue:#3a7ad9; --green:#4ea63f;
   --yellow:#ffc93c; --purple:#b06fd0; --sky:#7ecbf0;
+
+  --paper3:#fffdf3;       /* パネルの中の、さらに明るい面 */
+  --trough:#e9dcbc;       /* ゲージの下地 */
+  --hilite:#fff;          /* 枠の内側に入れる光の線 */
+  --outline:#fff;         /* 見出し文字の縁取り */
+  --headbg:linear-gradient(var(--ink2),#65482c);
+  --headbg2:var(--ink);
+  --headfg:#ffeec4;
+  --glow:transparent;     /* HD-2Dスキンでだけ光る */
+  --shine:none;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -58,7 +68,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   background:var(--paper);
   border:3px solid var(--ink);
   border-radius:8px;
-  box-shadow:0 4px 0 var(--ink), inset 0 0 0 2px #fff;
+  box-shadow:0 4px 0 var(--ink), inset 0 0 0 2px var(--hilite);
 }
 
 /* ================= レイアウト ================= */
@@ -84,7 +94,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .tb-stats{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
 .stat{
   display:flex;align-items:center;gap:3px;
-  background:#fffdf3;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
   padding:2px 8px;font-size:13px;box-shadow:0 2px 0 rgba(74,47,26,.35);
 }
 .stat.danger{background:#ffdede;animation:blink .8s steps(2,end) infinite}
@@ -92,7 +102,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .stat b{font-size:15px}
 .stat small{font-size:10px;opacity:.7}
 .tb-next{
-  background:var(--ink);color:#ffeeb0;border-radius:6px;padding:4px 12px;
+  background:var(--headbg2);color:var(--headfg);border-radius:6px;padding:4px 12px;
   font-size:13px;white-space:nowrap;
 }
 .tb-next.race-imminent{background:var(--red);color:#fff;animation:pulse .7s ease-in-out infinite alternate}
@@ -117,7 +127,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- タイヤ ---------- */
 .tyres{gap:5px}
 .tyrebtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.25;
-         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 2px;font-size:9px}
 .tyrebtn b{width:22px;height:22px;border-radius:50%;background:var(--tc);color:var(--tt);
            border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px}
@@ -154,23 +164,23 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   box-shadow:0 4px 0 var(--ink);overflow:hidden;flex-shrink:0;
 }
 .card-h{
-  background:linear-gradient(var(--ink2),#65482c);color:#ffeec4;
+  background:var(--headbg);color:var(--headfg);
   padding:5px 10px;font-size:14px;border-bottom:3px solid var(--ink);
   text-shadow:1px 1px 0 rgba(0,0,0,.4);
 }
 .pad{padding:10px}
-.sub{margin:12px 0 6px;font-size:13px;background:var(--ink);color:#ffeeb0;
+.sub{margin:12px 0 6px;font-size:13px;background:var(--headbg2);color:var(--headfg);
      display:inline-block;padding:2px 10px;border-radius:5px}
 .desc{font-size:12px;color:#6b503a;margin:6px 0;line-height:1.6}
 .lead{font-size:13px;margin-bottom:10px;line-height:1.7}
 
 /* ---------- 注目度ゲージ ---------- */
 .stat.hype{gap:5px}
-.hypebar{width:44px;height:8px;background:#e9dcbc;border:2px solid var(--ink);
+.hypebar{width:44px;height:8px;background:var(--trough);border:2px solid var(--ink);
          border-radius:5px;overflow:hidden;display:inline-block}
 .hypebar b{display:block;height:100%;transition:width .4s}
 .hypebox{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;
-         background:#fffdf3;border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
+         background:var(--paper3);border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
 .skind{font-style:normal;font-size:9px;border:1px solid var(--ink);border-radius:4px;
        padding:0 5px;margin-left:5px;background:#e8dcc0}
 .skind.tech{background:#cfe0f8}
@@ -183,7 +193,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 
 /* ---------- 収支ダッシュボード ---------- */
 .fin{display:flex;gap:8px;flex-wrap:wrap}
-.fin-col{flex:1;min-width:200px;background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.fin-col{flex:1;min-width:200px;background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
 .fin-h{background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px;font-size:11px;margin-bottom:5px}
 .fin-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0;
          border-bottom:1px dashed #d8c8a4}
@@ -194,24 +204,24 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- 開発リソースの配分 ---------- */
 .focusrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
 .focusbtn{flex:1;min-width:104px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-          background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+          background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
           box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
 .focusbtn b{font-size:12px}
 .focusbtn small{font-size:9px;opacity:.75}
 .focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
          background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
-.nextcar i{flex:1;height:10px;background:#e9dcbc;border:2px solid var(--ink);border-radius:5px;overflow:hidden}
+.nextcar i{flex:1;height:10px;background:var(--trough);border:2px solid var(--ink);border-radius:5px;overflow:hidden}
 .nextcar i b{display:block;height:100%;background:linear-gradient(#8ede6a,#4ea63f);transition:width .35s}
 .nextcar em{font-style:normal;font-weight:bold;width:36px;text-align:right}
 
 /* ---------- 車体 ---------- */
 .sub.small{font-size:11px;padding:1px 8px;margin:8px 0 4px}
 .bodyattrs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:var(--paper3);
        border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .battr span{width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.battr i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.battr i{flex:1;height:8px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .battr i b{display:block;height:100%;transition:width .35s}
 .battr em{font-style:normal;width:44px;text-align:right;font-weight:bold}
 .battr em small{font-weight:normal;opacity:.6;font-size:8px}
@@ -231,22 +241,22 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
        box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.skbar{display:inline-block;width:70px;height:7px;background:#e9dcbc;border:1px solid var(--ink);
+.skbar{display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
 .skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
 .srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
 .deptgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px}
-.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:var(--paper3);
       border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .dept span{width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dept i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.dept i{flex:1;height:8px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .dept i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
 .dept em{font-style:normal;width:26px;text-align:right}
 .mgmtrow.empty{opacity:.65;border-style:dashed}
 .mgeff{font-style:normal;color:#2e6b8b}
 
 /* ---------- チャンピオンシップ順位表 ---------- */
-.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:#fffdf3;margin-bottom:4px}
+.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:var(--paper3);margin-bottom:4px}
 table.rank.champ{font-size:11px}
 table.rank.champ td,table.rank.champ th{padding:3px 5px;text-align:center;white-space:nowrap}
 table.rank.champ td.nm,table.rank.champ th.nm{text-align:left}
@@ -266,7 +276,7 @@ table.rank.grid td.dim{opacity:.35}
 @keyframes tkpulse{0%,100%{box-shadow:0 2px 0 rgba(74,47,26,.35)}50%{box-shadow:0 2px 0 rgba(74,47,26,.35),0 0 8px 2px rgba(255,201,60,.8)}}
 .diffs{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
 .diffbtn{flex:1;min-width:96px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 8px;text-align:left;line-height:1.3}
 .diffbtn b{font-size:13px}
 .diffbtn small{font-size:9px;opacity:.75}
@@ -274,7 +284,7 @@ table.rank.grid td.dim{opacity:.35}
             text-shadow:1px 1px 0 rgba(0,0,0,.35)}
 .diffbtn.on small{opacity:.95}
 .ticketbar{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;
-           background:#fffdf3;border:3px dashed var(--ink2);border-radius:8px;padding:6px 8px;margin-bottom:10px}
+           background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;padding:6px 8px;margin-bottom:10px}
 .ticketbar.on{background:linear-gradient(#fff4c0,#ffe88a);border-style:solid;border-color:var(--ink)}
 .tk-ic{font-size:20px}
 .tk-body{flex:1;display:flex;flex-direction:column;line-height:1.3;font-size:12px}
@@ -293,7 +303,7 @@ table.rank.grid td.dim{opacity:.35}
 #baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
-.lvbar i b{flex:1;height:12px;background:#e9dcbc;border:2px solid var(--ink);border-radius:3px}
+.lvbar i b{flex:1;height:12px;background:var(--trough);border:2px solid var(--ink);border-radius:3px}
 .lvbar i b.on{background:linear-gradient(var(--yellow),#e8a800)}
 .basebtns{display:flex;gap:8px;margin:6px 0}
 .basepick{flex-direction:row;flex-wrap:wrap;gap:5px}
@@ -311,7 +321,7 @@ table.rank.grid td.dim{opacity:.35}
 .card.special .card-h{background:linear-gradient(#b04ab0,#8a2f8a)}
 @keyframes sppop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 .sp-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin:6px 0}
-.sp-meta span{background:#fffdf3;border:2px solid var(--ink);border-radius:6px;padding:2px 8px}
+.sp-meta span{background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 8px}
 .sp-btns{display:flex;gap:8px;margin-top:8px}
 
 /* ---------- 次戦カード ---------- */
@@ -324,11 +334,11 @@ table.rank.grid td.dim{opacity:.35}
 .req{margin-top:8px}
 .reqrow{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0}
 .reqrow span{width:52px}
-.reqrow i{flex:1;height:11px;background:#e9dcbc;border:2px solid var(--ink);border-radius:6px;
+.reqrow i{flex:1;height:11px;background:var(--trough);border:2px solid var(--ink);border-radius:6px;
           overflow:hidden;display:block}
 .reqrow i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
 .reqrow em{width:34px;text-align:right;font-style:normal}
-.score{margin-top:8px;background:#fffdf3;border:2px dashed var(--ink2);border-radius:6px;
+.score{margin-top:8px;background:var(--paper3);border:2px dashed var(--ink2);border-radius:6px;
        padding:5px 8px;font-size:13px;text-align:center}
 .score b{font-size:19px;color:var(--red)}
 
@@ -336,7 +346,7 @@ table.rank.grid td.dim{opacity:.35}
 .statrow{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
 .sb{display:flex;align-items:center;gap:7px;font-size:12px}
 .sb span{width:58px}
-.sb i{flex:1;height:14px;background:#e9dcbc;border:2px solid var(--ink);border-radius:7px;overflow:hidden;display:block}
+.sb i{flex:1;height:14px;background:var(--trough);border:2px solid var(--ink);border-radius:7px;overflow:hidden;display:block}
 .sb i b{display:block;height:100%;border-radius:5px 0 0 5px;transition:width .35s}
 .sb em{width:34px;text-align:right;font-style:normal;font-weight:bold}
 .rel{font-size:12px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -345,7 +355,7 @@ table.rank.grid td.dim{opacity:.35}
 .good{color:#2e8b30}.warn{color:#d08000}.bad{color:#d02020}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
-      background:#fffdf3;border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
+      background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
 .part.empty{opacity:.55;border-style:dashed}
 .p-ic{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
       border:2px solid var(--ink);border-radius:5px;font-size:11px}
@@ -355,7 +365,7 @@ table.rank.grid td.dim{opacity:.35}
 .p-rar{letter-spacing:-1px;font-size:9px}
 .p-lv{width:56px;font-weight:bold;text-align:right}
 .p-lv small{font-size:9px;opacity:.6;font-weight:normal}
-.p-bar{flex:1;min-width:60px;height:10px;background:#e9dcbc;border:2px solid var(--ink);
+.p-bar{flex:1;min-width:60px;height:10px;background:var(--trough);border:2px solid var(--ink);
        border-radius:5px;overflow:hidden}
 .p-bar i{display:block;height:100%;transition:width .35s}
 .p-cond{width:38px;text-align:right}
@@ -371,7 +381,7 @@ table.rank.grid td.dim{opacity:.35}
 
 /* ---------- ドライバー ---------- */
 .drvwrap{display:grid;grid-template-columns:1fr;gap:8px}
-.drv{background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:7px;
+.drv{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:7px;
      box-shadow:0 2px 0 rgba(74,47,26,.3)}
 .drv.empty{display:flex;flex-direction:column;justify-content:center;align-items:center;
            color:#a08868;font-size:12px;text-align:center;border-style:dashed}
@@ -383,7 +393,7 @@ table.rank.grid td.dim{opacity:.35}
 .drv-sub{font-size:9px;opacity:.8}
 .drv-sub b{background:var(--yellow);border:1px solid var(--ink);border-radius:3px;padding:0 3px}
 .drv-age{font-size:10px;opacity:.7}
-.quote{display:flex;gap:6px;align-items:flex-start;background:#fffdf3;border:2px solid var(--ink);
+.quote{display:flex;gap:6px;align-items:flex-start;background:var(--paper3);border:2px solid var(--ink);
        border-radius:8px;padding:5px 7px;margin-top:6px;font-size:11px;line-height:1.5}
 .quote .face{width:30px;height:30px}
 .quote em{font-style:normal;display:block;font-size:9px;opacity:.7;margin-bottom:1px}
@@ -394,7 +404,7 @@ table.rank.grid td.dim{opacity:.35}
 .drv-stats{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin-bottom:5px}
 .mst{display:flex;align-items:center;gap:3px;font-size:10px}
 .mst span{width:24px}
-.mst i{flex:1;height:7px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.mst i{flex:1;height:7px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .mst i b{display:block;height:100%;background:linear-gradient(var(--green),#3a8030)}
 .mst em{width:22px;text-align:right;font-style:normal}
 .drv-foot{display:flex;justify-content:space-between;font-size:10px;border-top:1px dashed var(--ink2);padding-top:3px}
@@ -409,7 +419,7 @@ table.rank.grid td.dim{opacity:.35}
 .tab.on{background:var(--paper);color:var(--ink);font-weight:bold}
 .tabbody{flex:1;overflow-y:auto;padding:8px}
 .loglist{display:flex;flex-direction:column;gap:3px}
-.logline{font-size:11px;background:#fffdf3;border-left:4px solid var(--ink2);
+.logline{font-size:11px;background:var(--paper3);border-left:4px solid var(--ink2);
          padding:3px 6px;border-radius:0 5px 5px 0;line-height:1.45}
 .logline.good{border-left-color:var(--green);background:#f0fbe8}
 .logline.bad{border-left-color:var(--red);background:#ffeeee}
@@ -420,13 +430,13 @@ table.rank td{border-bottom:1px dashed #d8c8a4;padding:3px}
 table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .rk-chip{display:inline-block;width:9px;height:9px;border:1px solid var(--ink);border-radius:2px;margin-right:4px}
 .stafflist{display:flex;flex-direction:column;gap:4px}
-.staff{display:flex;align-items:center;gap:6px;font-size:11px;background:#fffdf3;
+.staff{display:flex;align-items:center;gap:6px;font-size:11px;background:var(--paper3);
        border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
 .s-nm{flex:1;display:flex;flex-direction:column;line-height:1.2}
 .s-nm small{font-size:9px;opacity:.65}
 .s-sk{font-size:10px}.s-sal{font-size:10px;opacity:.7}
 .facs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}
-.fac{font-size:10px;background:#fffdf3;border:2px solid var(--ink);border-radius:5px;
+.fac{font-size:10px;background:var(--paper3);border:2px solid var(--ink);border-radius:5px;
      padding:2px 5px;display:flex;justify-content:space-between}
 .spons{margin-top:8px}
 .spon{font-size:11px;background:#f0fbe8;border:2px solid var(--ink);border-radius:5px;
@@ -448,7 +458,8 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .cmd span{font-size:20px;line-height:1}
 .cmd:hover{background:linear-gradient(#fffdf0,#f8ebc8)}
 .cmd:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
-.cmd.sub{flex:0 0 auto;min-width:66px;background:linear-gradient(#e8dcc0,#d8c69c);font-size:11px}
+.cmd.sub{flex:0 0 auto;min-width:66px;background:linear-gradient(#e8dcc0,#d8c69c);font-size:11px;
+         color:var(--ink)}   /* 見出しの .sub と名前が重なるので、文字色を戻す */
 .cmd.sub span{font-size:16px}
 .cmd.big{background:linear-gradient(#ff8a5c,var(--red));color:#fff;font-size:17px;padding:10px;
          text-shadow:1px 1px 0 rgba(0,0,0,.35);animation:pulse .8s ease-in-out infinite alternate}
@@ -469,7 +480,7 @@ body.preboot .topbar{visibility:hidden}
 .modal-box{
   width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;
   background:var(--paper);border:4px solid var(--ink);border-radius:12px;
-  box-shadow:0 6px 0 rgba(0,0,0,.35),inset 0 0 0 2px #fff;
+  box-shadow:0 6px 0 rgba(0,0,0,.35),inset 0 0 0 2px var(--hilite);
   animation:popin .18s cubic-bezier(.3,1.5,.6,1);
 }
 #modal.wide .modal-box{max-width:700px}
@@ -495,7 +506,7 @@ body.preboot .topbar{visibility:hidden}
 .pick{display:flex;flex-direction:column;gap:6px}
 .pickbtn{
   display:flex;align-items:center;gap:8px;text-align:left;width:100%;
-  background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+  background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
   box-shadow:0 3px 0 rgba(74,47,26,.5);padding:6px 8px;font-size:13px;
 }
 .pickbtn:hover:not(:disabled){background:#fff6da}
@@ -514,12 +525,12 @@ body.preboot .topbar{visibility:hidden}
 .mini{background:linear-gradient(#fff8e3,#e8d8ae);border:2px solid var(--ink);
       border-radius:5px;font-size:10px;padding:2px 6px}
 .mini.danger{background:linear-gradient(#ff9a8a,var(--red));color:#fff}
-.bigbox{background:#fffdf3;border:3px dashed var(--ink2);border-radius:8px;
+.bigbox{background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;
         padding:10px;text-align:center;font-size:14px;margin:8px 0}
 .bigbox b{font-size:24px;color:var(--red)}
 .fld{display:block;font-size:13px;margin:10px 0}
 .fld input{display:block;width:100%;margin-top:4px;font-family:inherit;font-size:15px;
-           padding:6px 8px;border:3px solid var(--ink);border-radius:7px;background:#fffdf3;color:inherit}
+           padding:6px 8px;border:3px solid var(--ink);border-radius:7px;background:var(--paper3);color:inherit}
 .colors{display:flex;gap:6px;margin-top:5px}
 .colorbtn{width:34px;height:34px;border:3px solid var(--ink);border-radius:7px;box-shadow:0 3px 0 rgba(74,47,26,.5)}
 .colorbtn.on{outline:3px solid var(--yellow);outline-offset:2px;transform:translateY(2px)}
@@ -527,7 +538,7 @@ body.preboot .topbar{visibility:hidden}
 
 /* ---------- トレーニング／作戦 ---------- */
 .trainrow,.stratrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;
-                    background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px}
+                    background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px}
 .tr-nm,.sr-nm{width:120px;font-size:12px;display:flex;flex-direction:column;line-height:1.25}
 .tr-nm small,.sr-nm small{font-size:9px;opacity:.65}
 .tr-btns,.sr-btns{flex:1;display:flex;gap:4px}
@@ -541,7 +552,7 @@ body.preboot .topbar{visibility:hidden}
 .racehead b{font-size:15px}
 .racehead span{font-size:11px;opacity:.85}
 .gridlist{display:flex;flex-direction:column;gap:2px;max-height:44vh;overflow-y:auto}
-.gridrow{display:flex;align-items:center;gap:6px;font-size:12px;background:#fffdf3;
+.gridrow{display:flex;align-items:center;gap:6px;font-size:12px;background:var(--paper3);
          border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .gridrow.me{background:#fff2c4;font-weight:bold;border-width:3px}
 .gridrow.dnf{opacity:.5}
@@ -555,7 +566,7 @@ body.preboot .topbar{visibility:hidden}
 .gp-mv.up{color:#2e8b30;opacity:1}
 .gp-mv.down{color:#d02020;opacity:1}
 .gp-t{width:72px;text-align:right;font-size:11px}
-.rewardbox{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;background:#fffdf3;
+.rewardbox{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;background:var(--paper3);
            border:3px dashed var(--ink2);border-radius:8px;padding:8px;font-size:12px}
 .rewardbox div{flex:1;min-width:120px;text-align:center}
 .rewardbox b{display:block;font-size:16px}
@@ -563,7 +574,7 @@ body.preboot .topbar{visibility:hidden}
       padding:5px 8px;font-size:12px;margin-top:6px}
 .note.big{background:linear-gradient(90deg,#fff0a0,#ffd76a);font-size:14px;text-align:center;
           border-left:none;border:3px solid var(--ink);border-radius:8px}
-.hist{font-size:11px;background:#fffdf3;border:2px solid var(--ink);border-radius:6px;
+.hist{font-size:11px;background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
       padding:4px 7px;margin-bottom:4px;line-height:1.5}
 
 /* ================= レース画面 ================= */
@@ -589,7 +600,7 @@ body.preboot .topbar{visibility:hidden}
                font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
 .rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
-         border-radius:8px;overflow:hidden;background:#fffdf3;min-width:150px}
+         border-radius:8px;overflow:hidden;background:var(--paper3);min-width:150px}
 .rv-order-h{background:var(--ink2);color:#ffeec4;font-size:11px;padding:2px 6px;flex-shrink:0}
 .rv-order{flex:1;overflow-y:auto;padding:2px}
 .rv-row{display:flex;align-items:center;gap:4px;font-size:10px;padding:1px 3px;border-radius:3px}
@@ -661,7 +672,7 @@ body.preboot .topbar{visibility:hidden}
 @keyframes fadeup{to{transform:translateY(-18px);opacity:0}}
 .numpop{
   position:absolute;top:110px;font-size:22px;font-weight:bold;color:var(--green);
-  text-shadow:2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;
+  text-shadow:2px 2px 0 var(--outline),-2px -2px 0 var(--outline),2px -2px 0 var(--outline),-2px 2px 0 var(--outline);
   animation:floatup 1.4s ease-out forwards;
 }
 .numpop.crit{color:var(--red);font-size:28px}
@@ -706,6 +717,317 @@ body.preboot .topbar{visibility:hidden}
   .cmd span{font-size:17px}
   .tb-stats{width:100%;margin-left:0}
 }
+
+/* =========================================================
+   HD-2Dスキン（オクトパストラベラー風）
+   紙の色を沈ませ、金の枠と光で立体感を出す。
+   カイロ風の配色は :root にそのまま残してあるので、
+   data-skin を外せばいつでも元に戻る。
+   ========================================================= */
+[data-skin="hd"]{
+  --ink:#0e0b14;          /* 枠は黒に近い紫。金と組んで沈む */
+  --ink2:#2a2038;
+  --paper:#241c30;        /* パネルの面 */
+  --paper2:#1b1526;
+  --paper3:#2f2540;
+  --trough:#120e1c;
+  --board:#0a0810;
+  --board2:#141020;
+  --hilite:rgba(214,178,106,.55);   /* 枠の内側に走る金の線 */
+  --outline:#0e0b14;
+  --gold:#d6b26a;
+  --gold2:#8d6d38;
+  --headbg:linear-gradient(180deg,#3b2f4e,#241c30);
+  --headbg2:linear-gradient(180deg,#3b2f4e,#241c30);
+  --headfg:#f2dfae;
+  --glow:rgba(214,178,106,.30);
+  --shine:0 0 12px rgba(214,178,106,.22);
+  color:#efe4cf;
+}
+
+/* ---- 背景：暗い舞台。中央に光を残して四隅を落とす ---- */
+[data-skin="hd"] body,
+body[data-skin="hd"]{
+  background:#0a0810;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(96,74,140,.34) 0%, rgba(10,8,16,0) 62%),
+    radial-gradient(90% 70% at 50% 108%, rgba(190,132,60,.20) 0%, rgba(10,8,16,0) 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 4px);
+  color:#efe4cf;
+}
+
+/* ---- パネル：面を沈め、金の細枠と外側の光を足す ---- */
+[data-skin="hd"] .card,
+[data-skin="hd"] .frame,
+[data-skin="hd"] .topbar,
+[data-skin="hd"] .modal-box,
+[data-skin="hd"] .cmdbar{
+  background:linear-gradient(180deg,#2b2239 0%,#1d1729 100%);
+  border-color:var(--gold2);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    inset 0 0 0 1px rgba(214,178,106,.34),
+    inset 0 18px 34px rgba(120,92,170,.13),
+    0 6px 20px rgba(0,0,0,.72),
+    var(--shine);
+}
+
+/* 見出しは金の下線で仕切る */
+[data-skin="hd"] .card-h{
+  border-bottom:1px solid var(--gold2);
+  box-shadow:inset 0 -1px 0 rgba(214,178,106,.30), inset 0 1px 0 rgba(214,178,106,.16);
+  text-shadow:0 0 8px rgba(214,178,106,.45),1px 1px 0 rgba(0,0,0,.6);
+  letter-spacing:.04em;
+}
+
+/* ---- 四隅の飾り。オクトパスのメニュー枠の要 ---- */
+[data-skin="hd"] .card{position:relative}
+[data-skin="hd"] .card::before,
+[data-skin="hd"] .card::after{
+  content:'';position:absolute;width:9px;height:9px;pointer-events:none;z-index:2;
+  border:2px solid var(--gold);opacity:.72;
+}
+[data-skin="hd"] .card::before{top:3px;left:3px;border-right:0;border-bottom:0}
+[data-skin="hd"] .card::after{bottom:3px;right:3px;border-left:0;border-top:0}
+
+/* ---- ゲージ：深く掘った溝に、光る帯を通す ---- */
+[data-skin="hd"] .p-bar,
+[data-skin="hd"] .reqrow i,
+[data-skin="hd"] .skbar,
+[data-skin="hd"] .battr i,
+[data-skin="hd"] .hypebar,
+[data-skin="hd"] .lvbar i b{
+  background:var(--trough);
+  border-color:rgba(214,178,106,.34);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.85);
+}
+[data-skin="hd"] .p-bar b,
+[data-skin="hd"] .reqrow i b,
+[data-skin="hd"] .skbar i,
+[data-skin="hd"] .battr i b,
+[data-skin="hd"] .hypebar b,
+[data-skin="hd"] .lvbar i b.on{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.42), 0 0 8px rgba(255,210,120,.40);
+  filter:saturate(1.25) brightness(1.12);
+}
+
+/* ---- 数字と見出しは、わずかに金色に灯す ---- */
+[data-skin="hd"] .tb-stats b,
+[data-skin="hd"] .score,
+[data-skin="hd"] .lead{
+  color:#ffe9b0;
+  text-shadow:0 0 10px rgba(255,200,90,.42);
+}
+[data-skin="hd"] .sub{
+  border-radius:0;
+  border-left:3px solid var(--gold);
+  text-shadow:0 0 7px rgba(214,178,106,.40);
+}
+
+/* ---- ボタン：面は暗いまま、縁と天面のハイライトで浮かせる ---- */
+[data-skin="hd"] .cmd,
+[data-skin="hd"] .btn,
+[data-skin="hd"] .mini,
+[data-skin="hd"] .pickbtn,
+[data-skin="hd"] .tab,
+[data-skin="hd"] .hrtab{
+  background:linear-gradient(180deg,#3a2f4c,#221a31);
+  border-color:var(--gold2);
+  color:#f2e4c4;
+  box-shadow:0 4px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.36);
+}
+[data-skin="hd"] .cmd:active,
+[data-skin="hd"] .btn:active,
+[data-skin="hd"] .mini:active{box-shadow:0 1px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.36)}
+[data-skin="hd"] .cmd:hover,
+[data-skin="hd"] .btn:hover{
+  background:linear-gradient(180deg,#4b3d63,#2b2140);
+  box-shadow:0 4px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.55), 0 0 14px rgba(214,178,106,.30);
+}
+[data-skin="hd"] .tab.on,
+[data-skin="hd"] .hrtab.on,
+[data-skin="hd"] .pickbtn.on{
+  background:linear-gradient(180deg,#6a5220,#3d2e12);
+  border-color:var(--gold);
+  color:#ffeec0;
+  box-shadow:inset 0 1px 0 rgba(255,224,150,.55), 0 0 16px rgba(214,178,106,.42);
+}
+
+/* ---- 明るい面を前提にしていた小さな部品を、暗い面に合わせる ---- */
+[data-skin="hd"] .part,
+[data-skin="hd"] .drv,
+[data-skin="hd"] .staff,
+[data-skin="hd"] .spon,
+[data-skin="hd"] .fac,
+[data-skin="hd"] .dept,
+[data-skin="hd"] .battr,
+[data-skin="hd"] .fin-row,
+[data-skin="hd"] .sc-row,
+[data-skin="hd"] .rv-row,
+[data-skin="hd"] .gridrow,
+[data-skin="hd"] .logline,
+[data-skin="hd"] .hist{
+  background:linear-gradient(180deg,#2c2340,#211a2f);
+  border-color:rgba(214,178,106,.30);
+  color:#e8dcc4;
+}
+[data-skin="hd"] .note,
+[data-skin="hd"] .desc,
+[data-skin="hd"] .invnote,
+[data-skin="hd"] small{color:#b9a98f}
+[data-skin="hd"] .quote{color:#cbb8e0}
+
+/* ---- レース画面まわり ---- */
+[data-skin="hd"] .rv-canvaswrap{
+  box-shadow:0 0 0 1px rgba(214,178,106,.45), 0 10px 30px rgba(0,0,0,.8);
+  border-radius:8px;
+}
+[data-skin="hd"] .rv-head{background:linear-gradient(180deg,#33284a,#1d1729)}
+
+/* ---- モーダルの背景は、舞台を暗転させる ---- */
+[data-skin="hd"] #modal{background:rgba(6,4,12,.72)}
+
+/* ---- 明るい下地を持つ部品の文字色 ----
+   カイロ風では明るい面に濃い文字を置いていた。HD-2Dでは本文が明るい色に
+   なるので、明るい面のままの部品は文字だけ濃いほうへ戻す。            */
+[data-skin="hd"] .countdown,
+[data-skin="hd"] .countdown b,
+[data-skin="hd"] .ersrow,
+[data-skin="hd"] .note,
+[data-skin="hd"] .invnote,
+[data-skin="hd"] .skill,
+[data-skin="hd"] .srank,
+[data-skin="hd"] .ptr,
+[data-skin="hd"] .p-ic,
+[data-skin="hd"] .skind,
+[data-skin="hd"] .drv-sub b,
+[data-skin="hd"] .pips i,
+[data-skin="hd"] .stat.danger,
+[data-skin="hd"] .stat.ticket.has,
+[data-skin="hd"] .ticketbar.on,
+[data-skin="hd"] .ticketbar.on .tk-body,
+[data-skin="hd"] .tyrebtn.on,
+[data-skin="hd"] .focusbtn.on,
+[data-skin="hd"] table.rank.grid td.gold,
+[data-skin="hd"] table.rank.grid td.pts,
+[data-skin="hd"] table.rank.grid td.dnf,
+[data-skin="hd"] .rewardbox,
+[data-skin="hd"] .bigbox,
+[data-skin="hd"] .toast{
+  color:#1c1526;
+}
+[data-skin="hd"] .countdown small,
+[data-skin="hd"] .countdown span,
+[data-skin="hd"] .ersrow em,
+[data-skin="hd"] .note small,
+[data-skin="hd"] .bigbox small,
+[data-skin="hd"] .rewardbox small{color:#4a3d33}
+
+/* 破線で囲んだ「まとめ」の箱は、明るいままのほうが目に入るので下地を残す */
+[data-skin="hd"] .bigbox,
+[data-skin="hd"] .rewardbox{
+  background:linear-gradient(180deg,#f6ecd6,#e6d6b4);
+  border-color:var(--gold);
+  box-shadow:0 0 16px rgba(214,178,106,.24);
+}
+[data-skin="hd"] .quote{
+  background:linear-gradient(180deg,#2c2340,#211a2f);
+  border-color:rgba(214,178,106,.30);
+  color:#cbb8e0;
+}
+[data-skin="hd"] .fld input{background:#1a1426;color:#efe4cf;border-color:var(--gold2)}
+
+/* コース図も舞台の一部なので、明るい芝色をやめて夜の路面に寄せる */
+[data-skin="hd"] .track-mini{
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(110,86,160,.30), rgba(0,0,0,0) 70%),
+    linear-gradient(180deg,#1d1729,#141020);
+  border-color:var(--gold2);
+  box-shadow:inset 0 0 24px rgba(0,0,0,.7), 0 0 0 1px rgba(214,178,106,.22);
+}
+[data-skin="hd"] .track-mini svg path.sec{filter:drop-shadow(0 0 5px rgba(255,210,120,.55))}
+[data-skin="hd"] .score{
+  background:linear-gradient(180deg,#2c2340,#1c1529);
+  border-color:var(--gold);
+  color:#ffe9b0;
+}
+/* 枠だけの箱にも四隅の飾りを付ける */
+[data-skin="hd"] .frame,
+[data-skin="hd"] .modal-box{position:relative}
+[data-skin="hd"] .frame::before,[data-skin="hd"] .frame::after,
+[data-skin="hd"] .modal-box::before,[data-skin="hd"] .modal-box::after{
+  content:'';position:absolute;width:9px;height:9px;pointer-events:none;z-index:2;
+  border:2px solid var(--gold);opacity:.72;
+}
+[data-skin="hd"] .frame::before,[data-skin="hd"] .modal-box::before{top:3px;left:3px;border-right:0;border-bottom:0}
+[data-skin="hd"] .frame::after,[data-skin="hd"] .modal-box::after{bottom:3px;right:3px;border-left:0;border-top:0}
+
+/* 明るい下地が残っている残りの部品（順位表の自チーム行など） */
+[data-skin="hd"] .nextcar,
+[data-skin="hd"] .pb-ic,
+[data-skin="hd"] table.rank tr.me td,
+[data-skin="hd"] table.rank.grid td.pod{color:#1c1526}
+[data-skin="hd"] .nextcar em{color:#1c1526}
+[data-skin="hd"] table.rank td{border-bottom-color:rgba(214,178,106,.20)}
+[data-skin="hd"] table.rank th{
+  background:linear-gradient(180deg,#3b2f4e,#241c30);
+  color:var(--headfg);
+  box-shadow:inset 0 -1px 0 rgba(214,178,106,.28);
+}
+[data-skin="hd"] .tablewrap{border-color:var(--gold2);box-shadow:inset 0 0 18px rgba(0,0,0,.6)}
+
+/* ---- レース観戦のカメラ切り替えと順位表 ---- */
+[data-skin="hd"] .rv-cam button{
+  background:linear-gradient(180deg,rgba(58,47,76,.94),rgba(30,23,44,.94));
+  border-color:var(--gold2);
+  color:#f2e4c4;
+  box-shadow:0 2px 0 rgba(0,0,0,.7), inset 0 1px 0 rgba(214,178,106,.30);
+}
+[data-skin="hd"] .rv-cam button.on{
+  background:linear-gradient(180deg,#7a5e26,#463415);
+  border-color:var(--gold);
+  color:#ffeec0;
+  box-shadow:inset 0 1px 0 rgba(255,224,150,.5), 0 0 12px rgba(214,178,106,.45);
+}
+[data-skin="hd"] .rv-row.me{background:linear-gradient(90deg,rgba(214,178,106,.30),rgba(214,178,106,.08));color:#ffeec0}
+[data-skin="hd"] .rv-order-h,
+[data-skin="hd"] .rv-side{background:linear-gradient(180deg,#241c30,#1a1426);border-color:var(--gold2)}
+[data-skin="hd"] .rv-order-h{background:linear-gradient(180deg,#3b2f4e,#241c30);color:var(--headfg)}
+
+/* ---- 顔・アイコンの縁を金にして、暗い面から浮かせる ---- */
+[data-skin="hd"] .face{
+  border-color:var(--gold2);
+  background:linear-gradient(180deg,#2e3a48,#1d2530);
+  box-shadow:0 2px 0 rgba(0,0,0,.7), 0 0 10px rgba(214,178,106,.20);
+}
+[data-skin="hd"] .p-ic,
+[data-skin="hd"] .pb-ic,
+[data-skin="hd"] .rk-chip{border-color:var(--gold2)}
+/* トーストと吹き出しは、舞台の上に置いた札のように見せる */
+[data-skin="hd"] .toast{
+  background:linear-gradient(180deg,#f6ecd6,#e2d0aa);
+  border-color:var(--gold);
+  box-shadow:0 6px 22px rgba(0,0,0,.75), 0 0 18px rgba(214,178,106,.30);
+}
+/* 数字がはねる演出も金色で */
+[data-skin="hd"] .numpop{color:#ffe08a;text-shadow:0 0 10px rgba(255,190,70,.7),1px 1px 0 #2a1c10}
+
+/* 明るい下地の部品の中にある小さな文字も、まとめて濃いほうへ戻す */
+[data-skin="hd"] .focusbtn.on small,[data-skin="hd"] .focusbtn.on em,[data-skin="hd"] .focusbtn.on b,
+[data-skin="hd"] .tyrebtn.on small,[data-skin="hd"] .tyrebtn.on em,
+[data-skin="hd"] .ticketbar.on small,[data-skin="hd"] .ticketbar.on em,
+[data-skin="hd"] .bigbox b,[data-skin="hd"] .rewardbox b,
+[data-skin="hd"] .toast b,[data-skin="hd"] .toast small,
+[data-skin="hd"] .note b{color:#3a2f22}
+[data-skin="hd"] .bigbox b{color:#c03828}          /* 明るい箱の中なので濃い赤 */
+[data-skin="hd"] .score b{color:#ff9a5c;text-shadow:0 0 10px rgba(255,120,60,.5)}  /* 暗い面なので明るい橙 */
+
+/* 良し悪しを表す色は、暗い面では明るめにしないと沈む */
+[data-skin="hd"] .good{color:#6ee06a}
+[data-skin="hd"] .warn{color:#ffc24a}
+[data-skin="hd"] .bad{color:#ff7a6a}
+[data-skin="hd"] .mgeff{color:#7fd0f0}
+[data-skin="hd"] .cmd.sub{color:#f2e4c4}
 
 </style>
 <!--
@@ -758,6 +1080,7 @@ body.preboot .topbar{visibility:hidden}
       <div class="stat"><span class="ic">🔬</span><b id="tRp">0</b></div>
       <div class="stat ticket" id="tTicketBox"><span class="ic">🎫</span><b id="tTicket">0</b></div>
       <div class="stat"><span class="ic">📅</span>S<b id="tSeason">1</b> W<b id="tWeek">1</b></div>
+      <button class="stat sound" id="tSkin" title="見た目の切り替え（HD-2D／カイロ風）">🎨</button>
       <button class="stat sound" id="tSound" title="効果音の切り替え">🔊</button>
     </div>
     <div class="tb-next" id="tNext">-</div>
@@ -961,6 +1284,275 @@ GP.sound = (function () {
   function unlock() { if (on) ensure(); }
 
   return { play, setOn, isOn, unlock };
+})();
+
+</script>
+<script>
+/* ===== src/fx.js ===== */
+/* =========================================================
+   HD-2D風のポストエフェクト
+   ドット絵はドット絵のまま、上から光と空気を足して立体感を出す。
+     1. ブルーム   明るい色だけがにじんで光る
+     2. 被写界深度 カメラが見ていない所がぼける（ジオラマ感）
+     3. 色調      ハイライトを暖色に、影を寒色に寄せる
+     4. 周辺減光   画面の四隅を落として中央に目を向けさせる
+     5. 粒子      火花・砂ぼこり・水しぶき
+   canvas 2D の filter と合成モードだけで作れるので、追加ライブラリは要らない。
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.fx = (function () {
+  'use strict';
+
+  let W = 0, H = 0;
+  let scene = null, sctx = null;      // 世界を一度描き込む場所
+  let half = null, hctx = null;       // ブルーム抽出用（半分の解像度）
+  let half2 = null, h2ctx = null;
+  let mask = null, mctx = null;       // 被写界深度の合焦マスク
+  let ready = false;
+
+  function make(w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+    return c;
+  }
+
+  /* 端末が canvas の filter に対応しているか（Safari 14 未満などは非対応） */
+  let blurOK = null;
+  function supportsBlur() {
+    if (blurOK !== null) return blurOK;
+    try {
+      const g = make(2, 2).getContext('2d');
+      g.filter = 'blur(1px)';
+      blurOK = g.filter === 'blur(1px)';
+    } catch (e) { blurOK = false; }
+    return blurOK;
+  }
+
+  function init(w, h) {
+    W = w; H = h;
+    scene = make(W, H); sctx = scene.getContext('2d');
+    half = make(W / 2, H / 2); hctx = half.getContext('2d');
+    half2 = make(W / 2, H / 2); h2ctx = half2.getContext('2d');
+    mask = make(W, H); mctx = mask.getContext('2d');
+    sctx.imageSmoothingEnabled = false;
+    ready = true;
+    parts.length = 0;
+    return sctx;
+  }
+
+  /* 世界を描き込む先。raceview はここに今まで通り描くだけでよい */
+  function begin() {
+    if (!ready) return null;
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.globalAlpha = 1;
+    sctx.globalCompositeOperation = 'source-over';
+    sctx.clearRect(0, 0, W, H);
+    return sctx;
+  }
+
+  /* ---------- 明るい所だけを取り出す ----------
+     同じ絵を multiply で重ねると色が2乗される。暗い色は急速に沈み、
+     白や黄色だけが残るので、しきい値処理の代わりになる。          */
+  function extract(strength) {
+    hctx.setTransform(1, 0, 0, 1, 0, 0);
+    hctx.globalCompositeOperation = 'source-over';
+    hctx.globalAlpha = 1;
+    hctx.clearRect(0, 0, half.width, half.height);
+    hctx.drawImage(scene, 0, 0, half.width, half.height);
+    hctx.globalCompositeOperation = 'multiply';
+    hctx.drawImage(half, 0, 0);          // 2乗
+    hctx.drawImage(half, 0, 0);          // 4乗（中間色はほぼ黒に落ちる）
+    hctx.globalCompositeOperation = 'source-over';
+    // 光らせたいものを明示的に足す（ブレーキ灯やシグナルなど）
+    if (adds.length) {
+      hctx.save();
+      hctx.scale(0.5, 0.5);
+      for (let i = 0; i < adds.length; i++) adds[i](hctx);
+      hctx.restore();
+    }
+    return strength;
+  }
+
+  /* 追加で光らせたいものを毎フレーム登録する */
+  const adds = [];
+  function addLight(fn) { if (ready) adds.push(fn); }
+
+  /* ---------- 被写界深度 ----------
+     focus が指す一点のまわりだけを鮮明に残し、外側をぼかす。
+     ぼけた絵を敷いてから、鮮明な絵を円形マスクで抜いて重ねる。   */
+  function depthOfField(out, focus, radius, blurPx) {
+    out.save();
+    out.filter = 'blur(' + blurPx.toFixed(1) + 'px)';
+    out.drawImage(scene, 0, 0);
+    out.filter = 'none';
+    out.restore();
+
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.globalCompositeOperation = 'source-over';
+    mctx.clearRect(0, 0, W, H);
+    mctx.drawImage(scene, 0, 0);
+    mctx.globalCompositeOperation = 'destination-in';
+    const g = mctx.createRadialGradient(focus.x, focus.y, radius * 0.25, focus.x, focus.y, radius);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.62, 'rgba(0,0,0,.92)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    mctx.fillStyle = g;
+    mctx.fillRect(0, 0, W, H);
+    mctx.globalCompositeOperation = 'source-over';
+    out.drawImage(mask, 0, 0);
+  }
+
+  /* ---------- 仕上げ ----------
+     opt = { focus:{x,y}, dof:0..1, bloom:0..1, warm:0..1, vignette:0..1, night:bool } */
+  function composite(out, opt) {
+    if (!ready) return;
+    opt = opt || {};
+    const soft = supportsBlur();
+    out.setTransform(1, 0, 0, 1, 0, 0);
+    out.globalCompositeOperation = 'source-over';
+    out.globalAlpha = 1;
+    out.clearRect(0, 0, W, H);
+
+    // 1. 本体（必要なら被写界深度つき）
+    const dof = opt.dof || 0;
+    if (soft && dof > 0.01 && opt.focus) {
+      depthOfField(out, opt.focus, opt.focusR || W * 0.34, 1.2 + dof * 2.6);
+    } else {
+      out.drawImage(scene, 0, 0);
+    }
+
+    // 2. ブルーム（広いにじみ＋狭い芯の二段）
+    const bl = opt.bloom == null ? 1 : opt.bloom;
+    if (bl > 0.01) {
+      extract();
+      if (soft) {
+        h2ctx.setTransform(1, 0, 0, 1, 0, 0);
+        h2ctx.globalCompositeOperation = 'source-over';
+        h2ctx.clearRect(0, 0, half2.width, half2.height);
+        h2ctx.filter = 'blur(6px)';
+        h2ctx.drawImage(half, 0, 0);
+        h2ctx.filter = 'none';
+        out.globalCompositeOperation = 'lighter';
+        out.globalAlpha = 0.30 * bl;
+        out.drawImage(half2, 0, 0, W, H);
+        out.globalAlpha = 0.18 * bl;
+        h2ctx.clearRect(0, 0, half2.width, half2.height);
+        h2ctx.filter = 'blur(2px)';
+        h2ctx.drawImage(half, 0, 0);
+        h2ctx.filter = 'none';
+        out.drawImage(half2, 0, 0, W, H);
+      } else {
+        // filter が使えない端末は、拡大縮小のにじみで代用する
+        out.globalCompositeOperation = 'lighter';
+        out.globalAlpha = 0.24 * bl;
+        out.imageSmoothingEnabled = true;
+        out.drawImage(half, -3, -3, W + 6, H + 6);
+        out.imageSmoothingEnabled = false;
+      }
+      out.globalAlpha = 1;
+      out.globalCompositeOperation = 'source-over';
+    }
+
+    // 3. 色調
+    //    影側を色のついた暗さで沈め（multiply）、そのうえで明暗差を立てる（overlay）。
+    //    soft-light だと全体が眠くなるので使わない。
+    const warm = opt.warm == null ? 1 : opt.warm;
+    if (warm > 0.01) {
+      const sh = out.createLinearGradient(W * 0.75, 0, W * 0.15, H);
+      if (opt.night) {
+        sh.addColorStop(0, 'rgba(255,255,255,0)');
+        sh.addColorStop(1, 'rgba(96,110,190,' + (0.30 * warm).toFixed(3) + ')');
+      } else {
+        sh.addColorStop(0, 'rgba(255,255,255,0)');
+        sh.addColorStop(1, 'rgba(104,96,168,' + (0.26 * warm).toFixed(3) + ')');
+      }
+      out.globalCompositeOperation = 'multiply';
+      out.fillStyle = sh;
+      out.fillRect(0, 0, W, H);
+
+      const hi = out.createLinearGradient(0, 0, W * 0.7, H);
+      hi.addColorStop(0, 'rgba(255,206,132,' + (0.30 * warm).toFixed(3) + ')');
+      hi.addColorStop(0.5, 'rgba(128,128,128,0)');
+      hi.addColorStop(1, 'rgba(52,86,166,' + (0.26 * warm).toFixed(3) + ')');
+      out.globalCompositeOperation = 'overlay';
+      out.fillStyle = hi;
+      out.fillRect(0, 0, W, H);
+      out.globalCompositeOperation = 'source-over';
+    }
+
+    // 4. 周辺減光
+    const vg = opt.vignette == null ? 1 : opt.vignette;
+    if (vg > 0.01) {
+      const r = out.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.72);
+      r.addColorStop(0, 'rgba(0,0,0,0)');
+      r.addColorStop(1, 'rgba(24,12,30,' + (0.46 * vg).toFixed(3) + ')');
+      out.fillStyle = r;
+      out.fillRect(0, 0, W, H);
+    }
+    adds.length = 0;
+  }
+
+  /* =========================================================
+     粒子（火花・砂ぼこり・水しぶき）
+     ========================================================= */
+  const parts = [];
+  const MAX = 220;
+
+  function spawn(x, y, kind, ang, power) {
+    if (!ready || parts.length >= MAX) return;
+    power = power == null ? 1 : power;
+    const n = kind === 'spark' ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const sp = (kind === 'spark' ? 26 : 12) * (0.5 + Math.random()) * power;
+      const a = ang + (Math.random() - 0.5) * (kind === 'spark' ? 0.9 : 1.9);
+      parts.push({
+        x: x, y: y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: kind === 'spark' ? 0.30 + Math.random() * 0.22
+            : kind === 'spray' ? 0.44 + Math.random() * 0.3
+            : 0.6 + Math.random() * 0.4,
+        age: 0, kind: kind,
+        sz: kind === 'dust' ? 1.6 + Math.random() * 2.2 : 1 + Math.random()
+      });
+    }
+  }
+
+  function stepParticles(dt) {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.age += dt;
+      if (p.age >= p.life) { parts.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const drag = p.kind === 'spark' ? 0.90 : 0.94;
+      p.vx *= drag; p.vy *= drag;
+      if (p.kind === 'dust') { p.sz += dt * 5; }
+    }
+  }
+
+  /* 粒子はカメラ変換の中で描く（世界座標） */
+  function drawParticles(g) {
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const k = 1 - p.age / p.life;
+      if (p.kind === 'spark') {
+        g.fillStyle = 'rgba(255,' + Math.round(150 + 105 * k) + ',80,' + (0.9 * k).toFixed(2) + ')';
+        g.fillRect(Math.round(p.x), Math.round(p.y), p.sz, p.sz);
+      } else if (p.kind === 'spray') {
+        g.fillStyle = 'rgba(215,235,255,' + (0.5 * k).toFixed(2) + ')';
+        g.fillRect(Math.round(p.x), Math.round(p.y), p.sz, p.sz);
+      } else {
+        g.fillStyle = 'rgba(206,186,150,' + (0.42 * k).toFixed(2) + ')';
+        g.fillRect(Math.round(p.x), Math.round(p.y), p.sz, p.sz);
+      }
+    }
+  }
+
+  function clearParticles() { parts.length = 0; }
+  function count() { return parts.length; }
+
+  return { init, begin, composite, addLight, spawn, stepParticles, drawParticles,
+           clearParticles, count, supportsBlur };
 })();
 
 </script>
@@ -2853,6 +3445,7 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
+  let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
   let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
 
@@ -2961,8 +3554,37 @@ GP.raceview = (function () {
     g.setLineDash([]);
   }
 
+  /* 彩度と明度をいじる（HD-2Dは地面を深く沈めて、光った所を際立たせる） */
+  function grade(hex, satMul, valMul) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16 & 255) / 255, g2 = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g2, b), mn = Math.min(r, g2, b), l = (mx + mn) / 2;
+    r = l + (r - l) * satMul; g2 = l + (g2 - l) * satMul; b = l + (b - l) * satMul;
+    const cl = v => Math.max(0, Math.min(255, Math.round(v * valMul * 255)));
+    return '#' + ((1 << 24) + (cl(r) << 16) + (cl(g2) << 8) + cl(b)).toString(16).slice(1);
+  }
+
+  /* レース画面用に色を作り直す。メニュー側のテーマ色はそのまま使う */
+  function hdTheme(base) {
+    return {
+      sky:  grade(base.sky,  1.35, base.night ? 0.92 : 0.80),
+      dot:  grade(base.dot,  1.45, base.night ? 0.86 : 0.72),
+      edge: grade(base.edge, 1.9,  0.80),      // 白いランオフは光りすぎるので暖色に落とす
+      road: grade(base.road, 1.25, 0.68),      // 路面を深く沈めて明暗差を作る
+      night: base.night
+    };
+  }
+
+  /* 世界座標へ移すカメラ変換。描画と発光レイヤーで同じものを使う */
+  function camTransform(g) {
+    g.translate(cv.width / 2, cv.height / 2);
+    g.scale(cam.z, cam.z);
+    g.translate(-cam.x, -cam.y);
+  }
+
   function buildTrackArt() {
-    const th = GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'];
+    emissive = [];
+    const th = hdTheme(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass']);
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
     const c = document.createElement('canvas');
     c.width = cv.width; c.height = cv.height;
@@ -2974,8 +3596,40 @@ GP.raceview = (function () {
     g.fillStyle = wet && !th.night ? shade(th.dot, -0.22) : th.dot;
     for (let y = 0; y < c.height; y += 8) for (let x = (y % 16 ? 0 : 4); x < c.width; x += 16) g.fillRect(x, y, 4, 4);
 
-    // コースの外に景色を置く
-    drawScenery(g, GP.data.TRACK_THEME[res.track.name] || 'grass', c.width, c.height);
+    // コースの外に景色を置く。
+    // 影を実際のシルエットから作りたいので、いったん別レイヤーに描く。
+    const pl = document.createElement('canvas');
+    pl.width = c.width; pl.height = c.height;
+    const pg = pl.getContext('2d');
+    pg.imageSmoothingEnabled = false;
+    drawScenery(pg, GP.data.TRACK_THEME[res.track.name] || 'grass', c.width, c.height);
+
+    // 落ち影：同じ絵を真っ黒にして、光の向きへ少しずつずらして重ねる。
+    // 一枚ずつは薄いが、重なって奥に伸びる影になる（HD-2Dらしさの要）。
+    if (GP.fx.supportsBlur()) {
+      const sil = document.createElement('canvas');
+      sil.width = c.width; sil.height = c.height;
+      const sg = sil.getContext('2d');
+      sg.filter = 'brightness(0)';
+      sg.drawImage(pl, 0, 0);
+      sg.filter = 'none';
+      g.save();
+      g.globalAlpha = 0.10;
+      for (let k = 1; k <= 6; k++) g.drawImage(sil, k * 2.4, k * 1.5);
+      g.restore();
+      // 景色そのものは彩度を上げ、明度を落として地面になじませる
+      g.save();
+      g.filter = 'saturate(1.3) brightness(0.86)';
+      g.drawImage(pl, 0, 0);
+      g.filter = 'none';
+      g.restore();
+    } else {
+      g.save();
+      g.globalAlpha = 0.16;
+      for (let k = 1; k <= 4; k++) { g.globalAlpha = 0.055; g.drawImage(pl, k * 2.4, k * 1.5); }
+      g.restore();
+      g.drawImage(pl, 0, 0);
+    }
 
     // ランオフ／コース
     strokeOn(g, 30, th.edge);
@@ -3140,6 +3794,22 @@ GP.raceview = (function () {
         g.restore();
       }
     }
+    // 夜のコースには照明を立てる。路面を照らす円と、光源そのもの
+    if (GP.data.THEMES[theme].night) {
+      for (let i = 0; i < poly.n; i += 26) {
+        const nm = normalAt(i);
+        const lx = nm.x + nm.nx * 20, ly = nm.y + nm.ny * 20;
+        if (lx < 6 || ly < 6 || lx > W - 6 || ly > H - 6) continue;
+        const pool = g.createRadialGradient(lx, ly, 1, lx, ly, 34);
+        pool.addColorStop(0, 'rgba(255,236,190,.30)');
+        pool.addColorStop(1, 'rgba(255,236,190,0)');
+        g.fillStyle = pool; g.beginPath(); g.arc(lx, ly, 34, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#3a3f52'; g.fillRect(lx - 1, ly - 9, 2, 9);
+        g.fillStyle = '#fff2c8'; g.fillRect(lx - 2, ly - 12, 5, 3);
+        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff2c8' });
+      }
+    }
+
     // 木・建物・岩など
     for (let i = 0; i < poly.n; i += 11) {
       for (const side of [1, -1]) {
@@ -3173,6 +3843,9 @@ GP.raceview = (function () {
       g.fillStyle = nc;
       g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
       g.fillRect(x - w / 2 + 2, y - h + 9, Math.max(3, w - 8), 3);
+      // 看板は光源として登録し、あとでにじませる
+      emissive.push({ x: x - w / 2 + 2, y: y - h + 3, w: w - 4, h: 3, c: nc });
+      emissive.push({ x: x - w / 2 + 2, y: y - h + 9, w: Math.max(3, w - 8), h: 3, c: nc });
       g.fillStyle = 'rgba(255,255,255,.25)';
       for (let b = 16; b < h - 3; b += 6) g.fillRect(x - w / 2 + 3, y - h + b, w - 6, 2);
     } else if (theme === 'desert') {
@@ -3297,8 +3970,15 @@ GP.raceview = (function () {
   function draw(t) {
     const w = cv.width, h = cv.height;
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
+    const night = !!(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'] || {}).night;
 
     updateCam(t);
+
+    // 世界はいったん裏画面に描き、あとから光と色を乗せて画面に出す
+    const out = ctx;
+    const buf = GP.fx.begin();
+    if (buf) ctx = buf;
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.save();
@@ -3356,10 +4036,60 @@ GP.raceview = (function () {
         continue;
       }
       const pt2 = placeInLap(e, o.p);
-      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, pt2.v == null ? 1 : pt2.v);
+      const vel = pt2.v == null ? 1 : pt2.v;
+      emit(e, pt2, vel, o.out, wet);
+      drawCar(pt2.x, pt2.y, pt2.ang, e.color, e.isPlayer, o.out, e.gen || 0, vel);
     }
+    GP.fx.drawParticles(ctx);
     ctx.restore();
+
+    // 光・被写界深度・色調をまとめて乗せる
+    ctx = out;
+    if (buf) {
+      // ネオンや照明は、明るさだけでは足りないので光源として別に足す
+      if (emissive.length) {
+        GP.fx.addLight(function (lg) {
+          lg.save();
+          camTransform(lg);
+          for (let i = 0; i < emissive.length; i++) {
+            const em = emissive[i];
+            lg.fillStyle = em.c;
+            lg.fillRect(em.x, em.y, em.w, em.h);
+          }
+          lg.restore();
+        });
+      }
+      // カメラが寄っているときほど、周りをぼかしてジオラマらしく見せる
+      const dof = Math.max(0, Math.min(1, (cam.z - 1) / 1.5));
+      GP.fx.composite(out, {
+        focus: { x: w / 2, y: h / 2 },
+        focusR: w * (0.46 - dof * 0.14),
+        dof: dof,
+        bloom: night ? 1.15 : (wet ? 0.85 : 0.72),
+        warm: night ? 1.1 : 0.85,
+        vignette: 0.9,
+        night: night
+      });
+    }
     drawOverlay(t);
+  }
+
+  /* ---------- 走行にともなう粒子 ----------
+     火花はコーナー立ち上がりの底打ち、砂ぼこりはコースアウト、
+     水しぶきは雨のときの後輪から。走っている車だけが出す。        */
+  function emit(e, pt, vel, out, wet) {
+    if (out) {
+      if (Math.random() < 0.35) GP.fx.spawn(pt.x, pt.y, 'dust', Math.random() * 6.283, 0.6);
+      return;
+    }
+    const back = pt.ang + Math.PI;
+    if (wet && Math.random() < 0.5) {
+      GP.fx.spawn(pt.x - Math.cos(pt.ang) * 7, pt.y - Math.sin(pt.ang) * 7, 'spray', back, 0.5 + vel);
+    }
+    // 速度が乗った状態＝路面を強く押しつけている所で火花が散る
+    if (vel > 0.88 && Math.random() < 0.16) {
+      GP.fx.spawn(pt.x - Math.cos(pt.ang) * 8, pt.y - Math.sin(pt.ang) * 8, 'spark', back, 1);
+    }
   }
 
   /* ---------- 画面に重ねる情報 ---------- */
@@ -3458,6 +4188,7 @@ GP.raceview = (function () {
     if (!running) return;
     const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
     lastTs = ts;
+    GP.fx.stepParticles(dt);
     if (lights < 1) {
       lights = Math.min(1, lights + dt / 2.4);
       draw(0); drawLights(lights); updateHud();
@@ -3655,6 +4386,7 @@ GP.raceview = (function () {
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
+    GP.fx.init(cv.width, cv.height);
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
@@ -3766,6 +4498,7 @@ GP.base = (function () {
   ];
 
   let hitBoxes = [];
+  let dusk = false;          // HD-2Dスキンのときは夕景で描く
 
   /* レベルから建物の大きさと段階を決める */
   function tierOf(lv) {
@@ -3790,7 +4523,8 @@ GP.base = (function () {
   function windows(g, x, y, w, h, cols, rows, lit) {
     const mw = Math.max(4, (w - 8) / cols - 3), mh = Math.max(4, (h - 12) / rows - 3);
     for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
-      g.fillStyle = lit ? 'rgba(255,238,170,.92)' : 'rgba(150,200,230,.85)';
+      // 日が落ちていれば、どの窓にも明かりが入る
+      g.fillStyle = (lit || dusk) ? 'rgba(255,238,170,.95)' : 'rgba(150,200,230,.85)';
       g.fillRect(x + 5 + c * (mw + 3), y - h + 9 + r * (mh + 3), mw, mh);
     }
   }
@@ -3953,16 +4687,29 @@ GP.base = (function () {
   }
 
   /* ---------- 全体 ---------- */
+  function layer() {
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    return { c: c, g: g };
+  }
+
   function render(cv, g2, sel) {
-    const ctx = cv.getContext('2d');
+    dusk = document.body.getAttribute('data-skin') === 'hd';
+    const out = cv.getContext('2d');
+    out.imageSmoothingEnabled = false;
+    // 夕景では、いったん裏画面に描いてから光と色を乗せる
+    if (dusk) GP.fx.init(W, H);
+    const ctx = dusk ? GP.fx.begin() : out;
     ctx.imageSmoothingEnabled = false;
     hitBoxes = [];
     const D = GP.data;
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 7 + g2.titles.teams * 13);
 
-    // 芝
-    ctx.fillStyle = '#8fbf62'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#86b658';
+    // 芝（夕景では日が落ちた色にする）
+    ctx.fillStyle = dusk ? '#2f4a2a' : '#8fbf62'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = dusk ? '#2a4325' : '#86b658';
     for (let y = 0; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
     // 奥の木立
     for (let x = 8; x < W; x += 26) {
@@ -3972,12 +4719,12 @@ GP.base = (function () {
       ctx.fillStyle = '#317031'; ctx.fillRect(x + 1, ty - 16, 13, 10); ctx.fillRect(x + 4, ty - 20, 7, 4);
     }
     // 敷地の舗装（建物が建つ面）
-    ctx.fillStyle = '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);
-    ctx.fillStyle = '#c4bcac';
+    ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);
+    ctx.fillStyle = dusk ? '#524b58' : '#c4bcac';
     for (let x = 10; x < W - 10; x += 24) ctx.fillRect(x, 108, 22, H - 128);
-    ctx.fillStyle = '#a89e8c'; ctx.fillRect(10, 108, W - 20, 3);
+    ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c'; ctx.fillRect(10, 108, W - 20, 3);
     // 引き込み路
-    ctx.fillStyle = '#6d7078'; ctx.fillRect(W / 2 - 22, 252, 44, H - 252);
+    ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(W / 2 - 22, 252, 44, H - 252);
     ctx.fillStyle = 'rgba(255,255,255,.55)';
     for (let y = 262; y < H; y += 16) ctx.fillRect(W / 2 - 2, y, 4, 8);
     // フェンス（敷地の奥側）
@@ -3985,28 +4732,56 @@ GP.base = (function () {
     for (let x = 10; x < W - 8; x += 10) ctx.fillRect(x, 100, 3, 10);
     ctx.fillRect(10, 100, W - 20, 3);
 
+    // 建物より手前は別レイヤーに描く。シルエットから影を作りたいので
+    const bl = dusk ? layer() : null;
+    const bg = bl ? bl.g : ctx;
+
     // 建物（奥から手前へ）
     const signs = [];
     PLOTS.forEach(p => {
       const lv = g2.facilities[p.key] || 1;
-      const bb = DRAW[p.key](ctx, p, lv, g2.color);
+      const bb = DRAW[p.key](bg, p, lv, g2.color);
       hitBoxes.push({ key: p.key, x: bb.x, y: bb.y, w: bb.w, h: bb.h });
       if (sel === p.key) {
-        ctx.strokeStyle = '#fff34d'; ctx.lineWidth = 3;
-        ctx.setLineDash([5, 4]);
-        ctx.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
-        ctx.setLineDash([]);
+        bg.strokeStyle = '#fff34d'; bg.lineWidth = 3;
+        bg.setLineDash([5, 4]);
+        bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
+        bg.setLineDash([]);
       }
       signs.push({ x: p.x + bb.w / 2 - 2, y: p.y + 8, text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
-    signs.forEach(sg => sign(ctx, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
+    signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
 
-    drawCrowd(ctx, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
+    drawCrowd(bg, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
 
     // チーム旗
-    ctx.fillStyle = '#7a6a52'; ctx.fillRect(24, 116, 3, 54);
-    ctx.fillStyle = g2.color; ctx.fillRect(27, 116, 26, 16);
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(29, 119, 22, 3);
+    bg.fillStyle = '#7a6a52'; bg.fillRect(24, 116, 3, 54);
+    bg.fillStyle = g2.color; bg.fillRect(27, 116, 26, 16);
+    bg.fillStyle = 'rgba(255,255,255,.55)'; bg.fillRect(29, 119, 22, 3);
+
+    if (!dusk) return;
+
+    // 建物の落ち影。同じ絵を黒くして、光の向きへずらして重ねる
+    if (GP.fx.supportsBlur()) {
+      const sil = layer();
+      sil.g.filter = 'brightness(0)';
+      sil.g.drawImage(bl.c, 0, 0);
+      sil.g.filter = 'none';
+      ctx.save();
+      ctx.globalAlpha = 0.11;
+      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1);
+      ctx.restore();
+    }
+    ctx.drawImage(bl.c, 0, 0);
+
+    // 夕暮れの空気。地平線あたりに橙、手前に紫を落とす
+    const air = ctx.createLinearGradient(0, 60, 0, H);
+    air.addColorStop(0, 'rgba(255,168,86,.22)');
+    air.addColorStop(0.45, 'rgba(150,110,190,.10)');
+    air.addColorStop(1, 'rgba(40,26,64,.30)');
+    ctx.fillStyle = air; ctx.fillRect(0, 0, W, H);
+
+    GP.fx.composite(out, { dof: 0, bloom: 1.0, warm: 1.0, vignette: 1.0, night: true });
   }
 
   function hit(x, y) {
@@ -4381,7 +5156,7 @@ GP.ui = (function () {
     // セクターごとに色分けし、どこで速さが要るのか一目で分かるようにする
     let secPaths = '';
     (geo.sectors || []).forEach((sc, i) => {
-      secPaths += '<path d="' + seg(sc.from, sc.to) + '" fill="none" stroke="' + SECTOR_COLORS[i] +
+      secPaths += '<path class="sec" d="' + seg(sc.from, sc.to) + '" fill="none" stroke="' + SECTOR_COLORS[i] +
         '" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>';
     });
     // 名物コーナーの位置
@@ -6076,6 +6851,31 @@ window.GP = window.GP || {};
   /* =======================================================
      初期化
      ======================================================= */
+  /* 見た目の切り替え。HD-2D（オクトパストラベラー風）を既定にする */
+  const SKIN_KEY = 'gp_skin';
+  function applySkin(k) {
+    if (k === 'hd') document.body.setAttribute('data-skin', 'hd');
+    else document.body.removeAttribute('data-skin');
+    try { localStorage.setItem(SKIN_KEY, k); } catch (e) {}
+  }
+  function currentSkin() {
+    let k = null;
+    try { k = localStorage.getItem(SKIN_KEY); } catch (e) {}
+    return k === 'kairo' ? 'kairo' : 'hd';
+  }
+  function bindSkin() {
+    const btn = $('tSkin');
+    if (!btn) return;
+    const paint = () => {
+      const hd = currentSkin() === 'hd';
+      btn.textContent = hd ? '🌙' : '🎨';
+      btn.title = hd ? '見た目：HD-2D（押すとカイロ風へ）' : '見た目：カイロ風（押すとHD-2Dへ）';
+    };
+    applySkin(currentSkin());
+    paint();
+    btn.onclick = () => { applySkin(currentSkin() === 'hd' ? 'kairo' : 'hd'); paint(); };
+  }
+
   function bindSound() {
     const btn = $('tSound');
     const paint = () => { btn.textContent = GP.sound.isOn() ? '🔊' : '🔇'; btn.classList.toggle('off', !GP.sound.isOn()); };
@@ -6242,6 +7042,7 @@ window.GP = window.GP || {};
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    bindSkin();
     bindSound();
     bindCommands();
     document.body.classList.add('preboot');
@@ -6257,5 +7058,5 @@ window.GP = window.GP || {};
 })();
 
 </script>
-</body>
+    </body>
 </html>

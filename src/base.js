@@ -21,6 +21,7 @@ GP.base = (function () {
   ];
 
   let hitBoxes = [];
+  let dusk = false;          // HD-2Dスキンのときは夕景で描く
 
   /* レベルから建物の大きさと段階を決める */
   function tierOf(lv) {
@@ -45,7 +46,8 @@ GP.base = (function () {
   function windows(g, x, y, w, h, cols, rows, lit) {
     const mw = Math.max(4, (w - 8) / cols - 3), mh = Math.max(4, (h - 12) / rows - 3);
     for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
-      g.fillStyle = lit ? 'rgba(255,238,170,.92)' : 'rgba(150,200,230,.85)';
+      // 日が落ちていれば、どの窓にも明かりが入る
+      g.fillStyle = (lit || dusk) ? 'rgba(255,238,170,.95)' : 'rgba(150,200,230,.85)';
       g.fillRect(x + 5 + c * (mw + 3), y - h + 9 + r * (mh + 3), mw, mh);
     }
   }
@@ -208,16 +210,29 @@ GP.base = (function () {
   }
 
   /* ---------- 全体 ---------- */
+  function layer() {
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    return { c: c, g: g };
+  }
+
   function render(cv, g2, sel) {
-    const ctx = cv.getContext('2d');
+    dusk = document.body.getAttribute('data-skin') === 'hd';
+    const out = cv.getContext('2d');
+    out.imageSmoothingEnabled = false;
+    // 夕景では、いったん裏画面に描いてから光と色を乗せる
+    if (dusk) GP.fx.init(W, H);
+    const ctx = dusk ? GP.fx.begin() : out;
     ctx.imageSmoothingEnabled = false;
     hitBoxes = [];
     const D = GP.data;
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 7 + g2.titles.teams * 13);
 
-    // 芝
-    ctx.fillStyle = '#8fbf62'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#86b658';
+    // 芝（夕景では日が落ちた色にする）
+    ctx.fillStyle = dusk ? '#2f4a2a' : '#8fbf62'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = dusk ? '#2a4325' : '#86b658';
     for (let y = 0; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
     // 奥の木立
     for (let x = 8; x < W; x += 26) {
@@ -227,12 +242,12 @@ GP.base = (function () {
       ctx.fillStyle = '#317031'; ctx.fillRect(x + 1, ty - 16, 13, 10); ctx.fillRect(x + 4, ty - 20, 7, 4);
     }
     // 敷地の舗装（建物が建つ面）
-    ctx.fillStyle = '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);
-    ctx.fillStyle = '#c4bcac';
+    ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);
+    ctx.fillStyle = dusk ? '#524b58' : '#c4bcac';
     for (let x = 10; x < W - 10; x += 24) ctx.fillRect(x, 108, 22, H - 128);
-    ctx.fillStyle = '#a89e8c'; ctx.fillRect(10, 108, W - 20, 3);
+    ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c'; ctx.fillRect(10, 108, W - 20, 3);
     // 引き込み路
-    ctx.fillStyle = '#6d7078'; ctx.fillRect(W / 2 - 22, 252, 44, H - 252);
+    ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(W / 2 - 22, 252, 44, H - 252);
     ctx.fillStyle = 'rgba(255,255,255,.55)';
     for (let y = 262; y < H; y += 16) ctx.fillRect(W / 2 - 2, y, 4, 8);
     // フェンス（敷地の奥側）
@@ -240,28 +255,56 @@ GP.base = (function () {
     for (let x = 10; x < W - 8; x += 10) ctx.fillRect(x, 100, 3, 10);
     ctx.fillRect(10, 100, W - 20, 3);
 
+    // 建物より手前は別レイヤーに描く。シルエットから影を作りたいので
+    const bl = dusk ? layer() : null;
+    const bg = bl ? bl.g : ctx;
+
     // 建物（奥から手前へ）
     const signs = [];
     PLOTS.forEach(p => {
       const lv = g2.facilities[p.key] || 1;
-      const bb = DRAW[p.key](ctx, p, lv, g2.color);
+      const bb = DRAW[p.key](bg, p, lv, g2.color);
       hitBoxes.push({ key: p.key, x: bb.x, y: bb.y, w: bb.w, h: bb.h });
       if (sel === p.key) {
-        ctx.strokeStyle = '#fff34d'; ctx.lineWidth = 3;
-        ctx.setLineDash([5, 4]);
-        ctx.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
-        ctx.setLineDash([]);
+        bg.strokeStyle = '#fff34d'; bg.lineWidth = 3;
+        bg.setLineDash([5, 4]);
+        bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
+        bg.setLineDash([]);
       }
       signs.push({ x: p.x + bb.w / 2 - 2, y: p.y + 8, text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
-    signs.forEach(sg => sign(ctx, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
+    signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
 
-    drawCrowd(ctx, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
+    drawCrowd(bg, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
 
     // チーム旗
-    ctx.fillStyle = '#7a6a52'; ctx.fillRect(24, 116, 3, 54);
-    ctx.fillStyle = g2.color; ctx.fillRect(27, 116, 26, 16);
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(29, 119, 22, 3);
+    bg.fillStyle = '#7a6a52'; bg.fillRect(24, 116, 3, 54);
+    bg.fillStyle = g2.color; bg.fillRect(27, 116, 26, 16);
+    bg.fillStyle = 'rgba(255,255,255,.55)'; bg.fillRect(29, 119, 22, 3);
+
+    if (!dusk) return;
+
+    // 建物の落ち影。同じ絵を黒くして、光の向きへずらして重ねる
+    if (GP.fx.supportsBlur()) {
+      const sil = layer();
+      sil.g.filter = 'brightness(0)';
+      sil.g.drawImage(bl.c, 0, 0);
+      sil.g.filter = 'none';
+      ctx.save();
+      ctx.globalAlpha = 0.11;
+      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1);
+      ctx.restore();
+    }
+    ctx.drawImage(bl.c, 0, 0);
+
+    // 夕暮れの空気。地平線あたりに橙、手前に紫を落とす
+    const air = ctx.createLinearGradient(0, 60, 0, H);
+    air.addColorStop(0, 'rgba(255,168,86,.22)');
+    air.addColorStop(0.45, 'rgba(150,110,190,.10)');
+    air.addColorStop(1, 'rgba(40,26,64,.30)');
+    ctx.fillStyle = air; ctx.fillRect(0, 0, W, H);
+
+    GP.fx.composite(out, { dof: 0, bloom: 1.0, warm: 1.0, vignette: 1.0, night: true });
   }
 
   function hit(x, y) {

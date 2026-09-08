@@ -11,6 +11,16 @@
   --board2:#b8955a;
   --red:#e04a3f; --blue:#3a7ad9; --green:#4ea63f;
   --yellow:#ffc93c; --purple:#b06fd0; --sky:#7ecbf0;
+
+  --paper3:#fffdf3;       /* パネルの中の、さらに明るい面 */
+  --trough:#e9dcbc;       /* ゲージの下地 */
+  --hilite:#fff;          /* 枠の内側に入れる光の線 */
+  --outline:#fff;         /* 見出し文字の縁取り */
+  --headbg:linear-gradient(var(--ink2),#65482c);
+  --headbg2:var(--ink);
+  --headfg:#ffeec4;
+  --glow:transparent;     /* HD-2Dスキンでだけ光る */
+  --shine:none;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -43,7 +53,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   background:var(--paper);
   border:3px solid var(--ink);
   border-radius:8px;
-  box-shadow:0 4px 0 var(--ink), inset 0 0 0 2px #fff;
+  box-shadow:0 4px 0 var(--ink), inset 0 0 0 2px var(--hilite);
 }
 
 /* ================= レイアウト ================= */
@@ -69,7 +79,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .tb-stats{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
 .stat{
   display:flex;align-items:center;gap:3px;
-  background:#fffdf3;border:2px solid var(--ink);border-radius:6px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
   padding:2px 8px;font-size:13px;box-shadow:0 2px 0 rgba(74,47,26,.35);
 }
 .stat.danger{background:#ffdede;animation:blink .8s steps(2,end) infinite}
@@ -77,7 +87,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .stat b{font-size:15px}
 .stat small{font-size:10px;opacity:.7}
 .tb-next{
-  background:var(--ink);color:#ffeeb0;border-radius:6px;padding:4px 12px;
+  background:var(--headbg2);color:var(--headfg);border-radius:6px;padding:4px 12px;
   font-size:13px;white-space:nowrap;
 }
 .tb-next.race-imminent{background:var(--red);color:#fff;animation:pulse .7s ease-in-out infinite alternate}
@@ -102,7 +112,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- タイヤ ---------- */
 .tyres{gap:5px}
 .tyrebtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.25;
-         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 2px;font-size:9px}
 .tyrebtn b{width:22px;height:22px;border-radius:50%;background:var(--tc);color:var(--tt);
            border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px}
@@ -139,23 +149,23 @@ button{font-family:inherit;color:inherit;cursor:pointer}
   box-shadow:0 4px 0 var(--ink);overflow:hidden;flex-shrink:0;
 }
 .card-h{
-  background:linear-gradient(var(--ink2),#65482c);color:#ffeec4;
+  background:var(--headbg);color:var(--headfg);
   padding:5px 10px;font-size:14px;border-bottom:3px solid var(--ink);
   text-shadow:1px 1px 0 rgba(0,0,0,.4);
 }
 .pad{padding:10px}
-.sub{margin:12px 0 6px;font-size:13px;background:var(--ink);color:#ffeeb0;
+.sub{margin:12px 0 6px;font-size:13px;background:var(--headbg2);color:var(--headfg);
      display:inline-block;padding:2px 10px;border-radius:5px}
 .desc{font-size:12px;color:#6b503a;margin:6px 0;line-height:1.6}
 .lead{font-size:13px;margin-bottom:10px;line-height:1.7}
 
 /* ---------- 注目度ゲージ ---------- */
 .stat.hype{gap:5px}
-.hypebar{width:44px;height:8px;background:#e9dcbc;border:2px solid var(--ink);
+.hypebar{width:44px;height:8px;background:var(--trough);border:2px solid var(--ink);
          border-radius:5px;overflow:hidden;display:inline-block}
 .hypebar b{display:block;height:100%;transition:width .4s}
 .hypebox{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;
-         background:#fffdf3;border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
+         background:var(--paper3);border:2px dashed var(--ink2);border-radius:8px;padding:5px 9px;margin-bottom:8px}
 .skind{font-style:normal;font-size:9px;border:1px solid var(--ink);border-radius:4px;
        padding:0 5px;margin-left:5px;background:#e8dcc0}
 .skind.tech{background:#cfe0f8}
@@ -168,7 +178,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 
 /* ---------- 収支ダッシュボード ---------- */
 .fin{display:flex;gap:8px;flex-wrap:wrap}
-.fin-col{flex:1;min-width:200px;background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
+.fin-col{flex:1;min-width:200px;background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
 .fin-h{background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px;font-size:11px;margin-bottom:5px}
 .fin-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0;
          border-bottom:1px dashed #d8c8a4}
@@ -179,24 +189,24 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- 開発リソースの配分 ---------- */
 .focusrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
 .focusbtn{flex:1;min-width:104px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-          background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+          background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
           box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
 .focusbtn b{font-size:12px}
 .focusbtn small{font-size:9px;opacity:.75}
 .focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
          background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
-.nextcar i{flex:1;height:10px;background:#e9dcbc;border:2px solid var(--ink);border-radius:5px;overflow:hidden}
+.nextcar i{flex:1;height:10px;background:var(--trough);border:2px solid var(--ink);border-radius:5px;overflow:hidden}
 .nextcar i b{display:block;height:100%;background:linear-gradient(#8ede6a,#4ea63f);transition:width .35s}
 .nextcar em{font-style:normal;font-weight:bold;width:36px;text-align:right}
 
 /* ---------- 車体 ---------- */
 .sub.small{font-size:11px;padding:1px 8px;margin:8px 0 4px}
 .bodyattrs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+.battr{display:flex;align-items:center;gap:5px;font-size:10px;background:var(--paper3);
        border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .battr span{width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.battr i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.battr i{flex:1;height:8px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .battr i b{display:block;height:100%;transition:width .35s}
 .battr em{font-style:normal;width:44px;text-align:right;font-weight:bold}
 .battr em small{font-weight:normal;opacity:.6;font-size:8px}
@@ -216,22 +226,22 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
        box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.skbar{display:inline-block;width:70px;height:7px;background:#e9dcbc;border:1px solid var(--ink);
+.skbar{display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
 .skbar i{display:block;height:100%;background:linear-gradient(var(--green),#2e7a2e)}
 .srank{background:var(--sky);border:1px solid var(--ink);border-radius:4px;padding:0 5px;font-style:normal;font-size:9px}
 .deptgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px}
-.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:#fffdf3;
+.dept{display:flex;align-items:center;gap:5px;font-size:10px;background:var(--paper3);
       border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .dept span{width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dept i{flex:1;height:8px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.dept i{flex:1;height:8px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .dept i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
 .dept em{font-style:normal;width:26px;text-align:right}
 .mgmtrow.empty{opacity:.65;border-style:dashed}
 .mgeff{font-style:normal;color:#2e6b8b}
 
 /* ---------- チャンピオンシップ順位表 ---------- */
-.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:#fffdf3;margin-bottom:4px}
+.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:8px;background:var(--paper3);margin-bottom:4px}
 table.rank.champ{font-size:11px}
 table.rank.champ td,table.rank.champ th{padding:3px 5px;text-align:center;white-space:nowrap}
 table.rank.champ td.nm,table.rank.champ th.nm{text-align:left}
@@ -251,7 +261,7 @@ table.rank.grid td.dim{opacity:.35}
 @keyframes tkpulse{0%,100%{box-shadow:0 2px 0 rgba(74,47,26,.35)}50%{box-shadow:0 2px 0 rgba(74,47,26,.35),0 0 8px 2px rgba(255,201,60,.8)}}
 .diffs{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
 .diffbtn{flex:1;min-width:96px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-         background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+         background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 8px;text-align:left;line-height:1.3}
 .diffbtn b{font-size:13px}
 .diffbtn small{font-size:9px;opacity:.75}
@@ -259,7 +269,7 @@ table.rank.grid td.dim{opacity:.35}
             text-shadow:1px 1px 0 rgba(0,0,0,.35)}
 .diffbtn.on small{opacity:.95}
 .ticketbar{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;
-           background:#fffdf3;border:3px dashed var(--ink2);border-radius:8px;padding:6px 8px;margin-bottom:10px}
+           background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;padding:6px 8px;margin-bottom:10px}
 .ticketbar.on{background:linear-gradient(#fff4c0,#ffe88a);border-style:solid;border-color:var(--ink)}
 .tk-ic{font-size:20px}
 .tk-body{flex:1;display:flex;flex-direction:column;line-height:1.3;font-size:12px}
@@ -278,7 +288,7 @@ table.rank.grid td.dim{opacity:.35}
 #baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
-.lvbar i b{flex:1;height:12px;background:#e9dcbc;border:2px solid var(--ink);border-radius:3px}
+.lvbar i b{flex:1;height:12px;background:var(--trough);border:2px solid var(--ink);border-radius:3px}
 .lvbar i b.on{background:linear-gradient(var(--yellow),#e8a800)}
 .basebtns{display:flex;gap:8px;margin:6px 0}
 .basepick{flex-direction:row;flex-wrap:wrap;gap:5px}
@@ -296,7 +306,7 @@ table.rank.grid td.dim{opacity:.35}
 .card.special .card-h{background:linear-gradient(#b04ab0,#8a2f8a)}
 @keyframes sppop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 .sp-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin:6px 0}
-.sp-meta span{background:#fffdf3;border:2px solid var(--ink);border-radius:6px;padding:2px 8px}
+.sp-meta span{background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 8px}
 .sp-btns{display:flex;gap:8px;margin-top:8px}
 
 /* ---------- 次戦カード ---------- */
@@ -309,11 +319,11 @@ table.rank.grid td.dim{opacity:.35}
 .req{margin-top:8px}
 .reqrow{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0}
 .reqrow span{width:52px}
-.reqrow i{flex:1;height:11px;background:#e9dcbc;border:2px solid var(--ink);border-radius:6px;
+.reqrow i{flex:1;height:11px;background:var(--trough);border:2px solid var(--ink);border-radius:6px;
           overflow:hidden;display:block}
 .reqrow i b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800)}
 .reqrow em{width:34px;text-align:right;font-style:normal}
-.score{margin-top:8px;background:#fffdf3;border:2px dashed var(--ink2);border-radius:6px;
+.score{margin-top:8px;background:var(--paper3);border:2px dashed var(--ink2);border-radius:6px;
        padding:5px 8px;font-size:13px;text-align:center}
 .score b{font-size:19px;color:var(--red)}
 
@@ -321,7 +331,7 @@ table.rank.grid td.dim{opacity:.35}
 .statrow{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
 .sb{display:flex;align-items:center;gap:7px;font-size:12px}
 .sb span{width:58px}
-.sb i{flex:1;height:14px;background:#e9dcbc;border:2px solid var(--ink);border-radius:7px;overflow:hidden;display:block}
+.sb i{flex:1;height:14px;background:var(--trough);border:2px solid var(--ink);border-radius:7px;overflow:hidden;display:block}
 .sb i b{display:block;height:100%;border-radius:5px 0 0 5px;transition:width .35s}
 .sb em{width:34px;text-align:right;font-style:normal;font-weight:bold}
 .rel{font-size:12px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -330,7 +340,7 @@ table.rank.grid td.dim{opacity:.35}
 .good{color:#2e8b30}.warn{color:#d08000}.bad{color:#d02020}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
-      background:#fffdf3;border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
+      background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
 .part.empty{opacity:.55;border-style:dashed}
 .p-ic{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
       border:2px solid var(--ink);border-radius:5px;font-size:11px}
@@ -340,7 +350,7 @@ table.rank.grid td.dim{opacity:.35}
 .p-rar{letter-spacing:-1px;font-size:9px}
 .p-lv{width:56px;font-weight:bold;text-align:right}
 .p-lv small{font-size:9px;opacity:.6;font-weight:normal}
-.p-bar{flex:1;min-width:60px;height:10px;background:#e9dcbc;border:2px solid var(--ink);
+.p-bar{flex:1;min-width:60px;height:10px;background:var(--trough);border:2px solid var(--ink);
        border-radius:5px;overflow:hidden}
 .p-bar i{display:block;height:100%;transition:width .35s}
 .p-cond{width:38px;text-align:right}
@@ -356,7 +366,7 @@ table.rank.grid td.dim{opacity:.35}
 
 /* ---------- ドライバー ---------- */
 .drvwrap{display:grid;grid-template-columns:1fr;gap:8px}
-.drv{background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:7px;
+.drv{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:7px;
      box-shadow:0 2px 0 rgba(74,47,26,.3)}
 .drv.empty{display:flex;flex-direction:column;justify-content:center;align-items:center;
            color:#a08868;font-size:12px;text-align:center;border-style:dashed}
@@ -368,7 +378,7 @@ table.rank.grid td.dim{opacity:.35}
 .drv-sub{font-size:9px;opacity:.8}
 .drv-sub b{background:var(--yellow);border:1px solid var(--ink);border-radius:3px;padding:0 3px}
 .drv-age{font-size:10px;opacity:.7}
-.quote{display:flex;gap:6px;align-items:flex-start;background:#fffdf3;border:2px solid var(--ink);
+.quote{display:flex;gap:6px;align-items:flex-start;background:var(--paper3);border:2px solid var(--ink);
        border-radius:8px;padding:5px 7px;margin-top:6px;font-size:11px;line-height:1.5}
 .quote .face{width:30px;height:30px}
 .quote em{font-style:normal;display:block;font-size:9px;opacity:.7;margin-bottom:1px}
@@ -379,7 +389,7 @@ table.rank.grid td.dim{opacity:.35}
 .drv-stats{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin-bottom:5px}
 .mst{display:flex;align-items:center;gap:3px;font-size:10px}
 .mst span{width:24px}
-.mst i{flex:1;height:7px;background:#e9dcbc;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.mst i{flex:1;height:7px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .mst i b{display:block;height:100%;background:linear-gradient(var(--green),#3a8030)}
 .mst em{width:22px;text-align:right;font-style:normal}
 .drv-foot{display:flex;justify-content:space-between;font-size:10px;border-top:1px dashed var(--ink2);padding-top:3px}
@@ -394,7 +404,7 @@ table.rank.grid td.dim{opacity:.35}
 .tab.on{background:var(--paper);color:var(--ink);font-weight:bold}
 .tabbody{flex:1;overflow-y:auto;padding:8px}
 .loglist{display:flex;flex-direction:column;gap:3px}
-.logline{font-size:11px;background:#fffdf3;border-left:4px solid var(--ink2);
+.logline{font-size:11px;background:var(--paper3);border-left:4px solid var(--ink2);
          padding:3px 6px;border-radius:0 5px 5px 0;line-height:1.45}
 .logline.good{border-left-color:var(--green);background:#f0fbe8}
 .logline.bad{border-left-color:var(--red);background:#ffeeee}
@@ -405,13 +415,13 @@ table.rank td{border-bottom:1px dashed #d8c8a4;padding:3px}
 table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .rk-chip{display:inline-block;width:9px;height:9px;border:1px solid var(--ink);border-radius:2px;margin-right:4px}
 .stafflist{display:flex;flex-direction:column;gap:4px}
-.staff{display:flex;align-items:center;gap:6px;font-size:11px;background:#fffdf3;
+.staff{display:flex;align-items:center;gap:6px;font-size:11px;background:var(--paper3);
        border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
 .s-nm{flex:1;display:flex;flex-direction:column;line-height:1.2}
 .s-nm small{font-size:9px;opacity:.65}
 .s-sk{font-size:10px}.s-sal{font-size:10px;opacity:.7}
 .facs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}
-.fac{font-size:10px;background:#fffdf3;border:2px solid var(--ink);border-radius:5px;
+.fac{font-size:10px;background:var(--paper3);border:2px solid var(--ink);border-radius:5px;
      padding:2px 5px;display:flex;justify-content:space-between}
 .spons{margin-top:8px}
 .spon{font-size:11px;background:#f0fbe8;border:2px solid var(--ink);border-radius:5px;
@@ -433,7 +443,8 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .cmd span{font-size:20px;line-height:1}
 .cmd:hover{background:linear-gradient(#fffdf0,#f8ebc8)}
 .cmd:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
-.cmd.sub{flex:0 0 auto;min-width:66px;background:linear-gradient(#e8dcc0,#d8c69c);font-size:11px}
+.cmd.sub{flex:0 0 auto;min-width:66px;background:linear-gradient(#e8dcc0,#d8c69c);font-size:11px;
+         color:var(--ink)}   /* 見出しの .sub と名前が重なるので、文字色を戻す */
 .cmd.sub span{font-size:16px}
 .cmd.big{background:linear-gradient(#ff8a5c,var(--red));color:#fff;font-size:17px;padding:10px;
          text-shadow:1px 1px 0 rgba(0,0,0,.35);animation:pulse .8s ease-in-out infinite alternate}
@@ -454,7 +465,7 @@ body.preboot .topbar{visibility:hidden}
 .modal-box{
   width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;
   background:var(--paper);border:4px solid var(--ink);border-radius:12px;
-  box-shadow:0 6px 0 rgba(0,0,0,.35),inset 0 0 0 2px #fff;
+  box-shadow:0 6px 0 rgba(0,0,0,.35),inset 0 0 0 2px var(--hilite);
   animation:popin .18s cubic-bezier(.3,1.5,.6,1);
 }
 #modal.wide .modal-box{max-width:700px}
@@ -480,7 +491,7 @@ body.preboot .topbar{visibility:hidden}
 .pick{display:flex;flex-direction:column;gap:6px}
 .pickbtn{
   display:flex;align-items:center;gap:8px;text-align:left;width:100%;
-  background:#fffdf3;border:3px solid var(--ink);border-radius:8px;
+  background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
   box-shadow:0 3px 0 rgba(74,47,26,.5);padding:6px 8px;font-size:13px;
 }
 .pickbtn:hover:not(:disabled){background:#fff6da}
@@ -499,12 +510,12 @@ body.preboot .topbar{visibility:hidden}
 .mini{background:linear-gradient(#fff8e3,#e8d8ae);border:2px solid var(--ink);
       border-radius:5px;font-size:10px;padding:2px 6px}
 .mini.danger{background:linear-gradient(#ff9a8a,var(--red));color:#fff}
-.bigbox{background:#fffdf3;border:3px dashed var(--ink2);border-radius:8px;
+.bigbox{background:var(--paper3);border:3px dashed var(--ink2);border-radius:8px;
         padding:10px;text-align:center;font-size:14px;margin:8px 0}
 .bigbox b{font-size:24px;color:var(--red)}
 .fld{display:block;font-size:13px;margin:10px 0}
 .fld input{display:block;width:100%;margin-top:4px;font-family:inherit;font-size:15px;
-           padding:6px 8px;border:3px solid var(--ink);border-radius:7px;background:#fffdf3;color:inherit}
+           padding:6px 8px;border:3px solid var(--ink);border-radius:7px;background:var(--paper3);color:inherit}
 .colors{display:flex;gap:6px;margin-top:5px}
 .colorbtn{width:34px;height:34px;border:3px solid var(--ink);border-radius:7px;box-shadow:0 3px 0 rgba(74,47,26,.5)}
 .colorbtn.on{outline:3px solid var(--yellow);outline-offset:2px;transform:translateY(2px)}
@@ -512,7 +523,7 @@ body.preboot .topbar{visibility:hidden}
 
 /* ---------- トレーニング／作戦 ---------- */
 .trainrow,.stratrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;
-                    background:#fffdf3;border:2px solid var(--ink);border-radius:8px;padding:6px}
+                    background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px}
 .tr-nm,.sr-nm{width:120px;font-size:12px;display:flex;flex-direction:column;line-height:1.25}
 .tr-nm small,.sr-nm small{font-size:9px;opacity:.65}
 .tr-btns,.sr-btns{flex:1;display:flex;gap:4px}
@@ -526,7 +537,7 @@ body.preboot .topbar{visibility:hidden}
 .racehead b{font-size:15px}
 .racehead span{font-size:11px;opacity:.85}
 .gridlist{display:flex;flex-direction:column;gap:2px;max-height:44vh;overflow-y:auto}
-.gridrow{display:flex;align-items:center;gap:6px;font-size:12px;background:#fffdf3;
+.gridrow{display:flex;align-items:center;gap:6px;font-size:12px;background:var(--paper3);
          border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
 .gridrow.me{background:#fff2c4;font-weight:bold;border-width:3px}
 .gridrow.dnf{opacity:.5}
@@ -540,7 +551,7 @@ body.preboot .topbar{visibility:hidden}
 .gp-mv.up{color:#2e8b30;opacity:1}
 .gp-mv.down{color:#d02020;opacity:1}
 .gp-t{width:72px;text-align:right;font-size:11px}
-.rewardbox{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;background:#fffdf3;
+.rewardbox{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;background:var(--paper3);
            border:3px dashed var(--ink2);border-radius:8px;padding:8px;font-size:12px}
 .rewardbox div{flex:1;min-width:120px;text-align:center}
 .rewardbox b{display:block;font-size:16px}
@@ -548,7 +559,7 @@ body.preboot .topbar{visibility:hidden}
       padding:5px 8px;font-size:12px;margin-top:6px}
 .note.big{background:linear-gradient(90deg,#fff0a0,#ffd76a);font-size:14px;text-align:center;
           border-left:none;border:3px solid var(--ink);border-radius:8px}
-.hist{font-size:11px;background:#fffdf3;border:2px solid var(--ink);border-radius:6px;
+.hist{font-size:11px;background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
       padding:4px 7px;margin-bottom:4px;line-height:1.5}
 
 /* ================= レース画面 ================= */
@@ -574,7 +585,7 @@ body.preboot .topbar{visibility:hidden}
                font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
 .rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
-         border-radius:8px;overflow:hidden;background:#fffdf3;min-width:150px}
+         border-radius:8px;overflow:hidden;background:var(--paper3);min-width:150px}
 .rv-order-h{background:var(--ink2);color:#ffeec4;font-size:11px;padding:2px 6px;flex-shrink:0}
 .rv-order{flex:1;overflow-y:auto;padding:2px}
 .rv-row{display:flex;align-items:center;gap:4px;font-size:10px;padding:1px 3px;border-radius:3px}
@@ -646,7 +657,7 @@ body.preboot .topbar{visibility:hidden}
 @keyframes fadeup{to{transform:translateY(-18px);opacity:0}}
 .numpop{
   position:absolute;top:110px;font-size:22px;font-weight:bold;color:var(--green);
-  text-shadow:2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;
+  text-shadow:2px 2px 0 var(--outline),-2px -2px 0 var(--outline),2px -2px 0 var(--outline),-2px 2px 0 var(--outline);
   animation:floatup 1.4s ease-out forwards;
 }
 .numpop.crit{color:var(--red);font-size:28px}
@@ -691,3 +702,314 @@ body.preboot .topbar{visibility:hidden}
   .cmd span{font-size:17px}
   .tb-stats{width:100%;margin-left:0}
 }
+
+/* =========================================================
+   HD-2Dスキン（オクトパストラベラー風）
+   紙の色を沈ませ、金の枠と光で立体感を出す。
+   カイロ風の配色は :root にそのまま残してあるので、
+   data-skin を外せばいつでも元に戻る。
+   ========================================================= */
+[data-skin="hd"]{
+  --ink:#0e0b14;          /* 枠は黒に近い紫。金と組んで沈む */
+  --ink2:#2a2038;
+  --paper:#241c30;        /* パネルの面 */
+  --paper2:#1b1526;
+  --paper3:#2f2540;
+  --trough:#120e1c;
+  --board:#0a0810;
+  --board2:#141020;
+  --hilite:rgba(214,178,106,.55);   /* 枠の内側に走る金の線 */
+  --outline:#0e0b14;
+  --gold:#d6b26a;
+  --gold2:#8d6d38;
+  --headbg:linear-gradient(180deg,#3b2f4e,#241c30);
+  --headbg2:linear-gradient(180deg,#3b2f4e,#241c30);
+  --headfg:#f2dfae;
+  --glow:rgba(214,178,106,.30);
+  --shine:0 0 12px rgba(214,178,106,.22);
+  color:#efe4cf;
+}
+
+/* ---- 背景：暗い舞台。中央に光を残して四隅を落とす ---- */
+[data-skin="hd"] body,
+body[data-skin="hd"]{
+  background:#0a0810;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(96,74,140,.34) 0%, rgba(10,8,16,0) 62%),
+    radial-gradient(90% 70% at 50% 108%, rgba(190,132,60,.20) 0%, rgba(10,8,16,0) 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 4px);
+  color:#efe4cf;
+}
+
+/* ---- パネル：面を沈め、金の細枠と外側の光を足す ---- */
+[data-skin="hd"] .card,
+[data-skin="hd"] .frame,
+[data-skin="hd"] .topbar,
+[data-skin="hd"] .modal-box,
+[data-skin="hd"] .cmdbar{
+  background:linear-gradient(180deg,#2b2239 0%,#1d1729 100%);
+  border-color:var(--gold2);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    inset 0 0 0 1px rgba(214,178,106,.34),
+    inset 0 18px 34px rgba(120,92,170,.13),
+    0 6px 20px rgba(0,0,0,.72),
+    var(--shine);
+}
+
+/* 見出しは金の下線で仕切る */
+[data-skin="hd"] .card-h{
+  border-bottom:1px solid var(--gold2);
+  box-shadow:inset 0 -1px 0 rgba(214,178,106,.30), inset 0 1px 0 rgba(214,178,106,.16);
+  text-shadow:0 0 8px rgba(214,178,106,.45),1px 1px 0 rgba(0,0,0,.6);
+  letter-spacing:.04em;
+}
+
+/* ---- 四隅の飾り。オクトパスのメニュー枠の要 ---- */
+[data-skin="hd"] .card{position:relative}
+[data-skin="hd"] .card::before,
+[data-skin="hd"] .card::after{
+  content:'';position:absolute;width:9px;height:9px;pointer-events:none;z-index:2;
+  border:2px solid var(--gold);opacity:.72;
+}
+[data-skin="hd"] .card::before{top:3px;left:3px;border-right:0;border-bottom:0}
+[data-skin="hd"] .card::after{bottom:3px;right:3px;border-left:0;border-top:0}
+
+/* ---- ゲージ：深く掘った溝に、光る帯を通す ---- */
+[data-skin="hd"] .p-bar,
+[data-skin="hd"] .reqrow i,
+[data-skin="hd"] .skbar,
+[data-skin="hd"] .battr i,
+[data-skin="hd"] .hypebar,
+[data-skin="hd"] .lvbar i b{
+  background:var(--trough);
+  border-color:rgba(214,178,106,.34);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.85);
+}
+[data-skin="hd"] .p-bar b,
+[data-skin="hd"] .reqrow i b,
+[data-skin="hd"] .skbar i,
+[data-skin="hd"] .battr i b,
+[data-skin="hd"] .hypebar b,
+[data-skin="hd"] .lvbar i b.on{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.42), 0 0 8px rgba(255,210,120,.40);
+  filter:saturate(1.25) brightness(1.12);
+}
+
+/* ---- 数字と見出しは、わずかに金色に灯す ---- */
+[data-skin="hd"] .tb-stats b,
+[data-skin="hd"] .score,
+[data-skin="hd"] .lead{
+  color:#ffe9b0;
+  text-shadow:0 0 10px rgba(255,200,90,.42);
+}
+[data-skin="hd"] .sub{
+  border-radius:0;
+  border-left:3px solid var(--gold);
+  text-shadow:0 0 7px rgba(214,178,106,.40);
+}
+
+/* ---- ボタン：面は暗いまま、縁と天面のハイライトで浮かせる ---- */
+[data-skin="hd"] .cmd,
+[data-skin="hd"] .btn,
+[data-skin="hd"] .mini,
+[data-skin="hd"] .pickbtn,
+[data-skin="hd"] .tab,
+[data-skin="hd"] .hrtab{
+  background:linear-gradient(180deg,#3a2f4c,#221a31);
+  border-color:var(--gold2);
+  color:#f2e4c4;
+  box-shadow:0 4px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.36);
+}
+[data-skin="hd"] .cmd:active,
+[data-skin="hd"] .btn:active,
+[data-skin="hd"] .mini:active{box-shadow:0 1px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.36)}
+[data-skin="hd"] .cmd:hover,
+[data-skin="hd"] .btn:hover{
+  background:linear-gradient(180deg,#4b3d63,#2b2140);
+  box-shadow:0 4px 0 #0b0812, inset 0 1px 0 rgba(214,178,106,.55), 0 0 14px rgba(214,178,106,.30);
+}
+[data-skin="hd"] .tab.on,
+[data-skin="hd"] .hrtab.on,
+[data-skin="hd"] .pickbtn.on{
+  background:linear-gradient(180deg,#6a5220,#3d2e12);
+  border-color:var(--gold);
+  color:#ffeec0;
+  box-shadow:inset 0 1px 0 rgba(255,224,150,.55), 0 0 16px rgba(214,178,106,.42);
+}
+
+/* ---- 明るい面を前提にしていた小さな部品を、暗い面に合わせる ---- */
+[data-skin="hd"] .part,
+[data-skin="hd"] .drv,
+[data-skin="hd"] .staff,
+[data-skin="hd"] .spon,
+[data-skin="hd"] .fac,
+[data-skin="hd"] .dept,
+[data-skin="hd"] .battr,
+[data-skin="hd"] .fin-row,
+[data-skin="hd"] .sc-row,
+[data-skin="hd"] .rv-row,
+[data-skin="hd"] .gridrow,
+[data-skin="hd"] .logline,
+[data-skin="hd"] .hist{
+  background:linear-gradient(180deg,#2c2340,#211a2f);
+  border-color:rgba(214,178,106,.30);
+  color:#e8dcc4;
+}
+[data-skin="hd"] .note,
+[data-skin="hd"] .desc,
+[data-skin="hd"] .invnote,
+[data-skin="hd"] small{color:#b9a98f}
+[data-skin="hd"] .quote{color:#cbb8e0}
+
+/* ---- レース画面まわり ---- */
+[data-skin="hd"] .rv-canvaswrap{
+  box-shadow:0 0 0 1px rgba(214,178,106,.45), 0 10px 30px rgba(0,0,0,.8);
+  border-radius:8px;
+}
+[data-skin="hd"] .rv-head{background:linear-gradient(180deg,#33284a,#1d1729)}
+
+/* ---- モーダルの背景は、舞台を暗転させる ---- */
+[data-skin="hd"] #modal{background:rgba(6,4,12,.72)}
+
+/* ---- 明るい下地を持つ部品の文字色 ----
+   カイロ風では明るい面に濃い文字を置いていた。HD-2Dでは本文が明るい色に
+   なるので、明るい面のままの部品は文字だけ濃いほうへ戻す。            */
+[data-skin="hd"] .countdown,
+[data-skin="hd"] .countdown b,
+[data-skin="hd"] .ersrow,
+[data-skin="hd"] .note,
+[data-skin="hd"] .invnote,
+[data-skin="hd"] .skill,
+[data-skin="hd"] .srank,
+[data-skin="hd"] .ptr,
+[data-skin="hd"] .p-ic,
+[data-skin="hd"] .skind,
+[data-skin="hd"] .drv-sub b,
+[data-skin="hd"] .pips i,
+[data-skin="hd"] .stat.danger,
+[data-skin="hd"] .stat.ticket.has,
+[data-skin="hd"] .ticketbar.on,
+[data-skin="hd"] .ticketbar.on .tk-body,
+[data-skin="hd"] .tyrebtn.on,
+[data-skin="hd"] .focusbtn.on,
+[data-skin="hd"] table.rank.grid td.gold,
+[data-skin="hd"] table.rank.grid td.pts,
+[data-skin="hd"] table.rank.grid td.dnf,
+[data-skin="hd"] .rewardbox,
+[data-skin="hd"] .bigbox,
+[data-skin="hd"] .toast{
+  color:#1c1526;
+}
+[data-skin="hd"] .countdown small,
+[data-skin="hd"] .countdown span,
+[data-skin="hd"] .ersrow em,
+[data-skin="hd"] .note small,
+[data-skin="hd"] .bigbox small,
+[data-skin="hd"] .rewardbox small{color:#4a3d33}
+
+/* 破線で囲んだ「まとめ」の箱は、明るいままのほうが目に入るので下地を残す */
+[data-skin="hd"] .bigbox,
+[data-skin="hd"] .rewardbox{
+  background:linear-gradient(180deg,#f6ecd6,#e6d6b4);
+  border-color:var(--gold);
+  box-shadow:0 0 16px rgba(214,178,106,.24);
+}
+[data-skin="hd"] .quote{
+  background:linear-gradient(180deg,#2c2340,#211a2f);
+  border-color:rgba(214,178,106,.30);
+  color:#cbb8e0;
+}
+[data-skin="hd"] .fld input{background:#1a1426;color:#efe4cf;border-color:var(--gold2)}
+
+/* コース図も舞台の一部なので、明るい芝色をやめて夜の路面に寄せる */
+[data-skin="hd"] .track-mini{
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(110,86,160,.30), rgba(0,0,0,0) 70%),
+    linear-gradient(180deg,#1d1729,#141020);
+  border-color:var(--gold2);
+  box-shadow:inset 0 0 24px rgba(0,0,0,.7), 0 0 0 1px rgba(214,178,106,.22);
+}
+[data-skin="hd"] .track-mini svg path.sec{filter:drop-shadow(0 0 5px rgba(255,210,120,.55))}
+[data-skin="hd"] .score{
+  background:linear-gradient(180deg,#2c2340,#1c1529);
+  border-color:var(--gold);
+  color:#ffe9b0;
+}
+/* 枠だけの箱にも四隅の飾りを付ける */
+[data-skin="hd"] .frame,
+[data-skin="hd"] .modal-box{position:relative}
+[data-skin="hd"] .frame::before,[data-skin="hd"] .frame::after,
+[data-skin="hd"] .modal-box::before,[data-skin="hd"] .modal-box::after{
+  content:'';position:absolute;width:9px;height:9px;pointer-events:none;z-index:2;
+  border:2px solid var(--gold);opacity:.72;
+}
+[data-skin="hd"] .frame::before,[data-skin="hd"] .modal-box::before{top:3px;left:3px;border-right:0;border-bottom:0}
+[data-skin="hd"] .frame::after,[data-skin="hd"] .modal-box::after{bottom:3px;right:3px;border-left:0;border-top:0}
+
+/* 明るい下地が残っている残りの部品（順位表の自チーム行など） */
+[data-skin="hd"] .nextcar,
+[data-skin="hd"] .pb-ic,
+[data-skin="hd"] table.rank tr.me td,
+[data-skin="hd"] table.rank.grid td.pod{color:#1c1526}
+[data-skin="hd"] .nextcar em{color:#1c1526}
+[data-skin="hd"] table.rank td{border-bottom-color:rgba(214,178,106,.20)}
+[data-skin="hd"] table.rank th{
+  background:linear-gradient(180deg,#3b2f4e,#241c30);
+  color:var(--headfg);
+  box-shadow:inset 0 -1px 0 rgba(214,178,106,.28);
+}
+[data-skin="hd"] .tablewrap{border-color:var(--gold2);box-shadow:inset 0 0 18px rgba(0,0,0,.6)}
+
+/* ---- レース観戦のカメラ切り替えと順位表 ---- */
+[data-skin="hd"] .rv-cam button{
+  background:linear-gradient(180deg,rgba(58,47,76,.94),rgba(30,23,44,.94));
+  border-color:var(--gold2);
+  color:#f2e4c4;
+  box-shadow:0 2px 0 rgba(0,0,0,.7), inset 0 1px 0 rgba(214,178,106,.30);
+}
+[data-skin="hd"] .rv-cam button.on{
+  background:linear-gradient(180deg,#7a5e26,#463415);
+  border-color:var(--gold);
+  color:#ffeec0;
+  box-shadow:inset 0 1px 0 rgba(255,224,150,.5), 0 0 12px rgba(214,178,106,.45);
+}
+[data-skin="hd"] .rv-row.me{background:linear-gradient(90deg,rgba(214,178,106,.30),rgba(214,178,106,.08));color:#ffeec0}
+[data-skin="hd"] .rv-order-h,
+[data-skin="hd"] .rv-side{background:linear-gradient(180deg,#241c30,#1a1426);border-color:var(--gold2)}
+[data-skin="hd"] .rv-order-h{background:linear-gradient(180deg,#3b2f4e,#241c30);color:var(--headfg)}
+
+/* ---- 顔・アイコンの縁を金にして、暗い面から浮かせる ---- */
+[data-skin="hd"] .face{
+  border-color:var(--gold2);
+  background:linear-gradient(180deg,#2e3a48,#1d2530);
+  box-shadow:0 2px 0 rgba(0,0,0,.7), 0 0 10px rgba(214,178,106,.20);
+}
+[data-skin="hd"] .p-ic,
+[data-skin="hd"] .pb-ic,
+[data-skin="hd"] .rk-chip{border-color:var(--gold2)}
+/* トーストと吹き出しは、舞台の上に置いた札のように見せる */
+[data-skin="hd"] .toast{
+  background:linear-gradient(180deg,#f6ecd6,#e2d0aa);
+  border-color:var(--gold);
+  box-shadow:0 6px 22px rgba(0,0,0,.75), 0 0 18px rgba(214,178,106,.30);
+}
+/* 数字がはねる演出も金色で */
+[data-skin="hd"] .numpop{color:#ffe08a;text-shadow:0 0 10px rgba(255,190,70,.7),1px 1px 0 #2a1c10}
+
+/* 明るい下地の部品の中にある小さな文字も、まとめて濃いほうへ戻す */
+[data-skin="hd"] .focusbtn.on small,[data-skin="hd"] .focusbtn.on em,[data-skin="hd"] .focusbtn.on b,
+[data-skin="hd"] .tyrebtn.on small,[data-skin="hd"] .tyrebtn.on em,
+[data-skin="hd"] .ticketbar.on small,[data-skin="hd"] .ticketbar.on em,
+[data-skin="hd"] .bigbox b,[data-skin="hd"] .rewardbox b,
+[data-skin="hd"] .toast b,[data-skin="hd"] .toast small,
+[data-skin="hd"] .note b{color:#3a2f22}
+[data-skin="hd"] .bigbox b{color:#c03828}          /* 明るい箱の中なので濃い赤 */
+[data-skin="hd"] .score b{color:#ff9a5c;text-shadow:0 0 10px rgba(255,120,60,.5)}  /* 暗い面なので明るい橙 */
+
+/* 良し悪しを表す色は、暗い面では明るめにしないと沈む */
+[data-skin="hd"] .good{color:#6ee06a}
+[data-skin="hd"] .warn{color:#ffc24a}
+[data-skin="hd"] .bad{color:#ff7a6a}
+[data-skin="hd"] .mgeff{color:#7fd0f0}
+[data-skin="hd"] .cmd.sub{color:#f2e4c4}

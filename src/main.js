@@ -1483,6 +1483,31 @@ window.GP = window.GP || {};
   /* =======================================================
      初期化
      ======================================================= */
+  /* 見た目の切り替え。HD-2D（オクトパストラベラー風）を既定にする */
+  const SKIN_KEY = 'gp_skin';
+  function applySkin(k) {
+    if (k === 'hd') document.body.setAttribute('data-skin', 'hd');
+    else document.body.removeAttribute('data-skin');
+    try { localStorage.setItem(SKIN_KEY, k); } catch (e) {}
+  }
+  function currentSkin() {
+    let k = null;
+    try { k = localStorage.getItem(SKIN_KEY); } catch (e) {}
+    return k === 'kairo' ? 'kairo' : 'hd';
+  }
+  function bindSkin() {
+    const btn = $('tSkin');
+    if (!btn) return;
+    const paint = () => {
+      const hd = currentSkin() === 'hd';
+      btn.textContent = hd ? '🌙' : '🎨';
+      btn.title = hd ? '見た目：HD-2D（押すとカイロ風へ）' : '見た目：カイロ風（押すとHD-2Dへ）';
+    };
+    applySkin(currentSkin());
+    paint();
+    btn.onclick = () => { applySkin(currentSkin() === 'hd' ? 'kairo' : 'hd'); paint(); };
+  }
+
   function bindSound() {
     const btn = $('tSound');
     const paint = () => { btn.textContent = GP.sound.isOn() ? '🔊' : '🔇'; btn.classList.toggle('off', !GP.sound.isOn()); };
@@ -1650,6 +1675,7 @@ window.GP = window.GP || {};
 
   window.addEventListener('DOMContentLoaded', () => {
     registerSW();
+    bindSkin();
     bindSound();
     bindCommands();
     document.body.classList.add('preboot');
