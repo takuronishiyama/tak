@@ -2160,3 +2160,22 @@ body[data-skin="hd"]{
 .pufresh2 small{opacity:.85;line-height:1.5}
 .pupool2{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
 .pupool2 .btn.small{font-size:10px;padding:3px 8px;min-height:0}
+
+
+/* ---- 若手の見立て ---- */
+.scoutbtn .pb-body{min-width:0}
+.sc-head,.sc-pot,.sc-note{display:block}
+.sc-pot em{font-style:normal}
+.sc-note{opacity:.75;margin-top:2px;font-size:9px}
+.sc-bars{display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;margin-top:2px}
+.sc-bars i{display:flex;align-items:center;gap:4px;font-style:normal;font-size:9px}
+.sc-bars u{text-decoration:none;flex:0 0 24px;opacity:.75}
+.sc-bars .scb{position:relative;flex:1;height:6px;border:1px solid var(--ink);
+  border-radius:4px;overflow:hidden;background:rgba(0,0,0,.14);min-width:24px}
+.sc-bars .scb s{position:absolute;left:0;top:0;height:100%;display:block;
+  text-decoration:none;background:#4ea63f}
+.sc-bars .scb q{position:absolute;top:0;height:100%;display:block;
+  background:repeating-linear-gradient(45deg,rgba(78,166,63,.55) 0 3px,rgba(78,166,63,.2) 3px 6px)}
+.sc-bars .scb q:before,.sc-bars .scb q:after{content:''}
+.sc-bars em{font-style:normal;flex:0 0 46px;text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:520px){ .sc-bars{grid-template-columns:1fr} }

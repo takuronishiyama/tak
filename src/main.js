@@ -2192,17 +2192,79 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
-  function youthRow(d, actions) {
+  /* ---- スカウトの見立て ----
+     若手の中身は、見る側の目が良いほど正確に分かる。
+     ユースアカデミーと育成スタッフ、アナリストの力で誤差が縮む。
+     同じ相手には毎回同じ見立てを返す（開き直すたびに変わらない）  */
+  function scoutErr() {
+    const p = ((g.facilities && g.facilities.youth) || 1) * 1.1
+            + S.trainPower(g) * 0.9 + S.analystPower(g) * 0.5;
+    return Math.max(0, 10 - p * 1.4);
+  }
+  function scoutJit(id, k) {
+    const str = String(id) + k;
+    let h = 7;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 100003;
+    return (h / 100003) * 2 - 1;
+  }
+  function scoutStat(d, k, err) {
+    const v = d[k] || 0;
+    if (err <= 2) return { txt: String(Math.round(v)), lo: v, hi: v, sure: true };
+    const mid = v + scoutJit(d.id + k, 'm') * err * 0.6;
+    const lo = Math.max(1, Math.round(mid - err / 2));
+    const hi = Math.min(199, Math.round(mid + err / 2));
+    return { txt: lo + '〜' + hi, lo: lo, hi: hi, sure: false };
+  }
+  /* 若手1人ぶんの見立て。スカウトの候補にも、抱えている若手にも使う */
+  function scoutCardHTML(d, opts) {
+    opts = opts || {};
+    const err = opts.known ? 0 : scoutErr();
+    const KEYS = [['speed', '速さ'], ['technique', '技術'], ['stamina', '体力'], ['mental', '精神']];
     const pt = S.potOf(d);
-    return '<div class="pickbtn done youthrow">' +
+    const pers = S.persOf(d);
+    let pot;
+    if (err <= 4) {
+      pot = '<em style="color:' + pt.color + '">' + U.stars(d.pot) + ' ' + pt.name + '</em>';
+    } else {
+      const w = 1;
+      const lo = Math.max(1, (d.pot || 1) - w), hi = Math.min(5, (d.pot || 1) + w);
+      pot = '<em>' + U.stars(lo) + '〜' + U.stars(hi) + '（' +
+        D.POTENTIAL[lo - 1].name + '〜' + D.POTENTIAL[hi - 1].name + '）</em>';
+    }
+    const rate = KEYS.map(([k]) => scoutStat(d, k, err));
+    const ov = err <= 2 ? String(Math.round(S.driverRating(d)))
+             : Math.round(rate.reduce((a, r) => a + r.lo, 0) / 4) + '〜' +
+               Math.round(rate.reduce((a, r) => a + r.hi, 0) / 4);
+    let h = '<span class="sc-head">' + S.nationOf(d).flag + ' ' + d.age + '歳' +
+      '　総合 <b>' + ov + '</b>　' + pers.icon + pers.name + '</span>' +
+      '<span class="sc-pot">才能 ' + pot + '</span>' +
+      '<span class="sc-bars">';
+    KEYS.forEach(([k, nm], i) => {
+      const r = rate[i];
+      h += '<i><u>' + nm + '</u>' +
+        '<b class="scb"><s style="width:' + Math.min(100, r.lo / 1.4) + '%"></s>' +
+        (r.sure ? '' : '<q style="left:' + Math.min(100, r.lo / 1.4) + '%;width:' +
+          Math.min(100 - r.lo / 1.4, (r.hi - r.lo) / 1.4) + '%"></q>') + '</b>' +
+        '<em>' + r.txt + '</em></i>';
+    });
+    h += '</span>';
+    if (!opts.known) {
+      h += '<span class="sc-note">' + (err <= 2
+        ? '🔎 見立ては確かです。'
+        : err <= 6 ? '🔎 だいたいの見当はつきます（幅は見立ての誤差）。'
+                   : '🔎 まだ目が粗い見立てです。ユースアカデミー・育成スタッフ・' +
+                     'アナリストを伸ばすと、この幅が縮みます。') + '</span>';
+    }
+    return h;
+  }
+
+  function youthRow(d, actions) {
+    // 自分のところで走らせているので、中身はすっかり分かっている
+    return '<div class="pickbtn done youthrow scoutbtn">' +
       '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
       '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
-      S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' + Math.round(S.driverRating(d)) +
-      '<br>才能 <em style="color:' + pt.color + '">' + U.stars(d.pot) + ' ' + pt.name + '</em>' +
-      '　' + S.persOf(d).icon + S.persOf(d).name +
-      '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) +
-      ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
-      '</small></span><span class="pb-cost">' + actions + '</span></div>';
+      scoutCardHTML(d, { known: true }) + '</small></span>' +
+      '<span class="pb-cost">' + actions + '</span></div>';
   }
 
   /* スタッフ1人の能力表示 */
@@ -2412,11 +2474,10 @@ window.GP = window.GP || {};
     youthMarket.forEach((d, i) => {
       const fee = youthFee(d);
       const full = (g.youth || []).length >= slots;
-      body += '<button class="pickbtn" data-k="ym:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
+      body += '<button class="pickbtn scoutbtn" data-k="ym:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' ' + d.age + '歳／総合 ' +
-        Math.round(S.driverRating(d)) + '<br>才能 <em style="color:' + S.potOf(d).color + '">' +
-        U.stars(d.pot) + ' ' + S.potOf(d).name + '</em></small></span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
+        scoutCardHTML(d) + '</small></span>' +
         '<span class="pb-cost">💰' + money(fee) + '</span></button>';
     });
     return body + '</div>';
@@ -4797,7 +4858,9 @@ window.GP = window.GP || {};
     }
     // オフは3人まで見られる。才能はシーズン中より良く出る
     const cands = [0, 1, 2].map(() => {
-      const y = S.makeYouth(g);
+      // makeYouth は「シーズン数」を受け取る。g を渡すと能力値が
+      // すべて NaN になり、見ても何も分からない若手ができていた
+      const y = S.makeYouth(g.season);
       if (Math.random() < 0.45) y.pot = Math.min(4, (y.pot || 0) + 1);   // オフの上振れ
       return y;
     });
@@ -4807,13 +4870,11 @@ window.GP = window.GP || {};
       '<p class="desc">枠 ' + (g.youth || []).length + ' / ' + slots +
       '　契約金 💰' + money(cost) + '万（いまの資金 ' + money(g.funds) + '万）</p><div class="pick">';
     cands.forEach((y, i) => {
-      const pot = D.POTENTIAL[Math.min(D.POTENTIAL.length - 1, y.pot || 0)];
-      body += '<button class="pickbtn" data-k="oyo:' + i + '"' +
+      body += '<button class="pickbtn scoutbtn" data-k="oyo:' + i + '"' +
         (g.funds >= cost ? '' : ' disabled') + '>' +
         '<span class="pb-ic face-ic">' + U.face(y, 30) + '</span>' +
         '<span class="pb-body"><b>' + esc(y.name) + '</b>' +
-        '<small>' + y.age + '歳／総合 ' + Math.round(S.driverRating(y)) +
-        '／才能 ' + (pot ? pot.stars : '★') + '</small></span>' +
+        '<small>' + scoutCardHTML(y) + '</small></span>' +
         '<span class="pb-cost">💰' + money(cost) + '</span></button>';
     });
     body += '</div>';
