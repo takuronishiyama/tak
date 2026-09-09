@@ -1223,7 +1223,9 @@ window.GP = window.GP || {};
                * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
-      if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
+      // パワーユニットは分解して組み直すわけにいかない。
+      // できるのは補機まわりの手当てだけなので、下の nursePU のぶんだけ戻る
+      if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
     });
     const puGain = S.nursePU(g, S.rnd(8, 16) * (1 + S.pitPower(g) * 0.18));
     U.closeModal();
@@ -1658,11 +1660,15 @@ window.GP = window.GP || {};
     // へたり具合は出力モードとは切り離して見せる（新品を「へたっている」と言わないため）
     const tired = S.puTired(g);
     const drop = Math.round(D.PU_TIRED * tired * 100);
-    const relDrop = Math.round(D.PU_TIRED_REL * tired);
+    // 残量そのものがPUパーツのコンディションなので、
+    // 信頼性はほかのパーツと同じ平均のなかで下がる
+    const relDrop = Math.round((100 - pu.life) / D.PART_CATS.length);
     const perfDrop = D.PU_PERF_DROP * tired;
 
     let h = '<div class="pubox' + (pu.grid ? ' pen' : willSwap && left <= 0 ? ' warn' : '') + '">' +
       '<b>⚙️ パワーユニット ' + pu.n + '基目／今季 ' + pu.used + '基（あと ' + left + '基）</b>' +
+      '<small class="punote">この残量が、そのままマシン画面のパワーユニットの' +
+      'コンディションです。整備で少し戻せますが、元に戻せるのは新品だけです。</small>' +
       '<span class="skbar big"><i class="' + (pu.life < 25 ? 'f2' : pu.life < 50 ? 'f1' : 'f0') +
         '" style="width:' + Math.round(pu.life) + '%"></i></span>' +
       '<em>残り ' + Math.round(pu.life) + '%</em>' +
@@ -3299,6 +3305,7 @@ window.GP = window.GP || {};
     // 荷が遅れた週は、走れる時間そのものが足りない
     const late = !!(g.logi && g.logi.late);
     pendingStrategy.setup = late ? 1 + (x.setup - 1) * 0.4 : x.setup;
+    pendingStrategy.fp = x.k;              // 予選後のレポートの精度に効く
     const msg = x.run();
     if (msg) { U.log(g, x.icon + ' ' + msg); U.toast(x.icon + ' ' + msg, 'good'); }
     if (late) U.log(g, '⏳ 機材の到着が遅れたぶん、走行時間が足りなかった（効果は半分以下）。', 'warn');
@@ -3319,6 +3326,105 @@ window.GP = window.GP || {};
     runRace();
   }
 
+  /* ---- 予選のあとの、出力モードの決めどころ ----
+     「全開で行くか、温存するか」は、走ってみるまで判断材料がなかった。
+     予選で分かった前後との差を、モードの効きとそのまま突き合わせる。
+     ここで変えても予選の並びは動かない（決勝ぶんだけ入れ替える）   */
+  function puDecideHTML(pre) {
+    const t = pre.track;
+    const mine = pre.entries.filter(e => e.isPlayer).slice().sort((a, b) => a.grid - b.grid);
+    if (!mine.length) return '';
+    const me = mine[0];
+    const ahead = pre.grid[me.grid - 2] || null;
+    const behind = pre.grid[me.grid] || null;
+    const pu = S.puOf(g);
+    const left = Math.max(0, S.puLimit(g) - pu.used);
+    const racesLeft = Math.max(1, D.TRACKS.length - (g.nextRace || 0));
+    const fp = pendingStrategy.fp;
+    const deep = fp === 'long' || fp === 'tyre';   // データを取った週は読みが細かい
+
+    // モードごとに、実際の式をそのまま回して比べる
+    const cur = S.puMode(g).key;
+    const rows = D.PU_MODES.map(m => {
+      S.setPuMode(g, m.key);
+      const car = S.carScore(g, t);
+      return { m: m,
+               perf: (car * 0.60 + me.drvScore * 0.40) * (me.pmul || 1) + S.puPerf(g),
+               wear: S.puWear(g, t, 1), rel: S.reliability(g) };
+    });
+    S.setPuMode(g, cur);
+    const std = rows[1];
+    /* 性能はスコアなので、大きいほど速い。
+       画面には「1周あたり何秒 遅いか」で出すので、引く向きを揃えておく */
+    const slower = (x, y) => t.base * PERF_TO_SEC * (y.perf - x.perf);
+    const need = ahead ? slower(me, ahead) : null;         // + なら前の車のほうが速い
+    const margin = behind ? slower(behind, me) : null;     // + なら自分のほうが速い
+
+    let h = '<div class="sub">⚙️ 決勝の出力モード</div>' +
+      '<p class="desc">予選で並びが決まりました。ここから先は<b>決勝ぶんだけ</b>選び直せます' +
+      '（予選の順位は動きません）。<br>' +
+      (deep ? '📊 走り込んだデータがあるので、1周あたりの差まで出せています。'
+            : '走り込んでいないぶん、読みは大まかです（「📊 ロングラン」「🛞 タイヤ」を選ぶと細かく出ます）。') +
+      '</p>';
+
+    h += '<div class="pudec">';
+    h += '<div class="pdrow pdh"><span>モード</span><span>1周</span><span>1戦の消耗</span>' +
+         '<span>あと</span><span>信頼性</span></div>';
+    rows.forEach(r => {
+      const d = slower(r, std);                 // − なら標準より速い
+      const races = Math.floor(pu.life / Math.max(0.1, r.wear));
+      h += '<button class="pdrow pdbtn' + (r.m.key === cur ? ' on' : '') +
+        '" data-pumode="' + r.m.key + '" title="' + esc(r.m.note) + '">' +
+        '<span class="pdnm">' + r.m.icon + ' ' + r.m.name + '</span>' +
+        '<span class="pdv ' + (d < -0.004 ? 'good' : d > 0.004 ? 'bad' : '') + '">' +
+          (Math.abs(d) < 0.005 ? '±0.00' : (d < 0 ? '−' : '+') + Math.abs(d).toFixed(2)) + '秒</span>' +
+        '<span class="pdv">-' + Math.round(r.wear) + '%</span>' +
+        '<span class="pdv">' + races + '戦</span>' +
+        '<span class="pdv">' + Math.round(r.rel) + '%</span>' +
+        '</button>';
+    });
+    h += '</div>';
+
+    // ---- 決め手になる一行 ----
+    const dPush = slower(rows[2], std), dSave = slower(rows[0], std);
+    const notes = [];
+    if (ahead && need != null) {
+      notes.push(need <= 0
+        ? '決勝ペースでは、前の <b>' + esc(ahead.driver.name) + '</b> より 1周 ' +
+          Math.abs(need).toFixed(2) + '秒 速い見込みです。'
+        : (-dPush >= need
+            ? '<b class="good">全開なら</b>、前の <b>' + esc(ahead.driver.name) + '</b>（1周 ' +
+              need.toFixed(2) + '秒 速い）を上回れます。'
+            : '前の <b>' + esc(ahead.driver.name) + '</b> は 1周 ' + need.toFixed(2) +
+              '秒 速く、全開（' + Math.abs(dPush).toFixed(2) + '秒）でも届きません。'));
+    }
+    if (behind && margin != null) {
+      notes.push(margin - dSave < 0
+        ? '温存にすると、後ろの <b>' + esc(behind.driver.name) + '</b> に 1周 ' +
+          Math.abs(margin - dSave).toFixed(2) + '秒 抜かれるペースになります。'
+        : '温存にしても、後ろの <b>' + esc(behind.driver.name) + '</b> には 1周 ' +
+          (margin - dSave).toFixed(2) + '秒 の余裕があります。');
+    }
+    // 基数のやりくり
+    const perRace = rows.map(r => r.wear);
+    const canFinish = m => {
+      const total = pu.life + left * 100;
+      return total >= perRace[m] * racesLeft;
+    };
+    notes.push('今季は残り <b>' + racesLeft + '戦</b>、使えるユニットは <b>あと' + left + '基</b>。' +
+      (canFinish(2) ? '<b class="good">全開で走り切っても基数は足ります。</b>'
+       : canFinish(1) ? '標準なら足りますが、<b class="warn">全開を続けると上限を超えます</b>（1基につき ' +
+                        D.PU_PENALTY + 'グリッド降格）。'
+       : '<b class="warn">このままでは基数が足りません。</b>温存を混ぜるか、降格を取るレースを選んでください。'));
+    const ease = S.overtakeEase(t);
+    notes.push('🏁 ' + esc(t.name) + ' は' +
+      (ease > 0.62 ? '<b>追い抜きやすい</b>コース。降格を取るならここは向いています。'
+       : ease < 0.38 ? '<b>追い抜きにくい</b>コース。前に出られる位置なら守りにいく手も。'
+       : '追い抜きは並のコースです。'));
+    h += '<p class="note">' + notes.join('<br>') + '</p>';
+    return h;
+  }
+
   function showQualifying() {
     const res = prePack;
     let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name + '</b><span>予選結果</span></div>';
@@ -3332,7 +3438,16 @@ window.GP = window.GP || {};
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
+    body += puDecideHTML(res);
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
+    // 出力モードを選び直したら、決勝ぶんの数字だけ入れ替えて出し直す
+    bindAct('data-pumode', k => {
+      S.setPuMode(g, k);
+      R.repackPU(prePack, g);
+      S.save(g);
+      GP.sound.play('confirm');
+      showQualifying();
+    });
   }
 
   /* =======================================================
@@ -5431,6 +5546,8 @@ window.GP = window.GP || {};
     let worst = null;
     D.PART_CATS.forEach(c => {
       const q = g.equipped[c.key];
+      // パワーユニットは立ち話では触れない（下で別に少しだけ延命する）
+      if (c.key === 'pu') return;
       if (q && (!worst || q.cond < worst.cond)) worst = q;
     });
     const lines = [];

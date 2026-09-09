@@ -426,8 +426,10 @@ GP.state = (function () {
       if (!p) return;
       const ps = partStats(p, g);
       // コンディションが落ちたパーツは本来の性能を出しきれない
-      const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1)
-              * (c.key === 'pu' ? puForm(g) : 1);
+      // 傷んだパーツは本来の性能を出しきれない。
+      // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
+      const f = (c.key === 'pu' ? puForm(g)
+                                : (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1));
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -1197,7 +1199,7 @@ GP.state = (function () {
     if (late) {
       D.PART_CATS.forEach(c => {
         const p = g2.equipped[c.key];
-        if (p) p.cond = clamp(p.cond - D.LOGI_DELAY_COND, 5, 100);
+        if (p && c.key !== 'pu') p.cond = clamp(p.cond - D.LOGI_DELAY_COND, 5, 100);
       });
       g2.logi.crew = clamp(crew(g2) + D.LOGI_DELAY_FATIGUE, 0, 100);
     }
@@ -1209,7 +1211,7 @@ GP.state = (function () {
     const n = logiLoad(g2).spares;
     if (n <= 0) return null;
     const list = D.PART_CATS.map(c => g2.equipped[c.key])
-      .filter(p => p && p.cond < 72)
+      .filter((p, i) => p && p.cond < 72 && D.PART_CATS[i].key !== 'pu')
       .sort((a, b) => a.cond - b.cond).slice(0, n);
     if (!list.length) return null;
     let sum = 0;
@@ -1401,8 +1403,29 @@ GP.state = (function () {
     if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
     if (!g2.pu.pool) g2.pu.pool = [];       // 車から降ろして取ってあるユニット
     if (!g2.pu.n) g2.pu.n = g2.pu.used || 1;  // いま載せているユニットの通し番号
+    /* 「パーツとしての耐久」と「基の残量」を別々に持つと、同じものの
+       傷み具合が二つ並んで食い違う。実体は装着しているPUパーツの cond
+       ひとつだけにして、pu.life はその別名にしておく。
+       こうすると整備でも事故でも、動く数字はいつも一つになる        */
+    const part = g2.equipped && g2.equipped.pu;
+    if (part) {
+      const d = Object.getOwnPropertyDescriptor(g2.pu, 'life');
+      if (!d || !d.get) {
+        // 古いセーブは、これまで画面に出ていた残量のほうを正とする
+        if (d && typeof d.value === 'number') part.cond = clamp(d.value, 0, 100);
+        delete g2.pu.life;
+        Object.defineProperty(g2.pu, 'life', {
+          configurable: true, enumerable: true,
+          get: function () { return g2.equipped.pu ? g2.equipped.pu.cond : 100; },
+          set: function (v) { if (g2.equipped.pu) g2.equipped.pu.cond = clamp(v, 0, 100); }
+        });
+      }
+    }
     return g2.pu;
   }
+  /* パワーユニットは「基の残量」で語る。ほかのパーツの
+     「コンディション」とは戻しかたが違うので、名前も分けておく */
+  function condLabel(key) { return key === 'pu' ? '残量' : 'コンディション'; }
   /* へたり具合（0=新品、1=使い切り）。
      残りが PU_TIRED_FROM を割ってから効きはじめる                    */
   function puTired(g2) {
@@ -1421,7 +1444,9 @@ GP.state = (function () {
      どこまで回すか（出力モード）でも上下する                       */
   function puForm(g2) { return (1 - D.PU_TIRED * puTired(g2)) * puMode(g2).power; }
   /* 使い込んだPUが落とす信頼性。全開で回せばさらに落ちる */
-  function puRelDrop(g2) { return D.PU_TIRED_REL * puTired(g2) - puMode(g2).rel; }
+  /* 使い込んだPUが落とす信頼性。残量そのものは全パーツの平均に
+     すでに入っているので、ここでは出力モードのぶんだけを見る    */
+  function puRelDrop(g2) { return -puMode(g2).rel; }
   /* PUの状態が、そのまま走りの速さに乗る量（性能ポイント）。
      マイナスなら遅い。グリッド1台ぶんがおよそ 1.0 に相当する      */
   function puPerf(g2) { return puMode(g2).perf - D.PU_PERF_DROP * puTired(g2); }
@@ -1490,7 +1515,11 @@ GP.state = (function () {
     pu.life = clamp(pu.life + amount, 0, 100);
     return Math.round(pu.life - before);
   }
-  function puReset(g2) { g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] }; }
+  function puReset(g2) {
+    g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
+    if (g2.equipped && g2.equipped.pu) g2.equipped.pu.cond = 100;
+    puOf(g2);
+  }
 
   /* このコースはどれだけ追い抜けるか（0..1）。
      長いストレートがあって、壁が近くないほど抜きやすい。
@@ -1561,6 +1590,9 @@ GP.state = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
+      // パワーユニットは「1戦でどれだけ削れるか」を usePU が持っている。
+      // ここでも削ると、同じ消耗を二度数えることになる
+      if (c.key === 'pu') return;
       // ギアボックスのように、そもそも消耗の速い部位がある
       const w = amount * Math.max(0.35, 1 - techLv(g, 'tough') * (D.PART_TRAITS.filter(t => t.key === 'tough')[0].per))
               * svc * (c.wear || 1);
@@ -2416,7 +2448,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
-    puOf, puWear, usePU, nursePU, puReset,
+    puOf, puWear, usePU, nursePU, puReset, condLabel,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,

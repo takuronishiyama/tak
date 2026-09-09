@@ -158,7 +158,12 @@ GP.ui = (function () {
         '<small><span class="p-rar" style="color:' + rr.color + '">' + stars(p.rarity) + '</span> ' + c.name + '</small></span>' +
       '<span class="p-lv">' + Math.round(p.power) + '<small>/' + cap + '</small></span>' +
       '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
-      '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
+      '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '"' +
+        ' title="' + (c.key === 'pu'
+          ? 'いま載せているユニットの残量。使い切ると次の基へ載せ替えになります'
+          : 'パーツのコンディション。整備で戻ります') + '">' +
+        (c.key === 'pu' ? '<i class="p-cl">残量</i>' : '') +
+        Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
       (partTraitChips(p, g) ? '<span class="p-trs">' + partTraitChips(p, g) + '</span>' : '') +
       // 供給を受けているパワーユニットは、何を買っているのかをその場に出す

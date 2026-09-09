@@ -2102,3 +2102,32 @@ body[data-skin="hd"]{
 .tb-cond .tbrub u{display:block;height:100%;text-decoration:none}
 .rv-sectors.board .tb-row.tb-head{top:19px}
 @media (max-width:520px){ .rv-sectors.board .tb-row.tb-head{top:32px} }
+
+.p-cond .p-cl{font-style:normal;font-size:8px;opacity:.7;margin-right:2px}
+.punote{display:block;opacity:.8;margin:2px 0 4px}
+
+
+/* ---- 予選後の出力モード ---- */
+.pudec{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
+.pdrow{display:flex;align-items:center;gap:4px;width:100%;text-align:left;
+  font-size:11px;font-variant-numeric:tabular-nums}
+.pdrow.pdh{font-size:9px;color:#7a6a52;padding:0 8px}
+.pdrow.pdh span{flex:0 0 54px;text-align:right}
+.pdrow.pdh span:first-child{flex:1;text-align:left}
+.pdbtn{background:var(--paper3);border:2px solid var(--ink);border-radius:7px;
+  padding:5px 8px;box-shadow:0 2px 0 rgba(74,47,26,.45);color:inherit}
+.pdbtn.on{background:linear-gradient(#ffe08a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0;
+  color:#3a2413}
+.pdbtn.on .pdv,.pdbtn.on .pdnm{color:#3a2413}
+.pdbtn.on .pdv.good{color:#146b22}
+.pdbtn.on .pdv.bad{color:#96240f}
+.pdbtn .pdnm{flex:1;font-weight:700}
+.pdbtn .pdv{flex:0 0 54px;text-align:right}
+.pdbtn .pdv.good{color:#1f7a2e;font-weight:700}
+.pdbtn .pdv.bad{color:#b8331f}
+[data-skin="hd"] .pdbtn .pdv.good{color:#7ee08a}
+[data-skin="hd"] .pdbtn .pdv.bad{color:#ff9a86}
+@media (max-width:520px){
+  .pdrow{font-size:10px}
+  .pdrow.pdh span,.pdbtn .pdv{flex:0 0 46px}
+}

@@ -620,9 +620,10 @@ GP.race = (function () {
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
         // パワーユニットの状態と出力モードは、そのまま走りの速さに出る。
         // へたったユニットで我慢するほど、じわじわ順位を落としていく
-        const perf = (t.car * 0.60 + drv * 0.40) * form[ti]
+        const pmul = form[ti]
                    * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
-                                 * ((strategy && strategy.setup) || 1) : 1)
+                                 * ((strategy && strategy.setup) || 1) : 1);
+        const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
@@ -634,7 +635,7 @@ GP.race = (function () {
           // このマシンがコース上でどう速度を出すか。区間タイムの配分もここから来る
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
-          perf: perf, strat: strat, st: st, sk: sk, hot: ti === hot,
+          perf: perf, pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
           // あとで「何が効いて、その順位になったのか」を分解するために残す
           carScore: t.car, drvScore: drv, formMul: form[ti],
           bd: t.isPlayer ? myBody : evenBody,
@@ -646,8 +647,14 @@ GP.race = (function () {
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
           // いちばん傷んでいる部位（壊れたときの理由に使う）
-          weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) =>
-            ((g.equipped[a.key] || {}).cond || 100) - ((g.equipped[b.key] || {}).cond || 100))[0] || {}).key : null,
+          /* いちばん傷んでいる部位（壊れたときの理由に使う）。
+             パワーユニットは1戦で大きく削れるぶん、素の数字だと
+             いつもここに居座ってしまうので、消耗の速さで割って比べる */
+          weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) => {
+            const v = c => ((g.equipped[c.key] || {}).cond || 100) *
+                           (c.key === 'pu' ? 2.2 : 1 / (c.wear || 1));
+            return v(a) - v(b);
+          })[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
           lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [],
         bestSec: [Infinity, Infinity, Infinity],
@@ -748,6 +755,23 @@ GP.race = (function () {
     const grid = qualify(entries, track, weather);
     return { trackIndex: trackIndex, track: track, weather: weather,
              entries: entries, grid: grid, special: special };
+  }
+
+  /* 予選が終わったあとで出力モードを変えたときに、決勝ぶんの速さと
+     信頼性だけを入れ替える。グリッドは予選のまま動かさない。
+     予選と決勝で別のモードを選べる、というだけの仕掛け              */
+  function repackPU(pre, g) {
+    if (!pre || !pre.entries) return null;
+    const car = S.carScore(g, pre.track);
+    const pp = S.puPerf(g);
+    const rel = S.reliability(g);
+    pre.entries.forEach(e => {
+      if (!e.isPlayer) return;
+      e.carScore = car;
+      e.perf = (car * 0.60 + e.drvScore * 0.40) * (e.pmul || 1) + pp;
+      e.rel = rel;
+    });
+    return { car: car, perf: pp, rel: rel };
   }
 
   /* ---------- 決勝シミュレーション ---------- */
@@ -2111,5 +2135,5 @@ GP.race = (function () {
     return res.reward;
   }
 
-  return { simulate, prequalify, applyResult, STRATEGIES, rollWeather };
+  return { simulate, prequalify, applyResult, repackPU, STRATEGIES, rollWeather };
 })();
