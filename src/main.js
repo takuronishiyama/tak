@@ -670,6 +670,24 @@ window.GP = window.GP || {};
       else if (kind === 'des') doDesign(key);
     });
     bindAct('data-copytrend', () => doCopyTrend());
+    bindAct('data-leadcopy', () => doLeadCopy());
+  }
+
+  /* ---- 首位のマシンを写す ---- */
+  function doLeadCopy() {
+    const c = S.leadCopy(g);
+    if (!c || !c.ok) return;
+    if (g.funds < c.cost || g.rp < c.rp) return U.toast('資金か研究Pが足りません', 'bad');
+    g.funds -= c.cost; g.rp -= c.rp; capSpend(c.cost);
+    const r = S.doLeadCopy(g);
+    if (!r) return;
+    U.closeModal();
+    U.log(g, '📸 ' + esc(r.team) + ' のマシンを起こして持ち込んだ（全パーツ +' +
+      (r.gain * 100).toFixed(1) + '％）', 'good');
+    U.toast('📸 首位のマシンを写した', 'good');
+    GP.sound.play('levelup');
+    S.pushNews(g, 'trend', r.team + 'のマシン', { by: r.team });
+    endWeek();
   }
 
   /* ---- 他所の解釈を持ち込む ----
@@ -2291,6 +2309,14 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* そのチームが機材をどうやって運んできたか。荷が遅れていれば⏳ */
+  function logiChip(e) {
+    if (!e.logi) return '<span class="gp-lg"></span>';
+    return '<span class="gp-lg" title="' + esc(e.logi.name) +
+      (e.logiLate ? '／荷の到着が遅れた' : '') + '">' + e.logi.icon +
+      (e.logiLate ? '<b class="late">⏳</b>' : '') + '</span>';
+  }
+
   /* ---- 作戦の中身 ----
      「攻める」と「安全第一」が、実際に何を差し引きしているのか。
      言葉だけだと分からないので、そのコースの数字で出す        */
@@ -2905,7 +2931,7 @@ window.GP = window.GP || {};
      写すのは速いが、本家の写しでしかないので届ききらない       */
   function trendBoxHTML() {
     const cur = S.trendOf(g);
-    if (!cur) return '';
+    if (!cur) return leadCopyHTML();
     const t = cur.t;
     const mine = t.mine;
     const copiedN = (t.copied || []).length;
@@ -2933,7 +2959,7 @@ window.GP = window.GP || {};
         '<small>' +
         (early
           ? '<b class="warn">まだ写真も図面も足りません。' +
-            'あと' + (D.TREND.startWeek - cur.age) + '週ほどで、形が読めるようになります。</b>'
+            'あと' + (cur.need || 1) + '週ほどで、形が読めるようになります。</b>'
           : '装着している全パーツの性能が <b>+' + ((t.mul - 1) * ratio * 100).toFixed(1) +
             '%</b>（本家の ' + Math.round(ratio * 100) + '%）。' +
             'デザイナーが厚いほど写しの精度が上がり、遅れるほど届かなくなります。' +
@@ -2943,6 +2969,36 @@ window.GP = window.GP || {};
     } else if (t.playerCopied) {
       h += '<small class="pupool">✅ うちもすでに同じ形にしています。</small>';
     }
+    return h + '</div>' + leadCopyHTML();
+  }
+
+  /* ---- 首位のマシンを写す ----
+     ブレイクスルーが出ていなくても、いちばん速い車はそこにある。
+     写真を撮り、風洞で起こし、うちの車に載せる                 */
+  function leadCopyHTML() {
+    const c = S.leadCopy(g);
+    if (!c) return '';
+    let h = '<div class="atrbox slim" style="--ac:#c98b10">' +
+      '<b>🏆 いま選手権を引っ張っているのは ' + esc(c.team) + '</b>' +
+      '<small>';
+    if (c.gap <= 0.5) {
+      h += 'うちのマシンは、もう首位に見劣りしません。写すものはありません。</small></div>';
+      return h;
+    }
+    h += 'マシンの出来では <b>' + c.gap.toFixed(1) + '点</b> 離されています。' +
+      '写真を撮り、風洞で起こして、うちの車に載せることができます。' +
+      '差の <b>' + Math.round(c.ratio * 100) + '%</b>（デザイナーが厚いほど上がる）を、' +
+      '1回で最大 <b>+' + (D.TREND.lead.cap * 100).toFixed(0) + '%</b> まで埋めます。</small>';
+    const poor = g.funds < c.cost || g.rp < c.rp;
+    h += '<div class="pufresh2">' +
+      '<button class="btn' + ((poor || !c.ok) ? '' : ' primary') + '" data-leadcopy="1"' +
+        ((poor || !c.ok) ? ' disabled' : '') + '>' +
+        '📸 ' + esc(c.team) + ' のマシンを写す（💰' + money(c.cost) + '万／🔬' + c.rp + '）</button>' +
+      '<small>装着している全パーツの性能が <b>+' + (c.gain * 100).toFixed(1) + '%</b>。' +
+      (c.cool > 0 ? '<br><b class="warn">前に写したばかりです。あと' + c.cool + '週。</b>' : '') +
+      (poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
+      '<br><b class="warn">よそのマシンを起こすと、裁定の対象になりやすくなります。</b>' +
+      '</small></div>';
     return h + '</div>';
   }
 
@@ -3313,12 +3369,12 @@ window.GP = window.GP || {};
       const after = g.funds - bill;
       body += '<div class="billbox' + (after < 0 ? ' bad' : after < bill ? ' warn' : '') + '">' +
         '<b>🧾 この週末に出ていくお金 ' + money(bill) + '万</b>' +
-        '<small>🚚 輸送 ' + money(ship) + '万' +
+        '<small>🚚 遠征 ' + money(ship) + '万' +
         (puCost ? '／⚙️ 新品PU ' + money(puCost) + '万' : '') +
         '／🏭 運営 ' + money(weekly) + '万　→　残り <b class="' +
         (after < 0 ? 'bad' : 'good') + '">' + money(after) + '万</b>' +
         (after < 0 ? '<br><b class="warn">このままだと資金がマイナスになります。' +
-                     '「🚚 輸送」で運びかたと積荷を落とせば減らせます。</b>' : '') +
+                     '「🚚 遠征」で運びかたと積荷を落とせば減らせます。</b>' : '') +
         '</small></div>';
     }
 
@@ -3328,7 +3384,7 @@ window.GP = window.GP || {};
         '<small>通関で止まり、金曜の走行がほとんど使えませんでした。' +
         'セットアップの効果は半分以下、パーツのコンディションも -' + D.LOGI_DELAY_COND +
         '、クルーの疲労も増えています。<br>' +
-        '「🚚 輸送」で運びかたと積荷を見直せます。</small></div>';
+        '「🚚 遠征」で運びかたと積荷を見直せます。</small></div>';
     }
 
     // ---- 雨になったときに、誰の判断で走ることになるのか ----
@@ -3821,9 +3877,13 @@ window.GP = window.GP || {};
         '<span class="rk-chip" style="background:' + e.color + '"></span>' +
         '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
         '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+        logiChip(e) +
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
-    body += '</div>';
+    body += '</div>' +
+      '<p class="note">✈️🚢 の印は、そのチームが機材をどうやって運んできたかです。' +
+      'チャーターで先乗りしたチームはセットアップが進んでおり、' +
+      '船便のチームは荷が遅れることがあります（⏳）。</p>';
     body += puDecideHTML(res, 'fp');
     U.modal('🔧 フリー走行', body, [{ label: '⏱️ 予選へ', cls: 'primary', fn: runQualifying }], { wide: true });
     bindPuDecide(res, showPractice);
@@ -3839,6 +3899,7 @@ window.GP = window.GP || {};
         '<span class="rk-chip" style="background:' + e.color + '"></span>' +
         '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
         '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+        logiChip(e) +
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
@@ -6731,14 +6792,14 @@ window.GP = window.GP || {};
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
       '🏗️ <b>物流倉庫</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
       Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗も減ります。' +
-      '📦 <b>ロジスタッフ</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
+      '📦 <b>ロジスティシャン</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
       '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
       '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
       (S.perkCut(g, 'logi') > 0
         ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
 
     body += kitBoxHTML();
-    U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
+    U.modal('🚚 遠征', body, [{ label: '閉じる', fn: U.closeModal }]);
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
@@ -6753,7 +6814,7 @@ window.GP = window.GP || {};
       }
       if (kind === 'logi') {
         const pl = S.logiPlan(g);
-        U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
+        U.log(g, '🚚 遠征の手配を「' + pl.icon + pl.name + '」にした。');
       } else {
         const ld = S.logiLoad(g);
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
@@ -6901,7 +6962,7 @@ window.GP = window.GP || {};
     } else if (runway < 8) {
       push(3, 'principal', '資金がもちません',
         '毎週 ' + money(fin.weekly) + '万が出ていきます。いまの資金では <b>あと' + runway + '週</b>です。',
-        '開発を止めてでも、賞金の入る順位を取りにいきましょう。輸送を船便に落とすのも手です。');
+        '開発を止めてでも、賞金の入る順位を取りにいきましょう。遠征を船便に落とすのも手です。');
     } else if (runway > 40 && S.capRatio(g) < 0.55 && (g.nextRace || 0) >= 6) {
       push(1, 'principal', '資金が寝ています',
         '資金は ' + money(g.funds) + '万（' + runway + '週ぶん）。' +
@@ -6987,7 +7048,7 @@ window.GP = window.GP || {};
       push(2, 'pitchief', 'クルーが限界です',
         '疲労が <b>' + Math.round(cw.level) + '</b>。ピット作業が +' + cw.pit.toFixed(1) +
         '秒、信頼性も -' + cw.rel.toFixed(1) + ' 落ちています。',
-        '「☕休養」を挟むか、輸送をチャーター便に上げてください。');
+        '「☕休養」を挟むか、遠征をチャーター便に上げてください。');
     }
 
     // ---- 運営費 ----

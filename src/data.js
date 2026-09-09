@@ -562,15 +562,15 @@ GP.data = (function () {
      遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
     { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
-      cost: 2.45, fatigue: -8, perf: 1.008, delay: 0.00,
+      cost: 2.45, fatigue: -10, perf: 1.016, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2.5倍' },
     { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
-      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.07,
+      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.08,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
     { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
-      cost: 0.30, fatigue: 12, perf: 0.990, delay: 0.20,
+      cost: 0.30, fatigue: 15, perf: 0.978, delay: 0.28,
       desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
       note: '費用は約3割' }
   ];
@@ -578,7 +578,7 @@ GP.data = (function () {
      予備を置いてくれば安いが、現場で何かあっても手当てができない     */
   const LOGI_LOADS = [
     { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
-      cost: 0.62, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
+      cost: 0.62, spares: 0, wear: 1.55, delay: -0.03, fatigue: -3,
       desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
       note: '費用は4割減' },
     { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
@@ -586,7 +586,7 @@ GP.data = (function () {
       desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
       note: '標準' },
     { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
-      cost: 1.55, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
+      cost: 1.55, spares: 3, wear: 0.72, delay: 0.05, fatigue: 5,
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.55倍' }
   ];
@@ -597,7 +597,7 @@ GP.data = (function () {
      同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
   const LOGI_CREWS = [
     { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
-      cost: 0.58, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
+      cost: 0.58, fatigue: -9, pit: -0.95, read: -1.10, fore: -0.07,
       desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
       note: '費用は4割減／現場が薄くなる' },
     { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
@@ -605,7 +605,7 @@ GP.data = (function () {
       desc: 'いつもの遠征メンバー。過不足のない布陣',
       note: '標準' },
     { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
-      cost: 1.70, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
+      cost: 1.70, fatigue: 9, pit: 1.15, read: 1.35, fore: 0.08,
       desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
       note: '費用は約1.7倍／全員が疲れる' }
   ];
@@ -996,7 +996,7 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] },
     { key: 'researcher', name: 'リサーチャー',   icon: '🔬', desc: 'まだ形になっていないものを探す。研究テーマの進みが速くなる', salary: 58,
       promote: ['technical'] },
-    { key: 'logi',       name: 'ロジスタッフ',   icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
+    { key: 'logi',       name: 'ロジスティシャン', icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
       promote: ['logistics'] }
   ];
 
@@ -1478,6 +1478,18 @@ GP.data = (function () {
     polMul:   1.55     // 知見を使った改良の進み
   };
 
+  /* ---------- ライバルの運びかた ----------
+     向こうも同じ問題を抱えている。金のあるチームはチャーターで先乗りし、
+     苦しいチームは船便に賭ける。何で来たかは、そのまま週末に出る。
+     遠いコースほど差がつき、荷が遅れたチームは金曜を丸ごと失う。   */
+  const RIVAL_LOGI = [
+    { key: 'charter', name: 'チャーター便', icon: '✈️', perf: 1.014, delay: 0.00, rel: 2 },
+    { key: 'std',     name: '定期便',      icon: '📦', perf: 1.000, delay: 0.07, rel: 0 },
+    { key: 'sea',     name: '船便',        icon: '🚢', perf: 0.980, delay: 0.24, rel: -3 }
+  ];
+  /* 荷が遅れた週末に失うもの */
+  const RIVAL_LATE = { perf: 0.986, rel: -6 };
+
   /* ---------- トレンド（真似）----------
      誰かが掘り当てた解釈は、隠しておけない。写真に撮られ、
      風洞で再現され、数戦のうちにグリッドの半分が同じ形になる。
@@ -1493,7 +1505,21 @@ GP.data = (function () {
     playerCost: 1900,  // プレイヤーが持ち込むときの費用（万）
     playerRp:   22,    // 同・研究ポイント
     playerOf:   0.86,  // プレイヤーが真似たときに届く割合（設計陣で上下する）
-    tdRisk:     0.20   // 灰色の解釈を持ち込むと、裁定を呼び込みやすくなる
+    tdRisk:     0.20,  // 灰色の解釈を持ち込むと、裁定を呼び込みやすくなる
+    /* 選手権を引っ張っているチームは、写真も記事も段違いに多い。
+       そのぶん解釈が読み解きやすく、真似の精度も上がる          */
+    topBonus:   0.14,  // 首位のチームが本家のときの、写しの精度の上乗せ
+    topEarly:   1,     // 同・動き出せるまでの週が短くなる
+    /* 首位のマシンそのものを写す（ブレイクスルーがなくても選べる）。
+       差が大きいほど写す値打ちがあり、そのぶん高くつく          */
+    lead: {
+      of:    0.34,     // 首位との差の、どれだけを埋められるか
+      cap:   0.09,     // 1回で埋められる上限（全パーツの性能に対する割合）
+      cost:  2600,     // 費用の基礎（万）
+      costGap: 260,    // 差1点あたりの上乗せ
+      rp:    26,
+      cool:  6         // 一度写したら、次に写せるまでの週
+    }
   };
 
   /* ---------- 開発のブレイクスルー ----------
@@ -1873,7 +1899,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

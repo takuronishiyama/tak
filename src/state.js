@@ -939,21 +939,71 @@ GP.state = (function () {
     const cur = trendOf(g2);
     if (!cur) return null;
     if (cur.t.mine || cur.t.playerCopied) return null;
-    if (cur.age < D.TREND.startWeek) return { ...cur, tooEarly: true };
+    // 首位のチームが本家なら、動き出せるようになるのが1週早い
+    const top = topRival(g2);
+    const early = D.TREND.startWeek - ((top && cur.t.by === top.name) ? D.TREND.topEarly : 0);
+    if (cur.age < early) return { t: cur.t, age: cur.age, tooEarly: true, need: early - cur.age };
     return cur;
   }
-  /* 真似で届く割合。設計陣が厚いほど写しの精度が上がり、遅れるほど落ちる */
-  function copyRatio(g2, age) {
+  /* いま選手権を引っ張っているチーム（プレイヤー以外） */
+  function topRival(g2) {
+    const tbl = constructorTable(g2).filter(r => !r.isPlayer);
+    return tbl.length ? tbl[0] : null;
+  }
+  /* 真似で届く割合。設計陣が厚いほど写しの精度が上がり、遅れるほど落ちる。
+     首位のチームが本家なら、写真も記事も多いぶん読み解きやすい     */
+  function copyRatio(g2, age, by) {
     const T = D.TREND;
-    return clamp(T.playerOf * (1 + designPower(g2) * 0.020)
-               - Math.max(0, age - T.startWeek) * T.lateFade, 0.30, 1.05);
+    const top = topRival(g2);
+    const isTop = by && top && by === top.name;
+    return clamp(T.playerOf * (1 + designPower(g2) * 0.020) + (isTop ? T.topBonus : 0)
+               - Math.max(0, age - T.startWeek) * T.lateFade, 0.30, 1.15);
+  }
+
+  /* ---------- 首位のマシンを写す ----------
+     ブレイクスルーが出ていなくても、いちばん速い車はそこにある。
+     写真を撮り、風洞で起こし、うちの車に載せる。
+     差が大きいほど埋められるが、そのぶん高くつく               */
+  function leadCopy(g2) {
+    const L = D.TREND.lead;
+    const top = topRival(g2);
+    if (!top) return null;
+    const t = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const mine = carScore(g2, t);
+    const theirs = carScoreOf((g2.rivals || []).filter(r => r.name === top.name)[0]
+      ? (g2.rivals || []).filter(r => r.name === top.name)[0].stats : { speed: 0, corner: 0, accel: 0 }, t);
+    const gap = theirs - mine;
+    const cool = Math.max(0, (g2.leadCopyAt || -99) + L.cool - (weekStamp(g2)));
+    const ratio = clamp(L.of * (1 + designPower(g2) * 0.020), 0.15, 0.60);
+    const gain = gap <= 0 ? 0 : Math.min(L.cap, gap * ratio / Math.max(1, mine));
+    return {
+      team: top.name, gap: Math.round(gap * 10) / 10, gain: gain,
+      cost: Math.round(L.cost + Math.max(0, gap) * L.costGap),
+      rp: L.rp, cool: cool, ratio: ratio,
+      ok: gap > 0.5 && cool <= 0
+    };
+  }
+  function doLeadCopy(g2) {
+    const c = leadCopy(g2);
+    if (!c || !c.ok) return null;
+    D.PART_CATS.forEach(cat => {
+      if (cat.key === 'pu' && (g2.equipped.pu || {}).supplied) return;
+      const p = g2.equipped[cat.key];
+      if (p) p.power = Math.round(p.power * (1 + c.gain) * 10) / 10;
+    });
+    g2.leadCopyAt = weekStamp(g2);
+    g2.concepts = (g2.concepts || []).concat([{
+      cat: 'aero', what: c.team + 'のマシンの写し', copied: true,
+      gain: c.gain, at: weekStamp(g2)
+    }]);
+    return c;
   }
   /* プレイヤーが持ち込む。掘り当てたときと同じだけの伸びが、写したぶん乗る */
   function copyTrend(g2) {
     const cur = canCopyTrend(g2);
     if (!cur || cur.tooEarly) return null;
     const T = D.TREND;
-    const ratio = copyRatio(g2, cur.age);
+    const ratio = copyRatio(g2, cur.age, cur.t.by);
     const gain = (cur.t.mul - 1) * ratio;
     // 車体そのものではなく、装着しているパーツの性能に乗せる
     const cats = D.PART_CATS.filter(c => !(c.key === 'pu' && (g2.equipped.pu || {}).supplied));
@@ -2748,7 +2798,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
-    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio,
+    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,

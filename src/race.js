@@ -726,6 +726,28 @@ GP.race = (function () {
   }
 
   /* ---------- エントリーリスト作成 ---------- */
+  /* ---- ライバルがどうやって機材を運んできたか ----
+     金のあるチームはチャーターで先乗りし、苦しいチームは船便に賭ける。
+     同じ週末のあいだは同じ答えになるよう、名前とコースから決める      */
+  function rivalLogi(team, track, trackIndex, season) {
+    const str = team.name + '|' + trackIndex + '|' + (season || 1);
+    let h = 11;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 1000003;
+    const r1 = (h % 1000) / 1000, r2 = ((h / 1000) | 0) % 1000 / 1000;
+    const power = (D.RIVALS.filter(x => x.name === team.name)[0] || { power: 1 }).power;
+    /* 予算のあるチームほどチャーター、苦しいチームほど船便。
+       遠いコースは運賃そのものが高くつくので、どのチームも一段下げる */
+    const far = (track.far || 1);
+    const rich = S.clamp((power - 0.68) / 0.34 - (far - 1) * 0.45, 0, 1);
+    const pick2 = r1 < 0.10 + rich * 0.62 ? 0
+                : r1 < 0.60 + rich * 0.35 ? 1 : 2;
+    const def = D.RIVAL_LOGI[pick2];
+    const late = r2 < def.delay * far;
+    return { def: def, late: late,
+             perf: def.perf * (late ? D.RIVAL_LATE.perf : 1),
+             rel: def.rel + (late ? D.RIVAL_LATE.rel : 0) };
+  }
+
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
     // 週ごとの調子。金曜のセットアップがはまったかどうかで、チームごとに少し上下する。
@@ -764,9 +786,12 @@ GP.race = (function () {
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
         // パワーユニットの状態と出力モードは、そのまま走りの速さに出る。
         // へたったユニットで我慢するほど、じわじわ順位を落としていく
+        // ライバルも、何で機材を運んできたかで週末が変わる
+        const rl = t.isPlayer ? null : rivalLogi(t, track, D.TRACKS.indexOf(track), g.season);
         const pmul = form[ti]
                    * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
-                                 * ((strategy && strategy.setup) || 1) : 1);
+                                 * ((strategy && strategy.setup) || 1)
+                                 : rl.perf);
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
@@ -789,7 +814,9 @@ GP.race = (function () {
           stopPlan: t.isPlayer ? (strategy['stops_' + d.id] || 'auto') : null,
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
-          rel: t.rel,
+          rel: t.rel + (rl ? rl.rel : 0),
+          logi: rl ? rl.def : (t.isPlayer ? S.logiPlan(g) : null),
+          logiLate: rl ? rl.late : !!(t.isPlayer && g.logi && g.logi.late),
           // いちばん傷んでいる部位（壊れたときの理由に使う）
           /* いちばん傷んでいる部位（壊れたときの理由に使う）。
              パワーユニットは1戦で大きく削れるぶん、素の数字だと

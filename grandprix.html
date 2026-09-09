@@ -2221,6 +2221,9 @@ body[data-skin="hd"]{
 .findchip{font-style:normal;font-size:9px;font-weight:700;margin-left:5px;
   background:#8a6ad0;color:#fff;border-radius:4px;padding:1px 5px;white-space:nowrap}
 .rvw.want{font-weight:700;border:1px solid rgba(0,0,0,.35)}
+.gp-lg{flex:0 0 26px;text-align:center;font-size:11px;position:relative}
+.gp-lg .late{position:absolute;right:-2px;top:-3px;font-size:8px}
+@media (max-width:520px){ .gp-lg{flex:0 0 20px;font-size:10px} }
 
 </style>
 <!--
@@ -2301,7 +2304,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogi"><span>🚚</span>輸送</button>
+      <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
       <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
       <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
     </div>
@@ -2311,7 +2314,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogiR"><span>🚚</span>輸送</button>
+      <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
       <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
     </div>
     <div id="cmdOff" class="cmdset" style="display:none">
@@ -2320,7 +2323,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cGarageO"><span>🏎️</span>マシン</button>
       <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogiO"><span>🚚</span>輸送</button>
+      <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
       <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
       <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
     </div>
@@ -3344,15 +3347,15 @@ GP.data = (function () {
      遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
     { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
-      cost: 2.45, fatigue: -8, perf: 1.008, delay: 0.00,
+      cost: 2.45, fatigue: -10, perf: 1.016, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2.5倍' },
     { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
-      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.07,
+      cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.08,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
     { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
-      cost: 0.30, fatigue: 12, perf: 0.990, delay: 0.20,
+      cost: 0.30, fatigue: 15, perf: 0.978, delay: 0.28,
       desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
       note: '費用は約3割' }
   ];
@@ -3360,7 +3363,7 @@ GP.data = (function () {
      予備を置いてくれば安いが、現場で何かあっても手当てができない     */
   const LOGI_LOADS = [
     { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
-      cost: 0.62, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
+      cost: 0.62, spares: 0, wear: 1.55, delay: -0.03, fatigue: -3,
       desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
       note: '費用は4割減' },
     { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
@@ -3368,7 +3371,7 @@ GP.data = (function () {
       desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
       note: '標準' },
     { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
-      cost: 1.55, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
+      cost: 1.55, spares: 3, wear: 0.72, delay: 0.05, fatigue: 5,
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.55倍' }
   ];
@@ -3379,7 +3382,7 @@ GP.data = (function () {
      同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
   const LOGI_CREWS = [
     { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
-      cost: 0.58, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
+      cost: 0.58, fatigue: -9, pit: -0.95, read: -1.10, fore: -0.07,
       desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
       note: '費用は4割減／現場が薄くなる' },
     { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
@@ -3387,7 +3390,7 @@ GP.data = (function () {
       desc: 'いつもの遠征メンバー。過不足のない布陣',
       note: '標準' },
     { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
-      cost: 1.70, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
+      cost: 1.70, fatigue: 9, pit: 1.15, read: 1.35, fore: 0.08,
       desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
       note: '費用は約1.7倍／全員が疲れる' }
   ];
@@ -3778,7 +3781,7 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] },
     { key: 'researcher', name: 'リサーチャー',   icon: '🔬', desc: 'まだ形になっていないものを探す。研究テーマの進みが速くなる', salary: 58,
       promote: ['technical'] },
-    { key: 'logi',       name: 'ロジスタッフ',   icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
+    { key: 'logi',       name: 'ロジスティシャン', icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
       promote: ['logistics'] }
   ];
 
@@ -4260,6 +4263,18 @@ GP.data = (function () {
     polMul:   1.55     // 知見を使った改良の進み
   };
 
+  /* ---------- ライバルの運びかた ----------
+     向こうも同じ問題を抱えている。金のあるチームはチャーターで先乗りし、
+     苦しいチームは船便に賭ける。何で来たかは、そのまま週末に出る。
+     遠いコースほど差がつき、荷が遅れたチームは金曜を丸ごと失う。   */
+  const RIVAL_LOGI = [
+    { key: 'charter', name: 'チャーター便', icon: '✈️', perf: 1.014, delay: 0.00, rel: 2 },
+    { key: 'std',     name: '定期便',      icon: '📦', perf: 1.000, delay: 0.07, rel: 0 },
+    { key: 'sea',     name: '船便',        icon: '🚢', perf: 0.980, delay: 0.24, rel: -3 }
+  ];
+  /* 荷が遅れた週末に失うもの */
+  const RIVAL_LATE = { perf: 0.986, rel: -6 };
+
   /* ---------- トレンド（真似）----------
      誰かが掘り当てた解釈は、隠しておけない。写真に撮られ、
      風洞で再現され、数戦のうちにグリッドの半分が同じ形になる。
@@ -4275,7 +4290,21 @@ GP.data = (function () {
     playerCost: 1900,  // プレイヤーが持ち込むときの費用（万）
     playerRp:   22,    // 同・研究ポイント
     playerOf:   0.86,  // プレイヤーが真似たときに届く割合（設計陣で上下する）
-    tdRisk:     0.20   // 灰色の解釈を持ち込むと、裁定を呼び込みやすくなる
+    tdRisk:     0.20,  // 灰色の解釈を持ち込むと、裁定を呼び込みやすくなる
+    /* 選手権を引っ張っているチームは、写真も記事も段違いに多い。
+       そのぶん解釈が読み解きやすく、真似の精度も上がる          */
+    topBonus:   0.14,  // 首位のチームが本家のときの、写しの精度の上乗せ
+    topEarly:   1,     // 同・動き出せるまでの週が短くなる
+    /* 首位のマシンそのものを写す（ブレイクスルーがなくても選べる）。
+       差が大きいほど写す値打ちがあり、そのぶん高くつく          */
+    lead: {
+      of:    0.34,     // 首位との差の、どれだけを埋められるか
+      cap:   0.09,     // 1回で埋められる上限（全パーツの性能に対する割合）
+      cost:  2600,     // 費用の基礎（万）
+      costGap: 260,    // 差1点あたりの上乗せ
+      rp:    26,
+      cool:  6         // 一度写したら、次に写せるまでの週
+    }
   };
 
   /* ---------- 開発のブレイクスルー ----------
@@ -4655,7 +4684,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -5809,21 +5838,71 @@ GP.state = (function () {
     const cur = trendOf(g2);
     if (!cur) return null;
     if (cur.t.mine || cur.t.playerCopied) return null;
-    if (cur.age < D.TREND.startWeek) return { ...cur, tooEarly: true };
+    // 首位のチームが本家なら、動き出せるようになるのが1週早い
+    const top = topRival(g2);
+    const early = D.TREND.startWeek - ((top && cur.t.by === top.name) ? D.TREND.topEarly : 0);
+    if (cur.age < early) return { t: cur.t, age: cur.age, tooEarly: true, need: early - cur.age };
     return cur;
   }
-  /* 真似で届く割合。設計陣が厚いほど写しの精度が上がり、遅れるほど落ちる */
-  function copyRatio(g2, age) {
+  /* いま選手権を引っ張っているチーム（プレイヤー以外） */
+  function topRival(g2) {
+    const tbl = constructorTable(g2).filter(r => !r.isPlayer);
+    return tbl.length ? tbl[0] : null;
+  }
+  /* 真似で届く割合。設計陣が厚いほど写しの精度が上がり、遅れるほど落ちる。
+     首位のチームが本家なら、写真も記事も多いぶん読み解きやすい     */
+  function copyRatio(g2, age, by) {
     const T = D.TREND;
-    return clamp(T.playerOf * (1 + designPower(g2) * 0.020)
-               - Math.max(0, age - T.startWeek) * T.lateFade, 0.30, 1.05);
+    const top = topRival(g2);
+    const isTop = by && top && by === top.name;
+    return clamp(T.playerOf * (1 + designPower(g2) * 0.020) + (isTop ? T.topBonus : 0)
+               - Math.max(0, age - T.startWeek) * T.lateFade, 0.30, 1.15);
+  }
+
+  /* ---------- 首位のマシンを写す ----------
+     ブレイクスルーが出ていなくても、いちばん速い車はそこにある。
+     写真を撮り、風洞で起こし、うちの車に載せる。
+     差が大きいほど埋められるが、そのぶん高くつく               */
+  function leadCopy(g2) {
+    const L = D.TREND.lead;
+    const top = topRival(g2);
+    if (!top) return null;
+    const t = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const mine = carScore(g2, t);
+    const theirs = carScoreOf((g2.rivals || []).filter(r => r.name === top.name)[0]
+      ? (g2.rivals || []).filter(r => r.name === top.name)[0].stats : { speed: 0, corner: 0, accel: 0 }, t);
+    const gap = theirs - mine;
+    const cool = Math.max(0, (g2.leadCopyAt || -99) + L.cool - (weekStamp(g2)));
+    const ratio = clamp(L.of * (1 + designPower(g2) * 0.020), 0.15, 0.60);
+    const gain = gap <= 0 ? 0 : Math.min(L.cap, gap * ratio / Math.max(1, mine));
+    return {
+      team: top.name, gap: Math.round(gap * 10) / 10, gain: gain,
+      cost: Math.round(L.cost + Math.max(0, gap) * L.costGap),
+      rp: L.rp, cool: cool, ratio: ratio,
+      ok: gap > 0.5 && cool <= 0
+    };
+  }
+  function doLeadCopy(g2) {
+    const c = leadCopy(g2);
+    if (!c || !c.ok) return null;
+    D.PART_CATS.forEach(cat => {
+      if (cat.key === 'pu' && (g2.equipped.pu || {}).supplied) return;
+      const p = g2.equipped[cat.key];
+      if (p) p.power = Math.round(p.power * (1 + c.gain) * 10) / 10;
+    });
+    g2.leadCopyAt = weekStamp(g2);
+    g2.concepts = (g2.concepts || []).concat([{
+      cat: 'aero', what: c.team + 'のマシンの写し', copied: true,
+      gain: c.gain, at: weekStamp(g2)
+    }]);
+    return c;
   }
   /* プレイヤーが持ち込む。掘り当てたときと同じだけの伸びが、写したぶん乗る */
   function copyTrend(g2) {
     const cur = canCopyTrend(g2);
     if (!cur || cur.tooEarly) return null;
     const T = D.TREND;
-    const ratio = copyRatio(g2, cur.age);
+    const ratio = copyRatio(g2, cur.age, cur.t.by);
     const gain = (cur.t.mul - 1) * ratio;
     // 車体そのものではなく、装着しているパーツの性能に乗せる
     const cats = D.PART_CATS.filter(c => !(c.key === 'pu' && (g2.equipped.pu || {}).supplied));
@@ -7618,7 +7697,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
-    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio,
+    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
@@ -8371,6 +8450,28 @@ GP.race = (function () {
   }
 
   /* ---------- エントリーリスト作成 ---------- */
+  /* ---- ライバルがどうやって機材を運んできたか ----
+     金のあるチームはチャーターで先乗りし、苦しいチームは船便に賭ける。
+     同じ週末のあいだは同じ答えになるよう、名前とコースから決める      */
+  function rivalLogi(team, track, trackIndex, season) {
+    const str = team.name + '|' + trackIndex + '|' + (season || 1);
+    let h = 11;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 1000003;
+    const r1 = (h % 1000) / 1000, r2 = ((h / 1000) | 0) % 1000 / 1000;
+    const power = (D.RIVALS.filter(x => x.name === team.name)[0] || { power: 1 }).power;
+    /* 予算のあるチームほどチャーター、苦しいチームほど船便。
+       遠いコースは運賃そのものが高くつくので、どのチームも一段下げる */
+    const far = (track.far || 1);
+    const rich = S.clamp((power - 0.68) / 0.34 - (far - 1) * 0.45, 0, 1);
+    const pick2 = r1 < 0.10 + rich * 0.62 ? 0
+                : r1 < 0.60 + rich * 0.35 ? 1 : 2;
+    const def = D.RIVAL_LOGI[pick2];
+    const late = r2 < def.delay * far;
+    return { def: def, late: late,
+             perf: def.perf * (late ? D.RIVAL_LATE.perf : 1),
+             rel: def.rel + (late ? D.RIVAL_LATE.rel : 0) };
+  }
+
   function buildEntries(g, track, weather, strategy) {
     const teams = S.allTeams(g, track);
     // 週ごとの調子。金曜のセットアップがはまったかどうかで、チームごとに少し上下する。
@@ -8409,9 +8510,12 @@ GP.race = (function () {
         drv *= 1 + (bd0.drive - RIVAL_BODY) * 0.20;
         // パワーユニットの状態と出力モードは、そのまま走りの速さに出る。
         // へたったユニットで我慢するほど、じわじわ順位を落としていく
+        // ライバルも、何で機材を運んできたかで週末が変わる
+        const rl = t.isPlayer ? null : rivalLogi(t, track, D.TRACKS.indexOf(track), g.season);
         const pmul = form[ti]
                    * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
-                                 * ((strategy && strategy.setup) || 1) : 1);
+                                 * ((strategy && strategy.setup) || 1)
+                                 : rl.perf);
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
@@ -8434,7 +8538,9 @@ GP.race = (function () {
           stopPlan: t.isPlayer ? (strategy['stops_' + d.id] || 'auto') : null,
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
-          rel: t.rel,
+          rel: t.rel + (rl ? rl.rel : 0),
+          logi: rl ? rl.def : (t.isPlayer ? S.logiPlan(g) : null),
+          logiLate: rl ? rl.late : !!(t.isPlayer && g.logi && g.logi.late),
           // いちばん傷んでいる部位（壊れたときの理由に使う）
           /* いちばん傷んでいる部位（壊れたときの理由に使う）。
              パワーユニットは1戦で大きく削れるぶん、素の数字だと
@@ -15758,6 +15864,24 @@ window.GP = window.GP || {};
       else if (kind === 'des') doDesign(key);
     });
     bindAct('data-copytrend', () => doCopyTrend());
+    bindAct('data-leadcopy', () => doLeadCopy());
+  }
+
+  /* ---- 首位のマシンを写す ---- */
+  function doLeadCopy() {
+    const c = S.leadCopy(g);
+    if (!c || !c.ok) return;
+    if (g.funds < c.cost || g.rp < c.rp) return U.toast('資金か研究Pが足りません', 'bad');
+    g.funds -= c.cost; g.rp -= c.rp; capSpend(c.cost);
+    const r = S.doLeadCopy(g);
+    if (!r) return;
+    U.closeModal();
+    U.log(g, '📸 ' + esc(r.team) + ' のマシンを起こして持ち込んだ（全パーツ +' +
+      (r.gain * 100).toFixed(1) + '％）', 'good');
+    U.toast('📸 首位のマシンを写した', 'good');
+    GP.sound.play('levelup');
+    S.pushNews(g, 'trend', r.team + 'のマシン', { by: r.team });
+    endWeek();
   }
 
   /* ---- 他所の解釈を持ち込む ----
@@ -17379,6 +17503,14 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* そのチームが機材をどうやって運んできたか。荷が遅れていれば⏳ */
+  function logiChip(e) {
+    if (!e.logi) return '<span class="gp-lg"></span>';
+    return '<span class="gp-lg" title="' + esc(e.logi.name) +
+      (e.logiLate ? '／荷の到着が遅れた' : '') + '">' + e.logi.icon +
+      (e.logiLate ? '<b class="late">⏳</b>' : '') + '</span>';
+  }
+
   /* ---- 作戦の中身 ----
      「攻める」と「安全第一」が、実際に何を差し引きしているのか。
      言葉だけだと分からないので、そのコースの数字で出す        */
@@ -17993,7 +18125,7 @@ window.GP = window.GP || {};
      写すのは速いが、本家の写しでしかないので届ききらない       */
   function trendBoxHTML() {
     const cur = S.trendOf(g);
-    if (!cur) return '';
+    if (!cur) return leadCopyHTML();
     const t = cur.t;
     const mine = t.mine;
     const copiedN = (t.copied || []).length;
@@ -18021,7 +18153,7 @@ window.GP = window.GP || {};
         '<small>' +
         (early
           ? '<b class="warn">まだ写真も図面も足りません。' +
-            'あと' + (D.TREND.startWeek - cur.age) + '週ほどで、形が読めるようになります。</b>'
+            'あと' + (cur.need || 1) + '週ほどで、形が読めるようになります。</b>'
           : '装着している全パーツの性能が <b>+' + ((t.mul - 1) * ratio * 100).toFixed(1) +
             '%</b>（本家の ' + Math.round(ratio * 100) + '%）。' +
             'デザイナーが厚いほど写しの精度が上がり、遅れるほど届かなくなります。' +
@@ -18031,6 +18163,36 @@ window.GP = window.GP || {};
     } else if (t.playerCopied) {
       h += '<small class="pupool">✅ うちもすでに同じ形にしています。</small>';
     }
+    return h + '</div>' + leadCopyHTML();
+  }
+
+  /* ---- 首位のマシンを写す ----
+     ブレイクスルーが出ていなくても、いちばん速い車はそこにある。
+     写真を撮り、風洞で起こし、うちの車に載せる                 */
+  function leadCopyHTML() {
+    const c = S.leadCopy(g);
+    if (!c) return '';
+    let h = '<div class="atrbox slim" style="--ac:#c98b10">' +
+      '<b>🏆 いま選手権を引っ張っているのは ' + esc(c.team) + '</b>' +
+      '<small>';
+    if (c.gap <= 0.5) {
+      h += 'うちのマシンは、もう首位に見劣りしません。写すものはありません。</small></div>';
+      return h;
+    }
+    h += 'マシンの出来では <b>' + c.gap.toFixed(1) + '点</b> 離されています。' +
+      '写真を撮り、風洞で起こして、うちの車に載せることができます。' +
+      '差の <b>' + Math.round(c.ratio * 100) + '%</b>（デザイナーが厚いほど上がる）を、' +
+      '1回で最大 <b>+' + (D.TREND.lead.cap * 100).toFixed(0) + '%</b> まで埋めます。</small>';
+    const poor = g.funds < c.cost || g.rp < c.rp;
+    h += '<div class="pufresh2">' +
+      '<button class="btn' + ((poor || !c.ok) ? '' : ' primary') + '" data-leadcopy="1"' +
+        ((poor || !c.ok) ? ' disabled' : '') + '>' +
+        '📸 ' + esc(c.team) + ' のマシンを写す（💰' + money(c.cost) + '万／🔬' + c.rp + '）</button>' +
+      '<small>装着している全パーツの性能が <b>+' + (c.gain * 100).toFixed(1) + '%</b>。' +
+      (c.cool > 0 ? '<br><b class="warn">前に写したばかりです。あと' + c.cool + '週。</b>' : '') +
+      (poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
+      '<br><b class="warn">よそのマシンを起こすと、裁定の対象になりやすくなります。</b>' +
+      '</small></div>';
     return h + '</div>';
   }
 
@@ -18401,12 +18563,12 @@ window.GP = window.GP || {};
       const after = g.funds - bill;
       body += '<div class="billbox' + (after < 0 ? ' bad' : after < bill ? ' warn' : '') + '">' +
         '<b>🧾 この週末に出ていくお金 ' + money(bill) + '万</b>' +
-        '<small>🚚 輸送 ' + money(ship) + '万' +
+        '<small>🚚 遠征 ' + money(ship) + '万' +
         (puCost ? '／⚙️ 新品PU ' + money(puCost) + '万' : '') +
         '／🏭 運営 ' + money(weekly) + '万　→　残り <b class="' +
         (after < 0 ? 'bad' : 'good') + '">' + money(after) + '万</b>' +
         (after < 0 ? '<br><b class="warn">このままだと資金がマイナスになります。' +
-                     '「🚚 輸送」で運びかたと積荷を落とせば減らせます。</b>' : '') +
+                     '「🚚 遠征」で運びかたと積荷を落とせば減らせます。</b>' : '') +
         '</small></div>';
     }
 
@@ -18416,7 +18578,7 @@ window.GP = window.GP || {};
         '<small>通関で止まり、金曜の走行がほとんど使えませんでした。' +
         'セットアップの効果は半分以下、パーツのコンディションも -' + D.LOGI_DELAY_COND +
         '、クルーの疲労も増えています。<br>' +
-        '「🚚 輸送」で運びかたと積荷を見直せます。</small></div>';
+        '「🚚 遠征」で運びかたと積荷を見直せます。</small></div>';
     }
 
     // ---- 雨になったときに、誰の判断で走ることになるのか ----
@@ -18909,9 +19071,13 @@ window.GP = window.GP || {};
         '<span class="rk-chip" style="background:' + e.color + '"></span>' +
         '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
         '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+        logiChip(e) +
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
-    body += '</div>';
+    body += '</div>' +
+      '<p class="note">✈️🚢 の印は、そのチームが機材をどうやって運んできたかです。' +
+      'チャーターで先乗りしたチームはセットアップが進んでおり、' +
+      '船便のチームは荷が遅れることがあります（⏳）。</p>';
     body += puDecideHTML(res, 'fp');
     U.modal('🔧 フリー走行', body, [{ label: '⏱️ 予選へ', cls: 'primary', fn: runQualifying }], { wide: true });
     bindPuDecide(res, showPractice);
@@ -18927,6 +19093,7 @@ window.GP = window.GP || {};
         '<span class="rk-chip" style="background:' + e.color + '"></span>' +
         '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
         '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+        logiChip(e) +
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
@@ -21819,14 +21986,14 @@ window.GP = window.GP || {};
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
       '🏗️ <b>物流倉庫</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
       Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗も減ります。' +
-      '📦 <b>ロジスタッフ</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
+      '📦 <b>ロジスティシャン</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
       '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
       '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
       (S.perkCut(g, 'logi') > 0
         ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
 
     body += kitBoxHTML();
-    U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
+    U.modal('🚚 遠征', body, [{ label: '閉じる', fn: U.closeModal }]);
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
@@ -21841,7 +22008,7 @@ window.GP = window.GP || {};
       }
       if (kind === 'logi') {
         const pl = S.logiPlan(g);
-        U.log(g, '🚚 輸送を「' + pl.icon + pl.name + '」にした。');
+        U.log(g, '🚚 遠征の手配を「' + pl.icon + pl.name + '」にした。');
       } else {
         const ld = S.logiLoad(g);
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
@@ -21989,7 +22156,7 @@ window.GP = window.GP || {};
     } else if (runway < 8) {
       push(3, 'principal', '資金がもちません',
         '毎週 ' + money(fin.weekly) + '万が出ていきます。いまの資金では <b>あと' + runway + '週</b>です。',
-        '開発を止めてでも、賞金の入る順位を取りにいきましょう。輸送を船便に落とすのも手です。');
+        '開発を止めてでも、賞金の入る順位を取りにいきましょう。遠征を船便に落とすのも手です。');
     } else if (runway > 40 && S.capRatio(g) < 0.55 && (g.nextRace || 0) >= 6) {
       push(1, 'principal', '資金が寝ています',
         '資金は ' + money(g.funds) + '万（' + runway + '週ぶん）。' +
@@ -22075,7 +22242,7 @@ window.GP = window.GP || {};
       push(2, 'pitchief', 'クルーが限界です',
         '疲労が <b>' + Math.round(cw.level) + '</b>。ピット作業が +' + cw.pit.toFixed(1) +
         '秒、信頼性も -' + cw.rel.toFixed(1) + ' 落ちています。',
-        '「☕休養」を挟むか、輸送をチャーター便に上げてください。');
+        '「☕休養」を挟むか、遠征をチャーター便に上げてください。');
     }
 
     // ---- 運営費 ----
