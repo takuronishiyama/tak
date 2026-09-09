@@ -1788,6 +1788,8 @@ GP.race = (function () {
     });
     if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
     hypeDelta *= (1 + S.mgr(g, 'principal') * 0.004);          // 発信力のあるプリンシパルほど話題になる
+    // ミュージアムがあると、勝てない週末でも語られるものが残る
+    if (hypeDelta < 0 && S.hasEstate(g, 'museum')) hypeDelta *= 0.65;
     const beforeTier = S.hypeTier(g).name;
     S.addHype(g, hypeDelta);
     const afterTier = S.hypeTier(g).name;
@@ -1972,7 +1974,9 @@ GP.race = (function () {
     g.funds += prize + sponsorIncome + merch;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
     if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
-                                            * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1));
+                                            * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1)
+                                            * (S.hasEstate(g, 'shop') ? 1.08 : 1)
+                                            * (S.hasEstate(g, 'esports') ? 1.18 : 1));
     // 負けが込んでも、離れていくのは一度に1割ちょっとまで。
     // どんなときも残ってくれる人たちがいる
     if (fanDelta < 0) fanDelta = Math.max(fanDelta, -Math.round(g.fans * 0.12) - 20);

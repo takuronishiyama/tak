@@ -522,9 +522,9 @@ GP.ui = (function () {
       ['👥 スタッフ給料', f.staff], ['👔 首脳陣の報酬', f.managers],
       ['🧑‍✈️ ドライバー給料', f.drivers], ['🎓 育成の費用', f.youth],
       ['🏗️ 施設の維持費', f.facilities],
-    ].concat(f.engine ? [['🔌 PU供給料', f.engine]] : []).concat([
-      ['📋 その他', f.other]
-    ]);
+    ].concat(f.engine ? [['🔌 PU供給料', f.engine]] : [])
+     .concat(f.estate ? [['🏪 事業の維持費', f.estate]] : [])
+     .concat([['📋 その他', f.other]]);
     const raw = rows.reduce((a, r) => a + r[1], 0);
     let h = '<div class="sub">💹 収支</div>' +
       '<div class="fin"><div class="fin-col"><div class="fin-h">毎週の支出</div>';

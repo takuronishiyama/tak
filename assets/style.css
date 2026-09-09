@@ -1852,3 +1852,8 @@ body[data-skin="hd"]{
 .gearn{font-style:normal;font-size:9px;background:#5a6270;color:#fff;border-radius:4px;
        padding:0 5px;margin-left:4px}
 .gearn.full{background:#2e8b30}
+
+/* ---- 事業とカートレース ---- */
+.kartgo{color:#2e8b30}
+[data-skin="hd"] .kartgo{color:#8ef08e}
+.kartlog{height:auto;max-height:120px;margin:8px 0}

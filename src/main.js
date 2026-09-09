@@ -1866,6 +1866,118 @@ window.GP = window.GP || {};
     });
     return h + '</div>';
   }
+  /* ---- 事業 ----
+     本拠地の外に持つもの。レースで勝つための設備ではなく、
+     チームが街に根を張るための場所                                 */
+  function estateBoxHTML() {
+    const list = S.estateList(g);
+    const up = S.estateUpkeep(g);
+    let h = '<div class="sub small">事業</div>' +
+      '<p class="desc">本拠地の外に持つもの。買えば維持費がかかりますが、' +
+      'チームの収入と、人の集まりかたが変わります。' +
+      (up ? '　いまの維持費 <b>💰' + money(up) + '万／週</b>' : '') + '</p>' +
+      '<div class="pick gearpick">';
+    list.forEach(x => {
+      const can = !x.owned && g.funds >= x.cost;
+      const kart = x.key === 'kart' && x.owned;
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-est="' + x.key + '"' +
+        ((can || kart) ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#8a5a2a">' + x.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.name) +
+          (x.owned ? '<em class="gowned">所有</em>' : '') + '</b>' +
+        '<small><b>' + esc(x.eff) + '</b>　維持 💰' + money(x.upkeep) + '万/週' +
+        '<br><em class="pnote">' + esc(x.desc) + '</em>' +
+        (kart ? '<br><b class="kartgo">🏁 押すと、今週カートレースを開けます（' +
+                (g.youth || []).length + '人が出走）</b>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (x.owned ? (kart ? '🏁 開く' : '—') : '💰' + money(x.cost)) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+  function bindEstate() {
+    const box = $('baseDetail');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-est]'), b => {
+      b.onclick = () => {
+        const key = b.dataset.est;
+        if (key === 'kart' && S.hasEstate(g, key)) return askKart();
+        const x = S.buyEstate(g, key);
+        if (!x) return;
+        GP.sound.play('build');
+        U.log(g, x.icon + ' ' + x.name + ' を手に入れた（' + x.eff + '）', 'good');
+        U.toast(x.icon + ' ' + x.name + '！', 'good');
+        S.save(g); render(); drawBase();
+      };
+    });
+  }
+
+  /* =======================================================
+     カートレース
+     カート場を持っていると開ける、小さな週末。
+     若手が実戦を覚え、街の子が見つかることがある。
+     ======================================================= */
+  function askKart() {
+    const K = D.KART;
+    const ys = (g.youth || []);
+    if (!ys.length) {
+      return U.modal('🏁 カートレース',
+        '<p class="lead">出走できる若手がいません。</p>' +
+        '<p class="desc">「人事」の育成から、下部組織に若手を入れてください。</p>',
+        [{ label: '戻る', cls: 'primary', fn: U.closeModal }]);
+    }
+    const ok = g.funds >= K.fee;
+    U.modal('🏁 カートレース',
+      '<p class="lead">今週、自前のカート場でレースを開きます。' +
+      '街の子どもたちが集まってきます。</p>' +
+      '<div class="pick">' + ys.slice(0, 4).map(d =>
+        '<div class="pickbtn done"><span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '（' + d.age + '歳）</b>' +
+        '<small>カート適性 <b>' + Math.round(S.kartRating(d)) + '</b>' +
+        '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
+        '／精神 ' + Math.round(d.mental) + '</small></span></div>').join('') + '</div>' +
+      '<p class="desc">開催費 💰' + money(K.fee) + '万（1週消費）。' +
+      '走った子は実戦のぶんだけ伸び、勝てば大きく伸びます。' +
+      '街の子のなかに光るものがいたら、声をかけられます。</p>',
+      [{ label: '🏁 開催する', cls: 'primary', disabled: !ok, fn: doKart },
+       { label: 'やめる', fn: U.closeModal }]);
+  }
+  function doKart() {
+    const K = D.KART;
+    if (g.funds < K.fee) return;
+    g.funds -= K.fee;
+    const res = S.runKart(g);
+    const rw = S.kartReward(g, res);
+    U.closeModal();
+    let body = '<div class="racehead"><b>🏁 カートレース</b><span>' + K.laps + '周</span></div>' +
+      '<div class="gridlist">' + res.field.map(e =>
+        '<div class="gridrow' + (e.mine ? ' me' : '') + '">' +
+        '<span class="gp-pos' + (e.pos === 1 ? ' gold' : e.pos === 2 ? ' silver' : e.pos === 3 ? ' bronze' : '') + '">' +
+        e.pos + '</span>' +
+        '<span class="gp-nm">' + esc(e.name) + (e.mine ? ' <b>（うち）</b>' : e.star ? ' ✨' : '') + '</span>' +
+        '<span class="gp-t">' + (e.pos === 1 ? '—' : '+' + (e.time - res.field[0].time).toFixed(1) + 's') +
+        (e.spun ? ' 🌀' : '') + '</span></div>').join('') + '</div>' +
+      '<div class="rv-loglist kartlog">' + res.log.map(t =>
+        '<div class="rv-ev">' + esc(t) + '</div>').join('') + '</div>' +
+      '<div class="rewardbox">' +
+        '<div>💰 賞金 <b>+' + money(rw.prize) + '</b><small>出走したぶんだけ</small></div>' +
+        '<div>🔥 ファン <b>+' + rw.fans + '</b><small>近所の子とその家族</small></div>' +
+        '<div>📈 伸びた若手 <b>' + rw.grown.length + '人</b><small>' +
+          (rw.grown.map(x => x.name + ' ' + x.pos + '位').join('／') || '—') + '</small></div>' +
+      '</div>';
+    if (rw.found) {
+      body += '<p class="note big">✨ ' + esc(rw.found.name) + '（' + rw.found.age +
+        '歳）が、うちのカートで走りたいと言ってきました。下部組織に入りました。</p>';
+      g.youth = (g.youth || []).concat([rw.found]);
+    }
+    U.modal('🏁 カートレース 結果', body,
+      [{ label: '戻る', cls: 'primary', fn: () => { U.closeModal(); endWeek(); } }], { wide: true });
+    GP.sound.play(res.field[0] && res.field[0].mine ? 'levelup' : 'confirm');
+    U.log(g, '🏁 カート場でレースを開いた。' +
+      (res.field[0] && res.field[0].mine ? res.field[0].name + ' が優勝！' : '') +
+      ' 賞金 +' + rw.prize + '万／ファン +' + rw.fans, 'good');
+    S.save(g);
+  }
+
   function bindGear() {
     const box = $('baseDetail');
     if (!box) return;
@@ -1907,6 +2019,7 @@ window.GP = window.GP || {};
       (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
         Math.round(facCut * 100) + '%</b> になっています。</p>' : '') +
       gearBoxHTML(baseSel) +
+      estateBoxHTML() +
       '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
@@ -1920,6 +2033,7 @@ window.GP = window.GP || {};
     h += '</div>';
     $('baseDetail').innerHTML = h;
     bindGear();
+    bindEstate();
 
     const up = $('baseUp');
     if (up) up.onclick = () => {

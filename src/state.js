@@ -93,6 +93,111 @@ GP.state = (function () {
     return t;
   }
 
+  /* ---------- 事業 ---------- */
+  function hasEstate(g2, key) { return ((g2 && g2.estates) || []).indexOf(key) >= 0; }
+  function estateList(g2) {
+    return D.ESTATES.map(x => Object.assign({}, x, { owned: hasEstate(g2, x.key) }));
+  }
+  function buyEstate(g2, key) {
+    const x = D.ESTATES.filter(y => y.key === key)[0];
+    if (!x || hasEstate(g2, key) || g2.funds < x.cost) return null;
+    g2.funds -= x.cost;
+    g2.estates = (g2.estates || []).concat([key]);
+    return x;
+  }
+  function estateUpkeep(g2) {
+    return D.ESTATES.reduce((a, x) => a + (hasEstate(g2, x.key) ? x.upkeep : 0), 0);
+  }
+
+  /* ---------- カートレース ----------
+     カート場を持っていると開ける、小さな週末。
+     若手が実戦を覚え、街の子が見つかることがある。               */
+  function kartName() {
+    return pick(D.KART.NAMES) + '・' + pick(D.KART.LAST);
+  }
+  function kartRating(d) {
+    // カートは体力よりも、感覚と度胸で決まる
+    return d.speed * 0.42 + d.technique * 0.36 + d.mental * 0.22;
+  }
+  function runKart(g2) {
+    const K = D.KART;
+    const mine = (g2.youth || []).slice(0, 4);
+    const field = [];
+    mine.forEach(d => field.push({
+      name: d.name, mine: true, youth: d, rate: kartRating(d) * rnd(0.94, 1.06),
+      pot: potOf(d).key
+    }));
+    // 街の子たち。うちの若手と同じくらいの水準で集まってくるが、
+    // たまに、どう見ても別物の子が混じっている
+    const base = field.length ? field.reduce((a, e) => a + e.rate, 0) / field.length : 40;
+    const n = Math.max(4, K.field - field.length);
+    for (let i = 0; i < n; i++) {
+      const star = Math.random() < 0.18;
+      field.push({
+        name: kartName(), mine: false, star: star,
+        rate: clamp(base * rnd(0.74, 1.16) * (star ? rnd(1.18, 1.38) : 1), 8, 190)
+      });
+    }
+    // 自前のコースなので、うちの子は勝手を知っている
+    const home = 1 + 0.05 + (g2.facilities.youth || 1) * 0.014
+               + (hasGear(g2, 'youth', 'lab') ? 0.03 : 0)
+               + (hasEstate(g2, 'academy') ? 0.04 : 0);
+    field.forEach(e => { if (e.mine) e.rate *= home; });
+
+    // 12周ぶんを、ひとまとめに解く
+    const log = [];
+    field.forEach(e => {
+      e.time = K.laps * (46 - e.rate * 0.060) * rnd(0.995, 1.005);
+      e.spun = Math.random() < 0.10 * (1 - Math.min(0.7, e.rate / 110));
+      if (e.spun) e.time += rnd(3, 8);
+    });
+    field.sort((a, b) => a.time - b.time);
+    field.forEach((e, i) => { e.pos = i + 1; });
+
+    const say = (pool, v) => {
+      let t = pick(pool);
+      Object.keys(v || {}).forEach(k => { t = t.split('{' + k + '}').join(v[k]); });
+      return t;
+    };
+    log.push(say(K.SAY.start, { A: field[rint(0, 2)].name }));
+    const mid = field.filter(e => e.pos >= 2 && e.pos <= 6);
+    if (mid.length >= 2) log.push(say(K.SAY.pass, { A: mid[0].name, B: mid[1].name }));
+    field.filter(e => e.spun).slice(0, 2).forEach(e => log.push(say(K.SAY.spin, { A: e.name })));
+    log.push(say(K.SAY.fast, { A: field[0].name }));
+    log.push(say(field[1] ? K.SAY.last : K.SAY.last,
+                 { A: field[0].name, B: field[1] ? field[1].name : '' }));
+    return { field: field, log: log };
+  }
+  /* 走り終えたあとの、実りのぶん */
+  function kartReward(g2, res) {
+    const K = D.KART;
+    let prize = 0, fans = 0;
+    const grown = [];
+    res.field.filter(e => e.mine).forEach(e => {
+      prize += K.prize[Math.min(K.prize.length - 1, e.pos - 1)];
+      fans += e.pos === 1 ? K.fanWin : Math.round(K.fanRun * (1 - (e.pos - 1) / K.field));
+      const mul = (e.pos === 1 ? K.growWin : K.growRun) * potOf(e.youth).growth;
+      const d = e.youth;
+      ['speed', 'technique', 'mental'].forEach(k => {
+        d[k] = clamp(d[k] + rnd(0.6, 1.8) * mul * (1 - d[k] / 300), 1, 199);
+      });
+      d.exp += Math.round(6 * mul);
+      d.trained++;
+      grown.push({ name: d.name, pos: e.pos });
+    });
+    // 街の子。速かった子には、声をかけられる
+    const star = res.field.filter(e => !e.mine && e.star && e.pos <= 3)[0];
+    let found = null;
+    if (star && Math.random() < K.scout + (res.field[0] && res.field[0].mine ? 0.20 : 0)) {
+      found = makeYouth(g2.season);
+      found.name = star.name;
+      found.age = Math.min(found.age, 17);
+    }
+    g2.funds += prize;
+    g2.fans = Math.max(120, g2.fans + fans);
+    return { prize: prize, fans: fans, grown: grown, found: found };
+  }
+
   /* ---------- 開発技術（タグ）----------
      チームが積み上げるもので、パーツを載せ替えても失われない。
      g.techs = { light: { lv: 2, p: 0.35 }, ... }                */
@@ -1408,8 +1513,10 @@ GP.state = (function () {
   /* 毎戦のグッズ・入場料収入。ファンが増えるほど伸びるが、
      平方根なので終盤に爆発はしない */
   function fanIncome(g2) {
+    // 直営ショップとミュージアムは、週末以外の日にも売り上げを作る
+    const own = (hasEstate(g2, 'shop') ? 0.35 : 0) + (hasEstate(g2, 'museum') ? 0.28 : 0);
     const mult = (1 + g2.facilities.market * 0.08) * (1 + osk(g2, 'money') * 0.05)
-               * (1 + (g2.hype || 0) / 100 * 0.35);
+               * (1 + (g2.hype || 0) / 100 * 0.35) * (1 + own);
     return Math.round(D.FAN_INCOME * Math.sqrt(Math.max(0, g2.fans || 0)) * mult);
   }
   /* ファンが「これくらいはやるだろう」と思っている順位。
@@ -1535,7 +1642,8 @@ GP.state = (function () {
     // パワーユニットの供給料。1戦ぶんを週あたりにならす
     const engine = g2.engine ? Math.round(g2.engine.fee / raceWeek(0)) : 0;
     const other = 150;
-    const raw = staff + mgrs + drivers + youth + facilities + engine + other;
+    const estate = estateUpkeep(g2);            // 持っている事業の維持費
+    const raw = staff + mgrs + drivers + youth + facilities + engine + estate + other;
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
@@ -1560,7 +1668,7 @@ GP.state = (function () {
     const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
     return {
       staff: staff, managers: mgrs, drivers: drivers, youth: youth,
-      facilities: facilities, engine: engine, other: other, cut: cut,
+      facilities: facilities, engine: engine, estate: estate, other: other, cut: cut,
       weekly: weekly,
       sponsorPerRace: perRace,
       sponsorRpPerRace: rpRace,
@@ -1909,7 +2017,8 @@ GP.state = (function () {
 
   /* 抱えられる若手の人数 */
   function youthSlots(g2) {
-    return 1 + Math.floor(((g2.facilities && g2.facilities.youth) || 1) / 2);
+    return 1 + Math.floor(((g2.facilities && g2.facilities.youth) || 1) / 2)
+             + (hasEstate(g2, 'academy') ? 2 : 0);
   }
 
   /* 毎週の成長。才能とアカデミーのレベルで伸びが変わる */
@@ -1921,7 +2030,9 @@ GP.state = (function () {
       // 若いうちほど伸びる。24歳を過ぎるとほとんど伸びなくなる
       const ageMul = d.age <= 21 ? 1 : d.age <= 23 ? 0.55 : 0.12;
       const gearMul = 1 + (hasGear(g2, 'youth', 'dorm') ? 0.15 : 0)
-                        + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0);
+                        + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0)
+                        + (hasEstate(g2, 'kart') ? 0.12 : 0)
+                        + (hasEstate(g2, 'academy') ? 0.20 : 0);
       const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul * gearMul;
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
         const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
@@ -2204,6 +2315,7 @@ GP.state = (function () {
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
     hasGear, gearList, buyGear, envScore, envTier,
+    hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

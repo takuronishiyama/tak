@@ -448,6 +448,60 @@ GP.data = (function () {
         eff: '若手の成長 +10%／体力の伸び +', note: '18歳の体をきちんと作る。20代で効いてくる' }
     ]
   };
+  /* ---------- 事業 ----------
+     本拠地の外に持つもの。レースで勝つための設備ではなく、
+     チームが街に根を張るための場所。持っているあいだ維持費がかかり、
+     そのぶん収入と、人の集まりかたが変わる。                       */
+  const ESTATES = [
+    { key: 'shop', name: '直営ショップ', icon: '🏪', cost: 9000, upkeep: 90,
+      eff: 'グッズ・入場料 +35%／ファンの増え +8%',
+      desc: 'サーキットの外に、チームの店を持つ。' +
+            '週末以外の日にも、うちのマークを着た人が街を歩くようになる。' },
+    { key: 'kart', name: 'カート場', icon: '🏁', cost: 14000, upkeep: 140,
+      eff: '若手の成長 +12%／スカウトの質が上がる／カートレースを開ける',
+      desc: '週末になると、近所の子どもが走りにくる。' +
+            'そのなかに、10年後うちのマシンに乗る子がいるかもしれない。' },
+    { key: 'esports', name: 'eスポーツチーム', icon: '🎮', cost: 12000, upkeep: 120,
+      eff: 'ファンの増え +18%／たまに実車に乗せたい才能が現れる',
+      desc: '画面のなかで走る子たちを、チームの名前で束ねる。' +
+            '見ている人の数は、実車の比ではない。' },
+    { key: 'museum', name: 'ミュージアム', icon: '🏛️', cost: 20000, upkeep: 160,
+      eff: '毎戦の入場料が増える／注目度が落ちにくい',
+      desc: '勝ったマシンを、勝った日のまま並べておく場所。' +
+            '積み上げてきたものが、そのまま収入になる。' },
+    { key: 'academy', name: 'ドライバーアカデミー', icon: '🎓', cost: 26000, upkeep: 220,
+      eff: 'ユース枠 +2／若手の成長 +20%',
+      desc: '見つけた子を、住まいごと預かって育てる。' +
+            'よそに獲られる前に、うちの色に染める。' }
+  ];
+  /* カートレース（カート場を持っていると開ける、小さな週末）*/
+  const KART = {
+    laps: 12, field: 10,
+    fee: 260,              // 開催にかかる費用
+    prize: [420, 260, 160, 100, 70, 50, 40, 30, 20, 10],
+    fanWin: 150, fanRun: 42,
+    growWin: 2.6, growRun: 1.1,   // 若手の伸びの倍率
+    scout: 0.34,           // 良い子が見つかる確率（勝つと上がる）
+    NAMES: ['ハル', 'ソラ', 'ミナ', 'レン', 'カイ', 'ノア', 'リオ', 'ユウ', 'アオ', 'トワ',
+            'ヒカル', 'ナギ', 'イオ', 'マナ', 'セナ', 'ジン'],
+    LAST: ['タカハシ', 'モリ', 'ベルガー', 'コスタ', 'ドラゴ', 'ヤマギシ', 'クルツ', 'ロッシ',
+           'サンチェス', 'ノヴァク', 'シライシ', 'ペレイラ'],
+    SAY: {
+      start: ['{A} が好スタート！ 1コーナーは譲らない！',
+              '{A}、アウトから被せていく！',
+              '{A} が出遅れた……最後尾からの追い上げになる'],
+      pass:  ['{A} が {B} を差した！ 小さなマシンの、大きな勝負！',
+              '{A}、{B} のインへ！ タイヤが触れた！',
+              '{A} が {B} をとらえた！ 立ち上がりで前に出る'],
+      spin:  ['{A} がスピン！ 縁石に乗りすぎた',
+              '{A}、コースを外れた……ここまでの走りが惜しい'],
+      fast:  ['{A} が今日いちばんのタイム！ 明らかに一台だけ速い',
+              '{A}、周回を重ねるごとに速くなっている'],
+      last:  ['ファイナルラップ。{A} が先頭で最終コーナーへ！',
+              '最終ラップ。{A} と {B} が並んだまま最終コーナーへ！']
+    }
+  };
+
   /* 職場環境（働きやすさ）。備品の env を足したもの */
   const ENVW = {
     growth: 0.020,     // スタッフの伸び +2%/pt
@@ -1302,5 +1356,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
