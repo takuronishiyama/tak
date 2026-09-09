@@ -739,7 +739,9 @@ body.preboot .topbar{visibility:hidden}
   .col-right{overflow:visible}
   .tabbody{max-height:52vh}
   .drvwrap{grid-template-columns:1fr 1fr}
-  .gp-tm{display:none}
+  /* 狭い画面でもチーム名は残す。誰のマシンかが分からないと順位表が読めない */
+  .gp-tm{width:auto;flex:0 1 84px;font-size:9px}
+  .gridrow{gap:4px;font-size:11px}
   .topbar{position:-webkit-sticky;position:sticky;top:0;z-index:20}
   .cmdbar{position:-webkit-sticky;position:sticky;bottom:0;z-index:20;padding-top:6px;
           padding-bottom:env(safe-area-inset-bottom);
@@ -2131,3 +2133,30 @@ body[data-skin="hd"]{
   .pdrow{font-size:10px}
   .pdrow.pdh span,.pdbtn .pdv{flex:0 0 46px}
 }
+
+
+/* ---- 分解整備：どこがくたびれているか ---- */
+.bigbox .bb-to{font-size:12px;margin-left:8px;opacity:.85}
+.mtlist{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
+.mtrow{display:flex;align-items:center;gap:6px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:3px 6px}
+.mtrow.warn{border-color:#c98a20}
+.mtrow.bad{border-color:var(--red)}
+.mt-ic{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;flex-shrink:0;border:1px solid var(--ink)}
+.mt-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt-nm small{display:block;font-size:9px;opacity:.65}
+.mt-bar{position:relative;flex:0 0 96px;height:9px;border:1px solid var(--ink);
+  border-radius:5px;overflow:hidden;background:rgba(0,0,0,.14)}
+.mt-bar i{position:absolute;left:0;top:0;height:100%;display:block}
+.mt-bar u{position:absolute;top:0;height:100%;display:block;text-decoration:none;
+  background:repeating-linear-gradient(45deg,rgba(120,220,140,.85) 0 4px,rgba(120,220,140,.45) 4px 8px)}
+.mt-v{flex:0 0 62px;text-align:right;font-variant-numeric:tabular-nums}
+.mt-v em{font-style:normal;opacity:.6;font-size:9px;margin-left:2px}
+@media (max-width:520px){ .mt-bar{flex:0 0 64px} .mt-v{flex:0 0 56px;font-size:10px} }
+
+/* ---- 走行後にユニットを入れ替える ---- */
+.pufresh2{margin:6px 0 4px;display:flex;flex-direction:column;gap:4px}
+.pufresh2 small{opacity:.85;line-height:1.5}
+.pupool2{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.pupool2 .btn.small{font-size:10px;padding:3px 8px;min-height:0}

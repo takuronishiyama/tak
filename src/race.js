@@ -742,6 +742,30 @@ GP.race = (function () {
     return entries.slice();
   }
 
+  /* ---------- フリー走行 ----------
+     決勝と同じ顔ぶれで一本走らせて、そのときの並びを出す。
+     ただし積んでいる燃料も狙っているものもばらばらなので、
+     予選ほど当てにはならない。「だいたいこのへん」を掴むためのもの   */
+  function practice(g, trackIndex, strategy, special) {
+    const track = D.TRACKS[trackIndex];
+    const weather = Object.assign({}, special && special.force
+      ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
+      : rollWeather(track));
+    weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
+    const entries = buildEntries(g, track, weather, strategy);
+    // 走り込んだ週ほど、出てくる並びが本当の力に近づく
+    const deep = strategy && (strategy.fp === 'long' || strategy.fp === 'tyre');
+    const spread = deep ? 0.055 : 0.105;
+    entries.forEach(e => {
+      e.fpScore = e.perf * (1 - spread + Math.random() * spread * 2);
+      e.qTime = track.base * (1 + (0.026 + (140 - e.fpScore) * 0.0009));
+    });
+    const grid = entries.slice().sort((a, b) => a.qTime - b.qTime);
+    grid.forEach((e, i) => { e.grid = i + 1; });
+    return { trackIndex: trackIndex, track: track, weather: weather,
+             entries: entries, grid: grid, special: special, isFP: true };
+  }
+
   /* ---------- 予選まで ----------
      グリッドを先に確定させて、決勝の前に見せられるようにする。
      ここで作ったものを simulate に渡すと、そのまま決勝に使われる      */
@@ -2135,5 +2159,5 @@ GP.race = (function () {
     return res.reward;
   }
 
-  return { simulate, prequalify, applyResult, repackPU, STRATEGIES, rollWeather };
+  return { simulate, prequalify, practice, applyResult, repackPU, STRATEGIES, rollWeather };
 })();

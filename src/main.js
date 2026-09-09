@@ -1204,13 +1204,62 @@ window.GP = window.GP || {};
   /* =======================================================
      コマンド：整備
      ======================================================= */
+  /* 1レースでどれだけ壊れるか（%）。決勝と同じ式をそのまま逆に辿る */
+  function breakRisk(rel, t) {
+    const laps = (t && t.laps) || 26;
+    const per = (100 - rel) / 100 * 0.0022 * ((t && t.risk) || 1);
+    return (1 - Math.pow(1 - per, laps)) * 100;
+  }
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
-    const body = interiorHTML('pit') +
+    const t = D.TRACKS[Math.min(g.nextRace || 0, D.TRACKS.length - 1)];
+    const now = S.reliability(g);
+    // 整備するとどこまで戻るかを、実際の式で先に出しておく
+    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
+               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
+    const after = (() => {
+      const keep = {};
+      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) keep[c.key] = p.cond; });
+      D.PART_CATS.forEach(c => {
+        const p = g.equipped[c.key];
+        if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + 21 * mech, 10, 100);
+        else if (p) p.cond = S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100);
+      });
+      const v = S.reliability(g);
+      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+      return v;
+    })();
+
+    let body = interiorHTML('pit') +
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
-      '<div class="bigbox">現在の信頼性 <b>' + Math.round(S.reliability(g)) + '%</b></div>' +
-      '<p class="desc">費用：💰' + money(cost) + '万（1週消費）<br>各パーツのコンディションが大きく回復します。</p>';
+      '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
+        '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
+      '<p class="desc">' + esc(t.name) + 'を走ると、いまの状態で <b>約' +
+        breakRisk(now, t).toFixed(1) + '%</b> の確率で壊れます' +
+        '（整備後は 約' + breakRisk(after, t).toFixed(1) + '%）。</p>';
+
+    // ---- どこがくたびれているか ----
+    body += '<div class="sub">いまのコンディション</div><div class="mtlist">';
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (!p) return;
+      const isPu = c.key === 'pu';
+      const to = isPu ? S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100)
+                      : S.clamp(p.cond + 21 * mech, 10, 100);
+      body += '<div class="mtrow' + (p.cond < 45 ? ' bad' : p.cond < 70 ? ' warn' : '') + '">' +
+        '<span class="mt-ic" style="background:' + c.color + '">' + c.icon + '</span>' +
+        '<span class="mt-nm">' + esc(c.name) + (isPu ? '<small>残量（基そのもの）</small>' : '') + '</span>' +
+        '<span class="mt-bar"><i style="width:' + Math.round(p.cond) + '%;background:' + c.color + '"></i>' +
+          '<u style="left:' + Math.round(p.cond) + '%;width:' + Math.round(to - p.cond) + '%"></u></span>' +
+        '<span class="mt-v">' + Math.round(p.cond) + '%<em>→' + Math.round(to) + '</em></span></div>';
+    });
+    body += '</div>';
+    body += '<p class="note">パワーユニットは分解して組み直せません。ここで戻せるのは補機まわりだけで、' +
+      '元に戻せるのは新品を入れたときだけです。<br>' +
+      '設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) + '%</b> の危うさを打ち消しています）が上がるほど、' +
+      '同じコンディションでも壊れにくくなります。</p>' +
+      '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
     U.modal('🛠️ 分解整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
@@ -3225,7 +3274,7 @@ window.GP = window.GP || {};
     });
   }
 
-  let currentRes = null, prePack = null;
+  let currentRes = null, prePack = null, fpPack = null;
 
   /* ---- フリー走行 ----
      限られた走行時間を、何に使うか。ひとつだけ選べる。 */
@@ -3312,10 +3361,12 @@ window.GP = window.GP || {};
     GP.sound.play('confirm');
     S.save(g);
     U.closeModal();
-    runQualifying();
+    fpPack = R.practice(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
+    showPractice();
   }
 
   function runQualifying() {
+    fpPack = null;
     prePack = R.prequalify(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
     showQualifying();
   }
@@ -3330,7 +3381,8 @@ window.GP = window.GP || {};
      「全開で行くか、温存するか」は、走ってみるまで判断材料がなかった。
      予選で分かった前後との差を、モードの効きとそのまま突き合わせる。
      ここで変えても予選の並びは動かない（決勝ぶんだけ入れ替える）   */
-  function puDecideHTML(pre) {
+  function puDecideHTML(pre, stage) {
+    const fpStage = stage === 'fp';
     const t = pre.track;
     const mine = pre.entries.filter(e => e.isPlayer).slice().sort((a, b) => a.grid - b.grid);
     if (!mine.length) return '';
@@ -3360,9 +3412,12 @@ window.GP = window.GP || {};
     const need = ahead ? slower(me, ahead) : null;         // + なら前の車のほうが速い
     const margin = behind ? slower(behind, me) : null;     // + なら自分のほうが速い
 
-    let h = '<div class="sub">⚙️ 決勝の出力モード</div>' +
-      '<p class="desc">予選で並びが決まりました。ここから先は<b>決勝ぶんだけ</b>選び直せます' +
-      '（予選の順位は動きません）。<br>' +
+    let h = '<div class="sub">⚙️ ' + (fpStage ? '出力モードを決める' : '決勝の出力モード') + '</div>' +
+      '<p class="desc">' +
+      (fpStage
+        ? 'フリー走行の並びで、だいたいの位置が見えました。ここで決めたモードは<b>予選から</b>効きます。'
+        : '予選で並びが決まりました。ここから先は<b>決勝ぶんだけ</b>選び直せます（予選の順位は動きません）。') +
+      '<br>' +
       (deep ? '📊 走り込んだデータがあるので、1周あたりの差まで出せています。'
             : '走り込んでいないぶん、読みは大まかです（「📊 ロングラン」「🛞 タイヤ」を選ぶと細かく出ます）。') +
       '</p>';
@@ -3422,7 +3477,91 @@ window.GP = window.GP || {};
        : ease < 0.38 ? '<b>追い抜きにくい</b>コース。前に出られる位置なら守りにいく手も。'
        : '追い抜きは並のコースです。'));
     h += '<p class="note">' + notes.join('<br>') + '</p>';
+
+    /* ---- ここで新型を入れてしまうか ----
+       「基数が足りない」と分かった、まさにその場で決められるようにする */
+    const cost = S.puFreshCost(g);
+    const over = pu.used >= S.puLimit(g);
+    h += '<div class="pufresh2">' +
+      '<button class="btn' + (g.funds >= cost ? ' primary' : '') + '" data-pufresh2="1"' +
+        (g.funds < cost ? ' disabled' : '') + '>' +
+        '⚙️ 新品のパワーユニットを入れる（💰' + money(cost) + '万）</button>' +
+      '<small>いまの ' + pu.n + '基目（残り ' + Math.round(pu.life) + '%）を降ろして、' +
+      (pu.life >= D.PU_KEEP_MIN ? '取っておきます。' : '廃棄します。') +
+      '残量100%から走り出せます。' +
+      (over ? '<b class="warn">今季の上限（' + S.puLimit(g) + '基）を超えるので、' +
+              '次のレースは ' + D.PU_PENALTY + 'グリッド降格になります。</b>'
+            : '今季の基数を1つ使います（あと' + left + '基）。') +
+      (fpStage ? '' : '<br>予選の順位はこのままです（降格ぶんだけ下がります）。') +
+      '</small>';
+    if (pu.pool.length) {
+      h += '<div class="pupool2">取ってあるユニット：' + pu.pool.map((u, i) =>
+        '<button class="btn small" data-pumount2="' + i + '"' +
+        (g.funds < D.PU_SWAP_COST ? ' disabled' : '') + '>' +
+        u.n + '基目 残り' + Math.round(u.life) + '%（工賃 ' + money(D.PU_SWAP_COST) + '万）</button>').join('') +
+        '</div>';
+    }
+    h += '</div>';
     return h;
+  }
+
+  /* 走行後の画面から、その場でユニットを入れ替える。
+     予選が済んでいれば、決勝ぶんの数字だけ作り直す（並びは動かさない） */
+  function bindPuDecide(pack, redraw) {
+    const refresh = () => {
+      if (pack && !pack.isFP) R.repackPU(pack, g);
+      S.save(g); render(); redraw();
+    };
+    bindAct('data-pumode', k => {
+      S.setPuMode(g, k);
+      GP.sound.play('confirm');
+      refresh();
+    });
+    bindAct('data-pufresh2', () => {
+      const cost = S.puFreshCost(g);
+      if (g.funds < cost) return U.toast('資金が足りません', 'bad');
+      g.funds -= cost;
+      const r = S.fitFreshPU(g);
+      U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
+        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      GP.sound.play('buy');
+      refresh();
+    });
+    bindAct('data-pumount2', i => {
+      if (g.funds < D.PU_SWAP_COST) return U.toast('資金が足りません', 'bad');
+      const m = S.mountPU(g, +i);
+      if (!m) return;
+      g.funds -= D.PU_SWAP_COST; capSpend(D.PU_SWAP_COST);
+      U.log(g, '⚙️ ' + m.from + '基目を降ろし、' + m.to + '基目（残り ' + m.life + '%）に載せ替えた。');
+      U.toast('⚙️ ' + m.to + '基目に載せ替えた');
+      GP.sound.play('buy');
+      refresh();
+    });
+  }
+
+  /* ---- フリー走行の結果 ----
+     全車のタイムを並べて、いまどのへんに居るのかを掴む場面 */
+  function showPractice() {
+    const res = fpPack;
+    let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name +
+      '</b><span>フリー走行の結果</span></div>' +
+      '<p class="desc">この日の空模様です。決勝の天候は予選のあとで決まります。' +
+      'タイムは積んでいる燃料も狙いもばらばらなので、並びは目安として見てください。</p>';
+    body += '<div class="gridlist">';
+    res.grid.slice(0, 22).forEach(e => {
+      body += '<div class="gridrow' + (e.isPlayer ? ' me' : '') + '">' +
+        '<span class="gp-pos">' + e.grid + '</span>' +
+        '<span class="rk-chip" style="background:' + e.color + '"></span>' +
+        '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
+        '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+        '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
+    });
+    body += '</div>';
+    body += puDecideHTML(res, 'fp');
+    U.modal('🔧 フリー走行', body, [{ label: '⏱️ 予選へ', cls: 'primary', fn: runQualifying }], { wide: true });
+    bindPuDecide(res, showPractice);
   }
 
   function showQualifying() {
@@ -3438,16 +3577,10 @@ window.GP = window.GP || {};
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
-    body += puDecideHTML(res);
+    body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
-    // 出力モードを選び直したら、決勝ぶんの数字だけ入れ替えて出し直す
-    bindAct('data-pumode', k => {
-      S.setPuMode(g, k);
-      R.repackPU(prePack, g);
-      S.save(g);
-      GP.sound.play('confirm');
-      showQualifying();
-    });
+    // 選び直したら、決勝ぶんの数字だけ入れ替えて出し直す（並びは動かさない）
+    bindPuDecide(prePack, showQualifying);
   }
 
   /* =======================================================

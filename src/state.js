@@ -1144,21 +1144,35 @@ GP.state = (function () {
     return clamp(v, 0, 0.95);
   }
 
-  /* ---------- マシン信頼性（0-100）---------- */
-  function reliability(g) {
-    let sum = 0, bonus = 0, n = 0;
+  /* ---------- マシン信頼性（0-100）----------
+     素の値は、装着しているパーツの傷み具合そのもの。
+     チームの強み（冷却技術・剛性・ピット設備・クルーの腕）は、
+     そこに足し算で積むのではなく「壊れる余地」を削るかたちで効く。
+     足し算だと、設備を伸ばした時点で 99% に貼りついてしまい、
+     どれだけパーツがくたびれていても数字が動かなくなる         */
+  function relCare(g) {
+    return techLv(g, 'cool') * techDef('cool').per + techLv(g, 'tough') * 0.8
+         + bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7
+         + g.facilities.pit * 2.5 + pitPower(g) * 1.4
+         + (g.engine ? D.ENGINE.relBonus : 0)
+         - crewPenalty(g).rel - puRelDrop(g);
+  }
+  /* 強みが「危うさ」を何割潰せるか。34 でちょうど半分、最大 86% */
+  function relCut(g) {
+    const care = Math.max(0, relCare(g));
+    return clamp(care / (care + 34), 0, 0.86);
+  }
+  function partCondAvg(g) {
+    let sum = 0, n = 0;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
-      if (!p) { sum += 40; n++; return; }
-      sum += p.cond; n++;
+      sum += p ? p.cond : 40; n++;
     });
-    const avg = sum / Math.max(1, n);
-    // 冷却強化と高耐久は、いまやチームの技術。台数ぶんではなく一度だけ効く
-    bonus += techLv(g, 'cool') * (techDef('cool').per) + techLv(g, 'tough') * 0.8;
-    const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
-    return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
-               + g.facilities.pit * 2.5 + pitPower(g) * 1.4
-               + (g.engine ? D.ENGINE.relBonus : 0), 5, 99);
+    return sum / Math.max(1, n);
+  }
+  function reliability(g) {
+    const avg = partCondAvg(g);
+    return clamp(100 - (100 - avg) * (1 - relCut(g)), 5, 99);
   }
 
   /* =======================================================
@@ -2449,6 +2463,7 @@ GP.state = (function () {
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
+    relCare, relCut, partCondAvg,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
