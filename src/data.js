@@ -815,6 +815,30 @@ GP.data = (function () {
      実際のF1と同じで、前年の順位が上のチームほど開発に使える時間が減る。
      勝てば勝つほど次が苦しくなり、負ければ負けるほど作り直す時間がもらえる。
      順位そのものに重みを持たせつつ、独走も抑える仕組み                */
+  /* ---------- 開発のブレイクスルー ----------
+     規則が新しいうちは、まだ誰も見つけていないものが残っている。
+     ときどき、どこかのチームがそれを掘り当てて一気に速くなる。
+     規則が固まるほど掘るところは減り、見つかるものも小さくなる。
+     ADUO で時間をもらっているチームは、その時間を探索に使える     */
+  const INNOV = {
+    fresh: [2.4, 1.7, 1.25, 1.0],   // 規則変更からの経過シーズン（0,1,2,3以降）
+    rivalWeek: 0.010,               // ライバル1チーム・1週あたりの基礎確率
+    secMin: 0.22, secMax: 0.46,     // 見つけたとき、1周あたり何秒速くなるか
+    aduoBoost: 0.8,                 // 是正措置で時間をもらっている側の上乗せ
+    playerRate: 0.007,              // プレイヤーの開発1回あたりの基礎確率
+    playerOrg: 0.0009,              // 技術部門の厚み1あたりの上乗せ
+    playerGain: 3.2,                // 掘り当てたときの伸びの倍率
+    // 格上げは上に行くほど難しい。★1→★2 は必ず、★4→★5 は4回に1回
+    rarStep: r => 1 / Math.max(1, r),
+    NAMES: [
+      '新型フロア', 'サイドポッドの新解釈', 'ダブルディフューザー',
+      'フロントウイングの新コンセプト', 'サスペンションのジオメトリ刷新',
+      '軽量モノコックへの作り替え', 'ERS制御の書き換え', '冷却レイアウトの一新',
+      'リアウイングの可変機構', 'ブレーキダクトの新素材', '車体下面の気流処理',
+      'ギアボックスケースの再設計', '排気レイアウトの見直し', '新型のフロアエッジ'
+    ]
+  };
+
   /* ---------- ADUO（空力開発格差是正指令）----------
      前年の順位で決まる風洞時間（ATR）は、1年を通して動かない。
      一強のまま季が進んだときに効かないので、そこを見るのがこちら。
@@ -895,5 +919,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

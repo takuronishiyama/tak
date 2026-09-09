@@ -32,6 +32,13 @@ window.GP = window.GP || {};
     g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
+    // どこかのチームが何かを掘り当てていたら、そのぶんの報せを出す
+    (g.innovLog || []).forEach(n => {
+      U.log(g, '🔬 ' + n.team + ' が「' + n.what + '」を投入！ 1周あたり約 ' +
+        n.sec.toFixed(2) + '秒 速くなった', 'warn');
+      U.toast('🔬 ' + n.team + '「' + n.what + '」', 'warn');
+    });
+    g.innovLog = [];
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -422,7 +429,7 @@ window.GP = window.GP || {};
         .map(x => x[0] + ' ' + num(x[1])).join('／');
       body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
         '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
-        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rar) + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rarity) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) +
         (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') + '</b>' +
         '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
@@ -515,7 +522,7 @@ window.GP = window.GP || {};
         '<b>' + at2.icon + ' 風洞・CFD使用時間：' + at2.name + '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
         '<small>昨季コンストラクターズ ' + g.lastRank + '位。上位ほど使える時間が減ります。</small></div>';
     }
-    body += aduoBoxHTML(true);
+    body += aduoBoxHTML(true) + innovBoxHTML();
 
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
@@ -571,6 +578,8 @@ window.GP = window.GP || {};
     let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
+    const brk = S.rollBreakthrough(g);
+    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
     if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
@@ -580,9 +589,11 @@ window.GP = window.GP || {};
     U.closeModal();
     GP.sound.play(crit ? 'crit' : 'confirm');
     staffExp('engineer', 9); staffExp('designer', 4);
-    U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) + (crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
+    U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) +
+      (brk ? '  🔬' + brk + '！' : crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
     U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
-    if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
+    if (brk) U.toast('🔬 ' + brk + '！ 車体が一段上のものになった', 'good');
+    else if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
     if (g.body[key] >= cap) U.toast('この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
     endWeek();
   }
@@ -722,6 +733,18 @@ window.GP = window.GP || {};
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
+    /* ---- ブレイクスルー ----
+       規則が新しいうちほど、まだ誰も掘っていないものが残っている。
+       掘り当てるとパーツそのものの格が上がり、到達できる上限まで伸びる  */
+    const brk = S.rollBreakthrough(g);
+    let upTo = null;
+    if (brk) {
+      gain *= D.INNOV.playerGain; crit = true;
+      // 格上げは上に行くほど難しい。すでに高いパーツはそう簡単には上がらない
+      if (p.rarity < D.RARITY.length && Math.random() < D.INNOV.rarStep(p.rarity)) {
+        upTo = p.rarity + 1;
+      }
+    }
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     // 来季に回したぶんは今季に乗らない
     const toNext = gain * fc.next;
@@ -730,17 +753,27 @@ window.GP = window.GP || {};
 
     p.power = Math.round((p.power + gain) * 10) / 10;
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
+    if (upTo) {
+      p.rarity = upTo;
+      const rr = D.RARITY[upTo - 1];
+      U.log(g, '🔬 ' + brk + '！ ' + p.name + ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
+      U.toast('🔬 ' + brk + '！ ' + rr.name + ' へ格上げ！', 'good');
+      GP.sound.play('levelup');
+    }
 
-    const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) + (crit ? '  ✨ひらめき大成功！' : '');
+    const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
+      (brk ? '  🔬' + brk + '！' : crit ? '  ✨ひらめき大成功！' : '');
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
     GP.sound.play(crit ? 'crit' : 'confirm');
     if (p.power >= cap) U.toast('このパーツは限界です。残りも仕上げれば、マシンが次の世代へ進みます。', 'warn');
     // 手を入れた実感が出るように、伸びを見せてから週を進める
     showDevResult({
-      icon: U.partIcon(c.key, 44, p.rar), color: c.color,
-      title: p.name, sub: c.name,
-      from: p.power - gain, to: p.power, cap: cap, gain: gain, crit: crit,
+      icon: U.partIcon(c.key, 44, p.rarity), color: c.color,
+      title: p.name,
+      sub: upTo ? '🔬 ' + brk + ' — 【' + D.RARITY[upTo - 1].name + '】へ'
+         : brk ? '🔬 ' + brk : c.name,
+      from: p.power - gain, to: p.power, cap: upTo ? S.partCap(g, p) : cap, gain: gain, crit: crit,
       next: toNext > 0.05 ? toNext : 0
     }, endWeek);
   }
@@ -1324,7 +1357,7 @@ window.GP = window.GP || {};
     // ---- パワーユニット（基数と載せ替え）----
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
-      '新品は基数を1つ使い、上限（' + D.PU_LIMIT + '基）を超えると次のレースがグリッド降格になります。<br>' +
+      '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
       '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。</p>' +
       puBoxHTML(null);
 
@@ -1361,7 +1394,7 @@ window.GP = window.GP || {};
   function puBoxHTML(t) {
     const pu = S.puOf(g);
     const wear = t ? S.puWear(g, t, 1) : 0;
-    const left = Math.max(0, D.PU_LIMIT - pu.used);
+    const left = Math.max(0, S.puLimit(g) - pu.used);
     const willSwap = !!t && pu.life - wear <= 0;
     const cost = S.puFreshCost(g);
     // へたり具合は出力モードとは切り離して見せる（新品を「へたっている」と言わないため）
@@ -1420,7 +1453,7 @@ window.GP = window.GP || {};
 
     // ---- 載せ替えの選択肢 ----
     h += '<div class="puswap"><b>載せ替える</b>';
-    const overNext = pu.used + 1 > D.PU_LIMIT;
+    const overNext = pu.used + 1 > S.puLimit(g);
     h += '<button class="puopt' + (overNext ? ' pen' : '') + '" data-pufresh="1"' +
       (g.funds < cost ? ' disabled' : '') + '>' +
       '<i>🆕 新品を投入</i><small>' + money(cost) + '万／残り100%' +
@@ -2026,6 +2059,23 @@ window.GP = window.GP || {};
       'ここを厚くすると、掛かっている先までまとめて伸びます。</small>' +
       '</div>';
     return h;
+  }
+
+  /* ---- 規則の新しさ ----
+     規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
+     いつ開発を厚くするかの判断材料として出しておく                */
+  function innovBoxHTML() {
+    const since = ((g.season || 1) - 1) % 4;
+    const f = S.innovFresh(g);
+    const label = ['まっさら', 'まだ掘れる', '固まってきた', '掘りつくされた'][since];
+    const cls = f >= 2 ? '#4ea63f' : f >= 1.5 ? '#c98b10' : f >= 1.2 ? '#8a7a5a' : '#7b5a3a';
+    return '<div class="atrbox slim" style="--ac:' + cls + '">' +
+      '<b>🔬 いまの規則は' + (since + 1) + '年目：' + label +
+      '（ブレイクスルー ×' + f.toFixed(2) + '）</b>' +
+      '<small>規則が新しいうちは、まだ誰も見つけていない構造が残っています。' +
+      '開発でときどき<b>ブレイクスルー</b>を掘り当て、パーツの格が1段上がります' +
+      '（上限そのものが伸びます）。ライバルも同じで、' +
+      '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。</small></div>';
   }
 
   /* ---- ADUO（空力開発格差是正指令）----
@@ -3343,7 +3393,12 @@ window.GP = window.GP || {};
         '<div>施設・スタッフ・ドライバー・ファン・資金・オーナー <b>そのまま</b><small>積み上げたチーム力は失われません</small></div>' +
         '</div>' +
         '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
-        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>',
+        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>' +
+        '<p class="desc"><b>🔬 いまがいちばん掘れる年です。</b>新しい規則には、まだ誰も' +
+        '見つけていない構造が残っています。開発でブレイクスルーを掘り当てる確率が' +
+        '<b>×' + S.innovFresh(g).toFixed(1) + '</b> になり、当たればパーツの格が1段上がって' +
+        '上限そのものが伸びます。ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが' +
+        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
       GP.sound.play('light');
@@ -4503,7 +4558,7 @@ window.GP = window.GP || {};
     if (mech) {
       const pu = S.puOf(g);
       const spare = pu.pool.length;
-      const leftU = Math.max(0, D.PU_LIMIT - pu.used);
+      const leftU = Math.max(0, S.puLimit(g) - pu.used);
       said.push({ icon: '🔩', who: mech.name + '（メカニック）',
         text: pu.life < 30
               ? (spare
@@ -5555,7 +5610,7 @@ window.GP = window.GP || {};
       '<span>🧑‍🔧 クルーの疲労 <b>' + Math.round(cw.level) + '</b></span>' +
       '<span>⚙️ PU ' + S.puOf(g).n + '基目 <b class="' +
         (S.puOf(g).life < 25 ? 'bad' : '') + '">残り ' + Math.round(S.puOf(g).life) + '%</b>' +
-        '（今季あと ' + Math.max(0, D.PU_LIMIT - S.puOf(g).used) + '基／保管 ' +
+        '（今季あと ' + Math.max(0, S.puLimit(g) - S.puOf(g).used) + '基／保管 ' +
         S.puOf(g).pool.length + '基）</span>' +
       '<span>👷 開発の厚み <b>' + (S.devPower(g) * 100 / 3).toFixed(0) + '</b></span>' +
       '<span>🧾 今季の予算 <b class="' + (S.capSpent(g) > S.costCap(g) ? 'bad' : '') + '">' +

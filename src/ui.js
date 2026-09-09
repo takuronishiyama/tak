@@ -130,7 +130,7 @@ GP.ui = (function () {
     const cap = S.partCap(g, p);
     const pct = Math.min(100, p.power / cap * 100);
     return '<div class="part">' +
-      '<span class="p-ic ic-art" style="background:' + c.color + '">' + partIcon(c.key, 18, p.rar) + '</span>' +
+      '<span class="p-ic ic-art" style="background:' + c.color + '">' + partIcon(c.key, 18, p.rarity) + '</span>' +
       '<span class="p-nm">' + esc(p.name) +
         '<small><span class="p-rar" style="color:' + rr.color + '">' + stars(p.rarity) + '</span> ' + c.name + '</small></span>' +
       '<span class="p-lv">' + Math.round(p.power) + '<small>/' + cap + '</small></span>' +

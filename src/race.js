@@ -1713,11 +1713,11 @@ GP.race = (function () {
         g.funds -= puCost;
         if (puRes.over) {
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入（' + puCost +
-            '万）。使用基数の上限（' + D.PU_LIMIT + '基）を超えたため、次戦は ' +
+            '万）。使用基数の上限（' + S.puLimit(g) + '基）を超えたため、次戦は ' +
             puRes.grid + 'グリッド降格。');
         } else {
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（' + puCost +
-            '万／今季あと ' + Math.max(0, D.PU_LIMIT - puRes.used) + '基）。');
+            '万／今季あと ' + Math.max(0, S.puLimit(g) - puRes.used) + '基）。');
         }
       }
     } else if (S.puOf(g).life < 40) {
@@ -1725,7 +1725,7 @@ GP.race = (function () {
       notes.push('⚙️ パワーユニットの残りが ' + Math.round(pu2.life) +
         '%。出力が ' + Math.round((1 - S.puForm(g)) * 100) + '%、信頼性が ' +
         Math.round(S.puRelDrop(g)) + ' 落ちている（今季あと ' +
-        Math.max(0, D.PU_LIMIT - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
+        Math.max(0, S.puLimit(g) - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
     }
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);

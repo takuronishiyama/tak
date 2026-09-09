@@ -545,6 +545,36 @@ GP.state = (function () {
     return g2.reg;
   }
 
+  /* ---------- 開発のブレイクスルー ----------
+     規則が新しいうちほど、まだ掘られていないものが残っている。
+     見つけたチームは一気に速くなる。規則が固まるほど、その芽は減る  */
+  function innovFresh(g2) {
+    const since = ((g2.season || 1) - 1) % REG_EVERY;
+    return D.INNOV.fresh[Math.min(D.INNOV.fresh.length - 1, since)];
+  }
+  /* 1周あたり何秒ぶんの発見か → マシン性能で何点ぶんか に直す */
+  function secToScore(g2, sec) {
+    const t = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
+    return sec / (t.base * 0.00092 * 0.60);
+  }
+  function innovName() { return pick(D.INNOV.NAMES); }
+  /* プレイヤーの開発1回ぶんの抽選。規則が新しいうちほど当たりやすく、
+     技術部門が厚いほど掘り当てられる。当たれば何を見つけたかを返す   */
+  function rollBreakthrough(g2) {
+    const o = org(g2);
+    const p = (D.INNOV.playerRate + o.dept.engineer * D.INNOV.playerOrg * o.dataMul)
+            * innovFresh(g2);
+    return Math.random() < p ? innovName() : null;
+  }
+
+  /* ---------- パワーユニットの使用基数 ----------
+     是正措置で時間をもらっている側は、PU の割り当ても1基ぶん緩む。
+     空力だけを配り直しても、エンジンで置いていかれれば同じことなので  */
+  function puLimit(g2) {
+    const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
+    return D.PU_LIMIT + (aduoMul(g2, rank || 99) > 1 ? 1 : 0);
+  }
+
   /* ---------- ライバルのシーズン中の開発 ----------
      これが無いと、プレイヤーだけが毎週伸びて途中から一方的になる。
      強いチームほど開発が速く、下位はゆっくり。難易度でも変わる。
@@ -684,6 +714,23 @@ GP.state = (function () {
       });
       // 信頼性も少しずつ上がる
       r.rel = clamp(r.rel + 0.012 * (diff.rivalGrow || 1), 40, 98);
+      /* ---- ブレイクスルー ----
+         毎週わずかな確率で、どこかのチームが何かを掘り当てる。
+         規則が新しいうちほど起きやすく、是正措置で時間をもらっている
+         チームは、その時間を探索に回せるぶん見つけやすい          */
+      let ch = D.INNOV.rivalWeek * innovFresh(g2) * (0.55 + power * 0.55);
+      if (relief > 1) ch *= 1 + D.INNOV.aduoBoost;
+      if (Math.random() < ch) {
+        const sec = rnd(D.INNOV.secMin, D.INNOV.secMax);
+        const pts = secToScore(g2, sec);
+        const ref = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
+        const mul = 1 + pts / Math.max(1, carScoreOf(r.stats, ref));
+        ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= mul; });
+        g2.innovLog = (g2.innovLog || []).concat([{
+          team: r.name, color: r.color, what: innovName(),
+          sec: Math.round(sec * 100) / 100, mine: false
+        }]);
+      }
     });
   }
 
@@ -907,7 +954,7 @@ GP.state = (function () {
     stowPU(pu);
     pu.used++; pu.n = pu.used; pu.life = 100;
     const out = { used: pu.used, over: false, grid: 0, fresh: true };
-    if (pu.used > D.PU_LIMIT) {
+    if (pu.used > puLimit(g2)) {
       pu.over++; pu.grid += D.PU_PENALTY;
       out.over = true; out.grid = D.PU_PENALTY;
     }
@@ -1741,7 +1788,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
