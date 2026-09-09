@@ -310,7 +310,7 @@ GP.data = (function () {
 
   /* ---------- 施設 ---------- */
   const FACILITIES = [
-    { key: 'factory', name: 'ファクトリー', icon: '🏭', desc: '開発コマンドの伸びが上がる',   base: 1800 },
+    { key: 'factory', name: 'ファクトリー', icon: '🏭', desc: '工作機械が新しくなり、開発の伸びと、作るパーツの質が上がる', base: 1800 },
     { key: 'tunnel',  name: '風洞',         icon: '💨', desc: 'エアロ／サスの開発が伸びる',   base: 2200 },
     { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速する',   base: 2000 },
     { key: 'market',  name: 'マーケティング室', icon: '📣', desc: 'スポンサー収入が増える',   base: 1600 },
@@ -815,6 +815,23 @@ GP.data = (function () {
      実際のF1と同じで、前年の順位が上のチームほど開発に使える時間が減る。
      勝てば勝つほど次が苦しくなり、負ければ負けるほど作り直す時間がもらえる。
      順位そのものに重みを持たせつつ、独走も抑える仕組み                */
+  /* ---------- 工作機械の世代 ----------
+     パーツそのものが勝手に良くなるのではなく、それを作る機械が
+     変わっていくから良いものが作れるようになる。
+     ファクトリーのレベルが、そのまま工場の世代になる            */
+  const WORKSHOP = [
+    { at: 1,  icon: '🔨', name: '手回しの工作台', rar: 0.0, prec: 1.00,
+      desc: '万力とヤスリ。出てくるものは、削った人の腕そのもの' },
+    { at: 3,  icon: '⚙️', name: '旋盤とフライス盤', rar: 0.9, prec: 1.05,
+      desc: '寸法が出るようになった。同じものを二つ作れる' },
+    { at: 5,  icon: '🤖', name: '産業用ロボット', rar: 1.9, prec: 1.12,
+      desc: '夜通し止まらない。人は段取りのほうへ回れる' },
+    { at: 7,  icon: '🦾', name: 'ハイテクロボット', rar: 3.0, prec: 1.20,
+      desc: '削り出しから組み付けまで、ミクロン単位で通す' },
+    { at: 9,  icon: '🧠', name: 'AI協調型ロボット', rar: 4.2, prec: 1.30,
+      desc: '設計と製造が同じ頭で回る。図面のほうが機械に合わせてくる' }
+  ];
+
   /* ---------- 開発のブレイクスルー ----------
      規則が新しいうちは、まだ誰も見つけていないものが残っている。
      ときどき、どこかのチームがそれを掘り当てて一気に速くなる。
@@ -838,6 +855,59 @@ GP.data = (function () {
       'ギアボックスケースの再設計', '排気レイアウトの見直し', '新型のフロアエッジ'
     ]
   };
+
+  /* ---------- 記者の質問 ----------
+     直近に何があったかで、向けられる問いが変わる。
+     答えかたで注目度とファンの動きが変わるのは、これまでと同じ。
+     weight ＝ どれだけ食いつく話題か                              */
+  const PRESS_FRESH = 6;      // 何週前までを「最近のこと」として扱うか
+  const PRESS = [
+    { key: 'tdLost', weight: 9, icon: '⚖️',
+      q: '「{W} の使用が禁止されました。抗議はしないのですか？」',
+      a: [['😤 「規則の運用に疑問が残る」', 15, 2, '裁定に不満を口にした'],
+          ['🙂 「決まったことには従います」', 7, 2, '裁定を受け入れて見せた'],
+          ['🤐 「係争中なのでお答えできません」', 2, 0, '裁定については語らなかった']] },
+    { key: 'tdWon', weight: 9, icon: '⚖️',
+      q: '「{W} は認められましたね。他チームは納得していないようですが」',
+      a: [['😎 「正しいものが正しいと認められただけです」', 18, 4, '勝訴を堂々と語った'],
+          ['🙂 「粛々と作ってきただけです」', 8, 2, '勝訴を淡々と語った'],
+          ['🤐 「もう終わった話です」', 3, 0, '勝訴には触れなかった']] },
+    { key: 'tdSafe', weight: 7, icon: '⚖️',
+      q: '「{W} への照会は不問に付されたそうですね。手を回したのでは？」',
+      a: [['😠 「失礼な質問です。図面を見せましょうか」', 13, 3, '疑いを正面から否定した'],
+          ['🙂 「正しく作っていた、それだけです」', 7, 2, '落ち着いて答えた'],
+          ['🤐 「ノーコメントです」', 1, -1, '答えを避けた']] },
+    { key: 'brk', weight: 8, icon: '🔬',
+      q: '「{W} が話題ですね。どこから出てきたアイデアなんですか？」',
+      a: [['🔥 「うちの技術陣の勝利です。まだ隠し球はあります」', 16, 4, '新機構を誇った'],
+          ['🙂 「地道に積み上げただけです」', 8, 2, '新機構を控えめに語った'],
+          ['🤐 「企業秘密です」', 4, 1, '新機構については伏せた']] },
+    { key: 'drvIn', weight: 8, icon: '🧑‍✈️',
+      q: '「{W} 選手の加入が発表されました。何を期待していますか？」',
+      a: [['🔥 「彼／彼女なら表彰台に届きます」', 15, 5, '新加入に大きな期待を寄せた'],
+          ['🙂 「まずはチームに慣れてもらいます」', 7, 2, '新加入を手堅く紹介した'],
+          ['🤐 「今はまだ何とも」', 2, 0, '新加入について語らなかった']] },
+    { key: 'drvOut', weight: 8, icon: '👋',
+      q: '「{W} 選手がチームを去りました。何があったのですか？」',
+      a: [['🙏 「感謝しかありません。よい別れです」', 10, 5, '去る者に感謝を述べた'],
+          ['🙂 「次の体制の話をさせてください」', 6, 1, '前を向いて答えた'],
+          ['😤 「内部のことはお話しできません」', 3, -2, '別れの理由を語らなかった']] },
+    { key: 'aduo', weight: 6, icon: '⚖️',
+      q: '「開発格差是正の指令が出ました。狙い撃ちされている、という声もありますが」',
+      a: [['😤 「勝ったチームが罰せられる制度はおかしい」', 14, 3, '是正措置に異を唱えた'],
+          ['🙂 「選手権が面白くなるなら歓迎です」', 9, 4, '是正措置を歓迎してみせた'],
+          ['🤐 「制度に従うだけです」', 3, 0, '是正措置には触れなかった']] },
+    { key: 'win', weight: 10, icon: '🏆',
+      q: '「優勝おめでとうございます！ 次も勝てますか？」',
+      a: [['🔥 「次も勝ちます。見ていてください」', 20, 6, '連勝を宣言した'],
+          ['🙂 「一戦ずつ、丁寧にやります」', 10, 3, '勝利を噛みしめて答えた'],
+          ['🤐 「チーム全員のおかげです」', 6, 3, '手柄をチームに譲った']] },
+    { key: 'reg', weight: 7, icon: '📜',
+      q: '「規則が変わりました。新しいマシンの手応えは？」',
+      a: [['🔥 「今年のうちのクルマは速いですよ」', 15, 3, '新規則に自信を見せた'],
+          ['🙂 「まだ手探りです。これから詰めます」', 7, 2, '新規則を慎重に語った'],
+          ['🤐 「走ってみないと分かりません」', 3, 0, '新規則については言葉を濁した']] }
+  ];
 
   /* ---------- テクニカルディレクティブ ----------
      掘り当てたものが、必ずしもそのまま認められるとは限らない。
@@ -866,6 +936,42 @@ GP.data = (function () {
     appealMax: 0.80, appealMin: 0.10,
     feeBase: 600, feePerLost: 90, feePerSeason: 120,
     rivalDismiss: 0.18,   // ライバルの照会が不問に付される割合
+    /* ---- 審議の席で出る声 ----
+       技術側は見込みをそのまま言い、現場を仕切る側は情でも動く。
+       だから「勝ち目は薄いです」と「それでも我々は間違っていない」が
+       同じ席で並ぶ。決めるのはオーナー                            */
+    VOICE: {
+      tech: [
+        { at: 0.65, lines: [
+          '「data は揃っています。これは通ります」',
+          '「規則の条文はこちらの読みが正しい。堂々と出ましょう」',
+          '「争えば勝てます。図面も計測も、全部そろえてあります」'] },
+        { at: 0.45, lines: [
+          '「五分は超えています。争う価値はあります」',
+          '「勝ち筋はあります。論点はひとつに絞れます」',
+          '「五分五分より少し上、というところです」'] },
+        { at: 0.30, lines: [
+          '「厳しいですが、まったく望みがないわけではありません」',
+          '「分は悪いです。ただ、条文の穴はまだ突けます」',
+          '「三割ほど。賭けになります」'] },
+        { at: 0, lines: [
+          '「正直に申し上げます。勝つ見込みは低いです」',
+          '「これは……争っても、たぶん覆せません」',
+          '「勝ち目は薄いです。費用だけが出ていきます」'] }
+      ],
+      fight: [
+        '「それでも、我々は間違っていない。戦いましょう」',
+        '「ここで引いたら、次も同じことをやられます。争いましょう」',
+        '「あれはチーム全員で作ったものです。黙って渡せません」',
+        '「勝ち負けの話じゃない。筋を通しましょう」',
+        '「金で片づく話なら、払ってでも守る価値があります」'],
+      fold: [
+        '「ここは引きましょう。金と時間を次に回したほうがいい」',
+        '「争っても得るものは少ない。作り直したほうが早い」',
+        '「取り下げましょう。あの構造はもう学びきりました」',
+        '「相手の顔も立てておきましょう。次があります」',
+        '「今は選手権に集中すべきです。受け入れましょう」']
+    },
     REASONS: [
       '可動空力部品にあたる', '車体寸法の許容を外れている',
       'テストの手順に沿っていない', '想定していない気流処理だと判断された',
@@ -954,5 +1060,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TD, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

@@ -1518,6 +1518,37 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 工作機械の世代 */
+.wsbox{margin:4px 0 8px;padding:7px 9px;border:2px solid var(--ink);border-radius:6px;
+       background:#eee3c6;color:var(--ink)}
+.wsbox>b{font-size:12px}
+.wsbox>b em{font-style:normal;font-size:9.5px;font-weight:normal;opacity:.75;margin-left:6px}
+.wsbox small{display:block;margin-top:3px;font-size:10px;line-height:1.6;color:var(--ink2)}
+.wsline{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:6px}
+.wsline u{text-decoration:none;opacity:.45;font-size:10px}
+.wsx{display:flex;align-items:center;gap:3px;padding:2px 6px;font-size:12px;
+     border:2px solid var(--ink);border-radius:5px;background:#dccfae;opacity:.55}
+.wsx i{font-style:normal;font-size:8.5px;font-weight:bold}
+.wsx.past{opacity:.8}
+.wsx.on{opacity:1;background:#ffd76a;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
+[data-skin="hd"] .wsbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .wsbox small{color:#cbbb9a}
+[data-skin="hd"] .wsx{background:#332843;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .wsx.on{background:#c9932c;color:#241a08}
+
+/* 審議の席で出る声 */
+.hvlist{display:flex;flex-direction:column;gap:4px;margin:8px 0 4px}
+.hv{display:flex;flex-direction:column;gap:1px;padding:5px 8px;border:2px solid var(--ink);
+    border-radius:6px;background:var(--paper2);color:var(--ink)}
+.hv b{font-size:10px}
+.hv b i{font-style:normal;font-weight:normal;font-size:8.5px;opacity:.75;margin-left:5px}
+.hv span{font-size:11.5px;line-height:1.5}
+.hv.go{border-color:#c9401f;box-shadow:inset 0 0 0 2px rgba(224,74,63,.16)}
+.hv.no{border-color:#6a7a8a;box-shadow:inset 0 0 0 2px rgba(120,140,160,.14)}
+[data-skin="hd"] .hv{background:#2b2340;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .hv.go{border-color:#e0705a}
+[data-skin="hd"] .hv.no{border-color:#7d8fa5}
+
 /* 審議の選択肢 */
 .tdopt{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .tdo{flex:1 1 240px;min-width:220px;padding:7px 9px;border:2px solid var(--ink);border-radius:6px;

@@ -72,10 +72,22 @@ GP.state = (function () {
     return Math.round(st.speed + st.corner + st.accel);
   }
 
-  /* 設計時のレアリティ抽選（デザイナーの腕で上振れする） */
+  /* いま何でパーツを作っているか。ファクトリーのレベルがそのまま世代になる */
+  function workshopOf(g2) {
+    const lv = (g2.facilities && g2.facilities.factory) || 1;
+    let w = D.WORKSHOP[0];
+    D.WORKSHOP.forEach(x => { if (lv >= x.at) w = x; });
+    return w;
+  }
+  function workshopNext(g2) {
+    const lv = (g2.facilities && g2.facilities.factory) || 1;
+    return D.WORKSHOP.filter(x => x.at > lv)[0] || null;
+  }
+
+  /* 設計時のレアリティ抽選（デザイナーの腕と、工作機械の世代で上振れする） */
   function rollRarity(g) {
     // グリッドで他所のマシンを間近に見てきたぶんは、次の設計に効く
-    const dz = designPower(g) + g.facilities.factory * 0.35
+    const dz = designPower(g) + workshopOf(g).rar
              + (g.designEdge || 0) * 1.4;
     const w = [
       Math.max(6, 58 - dz * 5),
@@ -744,6 +756,31 @@ GP.state = (function () {
       }
     });
     rollDirectives(g2);
+  }
+
+  /* ---------- 最近のできごと ----------
+     記者はいつも同じことを聞くわけではない。裁定があった週と、
+     ドライバーが入れ替わった週では、向けられる問いが変わる。
+     直近のものだけを覚えておけば足りる                          */
+  function pushNews(g2, kind, what, extra) {
+    g2.news = (g2.news || []).concat([
+      Object.assign({ kind: kind, what: what, at: weekStamp(g2) }, extra || {})
+    ]).slice(-8);
+  }
+  /* いま記者がいちばん聞きたいこと。新しくて、重いものから */
+  function pressTopic(g2) {
+    const now = weekStamp(g2);
+    const fresh = (g2.news || []).filter(n => now - n.at <= D.PRESS_FRESH);
+    if (!fresh.length) return null;
+    let best = null, bs = -1;
+    fresh.forEach(n => {
+      const t = D.PRESS.find(x => x.key === n.kind);
+      if (!t) return;
+      // 重さと新しさで選ぶ。同じくらいなら新しいほう
+      const sc = t.weight * 10 - (now - n.at);
+      if (sc > bs) { bs = sc; best = { topic: t, news: n }; }
+    });
+    return best;
   }
 
   /* ---------- テクニカルディレクティブ ----------
@@ -1926,7 +1963,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
@@ -1935,7 +1972,7 @@ GP.state = (function () {
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
-    makePart, partStats, partCap, partScore, rollRarity, wearParts, hasT,
+    makePart, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,

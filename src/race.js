@@ -1763,6 +1763,7 @@ GP.race = (function () {
       const was = g.aduoLevel || 0;
       if (ad.level !== was) {
         g.aduoLevel = ad.level;
+        if (ad.level > was) S.pushNews(g, 'aduo', ad.name);
         g.aduoNews = ad.level ? {
           level: ad.level, name: ad.name, icon: ad.icon, color: ad.color, note: ad.note,
           top: ad.top, mine: !!ad.topIsPlayer, up: ad.level > was,
@@ -1777,6 +1778,7 @@ GP.race = (function () {
       }
     }
 
+    if (!sp && best && best.pos === 1) S.pushNews(g, 'win', best.driver.name);
     // 初優勝フラグ
     if (!sp && best && best.pos === 1 && !g.flags.firstWin) {
       g.flags.firstWin = true;

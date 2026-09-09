@@ -46,6 +46,7 @@ window.GP = window.GP || {};
       if (t.mine) {
         U.log(g, '⚖️ 「' + t.what + '」について FIA から照会があったが（' + t.why +
           '）、オーナーの顔が利いて不問に付された。', 'good');
+        S.pushNews(g, 'tdSafe', t.what);
         U.toast('⚖️ 「' + t.what + '」は不問に', 'good');
       } else if (t.dismissed) {
         U.log(g, '⚖️ ' + t.team + ' の「' + t.what + '」に照会（' + t.why +
@@ -544,7 +545,7 @@ window.GP = window.GP || {};
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     const dc = designCost();
-    body += '</div><div class="sub">新しいパーツを設計する</div>' +
+    body += '</div><div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
       '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
       '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
@@ -608,6 +609,7 @@ window.GP = window.GP || {};
       g.concepts = (g.concepts || []).concat([{
         body: key, what: brk, gain: gain, at: S.weekStamp(g)
       }]);
+      S.pushNews(g, 'brk', brk);
     }
 
     U.closeModal();
@@ -782,6 +784,7 @@ window.GP = window.GP || {};
       g.concepts = (g.concepts || []).concat([{
         cat: key, what: brk, rarUp: !!upTo, gain: gain, at: S.weekStamp(g)
       }]);
+      S.pushNews(g, 'brk', brk);
     }
     if (upTo) {
       p.rarity = upTo;
@@ -866,12 +869,16 @@ window.GP = window.GP || {};
     const hinted = (g.designEdge || 0) > 0;
     const rarity = S.rollRarity(g);
     if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
+    const ws = S.workshopOf(g);
     const part = S.makePart(key, g.carGen, rarity);
+    // 同じ図面でも、どの機械で削ったかで出来が変わる
+    part.power = Math.round(part.power * ws.prec * 10) / 10;
     g.inventory.push(part);
 
     const rr = D.RARITY[rarity - 1];
     U.closeModal();
-    U.log(g, '📐 ' + part.name + '（' + rr.name + '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
+    U.log(g, '📐 ' + ws.icon + ' ' + ws.name + 'で ' + part.name + '（' + rr.name +
+      '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
     GP.sound.play(rarity >= 4 ? 'crit' : 'confirm');
     staffExp('designer', 14); staffExp('engineer', 3);
     if (rarity >= 4) U.toast('🎉 ' + rr.name + 'パーツ「' + part.name + '」が完成！', 'good');
@@ -1667,6 +1674,7 @@ window.GP = window.GP || {};
     const max = lv >= 10;
     let h = '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
       '<p class="desc">' + f.desc + '</p>' +
+      (baseSel === 'factory' ? workshopBoxHTML() : '') +
       '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
     for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
     h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
@@ -2125,6 +2133,27 @@ window.GP = window.GP || {};
       '提訴が通れば、その件で二度と問われません。</small></div>';
   }
 
+  /* ---- 工作機械の世代 ----
+     パーツが勝手に良くなるのではなく、それを作る機械が変わるから
+     良いものが作れるようになる。いま何で削っているのかを出す      */
+  function workshopBoxHTML() {
+    const w = S.workshopOf(g);
+    const nx = S.workshopNext(g);
+    const lv = g.facilities.factory;
+    return '<div class="wsbox">' +
+      '<b>' + w.icon + ' ' + w.name + '<em>ファクトリー Lv.' + lv + '</em></b>' +
+      '<small>' + w.desc + '<br>' +
+      'レアリティ抽選 <b>+' + w.rar.toFixed(1) + '</b>／製作の精度 <b>×' + w.prec.toFixed(2) + '</b>' +
+      (nx ? '　→　次は Lv.' + nx.at + ' で <b>' + nx.icon + ' ' + nx.name + '</b>' +
+            '（抽選 +' + nx.rar.toFixed(1) + '／精度 ×' + nx.prec.toFixed(2) + '）'
+          : '　これ以上の機械はありません') +
+      '</small>' +
+      '<div class="wsline">' + D.WORKSHOP.map(x =>
+        '<span class="wsx' + (x.at === w.at ? ' on' : lv >= x.at ? ' past' : '') + '">' +
+          x.icon + '<i>' + x.name + '</i></span>').join('<u>→</u>') + '</div>' +
+      '</div>';
+  }
+
   /* ---- 規則の新しさ ----
      規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
      いつ開発を厚くするかの判断材料として出しておく                */
@@ -2245,6 +2274,7 @@ window.GP = window.GP || {};
       g.funds -= fee; d.team = g.team; g.drivers.push(d);
       driverMarket.splice(idx, 1);
       U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
+      S.pushNews(g, 'drvIn', d.name);
       U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
     } else if (kind === 'ym') {
       const d = youthMarket[idx], fee = youthFee(d);
@@ -3407,6 +3437,7 @@ window.GP = window.GP || {};
     retired.forEach(d => {
       g.drivers = g.drivers.filter(x => x.id !== d.id);
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
+      S.pushNews(g, 'drvOut', d.name);
     });
     // スポンサーの達成ボーナス回数をリセット
     g.sponsors.forEach(sp2 => { sp2.hits = 0; });
@@ -3469,12 +3500,48 @@ window.GP = window.GP || {};
         '確率も、いまがいちばん高くなります。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
+      S.pushNews(g, 'reg', '新しい規則');
       GP.sound.play('light');
     }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
-  /* ---- 審議 ----
+  /* ---- 審議の席で出る声 ----
+     技術側は見込みをそのまま言う。現場を仕切る側は情でも動くので、
+     「勝ち目は薄い」と「それでも戦おう」が同じ席で並ぶことがある。
+     決めるのはオーナー——という形にしたい                        */
+  function hearingVoices(cs, canPay) {
+    const odds = cs.odds / 100;
+    // 技術側は、いる人のうちいちばん上の肩書きが答える
+    const tm = g.managers && g.managers.technical;
+    const an = (g.staff || []).filter(x => x.type === 'analyst' || x.type === 'engineer')
+      .sort((a, b) => b.skill - a.skill)[0];
+    const techWho = tm ? { icon: '🔬', name: tm.name, role: '開発責任者' }
+      : an ? { icon: an.type === 'analyst' ? '📊' : '👷', name: an.name,
+               role: (D.STAFF_TYPES.find(t => t.key === an.type) || {}).name || '' }
+      : { icon: '🔧', name: '技術スタッフ', role: '' };
+    const tier = D.TD.VOICE.tech.find(t => odds >= t.at) ||
+                 D.TD.VOICE.tech[D.TD.VOICE.tech.length - 1];
+    // 仕切る側。プリンシパルがいればその人、いなければオーナー本人
+    const pr = g.managers && g.managers.principal;
+    const bossWho = pr ? { icon: '👔', name: pr.name, role: 'チームプリンシパル' }
+      : { icon: '🎩', name: (g.owner && g.owner.name) || 'オーナー', role: '' };
+    // 争うか引くかは、見込みだけでは決まらない。金の余裕と、気性と、意地
+    const ease = canPay ? Math.min(1, g.funds / Math.max(1, cs.fee * 5)) : 0;
+    const p = S.clamp(0.15 + odds * 0.70 + ease * 0.20 + S.osk(g, 'nego') * 0.04, 0.05, 0.95);
+    const fight = canPay && Math.random() < p;
+    const line = S.pick(fight ? D.TD.VOICE.fight : D.TD.VOICE.fold);
+    const row = (who, text, cls) =>
+      '<div class="hv' + (cls ? ' ' + cls : '') + '">' +
+        '<b>' + who.icon + ' ' + esc(who.name) + (who.role ? '<i>' + who.role + '</i>' : '') + '</b>' +
+        '<span>' + esc(text) + '</span></div>';
+    return '<div class="hvlist">' +
+      row(techWho, S.pick(tier.lines), '') +
+      row(bossWho, line, fight ? 'go' : 'no') +
+      '</div>';
+  }
+
+  /* ---- 審議 ----  /* ---- 審議 ----
      照会を抜けてきた件は、受け入れるか、費用を払って争うかを選ぶ。
      争って通れば、以後その件で問われることはなくなる              */
   function askDirective() {
@@ -3499,6 +3566,7 @@ window.GP = window.GP || {};
           '解析するひまもありません（研究Pなし）。' +
           (canPay ? '' : '<br><b class="warn">資金が足りません。</b>') + '</small></div>' +
       '</div>' +
+      hearingVoices(cs, canPay) +
       '<p class="desc">通る見込みは、オーナーの<b>交渉術</b>と<b>技術眼</b>、そして' +
       'アナリストが積んだ技術的な裏づけで上がります。' +
       '照会の段階で不問に付されるかどうかは、<b>交渉術</b>と<b>知名度</b>しだいです。</p>';
@@ -3521,6 +3589,7 @@ window.GP = window.GP || {};
       GP.sound.play('levelup');
       U.log(g, '⚖️ 提訴が認められた！「' + cs.what + '」はそのまま使える（費用 -' +
         money(cs.fee) + '万）。この件で問われることはもうない。', 'good');
+      S.pushNews(g, 'tdWon', cs.what);
       U.toast('⚖️ 提訴が認められた！', 'good');
       U.pop('⚖️ 不問', 'crit');
     } else {
@@ -3530,6 +3599,7 @@ window.GP = window.GP || {};
         (appeal ? '（提訴は退けられ、費用 -' + money(cs.fee) + '万）'
                 : '。ばらして解析したぶん 研究P +' + r.rp), 'bad');
       U.toast('⚖️ 「' + cs.what + '」が使用禁止に', 'bad');
+      S.pushNews(g, 'tdLost', cs.what);
     }
     S.save(g); render();
     // 続けて審議が残っていれば、次の件へ
@@ -4428,7 +4498,9 @@ window.GP = window.GP || {};
       label: label, cls: hype > 6 ? 'primary' : '',
       fn: () => {
         // 上位にいるときの強気は効く。下位で大口を叩くと空回りする
-        const mul = (strong ? 1 : 0.45) * (1 + S.osk(g, 'fame') * 0.25);   // 知名度
+        // 話題になっている最中の取材は、ふだんより大きく響く
+        const hot = S.pressTopic(g) ? 1.35 : 1;
+        const mul = (strong ? 1 : 0.45) * (1 + S.osk(g, 'fame') * 0.25) * hot;   // 知名度
         const h = Math.round(hype * mul);
         S.addHype(g, h);
         g.fans = Math.max(0, Math.round(g.fans * (1 + fan * mul / 100)));
@@ -4439,17 +4511,25 @@ window.GP = window.GP || {};
         S.save(g); render();
       }
     });
+    /* 直近に何かあれば、記者はそこを突いてくる。
+       裁定、新機構、ドライバーの入れ替え——聞かれることが変わる  */
+    const hit = S.pressTopic(g);
+    const t = hit && hit.topic;
+    const q = t ? t.q.replace('{W}', esc(hit.news.what))
+                : '「今週の手応えはいかがですか？」';
+    const opts = t ? t.a
+      : [['🔥 「表彰台を狙う」', 14, 3, '強気の発言をした'],
+         ['🙂 「一戦ずつ戦う」', 6, 1, '手堅く答えた'],
+         ['🤐 「特にありません」', 1, 0, '取材を短く切り上げた']];
     U.modal('📰 記者たち',
-      '<p class="lead">「今週の手応えはいかがですか？」</p>' +
+      '<p class="lead">' + (t ? t.icon + ' ' : '') + q + '</p>' +
+      (t ? '<p class="note">' + esc(hit.news.what) + ' の件で、記者たちが詰めかけています。' +
+           'ここでの答えかたは、ふだんの取材より大きく響きます。</p>' : '') +
       '<p class="desc">いまのコンストラクターズ順位は <b>' + (rank || '-') + '位</b>。' +
       (strong ? '上位にいるので、強気の発言はよく届きます。'
               : '下位のうちは、大きな話をしても響きにくいものです。') + '</p>',
-      [
-        answer('🔥 「表彰台を狙う」', 14, 3, '強気の発言をした'),
-        answer('🙂 「一戦ずつ戦う」', 6, 1, '手堅く答えた'),
-        answer('🤐 「特にありません」', 1, 0, '取材を短く切り上げた'),
-        { label: 'やめる', fn: U.closeModal }
-      ]);
+      opts.map(o => answer(o[0], o[1], o[2], o[3]))
+          .concat([{ label: 'やめる', fn: U.closeModal }]));
   }
 
   /* =======================================================
@@ -4911,22 +4991,26 @@ window.GP = window.GP || {};
 
   function doYardPress() {
     yardMark('yd:press');
+    // 直近に何かあれば、立ち話でもそこを聞かれる。話題があるほど大きく響く
+    const hit = S.pressTopic(g);
+    const q = hit ? hit.topic.q.replace('{W}', hit.news.what) : '「今季の手応えは？」';
+    const hot = hit ? 1.5 : 1;
     const good = Math.random() < 0.72 + S.osk(g, 'fame') * 0.05;
     if (good) {
-      const h = S.rnd(1.6, 4.0) * (1 + S.mgr(g, 'principal') * 0.006);
-      const f = Math.round(30 + g.fans * 0.012);
+      const h = S.rnd(1.6, 4.0) * (1 + S.mgr(g, 'principal') * 0.006) * hot;
+      const f = Math.round((30 + g.fans * 0.012) * hot);
       S.addHype(g, h);
       g.fans += f;
-      yardResult('📰 取材を受ける',
-        '「今季の手応えは？」——うまく答えられた。記事は好意的に出そうだ。',
+      yardResult('📰 ' + (hit ? hit.topic.icon + ' 取材を受ける' : '取材を受ける'),
+        esc(q) + '——うまく答えられた。記事は好意的に出そうだ。',
         '注目度 +' + h.toFixed(1) + '／ファン +' + money(f));
       GP.sound.play('good');
     } else {
       S.addHype(g, 1.0);
       const d = (g.drivers || [])[0];
-      if (d) d.form = S.clamp(d.form - S.rnd(1, 4), 62, 122);
-      yardResult('📰 取材を受ける',
-        '「今季の手応えは？」——言葉を選び損ねた。少し波風が立ちそうだ。',
+      if (d) d.form = S.clamp(d.form - S.rnd(1, 4) * hot, 62, 122);
+      yardResult('📰 ' + (hit ? hit.topic.icon + ' 取材を受ける' : '取材を受ける'),
+        esc(q) + '——言葉を選び損ねた。少し波風が立ちそうだ。',
         '注目度 +1.0／チームの空気が少し重くなった');
       GP.sound.play('tap');
     }
