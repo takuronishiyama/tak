@@ -1190,6 +1190,7 @@ GP.state = (function () {
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
     return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
                + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0)
+               + crewEff(g2).fore
                + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
   function wetSkillOf(d) {
@@ -1250,12 +1251,36 @@ GP.state = (function () {
     const k = (g2.logi && g2.logi.load) || 'std';
     return D.LOGI_LOADS.find(l => l.key === k) || D.LOGI_LOADS[1];
   }
+  /* 遠征の編成。誰を現地へ連れて行くか */
+  function logiCrew(g2) {
+    const k = (g2.logi && g2.logi.party) || 'std';
+    return D.LOGI_CREWS.filter(c => c.key === k)[0] || D.LOGI_CREWS[1];
+  }
+  /* ファクトリーに残った分析チームが、回線の向こうから加わっているか */
+  function hasMission(g2) { return hasGear(g2, 'factory', 'mission'); }
+  /* 遠征の編成が、現場の力にどれだけ効いているか。
+     人を減らして薄くなったぶんは、ミッションコントロールが埋め戻す */
+  function crewEff(g2) {
+    const c = logiCrew(g2);
+    const M = D.MISSION;
+    const mission = hasMission(g2);
+    // 薄くなったぶん（マイナス）は本国からの支援で戻る。厚くしたぶんはそのまま
+    const cover = v => (v < 0 && mission) ? v * (1 - M.leanCover) : v;
+    return {
+      pit:  cover(c.pit),
+      read: cover(c.read) + (mission ? M.read : 0),
+      fore: cover(c.fore) + (mission ? M.fore : 0),
+      fatigue: c.fatigue + (mission && c.key === 'lean' ? M.fatigue : 0),
+      mission: mission
+    };
+  }
   /* 1戦ぶんの輸送費。遠いコースほど高く、積むほど高い */
   function logiCost(g2, track) {
     const far = (track && track.far) || 1;
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
     return perkPrice(g2, 'logi',
-      Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut)));
+      Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost
+                 * logiCrew(g2).cost * (1 - cut)));
   }
   /* 荷が遅れる確率。遠いコースほど、そして安く運ぶほど高い。
      ロジスティクス責任者がいると、通関も現地手配も段取りよく進む     */
@@ -1437,7 +1462,9 @@ GP.state = (function () {
   function designPower(g2){ return org(g2).dept.designer; }
   function pitPower(g2)   { return org(g2).dept.mechanic; }
   function readPower(g2)  { const o = org(g2);
-    return (o.dept.strategist + kitEff(g2, 'wall', 'read')) * o.dataMul; }
+    // 現地のピットウォールと、本国の分析チームを足したもの
+    return Math.max(0, (o.dept.strategist + kitEff(g2, 'wall', 'read') + crewEff(g2).read))
+           * o.dataMul; }
   function trainPower(g2) { const o = org(g2); return o.dept.trainer * o.dataMul; }
   function analystPower(g2){ return org(g2).dept.analyst; }
 
@@ -1457,8 +1484,8 @@ GP.state = (function () {
      ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
      腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
   function pitCrew(g2) {
-    const skill = (g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5)
-                * rigMul(g2, 'pit');
+    const skill = Math.max(0, g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5
+                             + crewEff(g2).pit) * rigMul(g2, 'pit');
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
     const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
@@ -1477,7 +1504,7 @@ GP.state = (function () {
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
     // 座って休める場所があるだけで、溜まりかたが変わる
     const rest = (hasGear(g2, 'pit', 'rest') ? 0.85 : 1) * (1 - kitEff(g2, 'home', 'crew'));
-    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
+    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue + crewEff(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
@@ -2555,7 +2582,7 @@ GP.state = (function () {
     relCare, relCut, partCondAvg,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCrew, crewEff, hasMission, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

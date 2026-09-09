@@ -6429,11 +6429,12 @@ window.GP = window.GP || {};
     g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
     const curLoad = S.logiLoad(g);
     // 選択肢を試したときの数字を、実際の関数から出す
-    const withChoice = (plan, load, fn) => {
-      const bp = g.logi.plan, bl = g.logi.load;
+    const withChoice = (plan, load, fn, party) => {
+      const bp = g.logi.plan, bl = g.logi.load, bt = g.logi.party;
       g.logi.plan = plan; g.logi.load = load;
+      if (party) g.logi.party = party;
       const v = fn();
-      g.logi.plan = bp; g.logi.load = bl;
+      g.logi.plan = bp; g.logi.load = bl; g.logi.party = bt;
       return v;
     };
     const nowCost = S.logiCost(g, nextTrack);
@@ -6492,6 +6493,43 @@ window.GP = window.GP || {};
     });
     body += '</div>';
 
+    // ---- 遠征の編成 ----
+    {
+      const curP = S.logiCrew(g);
+      const mission = S.hasMission(g);
+      body += '<div class="sub">遠征の編成</div>' +
+        '<p class="desc">誰を現地へ連れて行くか。部署ごと運べばピットもピットウォールも厚くなりますが、' +
+        '旅費がかさみ、全員が消耗します。<br>' +
+        (mission
+          ? '🛰️ <b>ミッションコントロール室</b>があるので、本国に残った分析チームが' +
+            '回線の向こうからレースに加わります（作戦の読み +' + D.MISSION.read.toFixed(2) +
+            '／天候 +' + Math.round(D.MISSION.fore * 100) + '%）。' +
+            '人を減らして薄くなったぶんも ' + Math.round(D.MISSION.leanCover * 100) + '% 埋め戻します。'
+          : '本国に残した人間は、いまはレースに関われません。' +
+            '「🏭 施設 → ファクトリー」の <b>🛰️ ミッションコントロール室</b>を入れると、' +
+            '残った分析チームが回線の向こうからレースに加わります。') +
+        '</p><div class="pick">';
+      D.LOGI_CREWS.forEach(pt => {
+        const cost = withChoice(g.logi.plan, g.logi.load, () => S.logiCost(g, nextTrack), pt.key);
+        const eff = withChoice(g.logi.plan, g.logi.load, () => S.crewEff(g), pt.key);
+        const stand = withChoice(g.logi.plan, g.logi.load, () => S.pitCrew(g).stand, pt.key);
+        const read = withChoice(g.logi.plan, g.logi.load, () => S.readPower(g), pt.key);
+        const on = pt.key === curP.key;
+        const poor = !on && cost > g.funds;
+        body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+          '" data-k="party:' + pt.key + '"' + (poor ? ' disabled' : '') + '>' +
+          '<span class="pb-ic" style="background:' + pt.color + '">' + pt.icon + '</span>' +
+          '<span class="pb-body"><b>' + pt.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + pt.desc + '<br>' +
+          'ピット静止 <b>' + stand.toFixed(2) + '秒</b>／作戦の読み <b>' + read.toFixed(2) + '</b>' +
+          '／クルーの疲労 ' + (eff.fatigue > 0 ? '+' + eff.fatigue : eff.fatigue) +
+          (poor ? '<br><b class="warn">いまの資金では組めません</b>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pt.note) + '</b></span></button>';
+      });
+      body += '</div>';
+    }
+
     // ---- この先のコースと、かかる費用の見通し ----
     body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
     for (let k = 0; k < 4; k++) {
@@ -6511,11 +6549,13 @@ window.GP = window.GP || {};
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
-      g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
-      const bp = g.logi.plan, bl = g.logi.load;
-      if (kind === 'logi') g.logi.plan = key; else g.logi.load = key;
+      g.logi = g.logi || { plan: 'std', load: 'std', party: 'std', crew: 0 };
+      const bp = g.logi.plan, bl = g.logi.load, bt = g.logi.party;
+      if (kind === 'logi') g.logi.plan = key;
+      else if (kind === 'party') g.logi.party = key;
+      else g.logi.load = key;
       if (S.logiCost(g, nextTrack) > g.funds) {   // 払えないものは結べない
-        g.logi.plan = bp; g.logi.load = bl;
+        g.logi.plan = bp; g.logi.load = bl; g.logi.party = bt;
         return U.toast('その手配は資金が足りません', 'bad');
       }
       if (kind === 'logi') {

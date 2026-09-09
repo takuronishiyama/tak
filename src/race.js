@@ -271,6 +271,13 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- ピットで手当てしたあと --- */
+    fixed: ['「見た目は良くなった。数字も戻っている。行けるはずだ」',
+            '「手は入れた。これで少しは楽になる」',
+            '「応急だが押さえた。あとは君の腕次第だ」'],
+    fixedBack: ['「だいぶマシだ。これなら走れる」',
+                '「了解、感触が戻った」',
+                '「まだ違和感はあるが、さっきよりずっといい」'],
     /* --- 「順位より、持って帰ってくれ」--- */
     cool: ['「ここは無理をするな。順位は守れればいい」',
            '「ここからは車を労わってくれ。まとめて持ち帰ろう」',
@@ -451,6 +458,8 @@ GP.race = (function () {
        濡れた路面や、車に傷を負ったあと、あるいは前後が離れていて
        走りきるだけでよいときは、順位より完走を取る。
        慎重なドライバーほど、ここに入りやすい                       */
+    // 不具合を抱えて運んでいる車は、そのあいだずっと安全第一
+    if (e.trouble && !e.trouble.done && e.trouble.act === 'nurse') return 'cool';
     {
       const careV = S.careOf(e.driver);
       const alone = (gapA == null || gapA > 4.5) && (gapB == null || gapB > 4.5);
@@ -487,6 +496,43 @@ GP.race = (function () {
     return 'hold';
   }
   const orderOf = k => D.ORDERS.find(o => o.key === k) || D.ORDERS[1];
+
+  /* ---------- 不具合が出たときの判断 ----------
+     走り切るか、抑えて運ぶか、ピットで手当てするか、降ろすか。
+     残り周回・いまの順位・悪化の速さ・止まる確率を、そのまま秤にかける。
+     読みの利くピットウォールほど、正しいほうを選べる            */
+  function decideTrouble(e, def, lap, laps, pos, pitLoss, read) {
+    const left = Math.max(1, laps - lap);
+    // このまま行ったら、残りで何秒失うか
+    const keepLoss = def.loss * left + def.grow * left * (left + 1) / 2;
+    // このまま行ったら、どれだけの確率で止まるか
+    const keepDnf = 1 - Math.pow(1 - def.dnf * (1 + left * 0.05), left);
+    // 抑えて運んだ場合
+    const nurseLoss = keepLoss * (0.55 + def.nurse * 0.45) + left * 0.55;
+    const nurseDnf = 1 - Math.pow(1 - def.dnf * def.nurse * (1 + left * 0.05), left);
+    // 順位の価値。上位ほど、失うものが大きい
+    const worth = Math.max(0, (D.POINTS[pos - 1] || 0));
+    const secPerPt = 3.2;                    // 1ポイントを何秒ぶんと見るか
+    const cost = (lossSec, dnfP) => lossSec + dnfP * (worth * secPerPt + 45);
+    const cand = [
+      { key: 'go',    v: cost(keepLoss, keepDnf) },
+      { key: 'nurse', v: cost(nurseLoss, nurseDnf) }
+    ];
+    // 入って手当てするには、走る周が残っていないと意味がない
+    if (def.fix != null && left >= 3) {
+      const after = keepLoss * def.fix;
+      cand.push({ key: 'pit', v: cost(after + pitLoss, keepDnf * def.fix) });
+    }
+    /* 降ろす。順位は捨てるが、部品も修理代も守れる。
+       どうせ止まる見込みか、現場では手の打ちようがないときだけ考える */
+    if ((keepDnf >= 0.32 || def.fix == null) && left >= 2) {
+      cand.push({ key: 'retire', v: worth * secPerPt + 58 - (def.dnf > 0.006 ? 26 : 0) });
+    }
+    cand.sort((a, b) => a.v - b.v);
+    // 読みが浅いほど、最善を外す
+    const sure = Math.min(0.94, 0.42 + read * 0.16);
+    return Math.random() < sure ? cand[0].key : S.pick(cand).key;
+  }
 
   /* その周に、自チームのドライバーとどんなやりとりがあったか。
      優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
@@ -571,6 +617,27 @@ GP.race = (function () {
         push(RADIO.aqua, 'pit', true);
         push(RADIO.aquaBack, 'drv', true);
         e.radioCool = 4;
+        return;
+      }
+      if (e.radioTrouble === lap) {                     // 不具合を訴えた
+        e.radioTrouble = -1;
+        const tb = e.trouble;
+        if (tb) {
+          push(tb.def.drv, 'drv', true);
+          const reply = tb.act === 'pit' ? (tb.def.pit.length ? tb.def.pit : tb.def.go)
+                      : tb.act === 'nurse' ? tb.def.nurseSay
+                      : tb.act === 'retire' ? tb.def.quit
+                      : tb.def.go;
+          push(reply, 'pit', true);
+          e.radioCool = 3;
+          return;
+        }
+      }
+      if (e.radioFixed === lap) {                       // ピットで手当てした
+        e.radioFixed = -1;
+        push(RADIO.fixed, 'pit', true);
+        push(RADIO.fixedBack, 'drv', true);
+        e.radioCool = 3;
         return;
       }
       if (e.radioSpin === lap) {                        // スピンした
@@ -1323,6 +1390,15 @@ GP.race = (function () {
         // 雨に強い人は、濡れた路面そのものでも速い
         t *= 1 - e.wetSkill * wx.level * 0.012;
 
+        /* 抱えている不具合のぶん。放っておくほど広がっていく。
+           抑えて運べば広がりは遅くなるが、そのぶんペースも落ちる */
+        if (e.trouble && !e.trouble.done) {
+          const tb = e.trouble;
+          t += tb.loss;
+          tb.loss += tb.def.grow * (tb.act === 'nurse' ? tb.def.nurse : 1);
+          tb.laps = (tb.laps || 0) + 1;
+        }
+
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
         // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
@@ -1665,10 +1741,74 @@ GP.race = (function () {
         }
       }
 
+      /* ---- マシンの不具合 ----
+         いきなり止まる前に、たいていは「様子がおかしい」時間がある。
+         ドライバーが訴え、ピットウォールが決める                */
+      order.forEach(e => {
+        if (e.dnf || lap < 2 || lap >= laps) return;
+        if (e.trouble && !e.trouble.done) {
+          const tb = e.trouble;
+          // ピットで手当てすることにしていた車は、そこで軽くなる
+          if (tb.act === 'pit' && tb.fixAt === lap) {
+            tb.loss *= tb.def.fix;
+            if (tb.loss < 0.08) { tb.done = true; }
+            tb.act = 'nurse';
+            if (e.isPlayer) e.radioFixed = lap;
+          }
+          // 放っておくほど、止まる確率が上がる
+          const risk = tb.def.dnf * (tb.act === 'nurse' ? tb.def.nurse : 1)
+                     * (1 + (tb.laps || 0) * 0.05)
+                     * (e.sk('feeler') ? 0.55 : 1);
+          if (tb.act === 'retire' && lap >= tb.from + 1) {
+            e.dnf = true; e.dnfLap = lap;
+            e.dnfReason = tb.def.name + '（チームがマシンを降ろした）';
+            e.retired = true;
+            events.push({ lap: lap, type: 'dnf', car: e,
+              text: '🏳️ ' + e.driver.name + ' はピットへ。' + tb.def.name +
+                    'を抱えたまま走らせず、チームがマシンを降ろした' });
+            return;
+          }
+          if (Math.random() < risk) {
+            e.dnf = true; e.dnfLap = lap; e.dnfReason = tb.def.name;
+            events.push({ lap: lap, type: 'dnf', car: e,
+              text: say(SAY.dnfMech, { A: e.driver.name, B: tb.def.name, C: lm(track) }) });
+            return;
+          }
+        } else if (!e.trouble) {
+          // 信頼性が低いほど、荒れるコースほど、不具合は出る
+          const rate = (D.TROUBLE_RATE.base + (100 - e.rel) / 100 * D.TROUBLE_RATE.rel)
+                     * track.risk * (e.sk('feeler') ? 0.55 : 1);
+          if (Math.random() < rate) {
+            // どこに出るかは、いちばん傷んでいる部位に寄せる
+            const pool = D.TROUBLES.filter(x => x.cat === e.weakCat);
+            const def = (pool.length && Math.random() < 0.55) ? S.pick(pool) : S.pick(D.TROUBLES);
+            const pos = Math.max(1, order.filter(x => !x.dnf)
+              .sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]).indexOf(e) + 1);
+            const read = e.isPlayer ? S.readPower(g) : 1.0;
+            const act = decideTrouble(e, def, lap, laps, pos, e.pitLoss || 22, read);
+            // act は手当てのあとで変わるので、最初の判断も残しておく
+            e.trouble = { def: def, from: lap, loss: def.loss, act: act, act0: act, laps: 0 };
+            if (act === 'pit') {
+              const at = Math.min(laps - 1, lap + 1);
+              e.pitPlan = e.pitPlan.filter(l => l !== at).concat([at]).sort((a, b) => a - b);
+              e.trouble.fixAt = at;
+            }
+            if (e.isPlayer) e.radioTrouble = lap;
+            events.push({ lap: lap, type: 'miss', car: e,
+              text: def.icon + ' ' + e.driver.name + ' が' + def.name + 'を訴えている' +
+                    '（1周 -' + def.loss.toFixed(1) + '秒' +
+                    (act === 'pit' ? '／ピットで手当てへ'
+                     : act === 'nurse' ? '／抑えて運ぶ'
+                     : act === 'retire' ? '／降ろす判断' : '／このまま行く') + '）' });
+          }
+        }
+      });
+
       // リタイア判定
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
-        const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
+        // 不具合を抱えている車の「いきなり止まる」ぶんは、上で見ている
+        const mech = (100 - e.rel) / 100 * 0.0022 * 0.40 * track.risk * (e.sk('feeler') ? 0.55 : 1);
         /* クラッシュは「腕」ではなく「まとめる力」で決まる。
            速い人が壊さないとは限らない、というのがこのゲームの取引。
            ピットの指示（安全第一〜プッシュ）も、そのまま危うさに乗る */

@@ -413,7 +413,11 @@ GP.data = (function () {
       { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
         eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
       { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
-        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' }
+        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
+      { key: 'mission', name: 'ミッションコントロール室', icon: '🛰️', cost: 8200, need: 6, env: 2,
+        eff: '本国の分析チームがレースに加わる（作戦の読み +0.8／天候 +8%）',
+        note: '本国に残った人間が、回線の向こうからレースを見る。' +
+              '現地に人を出さなくても、読みと作戦が落ちなくなる' }
     ],
     tunnel: [
       { key: 'piv',  name: '粒子画像流速計', icon: '🌫️', cost: 2200, need: 2, env: 1,
@@ -553,6 +557,36 @@ GP.data = (function () {
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.5倍' }
   ];
+  /* ---------- 遠征の編成 ----------
+     誰を現地へ連れて行くか。部署ごと運べば現場は厚くなるが、
+     旅費がかさみ、全員が消耗する。本国に残した人間は遊んでいる
+     わけではなく、ミッションコントロールがあれば回線の向こうから
+     同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
+  const LOGI_CREWS = [
+    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
+      cost: 0.62, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
+      desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
+      note: '費用は4割減／現場が薄くなる' },
+    { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
+      cost: 1.00, fatigue: 0, pit: 0, read: 0, fore: 0,
+      desc: 'いつもの遠征メンバー。過不足のない布陣',
+      note: '標準' },
+    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
+      cost: 1.58, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
+      desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
+      note: '費用は約1.6倍／全員が疲れる' }
+  ];
+  /* ---------- ミッションコントロール ----------
+     ファクトリーに残った分析チームが、回線の向こうからレースに加わる。
+     現地に人を出さなくても、読みと作戦は落ちなくなる。
+     現代のF1が「工場のほうが人が多い」と言われる理由そのもの。     */
+  const MISSION = {
+    read: 0.80,        // 本国の分析チームが足す作戦の読み
+    fore: 0.08,        // 同・天候の読み
+    leanCover: 0.85,   // 最小構成で薄くなったぶんを、どれだけ埋め戻せるか
+    fatigue: -3        // 現地の人数が減るぶん、クルーの消耗も軽くなる
+  };
+
   const LOGI_SPARE_FIX = 5;       // 予備1つで戻せるパーツのコンディション
   const LOGI_DELAY_COND = 6;      // 荷が遅れたときに落ちるコンディション
   const LOGI_DELAY_FATIGUE = 7;   // 同・クルーの疲労
@@ -1126,6 +1160,85 @@ GP.data = (function () {
       note: 'いま前に出るために、持っているものを使う' }
   ];
 
+  /* ---------- マシンの不具合 ----------
+     壊れるか壊れないか、の前に「様子がおかしい」という時間がある。
+     ドライバーが症状を訴え、ピットウォールが決める。
+     走り切るか、抑えて運ぶか、ピットで手当てするか、降ろすか。
+       loss  … その周から失うタイム（秒）
+       grow  … 放っておくと1周ごとに増える量
+       dnf   … 1周あたり、そのまま止まってしまう確率
+       fix   … ピットで手当てできるか（できるなら残りの割合）
+       nurse … 抑えて走ったときに、悪化と危険が何倍になるか            */
+  const TROUBLES = [
+    { key: 'tyre', name: 'タイヤが終わった', icon: '🛞', cat: 'susp',
+      loss: 0.9, grow: 0.30, dnf: 0.0016, fix: 0.0, nurse: 0.45,
+      drv: ['「タイヤが終わった。グリップがまるでない」',
+            '「もう保たない。リアが完全に終わってる」',
+            '「毎コーナー滑る。このままだと危ない」'],
+      go:  ['「あと少しだけ我慢してくれ。順位はまだ取れる」'],
+      nurseSay: ['「分かった。抑えて運んでくれ。落とすのはタイムだけにしよう」'],
+      pit: ['「ボックス、ボックス。新しいのを入れる」'],
+      quit:['「これ以上は危ない。ピットに戻してくれ」'] },
+    { key: 'gear', name: 'ギアに違和感', icon: '🔀', cat: 'gear',
+      loss: 0.35, grow: 0.09, dnf: 0.0085, fix: null, nurse: 0.40,
+      drv: ['「ギアがおかしい。3速に入りづらい」',
+            '「シフトのたびに引っかかる。ギアボックスだ」',
+            '「ダウンシフトが決まらない。何かおかしい」'],
+      go:  ['「データは見ている。まだ走れる。慎重に繋いでくれ」'],
+      nurseSay: ['「シフトを丁寧に。回転を合わせて入れてくれ」'],
+      pit: [],
+      quit:['「ギアボックスが限界だ。降ろそう。次の週末に残す」'] },
+    { key: 'recover', name: 'バッテリーが回生できない', icon: '🔋', cat: 'elec',
+      loss: 0.30, grow: 0.05, dnf: 0.0030, fix: 0.45, nurse: 0.55,
+      drv: ['「電気が溜まらない。回生していない」',
+            '「バッテリーが充電されてこない。ストレートで足りなくなる」',
+            '「MGU-Kが仕事をしていない感じだ」'],
+      go:  ['「マップを変える。ストレートは我慢してくれ」'],
+      nurseSay: ['「回生に振る。タイムは落ちるが、電気は戻る」'],
+      pit: ['「一度入ってくれ。設定を入れ替える」'],
+      quit:['「系統が戻らない。降ろそう」'] },
+    { key: 'deploy', name: 'デプロイできない', icon: '⚡', cat: 'elec',
+      loss: 0.45, grow: 0.04, dnf: 0.0022, fix: 0.40, nurse: 0.60,
+      drv: ['「デプロイが出ない。ストレートで置いていかれる」',
+            '「電気が出てこない。立ち上がりがまるで遅い」',
+            '「パワーが乗らない。ストレートエンドで詰められる」'],
+      go:  ['「そのまま行こう。コーナーで作り直してくれ」'],
+      nurseSay: ['「無理に踏むな。まとめて持ち帰ろう」'],
+      pit: ['「入ってくれ。一度リセットをかける」'],
+      quit:['「これでは戦えない。降ろそう」'] },
+    { key: 'brake', name: 'ブレーキのタッチがおかしい', icon: '🛑', cat: 'susp',
+      loss: 0.32, grow: 0.11, dnf: 0.0060, fix: 0.35, nurse: 0.35,
+      drv: ['「ブレーキが奥に入る。踏みしろが変わってきた」',
+            '「フロントがロックする。タッチが安定しない」',
+            '「止まらない。ブレーキが熱を持っている」'],
+      go:  ['「バランスを前に振ってくれ。まだ行ける」'],
+      nurseSay: ['「早めに踏んで、冷やしながら走ってくれ」'],
+      pit: ['「入ってくれ。ダクトを開けて見る」'],
+      quit:['「ブレーキは賭けにできない。降ろそう」'] },
+    { key: 'floor', name: 'フロアを削った', icon: '🪶', cat: 'aero',
+      loss: 0.55, grow: 0.03, dnf: 0.0008, fix: 0.55, nurse: 0.70,
+      drv: ['「縁石でフロアを打った。リアの座りが悪い」',
+            '「高速コーナーで抜ける。床をやったかもしれない」',
+            '「ダウンフォースが足りない。何か落ちている」'],
+      go:  ['「そのままで行こう。順位は守れる」'],
+      nurseSay: ['「縁石には乗るな。丁寧に運んでくれ」'],
+      pit: ['「入ってくれ。フロントを一枚起こして釣り合いを取る」'],
+      quit:['「これ以上は無駄だ。降ろそう」'] },
+    { key: 'power', name: 'パワーが出ていない', icon: '⚙️', cat: 'pu',
+      loss: 0.50, grow: 0.07, dnf: 0.0070, fix: null, nurse: 0.40,
+      drv: ['「パワーが出ていない。上まで回っていない」',
+            '「エンジンが苦しそうだ。振動もある」',
+            '「ストレートで伸びない。何か抱えている」'],
+      go:  ['「温度は見ている。モードを落として続けてくれ」'],
+      nurseSay: ['「出力を絞る。持たせることを優先しよう」'],
+      pit: [],
+      quit:['「これ以上回すと1基まるごと失う。降ろそう」'] }
+  ];
+  /* 不具合が出るまでの1周あたりの確率。
+     どれだけ整えていても、機械である以上いくらかは出る（base）。
+     そこに、信頼性の低さぶんが乗る（rel）                       */
+  const TROUBLE_RATE = { base: 0.0016, rel: 0.020 };
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -1596,7 +1709,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

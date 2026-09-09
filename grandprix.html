@@ -3190,7 +3190,11 @@ GP.data = (function () {
       { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
         eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
       { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
-        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' }
+        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
+      { key: 'mission', name: 'ミッションコントロール室', icon: '🛰️', cost: 8200, need: 6, env: 2,
+        eff: '本国の分析チームがレースに加わる（作戦の読み +0.8／天候 +8%）',
+        note: '本国に残った人間が、回線の向こうからレースを見る。' +
+              '現地に人を出さなくても、読みと作戦が落ちなくなる' }
     ],
     tunnel: [
       { key: 'piv',  name: '粒子画像流速計', icon: '🌫️', cost: 2200, need: 2, env: 1,
@@ -3330,6 +3334,36 @@ GP.data = (function () {
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.5倍' }
   ];
+  /* ---------- 遠征の編成 ----------
+     誰を現地へ連れて行くか。部署ごと運べば現場は厚くなるが、
+     旅費がかさみ、全員が消耗する。本国に残した人間は遊んでいる
+     わけではなく、ミッションコントロールがあれば回線の向こうから
+     同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
+  const LOGI_CREWS = [
+    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
+      cost: 0.62, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
+      desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
+      note: '費用は4割減／現場が薄くなる' },
+    { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
+      cost: 1.00, fatigue: 0, pit: 0, read: 0, fore: 0,
+      desc: 'いつもの遠征メンバー。過不足のない布陣',
+      note: '標準' },
+    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
+      cost: 1.58, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
+      desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
+      note: '費用は約1.6倍／全員が疲れる' }
+  ];
+  /* ---------- ミッションコントロール ----------
+     ファクトリーに残った分析チームが、回線の向こうからレースに加わる。
+     現地に人を出さなくても、読みと作戦は落ちなくなる。
+     現代のF1が「工場のほうが人が多い」と言われる理由そのもの。     */
+  const MISSION = {
+    read: 0.80,        // 本国の分析チームが足す作戦の読み
+    fore: 0.08,        // 同・天候の読み
+    leanCover: 0.85,   // 最小構成で薄くなったぶんを、どれだけ埋め戻せるか
+    fatigue: -3        // 現地の人数が減るぶん、クルーの消耗も軽くなる
+  };
+
   const LOGI_SPARE_FIX = 5;       // 予備1つで戻せるパーツのコンディション
   const LOGI_DELAY_COND = 6;      // 荷が遅れたときに落ちるコンディション
   const LOGI_DELAY_FATIGUE = 7;   // 同・クルーの疲労
@@ -3903,6 +3937,85 @@ GP.data = (function () {
       note: 'いま前に出るために、持っているものを使う' }
   ];
 
+  /* ---------- マシンの不具合 ----------
+     壊れるか壊れないか、の前に「様子がおかしい」という時間がある。
+     ドライバーが症状を訴え、ピットウォールが決める。
+     走り切るか、抑えて運ぶか、ピットで手当てするか、降ろすか。
+       loss  … その周から失うタイム（秒）
+       grow  … 放っておくと1周ごとに増える量
+       dnf   … 1周あたり、そのまま止まってしまう確率
+       fix   … ピットで手当てできるか（できるなら残りの割合）
+       nurse … 抑えて走ったときに、悪化と危険が何倍になるか            */
+  const TROUBLES = [
+    { key: 'tyre', name: 'タイヤが終わった', icon: '🛞', cat: 'susp',
+      loss: 0.9, grow: 0.30, dnf: 0.0016, fix: 0.0, nurse: 0.45,
+      drv: ['「タイヤが終わった。グリップがまるでない」',
+            '「もう保たない。リアが完全に終わってる」',
+            '「毎コーナー滑る。このままだと危ない」'],
+      go:  ['「あと少しだけ我慢してくれ。順位はまだ取れる」'],
+      nurseSay: ['「分かった。抑えて運んでくれ。落とすのはタイムだけにしよう」'],
+      pit: ['「ボックス、ボックス。新しいのを入れる」'],
+      quit:['「これ以上は危ない。ピットに戻してくれ」'] },
+    { key: 'gear', name: 'ギアに違和感', icon: '🔀', cat: 'gear',
+      loss: 0.35, grow: 0.09, dnf: 0.0085, fix: null, nurse: 0.40,
+      drv: ['「ギアがおかしい。3速に入りづらい」',
+            '「シフトのたびに引っかかる。ギアボックスだ」',
+            '「ダウンシフトが決まらない。何かおかしい」'],
+      go:  ['「データは見ている。まだ走れる。慎重に繋いでくれ」'],
+      nurseSay: ['「シフトを丁寧に。回転を合わせて入れてくれ」'],
+      pit: [],
+      quit:['「ギアボックスが限界だ。降ろそう。次の週末に残す」'] },
+    { key: 'recover', name: 'バッテリーが回生できない', icon: '🔋', cat: 'elec',
+      loss: 0.30, grow: 0.05, dnf: 0.0030, fix: 0.45, nurse: 0.55,
+      drv: ['「電気が溜まらない。回生していない」',
+            '「バッテリーが充電されてこない。ストレートで足りなくなる」',
+            '「MGU-Kが仕事をしていない感じだ」'],
+      go:  ['「マップを変える。ストレートは我慢してくれ」'],
+      nurseSay: ['「回生に振る。タイムは落ちるが、電気は戻る」'],
+      pit: ['「一度入ってくれ。設定を入れ替える」'],
+      quit:['「系統が戻らない。降ろそう」'] },
+    { key: 'deploy', name: 'デプロイできない', icon: '⚡', cat: 'elec',
+      loss: 0.45, grow: 0.04, dnf: 0.0022, fix: 0.40, nurse: 0.60,
+      drv: ['「デプロイが出ない。ストレートで置いていかれる」',
+            '「電気が出てこない。立ち上がりがまるで遅い」',
+            '「パワーが乗らない。ストレートエンドで詰められる」'],
+      go:  ['「そのまま行こう。コーナーで作り直してくれ」'],
+      nurseSay: ['「無理に踏むな。まとめて持ち帰ろう」'],
+      pit: ['「入ってくれ。一度リセットをかける」'],
+      quit:['「これでは戦えない。降ろそう」'] },
+    { key: 'brake', name: 'ブレーキのタッチがおかしい', icon: '🛑', cat: 'susp',
+      loss: 0.32, grow: 0.11, dnf: 0.0060, fix: 0.35, nurse: 0.35,
+      drv: ['「ブレーキが奥に入る。踏みしろが変わってきた」',
+            '「フロントがロックする。タッチが安定しない」',
+            '「止まらない。ブレーキが熱を持っている」'],
+      go:  ['「バランスを前に振ってくれ。まだ行ける」'],
+      nurseSay: ['「早めに踏んで、冷やしながら走ってくれ」'],
+      pit: ['「入ってくれ。ダクトを開けて見る」'],
+      quit:['「ブレーキは賭けにできない。降ろそう」'] },
+    { key: 'floor', name: 'フロアを削った', icon: '🪶', cat: 'aero',
+      loss: 0.55, grow: 0.03, dnf: 0.0008, fix: 0.55, nurse: 0.70,
+      drv: ['「縁石でフロアを打った。リアの座りが悪い」',
+            '「高速コーナーで抜ける。床をやったかもしれない」',
+            '「ダウンフォースが足りない。何か落ちている」'],
+      go:  ['「そのままで行こう。順位は守れる」'],
+      nurseSay: ['「縁石には乗るな。丁寧に運んでくれ」'],
+      pit: ['「入ってくれ。フロントを一枚起こして釣り合いを取る」'],
+      quit:['「これ以上は無駄だ。降ろそう」'] },
+    { key: 'power', name: 'パワーが出ていない', icon: '⚙️', cat: 'pu',
+      loss: 0.50, grow: 0.07, dnf: 0.0070, fix: null, nurse: 0.40,
+      drv: ['「パワーが出ていない。上まで回っていない」',
+            '「エンジンが苦しそうだ。振動もある」',
+            '「ストレートで伸びない。何か抱えている」'],
+      go:  ['「温度は見ている。モードを落として続けてくれ」'],
+      nurseSay: ['「出力を絞る。持たせることを優先しよう」'],
+      pit: [],
+      quit:['「これ以上回すと1基まるごと失う。降ろそう」'] }
+  ];
+  /* 不具合が出るまでの1周あたりの確率。
+     どれだけ整えていても、機械である以上いくらかは出る（base）。
+     そこに、信頼性の低さぶんが乗る（rel）                       */
+  const TROUBLE_RATE = { base: 0.0016, rel: 0.020 };
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -4373,9 +4486,9 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -5778,6 +5891,7 @@ GP.state = (function () {
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
     return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
                + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0)
+               + crewEff(g2).fore
                + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
   function wetSkillOf(d) {
@@ -5838,12 +5952,36 @@ GP.state = (function () {
     const k = (g2.logi && g2.logi.load) || 'std';
     return D.LOGI_LOADS.find(l => l.key === k) || D.LOGI_LOADS[1];
   }
+  /* 遠征の編成。誰を現地へ連れて行くか */
+  function logiCrew(g2) {
+    const k = (g2.logi && g2.logi.party) || 'std';
+    return D.LOGI_CREWS.filter(c => c.key === k)[0] || D.LOGI_CREWS[1];
+  }
+  /* ファクトリーに残った分析チームが、回線の向こうから加わっているか */
+  function hasMission(g2) { return hasGear(g2, 'factory', 'mission'); }
+  /* 遠征の編成が、現場の力にどれだけ効いているか。
+     人を減らして薄くなったぶんは、ミッションコントロールが埋め戻す */
+  function crewEff(g2) {
+    const c = logiCrew(g2);
+    const M = D.MISSION;
+    const mission = hasMission(g2);
+    // 薄くなったぶん（マイナス）は本国からの支援で戻る。厚くしたぶんはそのまま
+    const cover = v => (v < 0 && mission) ? v * (1 - M.leanCover) : v;
+    return {
+      pit:  cover(c.pit),
+      read: cover(c.read) + (mission ? M.read : 0),
+      fore: cover(c.fore) + (mission ? M.fore : 0),
+      fatigue: c.fatigue + (mission && c.key === 'lean' ? M.fatigue : 0),
+      mission: mission
+    };
+  }
   /* 1戦ぶんの輸送費。遠いコースほど高く、積むほど高い */
   function logiCost(g2, track) {
     const far = (track && track.far) || 1;
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
     return perkPrice(g2, 'logi',
-      Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut)));
+      Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost
+                 * logiCrew(g2).cost * (1 - cut)));
   }
   /* 荷が遅れる確率。遠いコースほど、そして安く運ぶほど高い。
      ロジスティクス責任者がいると、通関も現地手配も段取りよく進む     */
@@ -6025,7 +6163,9 @@ GP.state = (function () {
   function designPower(g2){ return org(g2).dept.designer; }
   function pitPower(g2)   { return org(g2).dept.mechanic; }
   function readPower(g2)  { const o = org(g2);
-    return (o.dept.strategist + kitEff(g2, 'wall', 'read')) * o.dataMul; }
+    // 現地のピットウォールと、本国の分析チームを足したもの
+    return Math.max(0, (o.dept.strategist + kitEff(g2, 'wall', 'read') + crewEff(g2).read))
+           * o.dataMul; }
   function trainPower(g2) { const o = org(g2); return o.dept.trainer * o.dataMul; }
   function analystPower(g2){ return org(g2).dept.analyst; }
 
@@ -6045,8 +6185,8 @@ GP.state = (function () {
      ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
      腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
   function pitCrew(g2) {
-    const skill = (g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5)
-                * rigMul(g2, 'pit');
+    const skill = Math.max(0, g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5
+                             + crewEff(g2).pit) * rigMul(g2, 'pit');
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
     const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
@@ -6065,7 +6205,7 @@ GP.state = (function () {
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
     // 座って休める場所があるだけで、溜まりかたが変わる
     const rest = (hasGear(g2, 'pit', 'rest') ? 0.85 : 1) * (1 - kitEff(g2, 'home', 'crew'));
-    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
+    const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue + crewEff(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
@@ -7143,7 +7283,7 @@ GP.state = (function () {
     relCare, relCut, partCondAvg,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCrew, crewEff, hasMission, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -7431,6 +7571,13 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- ピットで手当てしたあと --- */
+    fixed: ['「見た目は良くなった。数字も戻っている。行けるはずだ」',
+            '「手は入れた。これで少しは楽になる」',
+            '「応急だが押さえた。あとは君の腕次第だ」'],
+    fixedBack: ['「だいぶマシだ。これなら走れる」',
+                '「了解、感触が戻った」',
+                '「まだ違和感はあるが、さっきよりずっといい」'],
     /* --- 「順位より、持って帰ってくれ」--- */
     cool: ['「ここは無理をするな。順位は守れればいい」',
            '「ここからは車を労わってくれ。まとめて持ち帰ろう」',
@@ -7611,6 +7758,8 @@ GP.race = (function () {
        濡れた路面や、車に傷を負ったあと、あるいは前後が離れていて
        走りきるだけでよいときは、順位より完走を取る。
        慎重なドライバーほど、ここに入りやすい                       */
+    // 不具合を抱えて運んでいる車は、そのあいだずっと安全第一
+    if (e.trouble && !e.trouble.done && e.trouble.act === 'nurse') return 'cool';
     {
       const careV = S.careOf(e.driver);
       const alone = (gapA == null || gapA > 4.5) && (gapB == null || gapB > 4.5);
@@ -7647,6 +7796,43 @@ GP.race = (function () {
     return 'hold';
   }
   const orderOf = k => D.ORDERS.find(o => o.key === k) || D.ORDERS[1];
+
+  /* ---------- 不具合が出たときの判断 ----------
+     走り切るか、抑えて運ぶか、ピットで手当てするか、降ろすか。
+     残り周回・いまの順位・悪化の速さ・止まる確率を、そのまま秤にかける。
+     読みの利くピットウォールほど、正しいほうを選べる            */
+  function decideTrouble(e, def, lap, laps, pos, pitLoss, read) {
+    const left = Math.max(1, laps - lap);
+    // このまま行ったら、残りで何秒失うか
+    const keepLoss = def.loss * left + def.grow * left * (left + 1) / 2;
+    // このまま行ったら、どれだけの確率で止まるか
+    const keepDnf = 1 - Math.pow(1 - def.dnf * (1 + left * 0.05), left);
+    // 抑えて運んだ場合
+    const nurseLoss = keepLoss * (0.55 + def.nurse * 0.45) + left * 0.55;
+    const nurseDnf = 1 - Math.pow(1 - def.dnf * def.nurse * (1 + left * 0.05), left);
+    // 順位の価値。上位ほど、失うものが大きい
+    const worth = Math.max(0, (D.POINTS[pos - 1] || 0));
+    const secPerPt = 3.2;                    // 1ポイントを何秒ぶんと見るか
+    const cost = (lossSec, dnfP) => lossSec + dnfP * (worth * secPerPt + 45);
+    const cand = [
+      { key: 'go',    v: cost(keepLoss, keepDnf) },
+      { key: 'nurse', v: cost(nurseLoss, nurseDnf) }
+    ];
+    // 入って手当てするには、走る周が残っていないと意味がない
+    if (def.fix != null && left >= 3) {
+      const after = keepLoss * def.fix;
+      cand.push({ key: 'pit', v: cost(after + pitLoss, keepDnf * def.fix) });
+    }
+    /* 降ろす。順位は捨てるが、部品も修理代も守れる。
+       どうせ止まる見込みか、現場では手の打ちようがないときだけ考える */
+    if ((keepDnf >= 0.32 || def.fix == null) && left >= 2) {
+      cand.push({ key: 'retire', v: worth * secPerPt + 58 - (def.dnf > 0.006 ? 26 : 0) });
+    }
+    cand.sort((a, b) => a.v - b.v);
+    // 読みが浅いほど、最善を外す
+    const sure = Math.min(0.94, 0.42 + read * 0.16);
+    return Math.random() < sure ? cand[0].key : S.pick(cand).key;
+  }
 
   /* その周に、自チームのドライバーとどんなやりとりがあったか。
      優先度の高い出来事から1件だけ拾い、なければ何周かに一度だけ
@@ -7731,6 +7917,27 @@ GP.race = (function () {
         push(RADIO.aqua, 'pit', true);
         push(RADIO.aquaBack, 'drv', true);
         e.radioCool = 4;
+        return;
+      }
+      if (e.radioTrouble === lap) {                     // 不具合を訴えた
+        e.radioTrouble = -1;
+        const tb = e.trouble;
+        if (tb) {
+          push(tb.def.drv, 'drv', true);
+          const reply = tb.act === 'pit' ? (tb.def.pit.length ? tb.def.pit : tb.def.go)
+                      : tb.act === 'nurse' ? tb.def.nurseSay
+                      : tb.act === 'retire' ? tb.def.quit
+                      : tb.def.go;
+          push(reply, 'pit', true);
+          e.radioCool = 3;
+          return;
+        }
+      }
+      if (e.radioFixed === lap) {                       // ピットで手当てした
+        e.radioFixed = -1;
+        push(RADIO.fixed, 'pit', true);
+        push(RADIO.fixedBack, 'drv', true);
+        e.radioCool = 3;
         return;
       }
       if (e.radioSpin === lap) {                        // スピンした
@@ -8483,6 +8690,15 @@ GP.race = (function () {
         // 雨に強い人は、濡れた路面そのものでも速い
         t *= 1 - e.wetSkill * wx.level * 0.012;
 
+        /* 抱えている不具合のぶん。放っておくほど広がっていく。
+           抑えて運べば広がりは遅くなるが、そのぶんペースも落ちる */
+        if (e.trouble && !e.trouble.done) {
+          const tb = e.trouble;
+          t += tb.loss;
+          tb.loss += tb.def.grow * (tb.act === 'nurse' ? tb.def.nurse : 1);
+          tb.laps = (tb.laps || 0) + 1;
+        }
+
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
         // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
@@ -8825,10 +9041,74 @@ GP.race = (function () {
         }
       }
 
+      /* ---- マシンの不具合 ----
+         いきなり止まる前に、たいていは「様子がおかしい」時間がある。
+         ドライバーが訴え、ピットウォールが決める                */
+      order.forEach(e => {
+        if (e.dnf || lap < 2 || lap >= laps) return;
+        if (e.trouble && !e.trouble.done) {
+          const tb = e.trouble;
+          // ピットで手当てすることにしていた車は、そこで軽くなる
+          if (tb.act === 'pit' && tb.fixAt === lap) {
+            tb.loss *= tb.def.fix;
+            if (tb.loss < 0.08) { tb.done = true; }
+            tb.act = 'nurse';
+            if (e.isPlayer) e.radioFixed = lap;
+          }
+          // 放っておくほど、止まる確率が上がる
+          const risk = tb.def.dnf * (tb.act === 'nurse' ? tb.def.nurse : 1)
+                     * (1 + (tb.laps || 0) * 0.05)
+                     * (e.sk('feeler') ? 0.55 : 1);
+          if (tb.act === 'retire' && lap >= tb.from + 1) {
+            e.dnf = true; e.dnfLap = lap;
+            e.dnfReason = tb.def.name + '（チームがマシンを降ろした）';
+            e.retired = true;
+            events.push({ lap: lap, type: 'dnf', car: e,
+              text: '🏳️ ' + e.driver.name + ' はピットへ。' + tb.def.name +
+                    'を抱えたまま走らせず、チームがマシンを降ろした' });
+            return;
+          }
+          if (Math.random() < risk) {
+            e.dnf = true; e.dnfLap = lap; e.dnfReason = tb.def.name;
+            events.push({ lap: lap, type: 'dnf', car: e,
+              text: say(SAY.dnfMech, { A: e.driver.name, B: tb.def.name, C: lm(track) }) });
+            return;
+          }
+        } else if (!e.trouble) {
+          // 信頼性が低いほど、荒れるコースほど、不具合は出る
+          const rate = (D.TROUBLE_RATE.base + (100 - e.rel) / 100 * D.TROUBLE_RATE.rel)
+                     * track.risk * (e.sk('feeler') ? 0.55 : 1);
+          if (Math.random() < rate) {
+            // どこに出るかは、いちばん傷んでいる部位に寄せる
+            const pool = D.TROUBLES.filter(x => x.cat === e.weakCat);
+            const def = (pool.length && Math.random() < 0.55) ? S.pick(pool) : S.pick(D.TROUBLES);
+            const pos = Math.max(1, order.filter(x => !x.dnf)
+              .sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]).indexOf(e) + 1);
+            const read = e.isPlayer ? S.readPower(g) : 1.0;
+            const act = decideTrouble(e, def, lap, laps, pos, e.pitLoss || 22, read);
+            // act は手当てのあとで変わるので、最初の判断も残しておく
+            e.trouble = { def: def, from: lap, loss: def.loss, act: act, act0: act, laps: 0 };
+            if (act === 'pit') {
+              const at = Math.min(laps - 1, lap + 1);
+              e.pitPlan = e.pitPlan.filter(l => l !== at).concat([at]).sort((a, b) => a - b);
+              e.trouble.fixAt = at;
+            }
+            if (e.isPlayer) e.radioTrouble = lap;
+            events.push({ lap: lap, type: 'miss', car: e,
+              text: def.icon + ' ' + e.driver.name + ' が' + def.name + 'を訴えている' +
+                    '（1周 -' + def.loss.toFixed(1) + '秒' +
+                    (act === 'pit' ? '／ピットで手当てへ'
+                     : act === 'nurse' ? '／抑えて運ぶ'
+                     : act === 'retire' ? '／降ろす判断' : '／このまま行く') + '）' });
+          }
+        }
+      });
+
       // リタイア判定
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
-        const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
+        // 不具合を抱えている車の「いきなり止まる」ぶんは、上で見ている
+        const mech = (100 - e.rel) / 100 * 0.0022 * 0.40 * track.risk * (e.sk('feeler') ? 0.55 : 1);
         /* クラッシュは「腕」ではなく「まとめる力」で決まる。
            速い人が壊さないとは限らない、というのがこのゲームの取引。
            ピットの指示（安全第一〜プッシュ）も、そのまま危うさに乗る */
@@ -20657,11 +20937,12 @@ window.GP = window.GP || {};
     g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
     const curLoad = S.logiLoad(g);
     // 選択肢を試したときの数字を、実際の関数から出す
-    const withChoice = (plan, load, fn) => {
-      const bp = g.logi.plan, bl = g.logi.load;
+    const withChoice = (plan, load, fn, party) => {
+      const bp = g.logi.plan, bl = g.logi.load, bt = g.logi.party;
       g.logi.plan = plan; g.logi.load = load;
+      if (party) g.logi.party = party;
       const v = fn();
-      g.logi.plan = bp; g.logi.load = bl;
+      g.logi.plan = bp; g.logi.load = bl; g.logi.party = bt;
       return v;
     };
     const nowCost = S.logiCost(g, nextTrack);
@@ -20720,6 +21001,43 @@ window.GP = window.GP || {};
     });
     body += '</div>';
 
+    // ---- 遠征の編成 ----
+    {
+      const curP = S.logiCrew(g);
+      const mission = S.hasMission(g);
+      body += '<div class="sub">遠征の編成</div>' +
+        '<p class="desc">誰を現地へ連れて行くか。部署ごと運べばピットもピットウォールも厚くなりますが、' +
+        '旅費がかさみ、全員が消耗します。<br>' +
+        (mission
+          ? '🛰️ <b>ミッションコントロール室</b>があるので、本国に残った分析チームが' +
+            '回線の向こうからレースに加わります（作戦の読み +' + D.MISSION.read.toFixed(2) +
+            '／天候 +' + Math.round(D.MISSION.fore * 100) + '%）。' +
+            '人を減らして薄くなったぶんも ' + Math.round(D.MISSION.leanCover * 100) + '% 埋め戻します。'
+          : '本国に残した人間は、いまはレースに関われません。' +
+            '「🏭 施設 → ファクトリー」の <b>🛰️ ミッションコントロール室</b>を入れると、' +
+            '残った分析チームが回線の向こうからレースに加わります。') +
+        '</p><div class="pick">';
+      D.LOGI_CREWS.forEach(pt => {
+        const cost = withChoice(g.logi.plan, g.logi.load, () => S.logiCost(g, nextTrack), pt.key);
+        const eff = withChoice(g.logi.plan, g.logi.load, () => S.crewEff(g), pt.key);
+        const stand = withChoice(g.logi.plan, g.logi.load, () => S.pitCrew(g).stand, pt.key);
+        const read = withChoice(g.logi.plan, g.logi.load, () => S.readPower(g), pt.key);
+        const on = pt.key === curP.key;
+        const poor = !on && cost > g.funds;
+        body += '<button class="pickbtn' + (on ? ' on' : '') + (poor ? ' done' : '') +
+          '" data-k="party:' + pt.key + '"' + (poor ? ' disabled' : '') + '>' +
+          '<span class="pb-ic" style="background:' + pt.color + '">' + pt.icon + '</span>' +
+          '<span class="pb-body"><b>' + pt.name + (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + pt.desc + '<br>' +
+          'ピット静止 <b>' + stand.toFixed(2) + '秒</b>／作戦の読み <b>' + read.toFixed(2) + '</b>' +
+          '／クルーの疲労 ' + (eff.fatigue > 0 ? '+' + eff.fatigue : eff.fatigue) +
+          (poor ? '<br><b class="warn">いまの資金では組めません</b>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">💰' + money(cost) + '<br><b>' + esc(pt.note) + '</b></span></button>';
+      });
+      body += '</div>';
+    }
+
     // ---- この先のコースと、かかる費用の見通し ----
     body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
     for (let k = 0; k < 4; k++) {
@@ -20739,11 +21057,13 @@ window.GP = window.GP || {};
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
-      g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
-      const bp = g.logi.plan, bl = g.logi.load;
-      if (kind === 'logi') g.logi.plan = key; else g.logi.load = key;
+      g.logi = g.logi || { plan: 'std', load: 'std', party: 'std', crew: 0 };
+      const bp = g.logi.plan, bl = g.logi.load, bt = g.logi.party;
+      if (kind === 'logi') g.logi.plan = key;
+      else if (kind === 'party') g.logi.party = key;
+      else g.logi.load = key;
       if (S.logiCost(g, nextTrack) > g.funds) {   // 払えないものは結べない
-        g.logi.plan = bp; g.logi.load = bl;
+        g.logi.plan = bp; g.logi.load = bl; g.logi.party = bt;
         return U.toast('その手配は資金が足りません', 'bad');
       }
       if (kind === 'logi') {
