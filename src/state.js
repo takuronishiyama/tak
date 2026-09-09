@@ -1215,7 +1215,8 @@ GP.state = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
-      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc;
+      // ギアボックスのように、そもそも消耗の速い部位がある
+      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc * (c.wear || 1);
       p.cond = clamp(p.cond - w, 5, 100);
     });
   }
@@ -1999,6 +2000,15 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
+      if (g.equipped) {
+        D.PART_CATS.forEach(c => {
+          if (g.equipped[c.key]) return;
+          const cap = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g.carGen || 0)].cap;
+          g.equipped[c.key] = makePart(c.key, g.carGen || 0, 1,
+            { power: Math.round(cap * 0.25), cond: 88, traits: [] });
+        });
+      }
       g.onGrid = false; g.gridOrder = null;   // グリッド散策の途中では再開しない
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;

@@ -2525,6 +2525,17 @@ GP.data = (function () {
         '磁性流体で減衰力を可変に。路面の入力ごとに、1ミリ秒単位で硬さを切り替える',
         'リニアアクチュエータで4輪を独立制御。もはや「ばね」ではなく、姿勢そのものを作りにいく'
       ] },
+    { key: 'gear',  name: 'ギアボックス', icon: '🔀', color: '#2ea6a0',
+      gain: { speed: 0.20, corner: 0.05, accel: 0.75 }, cost: 270, rp: 5, wear: 1.45,
+      names: ['5速マニュアル', '6速ドグミッション', 'セミオートマ', 'シームレスシフト', '電動シームレスAT', '無段変速ドライブ'],
+      notes: [
+        'Hパターンを手で送る。シフトのたびに駆動が切れ、そのぶん前に進めない時間が生まれる',
+        'ドグクラッチで噛み合わせを直結。半クラを使わず叩き込めるので、変速時間が半分になった',
+        '油圧アクチュエータをステアリングのパドルで叩く。踏みっぱなしのまま段が上がる',
+        '次の段を先に噛ませてから前の段を抜く。駆動が途切れる瞬間そのものがなくなった',
+        'モーターで段間のトルクを埋める。変速中も後輪は押し続け、加速の線が折れない',
+        '段という概念を捨てた。エンジンは最良の回転を保ったまま、車速だけが伸びていく'
+      ] },
     { key: 'elec',  name: 'エレクトロニクス', icon: '💡', color: '#f0a020',
       gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'],
@@ -4982,7 +4993,8 @@ GP.state = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
-      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc;
+      // ギアボックスのように、そもそも消耗の速い部位がある
+      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc * (c.wear || 1);
       p.cond = clamp(p.cond - w, 5, 100);
     });
   }
@@ -5766,6 +5778,15 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
+      if (g.equipped) {
+        D.PART_CATS.forEach(c => {
+          if (g.equipped[c.key]) return;
+          const cap = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g.carGen || 0)].cap;
+          g.equipped[c.key] = makePart(c.key, g.carGen || 0, 1,
+            { power: Math.round(cap * 0.25), cond: 88, traits: [] });
+        });
+      }
       g.onGrid = false; g.gridOrder = null;   // グリッド散策の途中では再開しない
       if (g.body) {
         const min = Math.round(D.CAR_GENS[g.carGen].cap * D.BODY_CAP_RATIO * 0.15 * 10) / 10;
@@ -6430,6 +6451,9 @@ GP.race = (function () {
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
+          // いちばん傷んでいる部位（壊れたときの理由に使う）
+          weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) =>
+            ((g.equipped[a.key] || {}).cond || 100) - ((g.equipped[b.key] || {}).cond || 100))[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
@@ -6458,6 +6482,11 @@ GP.race = (function () {
   /* ライバルの車体はこのくらい仕上がっている、という基準。
      プレイヤーの車体効果はすべてここを 0 として増減する */
   const RIVAL_BODY_REF = 0.40;
+  /* いちばん傷んでいた部位から、壊れかたを決める */
+  const MECH_BY_CAT = {
+    pu:   'エンジンブロー', gear: 'ギアボックストラブル', elec: '電装系トラブル',
+    susp: 'サスペンション破損', chas: '油圧系トラブル', aero: 'フロアの破損'
+  };
 
   const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
 
@@ -7282,7 +7311,11 @@ GP.race = (function () {
                       * (e.sk('heart') ? 0.40 : 1);
         const r = Math.random();
         if (r < mech) {
-          e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
+          // どこが壊れたかは、いちばん傷んでいる部位に寄せる。
+          // 「ギアボックスが限界だった」と、あとから納得できるように
+          e.dnf = true; e.dnfLap = lap;
+          e.dnfReason = e.weakCat ? MECH_BY_CAT[e.weakCat]
+                      : S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
           events.push({ lap, type: 'dnf', car: e,
             text: say(SAY.dnfMech, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
         } else if (r < mech + crash) {

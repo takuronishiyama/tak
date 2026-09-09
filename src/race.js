@@ -620,6 +620,9 @@ GP.race = (function () {
           tyrePlan: t.isPlayer ? (strategy['tbias_' + d.id] == null ? 1
                                   : parseInt(strategy['tbias_' + d.id], 10)) : null,
           rel: t.rel,
+          // いちばん傷んでいる部位（壊れたときの理由に使う）
+          weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) =>
+            ((g.equipped[a.key] || {}).cond || 100) - ((g.equipped[b.key] || {}).cond || 100))[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
           lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
@@ -648,6 +651,11 @@ GP.race = (function () {
   /* ライバルの車体はこのくらい仕上がっている、という基準。
      プレイヤーの車体効果はすべてここを 0 として増減する */
   const RIVAL_BODY_REF = 0.40;
+  /* いちばん傷んでいた部位から、壊れかたを決める */
+  const MECH_BY_CAT = {
+    pu:   'エンジンブロー', gear: 'ギアボックストラブル', elec: '電装系トラブル',
+    susp: 'サスペンション破損', chas: '油圧系トラブル', aero: 'フロアの破損'
+  };
 
   const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
 
@@ -1472,7 +1480,11 @@ GP.race = (function () {
                       * (e.sk('heart') ? 0.40 : 1);
         const r = Math.random();
         if (r < mech) {
-          e.dnf = true; e.dnfLap = lap; e.dnfReason = S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
+          // どこが壊れたかは、いちばん傷んでいる部位に寄せる。
+          // 「ギアボックスが限界だった」と、あとから納得できるように
+          e.dnf = true; e.dnfLap = lap;
+          e.dnfReason = e.weakCat ? MECH_BY_CAT[e.weakCat]
+                      : S.pick(['エンジンブロー', 'ギアボックストラブル', '油圧系トラブル', 'MGU-K故障', 'ブレーキトラブル']);
           events.push({ lap, type: 'dnf', car: e,
             text: say(SAY.dnfMech, { A: e.driver.name, B: e.dnfReason, C: lm(track) }) });
         } else if (r < mech + crash) {
