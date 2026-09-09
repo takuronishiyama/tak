@@ -44,21 +44,18 @@ window.GP = window.GP || {};
     g.tdLog = [];
     tds.forEach(t => {
       if (t.mine) {
-        const where = t.body
-          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
-          : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
-        U.log(g, '⚖️ FIA が「' + t.what + '」に裁定を出した（' + t.why + '）。' +
-          where + ' の性能 -' + t.lost.toFixed(1) +
-          (t.rarDown ? '／パーツの格も1段下がった' : '') +
-          '。ばらして解析したぶん 研究P +' + t.rp, 'bad');
+        U.log(g, '⚖️ 「' + t.what + '」について FIA から照会があったが（' + t.why +
+          '）、オーナーの顔が利いて不問に付された。', 'good');
+        U.toast('⚖️ 「' + t.what + '」は不問に', 'good');
+      } else if (t.dismissed) {
+        U.log(g, '⚖️ ' + t.team + ' の「' + t.what + '」に照会（' + t.why +
+          '）。しかし不問に付され、そのまま使い続ける。', 'warn');
       } else {
         U.log(g, '⚖️ FIA が ' + t.team + ' の「' + t.what + '」に裁定（' + t.why +
           '）。次戦から使えなくなり、1周あたり約 ' + t.sec.toFixed(2) + '秒 を失った', 'good');
+        U.toast('⚖️ ' + t.team + '「' + t.what + '」が使用禁止に', 'good');
       }
     });
-    const myTd = tds.filter(t => t.mine);
-    if (myTd.length) announceTD(myTd);
-    else if (tds.length) U.toast('⚖️ ' + tds[0].team + '「' + tds[0].what + '」が使用禁止に', 'good');
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -82,6 +79,8 @@ window.GP = window.GP || {};
     S.save(g);
     render();
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
+    // 審議が来ていれば、その週はそれが出来事になる
+    if ((g.tdPending || []).length) return askDirective();
     // 週の終わりの出来事。選ばせるものが出なければ、流れるものを1つ
     if (!choiceEvent()) randomEvent();
   }
@@ -2114,10 +2113,16 @@ window.GP = window.GP || {};
           esc(c.what) + '<i>' + esc(where) + (c.rarUp ? '・格上げ' : '') +
           (young ? '・審査前' : '') + '</i></span>';
       }).join('') + '</div>' +
+      '<div class="orgnote">' +
+        '<span>🤝 照会のまま不問になる <b>' + Math.round(S.tdDismiss(g) * 100) + '%</b>' +
+          '（交渉術・知名度）</span>' +
+        '<span>⚖️ 提訴が通る <b>' + Math.round(S.tdAppeal(g) * 100) + '%</b>' +
+          '（交渉術・技術眼・アナリスト）</span>' +
+      '</div>' +
       '<small>規則が新しいうちほど覆されやすく、' +
       '<b>首位のチームのものは他所から突かれやすい</b>（危険度2倍）。' +
-      'アナリストが厚いほど規則を読み込めるので、危ない橋を避けられます。' +
-      '取り上げられても、ばらして解析したぶんは研究Pとして残ります。</small></div>';
+      '照会が来たら、受け入れるか、費用を払って提訴するかを選びます。' +
+      '提訴が通れば、その件で二度と問われません。</small></div>';
   }
 
   /* ---- 規則の新しさ ----
@@ -3469,27 +3474,66 @@ window.GP = window.GP || {};
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
-  /* ---- 自チームへの裁定 ----
-     掘り当てたものを取り上げられるのは、ひとことで流すには重すぎる  */
-  function announceTD(list) {
-    GP.sound.play('dnf');
-    const rows = list.map(t => {
-      const where = t.body
-        ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
-        : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
-      return '<div><b>' + esc(t.what) + '</b><small>' + esc(t.why) + '<br>' +
-        esc(where) + ' の性能 <b class="bad">-' + t.lost.toFixed(1) + '</b>' +
-        (t.rarDown ? '／パーツの格も1段下がりました' : '') +
-        '<br>ばらして解析したぶん 研究P <b>+' + t.rp + '</b></small></div>';
-    }).join('');
-    U.modal('⚖️ テクニカルディレクティブ',
-      '<p class="lead">FIA が裁定を出しました。持ち込んだコンセプトが、次戦から使えません。</p>' +
-      '<div class="rewardbox bad">' + rows + '</div>' +
-      '<p class="desc">規則が新しいうちは、白黒のはっきりしない領域が広く、' +
-      'そこを攻めたものほど、あとから覆されます。アナリストが厚いほど規則を読み込めるので、' +
-      '危ない橋を渡らずに済む確率が上がります。</p>',
-      [{ label: '仕方ない', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
-    U.toast('⚖️ 「' + list[0].what + '」が使用禁止に', 'bad');
+  /* ---- 審議 ----
+     照会を抜けてきた件は、受け入れるか、費用を払って争うかを選ぶ。
+     争って通れば、以後その件で問われることはなくなる              */
+  function askDirective() {
+    const cs = (g.tdPending || [])[0];
+    if (!cs) return;
+    const where = cs.body
+      ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === cs.body) || {}).name || '')
+      : ((D.PART_CATS.find(c => c.key === cs.cat) || {}).name || '');
+    const rp = Math.round(cs.lost * D.TD.refundRp);
+    const canPay = g.funds >= cs.fee;
+    const body =
+      '<p class="lead">FIA が「<b>' + esc(cs.what) + '</b>」の合法性を問うています。</p>' +
+      '<div class="rewardbox"><div><b>' + esc(cs.why) + '</b><small>' +
+        '認められなければ ' + esc(where) + ' の性能 <b>-' + cs.lost.toFixed(1) + '</b>' +
+        (cs.rarUp ? '／パーツの格も1段下がります' : '') + '</small></div></div>' +
+      '<div class="tdopt">' +
+        '<div class="tdo"><b>🤝 受け入れる</b><small>コンセプトを取り下げます。' +
+          'ばらして解析したぶん、研究P <b>+' + rp + '</b> は残ります。</small></div>' +
+        '<div class="tdo' + (canPay ? '' : ' off') + '"><b>⚖️ 提訴する（' + money(cs.fee) + '万）</b>' +
+          '<small>通る見込み <b>' + cs.odds + '%</b>。通れば<b>そのまま使い続けられ、' +
+          'この件で二度と問われません</b>。<br>敗れれば性能は失ったうえ、費用も戻らず、' +
+          '解析するひまもありません（研究Pなし）。' +
+          (canPay ? '' : '<br><b class="warn">資金が足りません。</b>') + '</small></div>' +
+      '</div>' +
+      '<p class="desc">通る見込みは、オーナーの<b>交渉術</b>と<b>技術眼</b>、そして' +
+      'アナリストが積んだ技術的な裏づけで上がります。' +
+      '照会の段階で不問に付されるかどうかは、<b>交渉術</b>と<b>知名度</b>しだいです。</p>';
+    U.modal('⚖️ テクニカルディレクティブ — 審議', body, [
+      { label: '🤝 受け入れる', fn: () => resolveDirective(cs, false) },
+      { label: '⚖️ 提訴する（' + money(cs.fee) + '万）', cls: 'primary',
+        disabled: !canPay, fn: () => resolveDirective(cs, true) }
+    ]);
+    GP.sound.play('light');
+  }
+
+  function resolveDirective(cs, appeal) {
+    const where = cs.body
+      ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === cs.body) || {}).name || '')
+      : ((D.PART_CATS.find(c => c.key === cs.cat) || {}).name || '');
+    const r = appeal ? S.tdAppealNow(g, cs) : S.tdAccept(g, cs);
+    g.tdPending = (g.tdPending || []).slice(1);
+    U.closeModal();
+    if (appeal && r.win) {
+      GP.sound.play('levelup');
+      U.log(g, '⚖️ 提訴が認められた！「' + cs.what + '」はそのまま使える（費用 -' +
+        money(cs.fee) + '万）。この件で問われることはもうない。', 'good');
+      U.toast('⚖️ 提訴が認められた！', 'good');
+      U.pop('⚖️ 不問', 'crit');
+    } else {
+      GP.sound.play('dnf');
+      U.log(g, '⚖️ 「' + cs.what + '」は使用禁止に。' + where + ' の性能 -' + r.lost.toFixed(1) +
+        (r.rarDown ? '／パーツの格も1段下がった' : '') +
+        (appeal ? '（提訴は退けられ、費用 -' + money(cs.fee) + '万）'
+                : '。ばらして解析したぶん 研究P +' + r.rp), 'bad');
+      U.toast('⚖️ 「' + cs.what + '」が使用禁止に', 'bad');
+    }
+    S.save(g); render();
+    // 続けて審議が残っていれば、次の件へ
+    if ((g.tdPending || []).length) setTimeout(askDirective, 500);
   }
 
   /* マシンが次の世代に上がったことを知らせる */

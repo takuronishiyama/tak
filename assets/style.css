@@ -1518,6 +1518,16 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 審議の選択肢 */
+.tdopt{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.tdo{flex:1 1 240px;min-width:220px;padding:7px 9px;border:2px solid var(--ink);border-radius:6px;
+     background:#f6ecc9;color:var(--ink)}
+.tdo b{font-size:11.5px}
+.tdo small{display:block;margin-top:3px;font-size:10px;line-height:1.6;color:var(--ink2)}
+.tdo.off{opacity:.55}
+[data-skin="hd"] .tdo{background:#2f2540;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .tdo small{color:#cbbb9a}
+
 /* 持ち込んでいるコンセプト */
 .cpclist{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .cpc{display:flex;flex-direction:column;gap:1px;padding:3px 7px;font-size:10px;font-weight:bold;

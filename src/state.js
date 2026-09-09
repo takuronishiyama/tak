@@ -773,8 +773,15 @@ GP.state = (function () {
     (g2.rivals || []).forEach(r => {
       const keep = [];
       (r.concepts || []).forEach(c => {
-        if (now - c.at < D.TD.grace ||
+        if (c.safe || now - c.at < D.TD.grace ||
             Math.random() >= tdRisk(g2, r.name === topName, false)) { keep.push(c); return; }
+        // 向こうにも顔の利くオーナーはいる。照会のまま流れることがある
+        if (Math.random() < D.TD.rivalDismiss) {
+          c.safe = true; keep.push(c);
+          out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
+                     why: pick(D.TD.REASONS), mine: false, dismissed: true });
+          return;
+        }
         ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] /= c.mul; });
         out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
                    why: pick(D.TD.REASONS), mine: false });
@@ -782,32 +789,87 @@ GP.state = (function () {
       r.concepts = keep;
     });
     // ---- 自チームのぶん ----
-    const keep = [];
-    (g2.concepts || []).forEach(c => {
-      if (now - c.at < D.TD.grace ||
-          Math.random() >= tdRisk(g2, table.length && table[0].isPlayer, true)) { keep.push(c); return; }
-      let lost = 0;
-      if (c.body) {
-        const v = g2.body[c.body] || 0;
-        lost = Math.min(v - 4, c.gain * 0.85);
-        if (lost > 0) g2.body[c.body] = Math.round((v - lost) * 10) / 10;
-      } else {
+    // ここでは「照会が来た」までを決める。受け入れるか提訴するかは本人が選ぶ
+    const mineTop = !!(table.length && table[0].isPlayer);
+    (g2.concepts || []).forEach((c, i) => {
+      if (c.safe || c.pending || now - c.at < D.TD.grace ||
+          Math.random() >= tdRisk(g2, mineTop, true)) return;
+      if (Math.random() < tdDismiss(g2)) {
+        // オーナーの顔で、照会のまま収まった
+        c.safe = true;
+        out.push({ what: c.what, why: pick(D.TD.REASONS), mine: true, dismissed: true });
+        return;
+      }
+      c.pending = true;
+      g2.tdPending = (g2.tdPending || []).concat([{
+        idx: i, what: c.what, why: pick(D.TD.REASONS),
+        cat: c.cat || null, body: c.body || null, rarUp: !!c.rarUp,
+        lost: Math.round(tdLoss(g2, c) * 10) / 10,
+        fee: tdFee(g2, c), odds: Math.round(tdAppeal(g2) * 100)
+      }]);
+    });
+    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
+  }
+
+  /* 照会が不問に付される確率。オーナーの顔がそのまま効く */
+  function tdDismiss(g2) {
+    return clamp(D.TD.dismissBase + osk(g2, 'nego') * D.TD.dismissNego
+               + osk(g2, 'fame') * D.TD.dismissFame, 0, D.TD.dismissMax);
+  }
+  /* 提訴が通る確率。交渉と技術の裏づけ、両方が要る */
+  function tdAppeal(g2) {
+    return clamp(D.TD.appealBase + osk(g2, 'nego') * D.TD.appealNego
+               + osk(g2, 'eye') * D.TD.appealEye
+               + analystPower(g2) * D.TD.appealAnalyst, D.TD.appealMin, D.TD.appealMax);
+  }
+  /* そのコンセプトを失うと、いくら性能が減るか */
+  function tdLoss(g2, c) {
+    if (c.body) return Math.max(0, Math.min((g2.body[c.body] || 0) - 4, c.gain * 0.85));
+    const p = g2.equipped[c.cat];
+    return p ? Math.max(0, Math.min(p.power - 8, c.gain * 0.85)) : 0;
+  }
+  function tdFee(g2, c) {
+    return Math.round(D.TD.feeBase + tdLoss(g2, c) * D.TD.feePerLost
+                    + (g2.season || 1) * D.TD.feePerSeason);
+  }
+  /* 受け入れる：そのコンセプトを失う。解析したぶんは研究Pに残る。
+     争って敗れた場合は、ばらして調べるひまもないので残らない       */
+  function tdAccept(g2, cs, noRefund) {
+    const c = (g2.concepts || [])[cs.idx];
+    const lost = c ? tdLoss(g2, c) : 0;
+    if (c) {
+      if (c.body) g2.body[c.body] = Math.round(((g2.body[c.body] || 0) - lost) * 10) / 10;
+      else {
         const p = g2.equipped[c.cat];
         if (p) {
           if (c.rarUp && p.rarity > 1) p.rarity--;
-          lost = Math.min(p.power - 8, c.gain * 0.85);
-          if (lost > 0) p.power = Math.round((p.power - lost) * 10) / 10;
+          p.power = Math.round((p.power - lost) * 10) / 10;
         }
       }
-      const rp = Math.round(Math.max(0, lost) * D.TD.refundRp);
-      g2.rp += rp;
-      out.push({ team: null, what: c.what, why: pick(D.TD.REASONS), mine: true,
-                 cat: c.cat, body: c.body || null,
-                 lost: Math.round(Math.max(0, lost) * 10) / 10,
-                 rarDown: !!c.rarUp, rp: rp });
-    });
-    g2.concepts = keep;
-    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
+    }
+    const rp = noRefund ? 0 : Math.round(lost * D.TD.refundRp);
+    g2.rp += rp;
+    g2.concepts = (g2.concepts || []).filter((x, i) => i !== cs.idx);
+    reindexPending(g2, cs.idx);
+    return { lost: Math.round(lost * 10) / 10, rp: rp, rarDown: !!(c && c.rarUp) };
+  }
+  /* 提訴する：費用を払って争う。通れば以後その件では問われない */
+  function tdAppealNow(g2, cs) {
+    g2.funds -= cs.fee;
+    const win = Math.random() < tdAppeal(g2);
+    const c = (g2.concepts || [])[cs.idx];
+    if (win) {
+      if (c) { c.pending = false; c.safe = true; }
+      return { win: true, fee: cs.fee };
+    }
+    const r = tdAccept(g2, cs, true);   // 弁護に使ったぶん、知見は残らない
+    r.win = false; r.fee = cs.fee;
+    return r;
+  }
+  /* 1件処理したら、後ろに控えている件の指す番号をずらす */
+  function reindexPending(g2, removed) {
+    g2.tdPending = (g2.tdPending || []).map(x =>
+      x.idx > removed ? Object.assign({}, x, { idx: x.idx - 1 }) : x);
   }
 
   /* ---------- 路面を読む力・濡れた路面での強さ ----------
@@ -1864,7 +1926,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, weekStamp, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,

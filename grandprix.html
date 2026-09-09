@@ -1533,6 +1533,16 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 審議の選択肢 */
+.tdopt{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.tdo{flex:1 1 240px;min-width:220px;padding:7px 9px;border:2px solid var(--ink);border-radius:6px;
+     background:#f6ecc9;color:var(--ink)}
+.tdo b{font-size:11.5px}
+.tdo small{display:block;margin-top:3px;font-size:10px;line-height:1.6;color:var(--ink2)}
+.tdo.off{opacity:.55}
+[data-skin="hd"] .tdo{background:#2f2540;border-color:#5b4a74;color:#efe4cf}
+[data-skin="hd"] .tdo small{color:#cbbb9a}
+
 /* 持ち込んでいるコンセプト */
 .cpclist{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .cpc{display:flex;flex-direction:column;gap:1px;padding:3px 7px;font-size:10px;font-weight:bold;
@@ -3156,6 +3166,21 @@ GP.data = (function () {
     grace: 5,             // 投入からこの週数は、まだ裁定されない
     readShield: 0.055,    // アナリストの厚み1あたり、危ない橋を避けられる割合
     refundRp: 0.45,       // 失ったぶんのいくらかは、知見として研究Pに残る
+    /* ---- 照会と聴聞 ----
+       裁定はいきなり決まるわけではない。まず照会があり、そこで
+       オーナーの顔が利けば不問に付される。そこを抜けたら、
+       受け入れるか、費用を払って提訴するかを選ぶ                */
+    dismissBase: 0.06,    // 何もなくても、照会のまま流れることがある割合
+    dismissNego: 0.05,    // 交渉術1あたり
+    dismissFame: 0.03,    // 知名度1あたり
+    dismissMax: 0.45,
+    appealBase: 0.20,     // 提訴が通る基礎確率
+    appealNego: 0.055,    // 交渉術1あたり
+    appealEye:  0.030,    // 技術眼1あたり
+    appealAnalyst: 0.012, // アナリストの厚み1あたり（技術的な裏づけ）
+    appealMax: 0.80, appealMin: 0.10,
+    feeBase: 600, feePerLost: 90, feePerSeason: 120,
+    rivalDismiss: 0.18,   // ライバルの照会が不問に付される割合
     REASONS: [
       '可動空力部品にあたる', '車体寸法の許容を外れている',
       'テストの手順に沿っていない', '想定していない気流処理だと判断された',
@@ -4230,8 +4255,15 @@ GP.state = (function () {
     (g2.rivals || []).forEach(r => {
       const keep = [];
       (r.concepts || []).forEach(c => {
-        if (now - c.at < D.TD.grace ||
+        if (c.safe || now - c.at < D.TD.grace ||
             Math.random() >= tdRisk(g2, r.name === topName, false)) { keep.push(c); return; }
+        // 向こうにも顔の利くオーナーはいる。照会のまま流れることがある
+        if (Math.random() < D.TD.rivalDismiss) {
+          c.safe = true; keep.push(c);
+          out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
+                     why: pick(D.TD.REASONS), mine: false, dismissed: true });
+          return;
+        }
         ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] /= c.mul; });
         out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
                    why: pick(D.TD.REASONS), mine: false });
@@ -4239,32 +4271,87 @@ GP.state = (function () {
       r.concepts = keep;
     });
     // ---- 自チームのぶん ----
-    const keep = [];
-    (g2.concepts || []).forEach(c => {
-      if (now - c.at < D.TD.grace ||
-          Math.random() >= tdRisk(g2, table.length && table[0].isPlayer, true)) { keep.push(c); return; }
-      let lost = 0;
-      if (c.body) {
-        const v = g2.body[c.body] || 0;
-        lost = Math.min(v - 4, c.gain * 0.85);
-        if (lost > 0) g2.body[c.body] = Math.round((v - lost) * 10) / 10;
-      } else {
+    // ここでは「照会が来た」までを決める。受け入れるか提訴するかは本人が選ぶ
+    const mineTop = !!(table.length && table[0].isPlayer);
+    (g2.concepts || []).forEach((c, i) => {
+      if (c.safe || c.pending || now - c.at < D.TD.grace ||
+          Math.random() >= tdRisk(g2, mineTop, true)) return;
+      if (Math.random() < tdDismiss(g2)) {
+        // オーナーの顔で、照会のまま収まった
+        c.safe = true;
+        out.push({ what: c.what, why: pick(D.TD.REASONS), mine: true, dismissed: true });
+        return;
+      }
+      c.pending = true;
+      g2.tdPending = (g2.tdPending || []).concat([{
+        idx: i, what: c.what, why: pick(D.TD.REASONS),
+        cat: c.cat || null, body: c.body || null, rarUp: !!c.rarUp,
+        lost: Math.round(tdLoss(g2, c) * 10) / 10,
+        fee: tdFee(g2, c), odds: Math.round(tdAppeal(g2) * 100)
+      }]);
+    });
+    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
+  }
+
+  /* 照会が不問に付される確率。オーナーの顔がそのまま効く */
+  function tdDismiss(g2) {
+    return clamp(D.TD.dismissBase + osk(g2, 'nego') * D.TD.dismissNego
+               + osk(g2, 'fame') * D.TD.dismissFame, 0, D.TD.dismissMax);
+  }
+  /* 提訴が通る確率。交渉と技術の裏づけ、両方が要る */
+  function tdAppeal(g2) {
+    return clamp(D.TD.appealBase + osk(g2, 'nego') * D.TD.appealNego
+               + osk(g2, 'eye') * D.TD.appealEye
+               + analystPower(g2) * D.TD.appealAnalyst, D.TD.appealMin, D.TD.appealMax);
+  }
+  /* そのコンセプトを失うと、いくら性能が減るか */
+  function tdLoss(g2, c) {
+    if (c.body) return Math.max(0, Math.min((g2.body[c.body] || 0) - 4, c.gain * 0.85));
+    const p = g2.equipped[c.cat];
+    return p ? Math.max(0, Math.min(p.power - 8, c.gain * 0.85)) : 0;
+  }
+  function tdFee(g2, c) {
+    return Math.round(D.TD.feeBase + tdLoss(g2, c) * D.TD.feePerLost
+                    + (g2.season || 1) * D.TD.feePerSeason);
+  }
+  /* 受け入れる：そのコンセプトを失う。解析したぶんは研究Pに残る。
+     争って敗れた場合は、ばらして調べるひまもないので残らない       */
+  function tdAccept(g2, cs, noRefund) {
+    const c = (g2.concepts || [])[cs.idx];
+    const lost = c ? tdLoss(g2, c) : 0;
+    if (c) {
+      if (c.body) g2.body[c.body] = Math.round(((g2.body[c.body] || 0) - lost) * 10) / 10;
+      else {
         const p = g2.equipped[c.cat];
         if (p) {
           if (c.rarUp && p.rarity > 1) p.rarity--;
-          lost = Math.min(p.power - 8, c.gain * 0.85);
-          if (lost > 0) p.power = Math.round((p.power - lost) * 10) / 10;
+          p.power = Math.round((p.power - lost) * 10) / 10;
         }
       }
-      const rp = Math.round(Math.max(0, lost) * D.TD.refundRp);
-      g2.rp += rp;
-      out.push({ team: null, what: c.what, why: pick(D.TD.REASONS), mine: true,
-                 cat: c.cat, body: c.body || null,
-                 lost: Math.round(Math.max(0, lost) * 10) / 10,
-                 rarDown: !!c.rarUp, rp: rp });
-    });
-    g2.concepts = keep;
-    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
+    }
+    const rp = noRefund ? 0 : Math.round(lost * D.TD.refundRp);
+    g2.rp += rp;
+    g2.concepts = (g2.concepts || []).filter((x, i) => i !== cs.idx);
+    reindexPending(g2, cs.idx);
+    return { lost: Math.round(lost * 10) / 10, rp: rp, rarDown: !!(c && c.rarUp) };
+  }
+  /* 提訴する：費用を払って争う。通れば以後その件では問われない */
+  function tdAppealNow(g2, cs) {
+    g2.funds -= cs.fee;
+    const win = Math.random() < tdAppeal(g2);
+    const c = (g2.concepts || [])[cs.idx];
+    if (win) {
+      if (c) { c.pending = false; c.safe = true; }
+      return { win: true, fee: cs.fee };
+    }
+    const r = tdAccept(g2, cs, true);   // 弁護に使ったぶん、知見は残らない
+    r.win = false; r.fee = cs.fee;
+    return r;
+  }
+  /* 1件処理したら、後ろに控えている件の指す番号をずらす */
+  function reindexPending(g2, removed) {
+    g2.tdPending = (g2.tdPending || []).map(x =>
+      x.idx > removed ? Object.assign({}, x, { idx: x.idx - 1 }) : x);
   }
 
   /* ---------- 路面を読む力・濡れた路面での強さ ----------
@@ -5321,7 +5408,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, weekStamp, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
@@ -11743,21 +11830,18 @@ window.GP = window.GP || {};
     g.tdLog = [];
     tds.forEach(t => {
       if (t.mine) {
-        const where = t.body
-          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
-          : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
-        U.log(g, '⚖️ FIA が「' + t.what + '」に裁定を出した（' + t.why + '）。' +
-          where + ' の性能 -' + t.lost.toFixed(1) +
-          (t.rarDown ? '／パーツの格も1段下がった' : '') +
-          '。ばらして解析したぶん 研究P +' + t.rp, 'bad');
+        U.log(g, '⚖️ 「' + t.what + '」について FIA から照会があったが（' + t.why +
+          '）、オーナーの顔が利いて不問に付された。', 'good');
+        U.toast('⚖️ 「' + t.what + '」は不問に', 'good');
+      } else if (t.dismissed) {
+        U.log(g, '⚖️ ' + t.team + ' の「' + t.what + '」に照会（' + t.why +
+          '）。しかし不問に付され、そのまま使い続ける。', 'warn');
       } else {
         U.log(g, '⚖️ FIA が ' + t.team + ' の「' + t.what + '」に裁定（' + t.why +
           '）。次戦から使えなくなり、1周あたり約 ' + t.sec.toFixed(2) + '秒 を失った', 'good');
+        U.toast('⚖️ ' + t.team + '「' + t.what + '」が使用禁止に', 'good');
       }
     });
-    const myTd = tds.filter(t => t.mine);
-    if (myTd.length) announceTD(myTd);
-    else if (tds.length) U.toast('⚖️ ' + tds[0].team + '「' + tds[0].what + '」が使用禁止に', 'good');
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -11781,6 +11865,8 @@ window.GP = window.GP || {};
     S.save(g);
     render();
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
+    // 審議が来ていれば、その週はそれが出来事になる
+    if ((g.tdPending || []).length) return askDirective();
     // 週の終わりの出来事。選ばせるものが出なければ、流れるものを1つ
     if (!choiceEvent()) randomEvent();
   }
@@ -13813,10 +13899,16 @@ window.GP = window.GP || {};
           esc(c.what) + '<i>' + esc(where) + (c.rarUp ? '・格上げ' : '') +
           (young ? '・審査前' : '') + '</i></span>';
       }).join('') + '</div>' +
+      '<div class="orgnote">' +
+        '<span>🤝 照会のまま不問になる <b>' + Math.round(S.tdDismiss(g) * 100) + '%</b>' +
+          '（交渉術・知名度）</span>' +
+        '<span>⚖️ 提訴が通る <b>' + Math.round(S.tdAppeal(g) * 100) + '%</b>' +
+          '（交渉術・技術眼・アナリスト）</span>' +
+      '</div>' +
       '<small>規則が新しいうちほど覆されやすく、' +
       '<b>首位のチームのものは他所から突かれやすい</b>（危険度2倍）。' +
-      'アナリストが厚いほど規則を読み込めるので、危ない橋を避けられます。' +
-      '取り上げられても、ばらして解析したぶんは研究Pとして残ります。</small></div>';
+      '照会が来たら、受け入れるか、費用を払って提訴するかを選びます。' +
+      '提訴が通れば、その件で二度と問われません。</small></div>';
   }
 
   /* ---- 規則の新しさ ----
@@ -15168,27 +15260,66 @@ window.GP = window.GP || {};
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
   }
 
-  /* ---- 自チームへの裁定 ----
-     掘り当てたものを取り上げられるのは、ひとことで流すには重すぎる  */
-  function announceTD(list) {
-    GP.sound.play('dnf');
-    const rows = list.map(t => {
-      const where = t.body
-        ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
-        : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
-      return '<div><b>' + esc(t.what) + '</b><small>' + esc(t.why) + '<br>' +
-        esc(where) + ' の性能 <b class="bad">-' + t.lost.toFixed(1) + '</b>' +
-        (t.rarDown ? '／パーツの格も1段下がりました' : '') +
-        '<br>ばらして解析したぶん 研究P <b>+' + t.rp + '</b></small></div>';
-    }).join('');
-    U.modal('⚖️ テクニカルディレクティブ',
-      '<p class="lead">FIA が裁定を出しました。持ち込んだコンセプトが、次戦から使えません。</p>' +
-      '<div class="rewardbox bad">' + rows + '</div>' +
-      '<p class="desc">規則が新しいうちは、白黒のはっきりしない領域が広く、' +
-      'そこを攻めたものほど、あとから覆されます。アナリストが厚いほど規則を読み込めるので、' +
-      '危ない橋を渡らずに済む確率が上がります。</p>',
-      [{ label: '仕方ない', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
-    U.toast('⚖️ 「' + list[0].what + '」が使用禁止に', 'bad');
+  /* ---- 審議 ----
+     照会を抜けてきた件は、受け入れるか、費用を払って争うかを選ぶ。
+     争って通れば、以後その件で問われることはなくなる              */
+  function askDirective() {
+    const cs = (g.tdPending || [])[0];
+    if (!cs) return;
+    const where = cs.body
+      ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === cs.body) || {}).name || '')
+      : ((D.PART_CATS.find(c => c.key === cs.cat) || {}).name || '');
+    const rp = Math.round(cs.lost * D.TD.refundRp);
+    const canPay = g.funds >= cs.fee;
+    const body =
+      '<p class="lead">FIA が「<b>' + esc(cs.what) + '</b>」の合法性を問うています。</p>' +
+      '<div class="rewardbox"><div><b>' + esc(cs.why) + '</b><small>' +
+        '認められなければ ' + esc(where) + ' の性能 <b>-' + cs.lost.toFixed(1) + '</b>' +
+        (cs.rarUp ? '／パーツの格も1段下がります' : '') + '</small></div></div>' +
+      '<div class="tdopt">' +
+        '<div class="tdo"><b>🤝 受け入れる</b><small>コンセプトを取り下げます。' +
+          'ばらして解析したぶん、研究P <b>+' + rp + '</b> は残ります。</small></div>' +
+        '<div class="tdo' + (canPay ? '' : ' off') + '"><b>⚖️ 提訴する（' + money(cs.fee) + '万）</b>' +
+          '<small>通る見込み <b>' + cs.odds + '%</b>。通れば<b>そのまま使い続けられ、' +
+          'この件で二度と問われません</b>。<br>敗れれば性能は失ったうえ、費用も戻らず、' +
+          '解析するひまもありません（研究Pなし）。' +
+          (canPay ? '' : '<br><b class="warn">資金が足りません。</b>') + '</small></div>' +
+      '</div>' +
+      '<p class="desc">通る見込みは、オーナーの<b>交渉術</b>と<b>技術眼</b>、そして' +
+      'アナリストが積んだ技術的な裏づけで上がります。' +
+      '照会の段階で不問に付されるかどうかは、<b>交渉術</b>と<b>知名度</b>しだいです。</p>';
+    U.modal('⚖️ テクニカルディレクティブ — 審議', body, [
+      { label: '🤝 受け入れる', fn: () => resolveDirective(cs, false) },
+      { label: '⚖️ 提訴する（' + money(cs.fee) + '万）', cls: 'primary',
+        disabled: !canPay, fn: () => resolveDirective(cs, true) }
+    ]);
+    GP.sound.play('light');
+  }
+
+  function resolveDirective(cs, appeal) {
+    const where = cs.body
+      ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === cs.body) || {}).name || '')
+      : ((D.PART_CATS.find(c => c.key === cs.cat) || {}).name || '');
+    const r = appeal ? S.tdAppealNow(g, cs) : S.tdAccept(g, cs);
+    g.tdPending = (g.tdPending || []).slice(1);
+    U.closeModal();
+    if (appeal && r.win) {
+      GP.sound.play('levelup');
+      U.log(g, '⚖️ 提訴が認められた！「' + cs.what + '」はそのまま使える（費用 -' +
+        money(cs.fee) + '万）。この件で問われることはもうない。', 'good');
+      U.toast('⚖️ 提訴が認められた！', 'good');
+      U.pop('⚖️ 不問', 'crit');
+    } else {
+      GP.sound.play('dnf');
+      U.log(g, '⚖️ 「' + cs.what + '」は使用禁止に。' + where + ' の性能 -' + r.lost.toFixed(1) +
+        (r.rarDown ? '／パーツの格も1段下がった' : '') +
+        (appeal ? '（提訴は退けられ、費用 -' + money(cs.fee) + '万）'
+                : '。ばらして解析したぶん 研究P +' + r.rp), 'bad');
+      U.toast('⚖️ 「' + cs.what + '」が使用禁止に', 'bad');
+    }
+    S.save(g); render();
+    // 続けて審議が残っていれば、次の件へ
+    if ((g.tdPending || []).length) setTimeout(askDirective, 500);
   }
 
   /* マシンが次の世代に上がったことを知らせる */
