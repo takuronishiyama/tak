@@ -631,6 +631,7 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-weather{color:#7fe4ff;font-weight:bold}
 .rv-ev.rv-penalty{color:#ffb0a0;font-weight:bold}
 .rv-ev.rv-miss{color:#ffcf8a}
+.rv-ev.rv-spin{color:#ff8fa0;font-weight:bold}
 .rv-ev.rv-fast{color:#d8a8ff;font-weight:bold}
 .rv-ev.rv-final{color:#fff2c8;font-weight:bold}
 .rv-ev.rv-home{color:#9fe6c8}

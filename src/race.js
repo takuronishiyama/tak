@@ -150,6 +150,21 @@ GP.race = (function () {
       '{A}、{C} で完全にコントロールを失った！ 一回転！',
       '{A} が半回転！ 対向のマシンをかろうじてかわす！'
     ],
+    /* 環境に負けてのスピン。何が原因かが伝わるように、銘柄を混ぜる */
+    spin: [
+      '{A} スピン！ {T} が路面に負けた！',
+      '{A}、{C} でリアが抜けた！ {T} ではもう保たない！',
+      '{A} が半回転！ タイヤが仕事をしていない！',
+      '{A}、{C} の立ち上がりで挙動を乱した！ 大きなロス！',
+      '{A} が {C} でコースを外れかける！ {T} が限界だ！',
+      '{A}、こらえきれずスピン！ グリップがまるでない！'
+    ],
+    spinOut: [
+      '{A} スピンからそのままバリアへ！ {T} では戦えなかった…',
+      '{A}、{C} で回ってグラベルに沈む。ここでレース終了…',
+      '{A} がコースを飛び出し、そのまま止まった…',
+      '{A}、耐えきれずコースアウト。{T} を履き続けた代償だ…'
+    ],
     /* 機械の故障でリタイア */
     dnfMech: [
       '{A} が{B}でリタイア…',
@@ -323,6 +338,12 @@ GP.race = (function () {
              '「P{P} でフィニッシュ。悪くない一日だ」'],
     plain: ['「チェッカー、P{P}。今日はここまでだ。お疲れさま」',
             '「P{P}。持ち帰れたことをよしとしよう」'],
+    spin: ['「大丈夫か！ いまのは見えた。落ち着いていこう」',
+           '「そのタイヤではもう戦えない。次の周、入るぞ」',
+           '「無理をするな。いまはクルマを持ち帰ることが先だ」'],
+    spinBack: ['「すみません、まったくグリップがありません」',
+               '「持っていかれました。何も残っていません」',
+               '「これ以上は無理です。指示をください」'],
     fastest: ['「いまのがファステストだ。いいペースを刻んでいる」',
               '「全体ベスト。そのリズムを崩すな」',
               '「トップタイムだ。まだ余裕はあるか？」'],
@@ -481,6 +502,13 @@ GP.race = (function () {
         if (e.order === 'push') { push(RADIO.push, 'pit', true); push(RADIO.pushBack, 'drv', true); }
         else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
         else { push(RADIO.clear, 'pit', true); }
+        e.radioCool = 3;
+        return;
+      }
+      if (e.radioSpin === lap) {                        // スピンした
+        e.radioSpin = -1;
+        push(RADIO.spin, 'pit', true);
+        push(RADIO.spinBack, 'drv', true);
         e.radioCool = 3;
         return;
       }
@@ -730,13 +758,40 @@ GP.race = (function () {
     /* コース全体としての濡れ具合（セクターの長さで重みづけ） */
     const wetAvg = () => wetSec[0] * secShare[0] + wetSec[1] * secShare[1] + wetSec[2] * secShare[2];
     /* タイヤと路面が噛み合っていないぶん、1周でどれだけ失うか */
-    function wetLoss(ty, w, e) {
+    /* 路面の濡れ具合と銘柄が、どれだけずれているか（0..1）。
+       うまい人ほど、合わないタイヤでも許容できる幅が広い       */
+    function wetGap(ty, w, e) {
       if (!isFinite(w)) w = 0;
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
-      // うまい人ほど、合わないタイヤでも許容できる幅が広い
       const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
-      const d = Math.max(0, Math.abs(w - ideal) - tol);
-      return d * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
+      return Math.max(0, Math.abs(w - ideal) - tol);
+    }
+    function wetLoss(ty, w, e) {
+      return wetGap(ty, w, e) * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
+    }
+
+    /* ---------- 環境係数 ----------
+       いま、このクルマがどれだけ唐突か。
+       合わない銘柄・終わったタイヤ・濡れた路面・攻めろという指示、
+       の4つを足し合わせる。                                      */
+    function envHarshOf(e, ty, w, ordKey) {
+      const E2 = D.ENV;
+      const over = Math.max(0, e.tyreAge - ty.life);
+      return wetGap(ty, w, e) * E2.mismatch
+           + over * E2.wear
+           + (w || 0) * E2.wet * (1 - e.wetSkill * 0.45)
+           + (ordKey === 'push' ? E2.push : 0);
+    }
+    /* それをいなす力。腕（レーティングとメンタル）と、乗りやすさ */
+    function envGripOf(e) {
+      const E2 = D.ENV;
+      const rate = S.clamp(S.driverRating(e.driver) / 100, 0, 1.2);
+      const nerve = S.clamp(e.driver.mental / 190, 0, 1.1);
+      const skill = rate * 0.60 + nerve * 0.40;
+      const body = 1 + (e.bd.drive - RIVAL_BODY_REF) * E2.gripBody;
+      return Math.max(0.35, (E2.gripBase + skill * E2.gripDrv) * body
+                            * (e.sk('precise') ? 1.18 : 1)
+                            * (e.driver.hurt ? 0.86 : 1));
     }
     /* いま入ったとして、どのタイヤを履くか。
        予定していた銘柄を基本にしつつ、路面が変わっていれば合わせ直す。
@@ -886,6 +941,9 @@ GP.race = (function () {
       e.pitTime = [];       // 各周のピット停止時間
       e.lapErs = [];        // 各周のバッテリー残量
       e.lapOrder = [];      // 各周にピットウォールが出していた指示
+      e.lapHarsh = [];      // 各周の「環境の厳しさ」（env / grip）
+      e.spins = 0;          // スピンした回数
+      e.damage = 0;         // 車体に入ったダメージ（レース後の修理費になる）
       e.order = 'hold';
       // ERS：エレクトロニクスの性能が高いほど容量も回生量も大きい
       const elecPower = e.isPlayer
@@ -1111,6 +1169,15 @@ GP.race = (function () {
         e.tyreAge += ord.wear;
         e.lapOrder[lap - 1] = ordKey;
 
+        // ---- 環境係数 ----
+        // 合わない銘柄・終わったタイヤ・濡れた路面・攻めろという指示が
+        // 「厳しさ」を作り、腕と乗りやすさがそれをいなす。
+        // 手に負えなくなったぶんだけ、タイヤは余計に削れ、あとでスピンが出る
+        e.harsh = envHarshOf(e, ty, wx.level || 0, ordKey) / envGripOf(e);
+        const overHarsh = Math.max(0, e.harsh - D.ENV.degraFrom);
+        if (overHarsh > 0) e.tyreAge += overHarsh * D.ENV.degra;
+        e.lapHarsh[lap - 1] = Math.round(e.harsh * 100) / 100;
+
         // 隊列を流しているあいだは、スリップも乱気流も守りも働かない
         const flowing = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
 
@@ -1145,7 +1212,37 @@ GP.race = (function () {
         // 終わったタイヤ、濡れた路面、攻めすぎ、切れた集中——
         // どれかが噛み合うと、ふっと足元をすくわれる。
         // 乗りやすいマシン（ドライバビリティ）ほど、これが起きにくい
-        if (lap > 1) {
+        // ---- スピン ----
+        // ミスとは別枠。環境の厳しさがドライバーの手に負えなくなったとき、
+        // 前触れなく後ろから抜ける。合わない銘柄で走り続けた代償はここに出る
+        let spun = false;
+        const scNow3 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        if (lap > 1 && !scNow3) {
+          const sp = Math.max(0, e.harsh - D.ENV.spinFrom) * D.ENV.spin;
+          if (sp > 0 && Math.random() < sp) {
+            spun = true;
+            const lost = S.rnd(D.ENV.spinLoss[0], D.ENV.spinLoss[1]);
+            t += lost;
+            e.tyreAge += D.ENV.spinWear;
+            e.spins++;
+            e.damage = (e.damage || 0) + S.rnd(0.35, 1.10);
+            if (e.isPlayer) e.radioSpin = lap;
+            const off = Math.random() < D.ENV.spinOff;
+            events.push({ lap: lap, type: 'spin', car: e,
+              text: say(off ? SAY.spinOut : SAY.spin,
+                        { A: e.driver.name, C: lm(track), T: tyreOf(e.tyreKey).name }) +
+                    (off ? '' : '（-' + lost.toFixed(1) + '秒）') });
+            if (off) {
+              e.dnf = true; e.dnfLap = lap; e.dnfReason = 'スピンからのコースアウト';
+              e.damage = (e.damage || 0) + S.rnd(1.2, 2.6);
+              if (scLaps <= 0 && lap < laps - 2 && Math.random() < 0.40 + track.risk * 0.16) {
+                scPending = true;
+              }
+            }
+          }
+        }
+
+        if (lap > 1 && !spun) {
           const tyreOver = Math.max(0, e.tyreAge - ty.life);
           let mp = 0.0090
                  * (1 + (e.st.risk - 1) * 0.50)
@@ -1719,6 +1816,15 @@ GP.race = (function () {
     sponsorRp = Math.round(sponsorRp);
     sponsorFans = Math.round(sponsorFans);
     fanDelta += sponsorFans;
+
+    // ---- スピン ----
+    // 路面と銘柄が噛み合わないまま走ると、タイムだけでなく姿勢も失う。
+    // 何が起きていたのかを、レース後にも一度だけ言葉にしておく
+    res.entries.filter(e => e.isPlayer && (e.spins || 0) > 0).forEach(e => {
+      notes.push('🌀 ' + e.driver.name + ' はこのレースで ' + e.spins + '回スピンしました。' +
+        '（路面に合わないタイヤ、終わったタイヤ、攻めすぎ——このどれかが続くと起きます。' +
+        '乗りやすいマシンと、腕のあるドライバーほど、こらえられます）');
+    });
 
     // 事故で負傷することがある。次戦以降をリザーブが埋める
     res.classified.filter(e => e.isPlayer && e.dnf).forEach(e => {

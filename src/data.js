@@ -289,7 +289,7 @@ GP.data = (function () {
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
     { key: 'drive',    name: 'ドライバビリティ', icon: '🎯', color: '#e0644a',
       desc: 'マシンそのものの速さは変わらない',
-      eff: '素直で乗りやすくなり、ドライバーが腕をそのまま出せる（ドライバー評価 +12%／ミス -25%）',
+      eff: '素直で乗りやすくなり、腕をそのまま出せる。合わないタイヤでも唐突に失いにくい（ドライバー評価 +12%／ミス -25%／スピンしにくい）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
     { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
       desc: 'マシンそのものの速さは変わらない',
@@ -1132,6 +1132,28 @@ GP.data = (function () {
      路面が濡れること自体でも全車が最大 +18% 遅くなるので、
      合計するとまともに走れない、という程度に収まる                  */
   const WET_MISMATCH = 0.16;
+
+  /* ---------- 環境係数 ----------
+     路面と銘柄のずれ、終わったタイヤ、濡れた路面、攻めろという指示。
+     この4つが「いまクルマがどれだけ唐突か」を作る（env）。
+     それをいなすのが、ドライバーの腕と、マシンのドライバビリティ（grip）。
+     env / grip が 1 を超えたぶんだけ、タイヤは余計に削れ、スピンが出る。   */
+  const ENV = {
+    mismatch: 2.60,   // 路面と銘柄のずれ 1.0 あたりの厳しさ
+    wear:     0.10,   // 寿命を超えた 1周あたり
+    wet:      0.55,   // 濡れていること自体
+    push:     0.35,   // 「攻めろ」と言われている周
+    gripBase: 0.62,   // 腕もドライバビリティも平凡なときの、いなす力
+    gripDrv:  0.55,   // 腕（0..1）でどれだけ増えるか
+    gripBody: 0.45,   // ドライバビリティ（ライバル基準比）でどれだけ増えるか
+    degraFrom: 0.35,  // これを超えたぶんが、余計な摩耗になる
+    degra:     0.55,  // 超過 1.0 あたり、タイヤの減りが何割増えるか
+    spinFrom:  0.90,  // これを超えたぶんだけスピンが起きる
+    spin:      0.045, // 超過 1.0 あたり、1周のスピン確率
+    spinLoss:  [3.0, 9.0],
+    spinOff:   0.10,  // スピンのうち、そのままコースアウトして終わる割合
+    spinWear:  2.2    // スピンでタイヤが何周ぶん傷むか
+  };
   /* 路面の濡れ具合の見え方。セクターごとにこれで色分けする */
   const WET_LEVELS = [
     { at: 0.10, name: 'ドライ',   short: 'D', color: '#c8a86a' },
@@ -1151,5 +1173,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
