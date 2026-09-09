@@ -5715,6 +5715,9 @@ window.GP = window.GP || {};
     const offs = !!g.offseason;
     $('cmdNormal').style.display = (offs || race) ? 'none' : '';
     $('cmdRace').style.display = (!offs && race) ? '' : 'none';
+    // カート場を持っているときだけ、週コマンドに出す
+    const kb = $('cKart');
+    if (kb) kb.style.display = S.hasEstate(g, 'kart') ? '' : 'none';
     // グリッドに立っている間は、大きなボタンをそのまま決勝への進行にする
     const rg = $('cRaceGo');
     if (rg) {
@@ -5794,7 +5797,7 @@ window.GP = window.GP || {};
       cOffGo: doOffNext, cStaffO: cmdStaff, cInfoO: cmdInfo,
       cGarageO: cmdGarage, cFacilityO: cmdFacility, cFacilityR: cmdFacility,
       cOwner: cmdOwner, cOwnerR: cmdOwner, cOwnerO: cmdOwner,
-      cCrunch: cmdCrunch
+      cCrunch: cmdCrunch, cKart: askKart
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
