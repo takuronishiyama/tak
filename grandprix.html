@@ -7546,10 +7546,10 @@ GP.race = (function () {
   /* ---------- 天候抽選 ---------- */
   function rollWeather(track) {
     const r = Math.random() * (0.9 + track.tyre * 0.1);
-    if (r < 0.52) return D.WEATHER[0];
-    if (r < 0.78) return D.WEATHER[1];
-    if (r < 0.94) return D.WEATHER[2];
-    return D.WEATHER[3];
+    if (r < 0.58)  return D.WEATHER[0];   // 晴れ
+    if (r < 0.845) return D.WEATHER[1];   // くもり
+    if (r < 0.955) return D.WEATHER[2];   // 雨
+    return D.WEATHER[3];                  // 大雨
   }
 
   /* ---------- 予選 ---------- */
@@ -7852,11 +7852,17 @@ GP.race = (function () {
     let raceBest = Infinity;      // レース全体のベストラップ
     let teamFightAt = 0;          // 同士討ちの実況を出しすぎないための間隔
 
-    // 途中で天気が変わるかどうかを先に決めておく（実況では出さない）
-    if (!special && laps >= 12 && Math.random() < 0.30) {
+    /* 途中で天気が変わるかどうかを先に決めておく（実況では出さない）。
+       どの空模様でも一律に変わることにすると、晴れの日でも次々に降り出して
+       雨のレースばかりになってしまう。いまの空から素直に決める           */
+    const WX_ODDS = { sunny: 0.08, cloud: 0.16, rain: 0.42, storm: 0.45 };
+    const odds = WX_ODDS[weather.key] != null ? WX_ODDS[weather.key] : 0.22;
+    if (!special && laps >= 12 && Math.random() < odds) {
       wxTo = weather.wetTyres
         ? D.WEATHER[Math.random() < 0.55 ? 1 : 0]                    // 雨が上がる
-        : D.WEATHER[Math.random() < 0.30 ? 3 : 2];                   // 降り出す
+        : (weather.key === 'sunny'
+            ? D.WEATHER[2]                                           // 晴れからいきなり大雨にはしない
+            : D.WEATHER[Math.random() < 0.22 ? 3 : 2]);              // 降り出す
       wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
     }
 
@@ -7902,10 +7908,13 @@ GP.race = (function () {
       if (shower) {
         shower.left--;
         if (shower.left <= 0) { wetTarget = shower.back; shower = null; }
-      } else if (!special && lap > 3 && lap < laps - 3 && Math.random() < 0.012) {
-        // 通り雨。数周だけ強く降って、また引いていく
+      } else if (!special && lap > 3 && lap < laps - 3 &&
+                 Math.random() < 0.0025 * (wx.key === 'sunny' ? 1 : 2)) {
+        /* 通り雨。数周だけ降って、また引いていく。
+           晴れているほど起きにくく、起きても路面はインターの範囲までしか
+           濡れない。ここを強くしすぎると、雨のレースばかりになる     */
         shower = { left: S.rint(3, 6), back: wetTarget };
-        wetTarget = Math.min(1, Math.max(wetTarget, 0.35) + S.rnd(0.18, 0.42));
+        wetTarget = Math.min(1, Math.max(wetTarget, 0.22) + S.rnd(0.10, 0.26));
         events.push({ lap, type: 'weather',
           text: '🌦️ 一部のセクターに雨雲がかかった！ 路面が濡れはじめる' });
         wxChangedThisLap = true;
