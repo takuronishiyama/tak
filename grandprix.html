@@ -1903,6 +1903,42 @@ body[data-skin="hd"]{
   .tb-lap{display:none}
 }
 
+/* =========================================================
+   iPhone で遊ぶための調整
+   タップ領域は 44pt 以上、文字は 10px 以上を下限にする。
+   （iOS のヒューマンインターフェイスガイドラインに合わせる）
+   ========================================================= */
+@media (max-width:520px), (hover:none) and (pointer:coarse){
+  /* 歩く場面の用事ボタン。指で押せる高さにする */
+  .hlbtn{min-height:44px;padding:6px 8px}
+  .hlbtn i{font-size:16px}
+  /* 上部バーの小さなボタン（音・スキン）*/
+  .stat.sound{min-width:44px;min-height:44px;justify-content:center;font-size:17px}
+  /* 選択肢・タブ・小ボタンも指のサイズに合わせる */
+  .pickbtn{min-height:48px}
+  .pickbtn.small{min-height:44px}
+  .stratbtn,.tyrebtn,.hrtab,.tab,.mini,.colorbtn{min-height:44px}
+  .basepick .pickbtn{min-height:44px}
+  .modal-x{width:44px;height:44px;font-size:16px}
+  .mini{min-width:44px}
+
+  /* 文字の下限。8px 台は実機でほぼ読めない */
+  small,.desc,.pb-body small,.devnow,.devup,.devpol,.p-note,.pnote,
+  .drv-sub,.drv-age,.s-nm small,.fin-row,.ec-row,.envbox small,
+  .skill,.p-rar,.ptr,.mst,.battr,.dept,.fac,.spon,.hist,.logline{font-size:11px}
+  .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
+  .sc-row,.tb-row{font-size:11px}
+  .tb-row.tb-head{font-size:10px}
+
+  /* 個別に小さいまま残っていたもの */
+  .hlbtn em{font-size:11px}
+  .battr em small,.part .p-lv small,.p-lv small{font-size:10px}
+  .drv-sal{font-size:11px}
+  .tb-team .rank,.tb-team .mode,.hl-h,.countdown span,.seclegend em,
+  .rel small,.drv-foot span b,.tabs .tab{font-size:11px}
+  .gowned,.gearn,.wsx i,.envbox b em,.ptr em,.techlv{font-size:10px}
+}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
