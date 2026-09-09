@@ -2488,7 +2488,25 @@ window.GP = window.GP || {};
   let pendingStrategy = {};
   let raceCtx = { trackIndex: 0, special: null };
 
-  function cmdRace() { beginRace(g.nextRace, null); }
+  function cmdRace() {
+    // 予選が終わってグリッドに立っているときは、下のボタンからも決勝へ行ける。
+    // ここで週末を頭からやり直すと、走り終えた予選が消えてしまう
+    if (g.onGrid && prePack) return confirmStart();
+    beginRace(g.nextRace, null);
+  }
+
+  /* グリッドの用事を残したまま決勝へ行こうとしたときの確認 */
+  function confirmStart() {
+    const left = gridPeople().filter(q => q.key !== 'gd:go' && !q.done);
+    if (!left.length) return leaveGrid(true);
+    U.modal('🚦 スタート進行',
+      '<p class="lead">まだグリッドで済ませていない用事があります。</p>' +
+      '<div class="cpclist">' + left.map(q =>
+        '<span class="cpc">' + esc(q.label || 'グリッド') + '</span>').join('') + '</div>' +
+      '<p class="note">このまま決勝を始めると、今日はもう回れません。</p>',
+      [{ label: '🚦 決勝を始める', cls: 'primary', fn: () => { U.closeModal(); leaveGrid(true); } },
+       { label: 'グリッドへ戻る', fn: () => { U.closeModal(); refreshGrid(); } }]);
+  }
 
   function beginRace(trackIndex, special) {
     const t = D.TRACKS[trackIndex];
@@ -5252,13 +5270,71 @@ window.GP = window.GP || {};
   /* ---- いまの場所でできることを、そのままボタンにする ----
      歩いて近づくのが楽しい人はそれで、まっすぐ選びたい人はここから。
      どちらでも同じところに行き着くようにしておく                    */
+  /* ---- まとめて回る ----
+     人数が増えてくると、一人ずつ歩いて話しかけるのが手間になる。
+     「まだ済ませていない用事」だけを順に開き、閉じると次へ進む。
+     一件ずつ開くのは、何が起きたかを取りこぼさないため             */
+  let batchQ = null;
+  function batchable() {
+    const doors = hubDoors();
+    // done を持つ入口＝一度きりの用事。設備や画面への入口は対象にしない
+    return Object.keys(doors).filter(k => doors[k].done === false || doors[k].done === true)
+                             .filter(k => !doors[k].done);
+  }
+  function batchStart() {
+    batchQ = batchable();
+    if (!batchQ.length) { batchQ = null; return U.toast('🗨️ 今日の用事はもう済んでいる', ''); }
+    GP.sound.play('tap');
+    batchNext();
+  }
+  function batchNext() {
+    if (!batchQ) return;
+    const doors = hubDoors();
+    let k = null;
+    while (batchQ.length && !k) {
+      const c = batchQ.shift();
+      if (doors[c] && !doors[c].done) k = c;
+    }
+    if (!k) { batchQ = null; refreshWalk(); return; }
+    doors[k].fn();
+    batchPatch();
+  }
+  /* 開いたモーダルの主ボタンを「次へ」に差し替える。
+     選択肢のあるモーダル（記者の受け答えなど）は、
+     選び終えて次のモーダルが出たところで改めて差し替える           */
+  function batchPatch(tries) {
+    if (!batchQ) return;
+    const n = tries || 0;
+    if (n > 80) return;                          // 選ばれないまま置かれたら、そこで手を引く
+    setTimeout(() => {
+      if (!batchQ) return;
+      const box = $('modalBtns');
+      if (!box) return;
+      const bs = Array.prototype.slice.call(box.querySelectorAll('.btn'));
+      if (!bs.length) { batchPatch(n + 1); return; }   // まだ選択待ち。次の描画で拾う
+      const b = bs.filter(x => x.classList.contains('primary'))[0] || bs[0];
+      const rest = batchQ.length;
+      b.innerHTML = rest ? '▶ 次へ（あと ' + rest + ' 件）' : '✓ ひと回り終わり';
+      b.onclick = () => { U.closeModal(); setTimeout(batchNext, 80); };
+    }, n ? 250 : 40);
+  }
+  function refreshWalk() {
+    if (g.onGrid) return refreshGrid();
+    GP.base.setYard && GP.base.setYard(yardPeople());
+    hubMap().invalidate();
+    render();
+  }
+
   function renderHubList() {
     const box = $('hubList');
     if (!box) return;
     const doors = hubDoors();
     const keys = Object.keys(doors);
     if (!keys.length) { box.innerHTML = ''; return; }
+    const rest = batchable().length;
     box.innerHTML = '<b class="hl-h">ここでできること</b>' +
+      (rest >= 2 ? '<button class="hlbtn allbtn" data-all="1">' +
+        '<i>🗣️</i><b>まとめて回る</b><em>あと ' + rest + ' 件</em></button>' : '') +
       keys.map(k => {
         const d = doors[k];
         const done = !!d.done;
@@ -5268,8 +5344,11 @@ window.GP = window.GP || {};
           '<b>' + esc(d.label || k) + '</b>' +
           '<em>' + esc(d.to || '入る') + '</em></button>';
       }).join('');
+    const allb = box.querySelector('[data-all]');
+    if (allb) allb.onclick = batchStart;
     Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
       b.onclick = () => {
+        batchQ = null;
         const k = b.getAttribute('data-hub');
         const map = hubMap();
         // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
@@ -5317,6 +5396,13 @@ window.GP = window.GP || {};
     const offs = !!g.offseason;
     $('cmdNormal').style.display = (offs || race) ? 'none' : '';
     $('cmdRace').style.display = (!offs && race) ? '' : 'none';
+    // グリッドに立っている間は、大きなボタンをそのまま決勝への進行にする
+    const rg = $('cRaceGo');
+    if (rg) {
+      const onGrid = !!g.onGrid && !!prePack;
+      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！' : '<span>🏁</span>レースへ向かう！';
+      rg.classList.toggle('go', onGrid);
+    }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
     const btn = $('specialGo');
     if (btn) btn.onclick = enterSpecial;

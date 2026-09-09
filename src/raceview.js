@@ -72,7 +72,10 @@ GP.raceview = (function () {
     const lt = e.lapTimes[lap] || 1;
     const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
     const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
-    return { done: false, p: lap + Math.min(1, (t - prev) / drive) };
+    // ピット作業中は走っている時間ぶんを使い切っているので、そのままだと
+    // 「まだピットに居るのに1周を終えた」ことになり、ゴールした車と同じ値で
+    // 並んでしまう。周の手前でわずかに止めておく
+    return { done: false, p: lap + Math.min(0.999, (t - prev) / drive) };
   }
 
   /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
@@ -115,10 +118,23 @@ GP.raceview = (function () {
   function orderAt(t) {
     return res.entries.slice().map(e => {
       const pr = progress(e, t);
-      return { e, p: pr.p, done: pr.done, out: e.dnf && t >= (e.cum[e.dnfLap - 1] || 0) };
+      const n = e.cum.length;
+      // ゴールした車は「周回数」ではなく「ゴールした時刻」で並べる。
+      // 走り切った車はみな p が最終周ちょうどで並ぶため、これをしないと
+      // ラインを通過した瞬間に順位が入れ替わって見えてしまう
+      return { e, p: pr.p, done: pr.done,
+               // !! を外すと、dnf が undefined の車と false の車で
+               // a.out !== b.out が成り立ってしまい、並びが毎フレーム暴れる
+               out: !!(e.dnf && t >= (e.cum[e.dnfLap - 1] || 0)),
+               fin: (pr.done && !e.dnf && n) ? (e.cum[n - 1] || 0) : 0 };
     }).sort((a, b) => {
       if (a.out !== b.out) return a.out ? 1 : -1;
-      return b.p - a.p;
+      // まず進んだ周回数。同じ周回数までのゴールどうしは、早く着いた順。
+      // 周回数を先に見ないと、周回遅れのゴールとまだ走っている車のあいだで
+      // 順序が循環してしまう
+      if (a.p !== b.p) return b.p - a.p;
+      if (a.fin && b.fin) return a.fin - b.fin;
+      return 0;
     });
   }
 
@@ -1383,10 +1399,16 @@ GP.raceview = (function () {
   }
   function drainRadio() {
     if (radioTimer || !radioQueue.length) return;
-    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）
-    if (radioQueue.length > 4) radioQueue = radioQueue.slice(-4);
+    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）。
+    // ただしスタート前のやりとりは、後ろの無線に押し出されないよう残す
+    if (radioQueue.length > 6) {
+      const keep = radioQueue.filter(r => r.lap === 0);
+      radioQueue = keep.concat(radioQueue.filter(r => r.lap !== 0).slice(-6 + keep.length));
+    }
     showRadio(radioQueue.shift());
-    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, 1150);
+    // 詰まっているときは、間を詰めて追いつかせる
+    const wait = radioQueue.length >= 3 ? 640 : 1150;
+    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, wait);
   }
   function showRadio(r) {
     const box = document.getElementById('rvRadio');

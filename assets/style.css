@@ -1798,3 +1798,13 @@ body[data-skin="hd"]{
 [data-skin="hd"] .mini.danger{background:linear-gradient(180deg,#c8483c,#8a2a20);background-color:#a83428;
   border-color:#ff9a8a;color:#fff2ee}
 [data-skin="hd"] .focusbtn.on{background:linear-gradient(#ffd76a,#ffc93c);background-color:#ffcf4d}
+
+/* ---- グリッドから決勝へ進む大ボタン ---- */
+.cmd.big.go { background: linear-gradient(180deg,#2fa04a,#1d7a36); }
+.cmd.big.go { background-color: #26913f; border-color: #16582a; }
+
+/* ---- 歩く場面の「まとめて回る」 ---- */
+.hlbtn.allbtn { background: linear-gradient(180deg,#3b6ea8,#2a5386); }
+.hlbtn.allbtn { background-color: #33608f; border-color: #1e3f68; color: #fff; }
+.hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
+.hlbtn.allbtn em { opacity: .85; }

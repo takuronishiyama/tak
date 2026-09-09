@@ -1814,6 +1814,16 @@ body[data-skin="hd"]{
   border-color:#ff9a8a;color:#fff2ee}
 [data-skin="hd"] .focusbtn.on{background:linear-gradient(#ffd76a,#ffc93c);background-color:#ffcf4d}
 
+/* ---- グリッドから決勝へ進む大ボタン ---- */
+.cmd.big.go { background: linear-gradient(180deg,#2fa04a,#1d7a36); }
+.cmd.big.go { background-color: #26913f; border-color: #16582a; }
+
+/* ---- 歩く場面の「まとめて回る」 ---- */
+.hlbtn.allbtn { background: linear-gradient(180deg,#3b6ea8,#2a5386); }
+.hlbtn.allbtn { background-color: #33608f; border-color: #1e3f68; color: #fff; }
+.hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
+.hlbtn.allbtn em { opacity: .85; }
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2553,7 +2563,7 @@ GP.data = (function () {
       eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'] },
     { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
       desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
-      eff: ['ピット時間 -0.5秒/Lv', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
+      eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
     { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
       desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
       eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'] }
@@ -2663,7 +2673,7 @@ GP.data = (function () {
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
     { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
       desc: 'マシンそのものの速さは変わらない',
-      eff: 'ピット作業が最大2.2秒速くなり、パーツの消耗が -35%（維持費が下がる）',
+      eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
   /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
@@ -6019,6 +6029,32 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- スタート前。グリッドについてから、フォーメーションまでの一往復 --- */
+    gridPole: ['「聞こえるか。今日はいちばん前だ。あとは出るだけでいい」',
+               '「ポールだ。1コーナーまでは誰も前にいない。思いきり行け」',
+               '「最前列。ここまで来たのは君の仕事だ。あとは楽しんでこい」'],
+    gridFront: ['「P{G} スタート。前は見えている。1周目で決めにいこう」',
+                '「P{G}。表彰台の射程だ。落ち着いて、いつも通りに」',
+                '「{G}番手。悪くない位置だ。1コーナーだけは慎重に」'],
+    gridMid: ['「P{G}。長いレースになる。前半は我慢だ」',
+              '「{G}番手スタート。混戦になる、無理はしなくていい」',
+              '「P{G}。ここからでも取れる。作戦は用意してある」'],
+    gridBack: ['「P{G}。今日は下から行く。焦らず、拾えるものを拾おう」',
+               '「後方スタートだ。1周目を生き残れば、まだ何でもできる」',
+               '「P{G}。ここから前に出るところを、みんなに見せてやれ」'],
+    gridWet: ['「路面はもう濡れている。最初の3周が全部だ。慎重に」',
+              '「ウェットスタート。視界は悪い、前についていくな」',
+              '「雨だ。今日は我慢した者が勝つ。焦らないでくれ」'],
+    /* --- ドライバー → ピット（スタート前の返事）--- */
+    gridHot: ['「わかってます。今日は獲りにいきます」',
+              '「クルマ、いい感じです。全部出します」',
+              '「準備できてます。行きましょう」'],
+    gridCalm: ['「了解。いつも通りやります」',
+               '「はい。1コーナーは見ておきます」',
+               '「大丈夫です。行けます」'],
+    gridLow: ['「……了解です。できることをやります」',
+              '「わかりました。まずは生き残ります」',
+              '「はい。とにかく最後まで持って帰ります」'],
     /* --- ピット → ドライバー --- */
     box: ['「ボックス、ボックス。{T} に行く」',
           '「今周ピットだ。{T} を用意してある」',
@@ -6659,6 +6695,23 @@ GP.race = (function () {
         : D.WEATHER[Math.random() < 0.30 ? 3 : 2];                   // 降り出す
       wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
     }
+
+    // ---- スタート前の無線 ----
+    // グリッドについてから、フォーメーションラップに出るまでのひと言。
+    // 「どこから出るか」「どんな路面か」「どんな調子か」で言うことが変わる
+    entries.forEach(e => {
+      if (!e.isPlayer) return;
+      const V0 = { D: e.driver.name, G: e.grid, W: weather.name };
+      const pool = weather.wetTyres ? RADIO.gridWet
+                 : e.grid === 1     ? RADIO.gridPole
+                 : e.grid <= 5      ? RADIO.gridFront
+                 : e.grid <= 12     ? RADIO.gridMid
+                                    : RADIO.gridBack;
+      const form = e.driver.form || 100;
+      const back = form >= 108 ? RADIO.gridHot : form >= 92 ? RADIO.gridCalm : RADIO.gridLow;
+      radio.push({ lap: 0, from: 'pit', name: e.driver.name, id: e.id, text: say(pool, V0) });
+      radio.push({ lap: 0, from: 'drv', name: e.driver.name, id: e.id, text: say(back, V0) });
+    });
 
     // ---- 母国グランプリ ----
     // 自国のコースで走る週末は、それだけで特別な一戦になる
@@ -7665,7 +7718,10 @@ GP.raceview = (function () {
     const lt = e.lapTimes[lap] || 1;
     const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
     const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
-    return { done: false, p: lap + Math.min(1, (t - prev) / drive) };
+    // ピット作業中は走っている時間ぶんを使い切っているので、そのままだと
+    // 「まだピットに居るのに1周を終えた」ことになり、ゴールした車と同じ値で
+    // 並んでしまう。周の手前でわずかに止めておく
+    return { done: false, p: lap + Math.min(0.999, (t - prev) / drive) };
   }
 
   /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
@@ -7708,10 +7764,23 @@ GP.raceview = (function () {
   function orderAt(t) {
     return res.entries.slice().map(e => {
       const pr = progress(e, t);
-      return { e, p: pr.p, done: pr.done, out: e.dnf && t >= (e.cum[e.dnfLap - 1] || 0) };
+      const n = e.cum.length;
+      // ゴールした車は「周回数」ではなく「ゴールした時刻」で並べる。
+      // 走り切った車はみな p が最終周ちょうどで並ぶため、これをしないと
+      // ラインを通過した瞬間に順位が入れ替わって見えてしまう
+      return { e, p: pr.p, done: pr.done,
+               // !! を外すと、dnf が undefined の車と false の車で
+               // a.out !== b.out が成り立ってしまい、並びが毎フレーム暴れる
+               out: !!(e.dnf && t >= (e.cum[e.dnfLap - 1] || 0)),
+               fin: (pr.done && !e.dnf && n) ? (e.cum[n - 1] || 0) : 0 };
     }).sort((a, b) => {
       if (a.out !== b.out) return a.out ? 1 : -1;
-      return b.p - a.p;
+      // まず進んだ周回数。同じ周回数までのゴールどうしは、早く着いた順。
+      // 周回数を先に見ないと、周回遅れのゴールとまだ走っている車のあいだで
+      // 順序が循環してしまう
+      if (a.p !== b.p) return b.p - a.p;
+      if (a.fin && b.fin) return a.fin - b.fin;
+      return 0;
     });
   }
 
@@ -8976,10 +9045,16 @@ GP.raceview = (function () {
   }
   function drainRadio() {
     if (radioTimer || !radioQueue.length) return;
-    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）
-    if (radioQueue.length > 4) radioQueue = radioQueue.slice(-4);
+    // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）。
+    // ただしスタート前のやりとりは、後ろの無線に押し出されないよう残す
+    if (radioQueue.length > 6) {
+      const keep = radioQueue.filter(r => r.lap === 0);
+      radioQueue = keep.concat(radioQueue.filter(r => r.lap !== 0).slice(-6 + keep.length));
+    }
     showRadio(radioQueue.shift());
-    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, 1150);
+    // 詰まっているときは、間を詰めて追いつかせる
+    const wait = radioQueue.length >= 3 ? 640 : 1150;
+    radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, wait);
   }
   function showRadio(r) {
     const box = document.getElementById('rvRadio');
@@ -14620,7 +14695,25 @@ window.GP = window.GP || {};
   let pendingStrategy = {};
   let raceCtx = { trackIndex: 0, special: null };
 
-  function cmdRace() { beginRace(g.nextRace, null); }
+  function cmdRace() {
+    // 予選が終わってグリッドに立っているときは、下のボタンからも決勝へ行ける。
+    // ここで週末を頭からやり直すと、走り終えた予選が消えてしまう
+    if (g.onGrid && prePack) return confirmStart();
+    beginRace(g.nextRace, null);
+  }
+
+  /* グリッドの用事を残したまま決勝へ行こうとしたときの確認 */
+  function confirmStart() {
+    const left = gridPeople().filter(q => q.key !== 'gd:go' && !q.done);
+    if (!left.length) return leaveGrid(true);
+    U.modal('🚦 スタート進行',
+      '<p class="lead">まだグリッドで済ませていない用事があります。</p>' +
+      '<div class="cpclist">' + left.map(q =>
+        '<span class="cpc">' + esc(q.label || 'グリッド') + '</span>').join('') + '</div>' +
+      '<p class="note">このまま決勝を始めると、今日はもう回れません。</p>',
+      [{ label: '🚦 決勝を始める', cls: 'primary', fn: () => { U.closeModal(); leaveGrid(true); } },
+       { label: 'グリッドへ戻る', fn: () => { U.closeModal(); refreshGrid(); } }]);
+  }
 
   function beginRace(trackIndex, special) {
     const t = D.TRACKS[trackIndex];
@@ -17384,13 +17477,71 @@ window.GP = window.GP || {};
   /* ---- いまの場所でできることを、そのままボタンにする ----
      歩いて近づくのが楽しい人はそれで、まっすぐ選びたい人はここから。
      どちらでも同じところに行き着くようにしておく                    */
+  /* ---- まとめて回る ----
+     人数が増えてくると、一人ずつ歩いて話しかけるのが手間になる。
+     「まだ済ませていない用事」だけを順に開き、閉じると次へ進む。
+     一件ずつ開くのは、何が起きたかを取りこぼさないため             */
+  let batchQ = null;
+  function batchable() {
+    const doors = hubDoors();
+    // done を持つ入口＝一度きりの用事。設備や画面への入口は対象にしない
+    return Object.keys(doors).filter(k => doors[k].done === false || doors[k].done === true)
+                             .filter(k => !doors[k].done);
+  }
+  function batchStart() {
+    batchQ = batchable();
+    if (!batchQ.length) { batchQ = null; return U.toast('🗨️ 今日の用事はもう済んでいる', ''); }
+    GP.sound.play('tap');
+    batchNext();
+  }
+  function batchNext() {
+    if (!batchQ) return;
+    const doors = hubDoors();
+    let k = null;
+    while (batchQ.length && !k) {
+      const c = batchQ.shift();
+      if (doors[c] && !doors[c].done) k = c;
+    }
+    if (!k) { batchQ = null; refreshWalk(); return; }
+    doors[k].fn();
+    batchPatch();
+  }
+  /* 開いたモーダルの主ボタンを「次へ」に差し替える。
+     選択肢のあるモーダル（記者の受け答えなど）は、
+     選び終えて次のモーダルが出たところで改めて差し替える           */
+  function batchPatch(tries) {
+    if (!batchQ) return;
+    const n = tries || 0;
+    if (n > 80) return;                          // 選ばれないまま置かれたら、そこで手を引く
+    setTimeout(() => {
+      if (!batchQ) return;
+      const box = $('modalBtns');
+      if (!box) return;
+      const bs = Array.prototype.slice.call(box.querySelectorAll('.btn'));
+      if (!bs.length) { batchPatch(n + 1); return; }   // まだ選択待ち。次の描画で拾う
+      const b = bs.filter(x => x.classList.contains('primary'))[0] || bs[0];
+      const rest = batchQ.length;
+      b.innerHTML = rest ? '▶ 次へ（あと ' + rest + ' 件）' : '✓ ひと回り終わり';
+      b.onclick = () => { U.closeModal(); setTimeout(batchNext, 80); };
+    }, n ? 250 : 40);
+  }
+  function refreshWalk() {
+    if (g.onGrid) return refreshGrid();
+    GP.base.setYard && GP.base.setYard(yardPeople());
+    hubMap().invalidate();
+    render();
+  }
+
   function renderHubList() {
     const box = $('hubList');
     if (!box) return;
     const doors = hubDoors();
     const keys = Object.keys(doors);
     if (!keys.length) { box.innerHTML = ''; return; }
+    const rest = batchable().length;
     box.innerHTML = '<b class="hl-h">ここでできること</b>' +
+      (rest >= 2 ? '<button class="hlbtn allbtn" data-all="1">' +
+        '<i>🗣️</i><b>まとめて回る</b><em>あと ' + rest + ' 件</em></button>' : '') +
       keys.map(k => {
         const d = doors[k];
         const done = !!d.done;
@@ -17400,8 +17551,11 @@ window.GP = window.GP || {};
           '<b>' + esc(d.label || k) + '</b>' +
           '<em>' + esc(d.to || '入る') + '</em></button>';
       }).join('');
+    const allb = box.querySelector('[data-all]');
+    if (allb) allb.onclick = batchStart;
     Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
       b.onclick = () => {
+        batchQ = null;
         const k = b.getAttribute('data-hub');
         const map = hubMap();
         // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
@@ -17449,6 +17603,13 @@ window.GP = window.GP || {};
     const offs = !!g.offseason;
     $('cmdNormal').style.display = (offs || race) ? 'none' : '';
     $('cmdRace').style.display = (!offs && race) ? '' : 'none';
+    // グリッドに立っている間は、大きなボタンをそのまま決勝への進行にする
+    const rg = $('cRaceGo');
+    if (rg) {
+      const onGrid = !!g.onGrid && !!prePack;
+      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！' : '<span>🏁</span>レースへ向かう！';
+      rg.classList.toggle('go', onGrid);
+    }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
     const btn = $('specialGo');
     if (btn) btn.onclick = enterSpecial;
