@@ -17481,53 +17481,63 @@ window.GP = window.GP || {};
      人数が増えてくると、一人ずつ歩いて話しかけるのが手間になる。
      「まだ済ませていない用事」だけを順に開き、閉じると次へ進む。
      一件ずつ開くのは、何が起きたかを取りこぼさないため             */
-  let batchQ = null;
+  let batchQ = null, batchTimer = 0;
   function batchable() {
     const doors = hubDoors();
     // done を持つ入口＝一度きりの用事。設備や画面への入口は対象にしない
     return Object.keys(doors).filter(k => doors[k].done === false || doors[k].done === true)
                              .filter(k => !doors[k].done);
   }
+  function batchStop() {
+    batchQ = null;
+    if (batchTimer) { clearTimeout(batchTimer); batchTimer = 0; }
+  }
   function batchStart() {
-    batchQ = batchable();
-    if (!batchQ.length) { batchQ = null; return U.toast('🗨️ 今日の用事はもう済んでいる', ''); }
+    const list = batchable();
+    if (!list.length) return U.toast('🗨️ 今日の用事はもう済んでいる', '');
+    batchStop();
+    batchQ = list;
     GP.sound.play('tap');
     batchNext();
   }
   function batchNext() {
     if (!batchQ) return;
+    if (batchTimer) { clearTimeout(batchTimer); batchTimer = 0; }
     const doors = hubDoors();
     let k = null;
     while (batchQ.length && !k) {
       const c = batchQ.shift();
       if (doors[c] && !doors[c].done) k = c;
     }
-    if (!k) { batchQ = null; refreshWalk(); return; }
+    if (!k) { batchStop(); refreshWalk(); return; }
     doors[k].fn();
-    batchPatch();
+    batchPoll(0);
   }
-  /* 開いたモーダルの主ボタンを「次へ」に差し替える。
-     選択肢のあるモーダル（記者の受け答えなど）は、
-     選び終えて次のモーダルが出たところで改めて差し替える           */
-  function batchPatch(tries) {
+  /* 開いたモーダルを見ながら、次へ送る。
+     ボタンが1つだけ＝ただ結果を見せている画面なので、そのボタンを
+     「次へ」に差し替える。2つ以上あるものは選ばせる画面なので触らない。
+     選び終えてモーダルが閉じたら、そこで次の用事へ進む             */
+  function batchPoll(n) {
     if (!batchQ) return;
-    const n = tries || 0;
-    if (n > 80) return;                          // 選ばれないまま置かれたら、そこで手を引く
-    setTimeout(() => {
+    batchTimer = setTimeout(() => {
+      batchTimer = 0;
       if (!batchQ) return;
+      const m = $('modal');
+      if (!m || !/show/.test(m.className)) return batchNext();
       const box = $('modalBtns');
-      if (!box) return;
-      const bs = Array.prototype.slice.call(box.querySelectorAll('.btn'));
-      if (!bs.length) { batchPatch(n + 1); return; }   // まだ選択待ち。次の描画で拾う
-      const b = bs.filter(x => x.classList.contains('primary'))[0] || bs[0];
-      const rest = batchQ.length;
-      b.innerHTML = rest ? '▶ 次へ（あと ' + rest + ' 件）' : '✓ ひと回り終わり';
-      b.onclick = () => { U.closeModal(); setTimeout(batchNext, 80); };
-    }, n ? 250 : 40);
+      const bs = box ? Array.prototype.slice.call(box.querySelectorAll('.btn')) : [];
+      if (bs.length === 1 && !bs[0].getAttribute('data-batched')) {
+        const b = bs[0];
+        b.setAttribute('data-batched', '1');
+        b.innerHTML = batchQ.length ? '▶ 次へ（あと ' + batchQ.length + ' 件）' : '✓ ひと回り終わり';
+        b.onclick = () => { U.closeModal(); setTimeout(batchNext, 60); };
+      }
+      if (n < 400) batchPoll(n + 1); else batchStop();
+    }, 250);
   }
   function refreshWalk() {
     if (g.onGrid) return refreshGrid();
-    GP.base.setYard && GP.base.setYard(yardPeople());
+    if (GP.base.setYard) GP.base.setYard(yardPeople());
     hubMap().invalidate();
     render();
   }
@@ -17555,7 +17565,7 @@ window.GP = window.GP || {};
     if (allb) allb.onclick = batchStart;
     Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
       b.onclick = () => {
-        batchQ = null;
+        batchStop();
         const k = b.getAttribute('data-hub');
         const map = hubMap();
         // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
