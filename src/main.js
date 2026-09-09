@@ -2197,6 +2197,42 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* ---- 作戦の中身 ----
+     「攻める」と「安全第一」が、実際に何を差し引きしているのか。
+     言葉だけだと分からないので、そのコースの数字で出す        */
+  function stratTableHTML(t, lineup) {
+    const base = t.base || 90;
+    const d0 = (lineup || [])[0];
+    const B = R.STRATEGIES.balance;
+    let h = '<div class="strtbl">' +
+      '<div class="strow sth"><span>作戦</span><span>1周</span><span>タイヤの減り</span>' +
+      '<span>ミス</span><span>クラッシュ</span></div>';
+    Object.keys(R.STRATEGIES).forEach(k => {
+      const st = R.STRATEGIES[k];
+      const sec = base * ((1 - st.pace) - (1 - B.pace));      // 秒／周（− なら速い）
+      const miss = 1 + (st.risk - 1) * 0.50;
+      h += '<div class="strow">' +
+        '<span class="stnm">' + st.icon + ' ' + st.name + '</span>' +
+        '<span class="' + (sec < -0.01 ? 'good' : sec > 0.01 ? 'bad' : '') + '">' +
+          (Math.abs(sec) < 0.005 ? '±0.00' : (sec < 0 ? '−' : '+') + Math.abs(sec).toFixed(2)) + '秒</span>' +
+        '<span class="' + (st.tyre > 1 ? 'bad' : st.tyre < 1 ? 'good' : '') + '">×' + st.tyre.toFixed(2) + '</span>' +
+        '<span class="' + (miss > 1 ? 'bad' : 'good') + '">×' + miss.toFixed(2) + '</span>' +
+        '<span class="' + (st.risk > 1 ? 'bad' : 'good') + '">×' + st.risk.toFixed(2) + '</span>' +
+        '</div>';
+    });
+    h += '</div>';
+    h += '<p class="desc">攻めると 1周ぶん速くなるかわりに、タイヤが早く終わり、' +
+      'ミスとクラッシュが増えます。安全第一はその逆です。<br>' +
+      'クラッシュの起きやすさは<b>ドライバーの安定感</b>にも直結します' +
+      (d0 ? '（' + esc(d0.name) + ' は ' + S.careTier(d0).icon + S.careTier(d0).name +
+            '＝クラッシュ ×' + S.careCrashMul(d0).toFixed(2) + '）' : '') + '。<br>' +
+      'レース中はこれとは別に、ピットウォールから周ごとの指示（' +
+      D.ORDERS.map(o => o.icon + o.name).join('／') + '）が出ます。' +
+      '雨や、車に傷を負ったあとは <b>🛡️ 安全第一</b> に切り替わり、' +
+      'クラッシュが ×' + (D.ORDERS.filter(o => o.key === 'cool')[0].risk).toFixed(2) + ' まで下がります。</p>';
+    return h;
+  }
+
   /* ---- スカウトの見立て ----
      若手の中身は、見る側の目が良いほど正確に分かる。
      ユースアカデミーと育成スタッフ、アナリストの力で誤差が縮む。
@@ -2240,8 +2276,12 @@ window.GP = window.GP || {};
     const ov = err <= 2 ? String(Math.round(S.driverRating(d)))
              : Math.round(rate.reduce((a, r) => a + r.lo, 0) / 4) + '〜' +
                Math.round(rate.reduce((a, r) => a + r.hi, 0) / 4);
+    const ct = S.careTier(d);
+    // 荒いか手堅いかは、走りを見れば分かる。見立ての精度とは別に出す
     let h = '<span class="sc-head">' + S.nationOf(d).flag + ' ' + d.age + '歳' +
-      '　総合 <b>' + ov + '</b>　' + pers.icon + pers.name + '</span>' +
+      '　総合 <b>' + ov + '</b>　' + pers.icon + pers.name +
+      '　<b style="color:' + ct.color + '" title="' + esc(ct.note) + '">' +
+      ct.icon + ct.name + '</b></span>' +
       '<span class="sc-pot">才能 ' + pot + '</span>' +
       '<span class="sc-bars">';
     KEYS.forEach(([k, nm], i) => {
@@ -2520,7 +2560,15 @@ window.GP = window.GP || {};
               Math.round(x.lift * 100) + '%</b></span>' +
           '</div>';
         x.notes.forEach(nt => {
-          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' + esc(nt.text) + '</div>';
+          // 「誰の、何が、どれだけ」を一列に出す。
+          // 理由だけ書かれても、どこを直せばいいのか分からない
+          const amt = nt.amt == null ? '' :
+            '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
+            Math.round(Math.abs(nt.amt) * 100) + '%</em>';
+          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
+            (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
+            (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
+            '<span class="gn-t">' + esc(nt.text) + '</span></div>';
         });
         if (!x.members.length) {
           h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
@@ -3229,7 +3277,7 @@ window.GP = window.GP || {};
       });
       body += '</div></div>';
     });
-    body += '<p class="desc">🛡️ 安全第一＝ペースは落ちるがリタイアしにくい／🔥 攻める＝速いがミスとタイヤ消耗のリスク大</p>';
+    body += stratTableHTML(t, lineup);
 
     // ---- スタートタイヤ ----
     const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
@@ -4958,7 +5006,12 @@ window.GP = window.GP || {};
     }
     // 労うと、シーズンの疲れが抜けて少し伸びる
     let n = 0;
-    (g.staff || []).forEach(st => { st.skill = S.clamp(st.skill + S.rnd(1, 3), 1, 99); n++; });
+    // 端数のまま足すと「技能 36.269970727173385」と出てしまう。
+    // 上限もその人の器（staffCap）で止める
+    (g.staff || []).forEach(st => {
+      st.skill = S.clamp(Math.round(st.skill + S.rnd(1, 3)), 1, S.staffCap(st));
+      n++;
+    });
     offMark('staff');
     S.save(g);
     U.modal('👥 スタッフのみんな',

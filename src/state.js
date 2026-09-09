@@ -373,25 +373,56 @@ GP.state = (function () {
     opts = opts || {};
     const base = 18 + level * 9;
     const sp = (v) => clamp(Math.round(v + rnd(-7, 7)), 5, 190);
+    const pot = opts.pot || rollPotential(opts.youth);
+    const pers = opts.pers || pick(D.PERSONALITIES).key;
+    /* 荒さ（-1 = 丁寧, +1 = 荒い）。荒いほど速いが、そのぶん壊す。
+       素質が高い者ほど、この取引をしないで済む（速くて壊さない）  */
+    const wild = rnd(-1, 1);
+    const trade = 1 - (pot - 1) * 0.20;          // ★1=1.0 … ★5=0.2
+    const lift = (pot - 1) * 3.5;                // 素質のぶんは、速さにも丁寧さにも乗る
+    const persCare = (D.PERSONALITIES.find(x => x.key === pers) || {}).care || 0;
     const d = {
       id: 'd' + Math.random().toString(36).slice(2, 9),
       name: opts.name || freshName(),
       age: opts.age || rint(19, 34),
-      speed: sp(base), technique: sp(base), stamina: sp(base), mental: sp(base),
+      speed: sp(base + wild * 8 * trade + lift * 0.5),
+      technique: sp(base), stamina: sp(base), mental: sp(base),
+      // 安定感。速さと引き換えになる、その人の性質。練習では上がらない
+      care: clamp(Math.round(base - wild * 15 * trade + lift + persCare + rnd(-7, 7)), 5, 190),
       exp: 0, expLv: 1,
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
       poles: 0, fastestLaps: 0, dnfs: 0, best: 99,
       nation: opts.nation || rint(0, D.NATIONS.length - 1),
-      pot: opts.pot || rollPotential(opts.youth),
-      pers: opts.pers || pick(D.PERSONALITIES).key,
+      pot: pot,
+      pers: pers,
       face: rint(0, 999999),          // 顔の見た目を決める種
       skills: opts.skills || rollSkills(level)
     };
-    d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
+    d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95
+                          + careOf(d) * 0.10 + 18);
     return d;
   }
+
+  /* ---------- 安定感 ----------
+     クラッシュとミスの起きやすさを決める、その人の「まとめる力」。
+     鉄の心臓と精密機械は、そのまま安定感として現れる     */
+  function careOf(d) {
+    if (!d) return 100;
+    let v = d.care != null ? d.care : 100;
+    if (hasSkill(d, 'heart')) v += 22;
+    if (hasSkill(d, 'precise')) v += 14;
+    if (d.hurt) v -= 18;
+    return clamp(v, 5, 199);
+  }
+  function careTier(d) {
+    const v = careOf(d);
+    return D.CARE_TIERS.filter(x => v <= x.max)[0] || D.CARE_TIERS[D.CARE_TIERS.length - 1];
+  }
+  /* 100 を等倍として、クラッシュ／ミスが何倍になるか */
+  function careCrashMul(d) { return clamp(1 + (100 - careOf(d)) / 100 * D.CARE_CRASH, 0.22, 2.2); }
+  function careMissMul(d)  { return clamp(1 + (100 - careOf(d)) / 100 * D.CARE_MISS,  0.45, 1.7); }
 
   /* ---------- スキル抽選 ---------- */
   const SKILL_MAX = 5;
@@ -1182,6 +1213,7 @@ GP.state = (function () {
   function relCare(g) {
     return techLv(g, 'cool') * techDef('cool').per + techLv(g, 'tough') * 0.8
          + bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7
+         + bodyRatio(g, 'service') * 6
          + g.facilities.pit * 2.5 + pitPower(g) * 1.4
          + (g.engine ? D.ENGINE.relBonus : 0)
          - crewPenalty(g).rel - puRelDrop(g);
@@ -1317,27 +1349,39 @@ GP.state = (function () {
     const notes = [];
     let mul = 1;
     // ⭐が2人以上。主役が2人いると、どちらも本気を出せない
-    const stars = mem.filter(s => stTrait(s, 'star')).length;
+    const nm = list => list.map(s => s.name).join('・');
+    const starList = mem.filter(s => stTrait(s, 'star'));
+    const stars = starList.length;
     if (stars >= 2) { mul += F.starClash; notes.push({ bad: true, icon: '⚡',
-      text: '主役が' + stars + '人。ぶつかって、どちらも本気を出せていない' }); }
+      who: nm(starList), why: '⭐名うて が' + stars + '人', amt: F.starClash,
+      text: nm(starList) + ' が主役同士でぶつかり、どちらも本気を出せていない' }); }
     // まとめる人がいない
     const chiefs = mem.filter(s => staffRank(s).key === 'chief').length;
     if (mem.length >= 4 && !chiefs) { mul += F.noChief; notes.push({ bad: true, icon: '🧭',
-      text: '' + mem.length + '人いるのに、まとめる人がいない' }); }
+      who: nm(mem), why: mem.length + '人／チーフ 0人', amt: F.noChief,
+      text: mem.length + '人いるのに、まとめる人（チーフ）がいない' }); }
     // 指導者がいる
-    if (mem.some(s => stTrait(s, 'mentor'))) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
-      text: '指導者がいる。下が育ち、判断も速い' }); }
+    const mentors = mem.filter(s => stTrait(s, 'mentor'));
+    if (mentors.length) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
+      who: nm(mentors), why: '🎓指導者', amt: F.mentorLift,
+      text: nm(mentors) + ' が指導役。下が育ち、判断も速い' }); }
     // ベテランと若手が混ざっている
     if (mem.length >= 2) {
-      const sk = mem.map(s => s.skill);
-      if (Math.max.apply(null, sk) - Math.min.apply(null, sk) >= F.mixGap) {
+      const sorted = mem.slice().sort((a, b) => b.skill - a.skill);
+      const top = sorted[0], low = sorted[sorted.length - 1];
+      if (top.skill - low.skill >= F.mixGap) {
         mul += F.mixLift;
-        notes.push({ bad: false, icon: '🤲', text: '教える相手がいる。手が回り、経験も渡っている' });
+        notes.push({ bad: false, icon: '🤲',
+          who: top.name + ' → ' + low.name,
+          why: '技能差 ' + Math.round(top.skill - low.skill), amt: F.mixLift,
+          text: top.name + '（技能 ' + Math.round(top.skill) + '）が ' +
+                low.name + '（技能 ' + Math.round(low.skill) + '）に渡せている' });
       }
     }
     // 1人に寄りかかっている
     if (mem.length === 1 && mem[0].skill >= 45) { mul += F.soloRisk; notes.push({ bad: true, icon: '🪑',
-      text: 'この人ひとりに寄りかかっている。抜けたら止まる' }); }
+      who: mem[0].name, why: 'ひとりだけ', amt: F.soloRisk,
+      text: mem[0].name + ' ひとりに寄りかかっている。抜けたら止まる' }); }
     return { key: key, def: G, members: mem, raw: raw, mul: Math.max(0.5, mul),
              score: raw * Math.max(0.5, mul), chiefs: chiefs, notes: notes };
   }
@@ -1606,10 +1650,18 @@ GP.state = (function () {
   /* ---------- 修理費 ----------
      スピン、コースアウト、クラッシュ。壊したぶんは自分で払う。
      世代の進んだマシンほど部品が高い。難易度でも変わる          */
+  /* 修理代がどれだけ安く済むか（0..0.62）。
+     整備しやすい車体と、高耐久の技術が効く                    */
+  function repairCut(g2) {
+    return clamp(bodyRatio(g2, 'service') * 0.40 + techLv(g2, 'tough') * 0.035, 0, 0.62);
+  }
   function repairBill(g2, res) {
     const R2 = D.REPAIR;
     const genMul = 1 + (g2.carGen || 0) * R2.gen;
     const diff = diffOf(g2).repair == null ? 1 : diffOf(g2).repair;
+    // 整備性の高い車体は、直すのも速くて安い。
+    // 高耐久の技術も、同じところに効く
+    const svc = repairCut(g2);
     let sum = 0;
     const lines = [];
     (res.entries || []).filter(e => e.isPlayer).forEach(e => {
@@ -1619,7 +1671,7 @@ GP.state = (function () {
       else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
       n += R2.dmg * (e.damage || 0);
       if (n <= 0) return;
-      n = Math.round(n * genMul * diff);
+      n = Math.round(n * genMul * diff * (1 - svc));
       sum += n;
       lines.push({ name: e.driver.name, cost: n,
                    what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
@@ -2440,6 +2492,10 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // 端数のまま保存された技能を丸めておく（過去の不具合ぶん）
+      (g.staff || []).forEach(st => {
+        if (typeof st.skill === 'number' && st.skill % 1 !== 0) st.skill = Math.round(st.skill);
+      });
       // 個体に付いていた追加効果は、チームの技術（レベル1）に読み替える
       if (!g.techs) {
         g.techs = {};
@@ -2477,7 +2533,8 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    makeDriver, careOf, careTier, careCrashMul, careMissMul, repairCut,
+    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,

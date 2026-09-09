@@ -271,6 +271,20 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- 「順位より、持って帰ってくれ」--- */
+    cool: ['「ここは無理をするな。順位は守れればいい」',
+           '「ここからは車を労わってくれ。まとめて持ち帰ろう」',
+           '「ポイントは持って帰るぞ。抑えていこう」',
+           '「もう十分だ。無理をしないで、きれいにまとめてくれ」',
+           '「一度落ち着こう。マージンを取って走ってくれ」'],
+    coolWet: ['「路面が良くない。無理はするな、抑えて走ってくれ」',
+              '「水の上だ。攻めるところじゃない。持って帰ってくれ」',
+              '「雨脚が強い。今日は完走が仕事だ。落ち着いていこう」',
+              '「白線には乗るな。マージンを取って、丁寧に」'],
+    coolBack: ['「了解。抑える」',
+               '「わかった。まとめて持って帰る」',
+               '「そうする。ここは我慢だな」',
+               '「コピー。マージン取って走る」'],
     /* --- スタート前。グリッドについてから、フォーメーションまでの一往復 --- */
     gridPole: ['「聞こえるか。今日はいちばん前だ。あとは出るだけでいい」',
                '「ポールだ。1コーナーまでは誰も前にいない。思いきり行け」',
@@ -428,18 +442,41 @@ GP.race = (function () {
   /* ピットウォールがこの周に出す指示。
      タイヤの残り・前後の車間・残り周回から、攻めるか抑えるかを決める。
      決めた指示は、そのままラップタイムとタイヤの減りに効く          */
-  function decideOrder(e, lap, laps, ty) {
+  function decideOrder(e, lap, laps, ty, wet) {
     const left = ty.life - e.tyreAge;                 // タイヤの余力（周）
     const nextPit = e.pitPlan.find(l => l > lap);
     const toPit = nextPit == null ? laps - lap : nextPit - lap;
     const gapA = e.gapAhead, gapB = e.gapBehind;
+    /* ---- まず「持って帰る」判断 ----
+       濡れた路面や、車に傷を負ったあと、あるいは前後が離れていて
+       走りきるだけでよいときは、順位より完走を取る。
+       慎重なドライバーほど、ここに入りやすい                       */
+    {
+      const careV = S.careOf(e.driver);
+      const alone = (gapA == null || gapA > 4.5) && (gapB == null || gapB > 4.5);
+      const hurt = (e.damage || 0) >= 1.4 || (e.spins || 0) >= 1;
+      const soaked = (wet || 0) >= 0.55;
+      const risky = (e.harsh || 0) >= 1.05;
+      // 攻めろと言われている作戦のときは、そう簡単には引かない
+      const bias = (1.9 - e.st.risk) * (0.6 + careV / 160);
+      let want = 0;
+      if (soaked) want += 1.0;
+      if (hurt) want += 0.9;
+      if (risky) want += 0.7;
+      if (alone) want += 0.5;
+      if (lap > laps * 0.8 && alone) want += 0.4;
+      if (want * bias >= 1.5) return 'cool';
+    }
     // タイヤが持たない見込みなら、まず抑える
     if (left < toPit) return 'save';
     // 攻め続けられる時間には限りがある。何周も出しっぱなしにはできない
     const burnt = (e.pushLaps || 0) >= 4;
+    // 濡れた路面では、そもそも仕掛けにいかない。攻める作戦の人だけが踏む
+    const bold = (wet || 0) < 0.45 ||
+                 Math.random() < 0.30 + (e.st.risk - 1) * 0.22 + (100 - S.careOf(e.driver)) / 400;
     // 終盤、前が射程で、タイヤを使い切ってよいなら出しきる
-    if (laps - lap <= 4 && gapA != null && gapA < 2.0) return 'push';
-    if (!burnt) {
+    if (laps - lap <= 4 && gapA != null && gapA < 2.0 && bold) return 'push';
+    if (!burnt && bold) {
       // 後ろに詰められている。守るのは、タイヤに余裕があるときだけ
       if (gapB != null && gapB < 1.0 && left > toPit * 1.6 + 3) return 'push';
       // 前が射程。仕掛けるのも、余裕があるときだけ
@@ -456,6 +493,7 @@ GP.race = (function () {
      状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
   function radioTick(st) {
     const lap = st.lap, laps = st.laps, radio = st.radio;
+    const wxWetNow = st.wetLevel || 0;
     const run = st.order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
     run.forEach((e, i) => {
       if (!e.isPlayer) return;
@@ -518,6 +556,11 @@ GP.race = (function () {
       if (e.orderChanged === lap) {                     // 指示が変わった
         e.orderChanged = -1;
         if (e.order === 'push') { push(RADIO.push, 'pit', true); push(RADIO.pushBack, 'drv', true); }
+        else if (e.order === 'cool') {
+          // 「順位より、持って帰ってくれ」。雨と、傷を負ったあとの合図
+          push((wxWetNow >= 0.55 ? RADIO.coolWet : RADIO.cool), 'pit', true);
+          push(RADIO.coolBack, 'drv', true);
+        }
         else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
         else { push(RADIO.clear, 'pit', true); }
         e.radioCool = 3;
@@ -605,7 +648,7 @@ GP.race = (function () {
                        cool: RIVAL_BODY, svc: RIVAL_BODY, drive: RIVAL_BODY };
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
-        const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track);
+        const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
         const st = STRATEGIES[strat];
         const sk = k => S.hasSkill(d, k);
         let drv = S.driverRating(d);
@@ -711,11 +754,29 @@ GP.race = (function () {
     return fit[0].key;
   }
 
-  function autoStrategy(team, track) {
+  /* ---- ライバルの作戦 ----
+     こちらと同じことを、向こうもやっている。
+     荒いドライバーは攻め、手堅いドライバーは守る。
+     荒れるコースや雨の週末は、全体に慎重になる。
+     チームの性格（style）も、そのまま週末の構えに出る            */
+  function autoStrategy(team, track, weather) {
+    const d = (team.drivers || [])[0];
+    const care = d ? S.careOf(d) : 100;
+    const wet = weather && (weather.key === 'rain' || weather.key === 'storm');
+    let attack = 0.26 + (100 - care) / 100 * 0.30
+               + (team.style === 'attack' ? 0.16 : team.style === 'safe' ? -0.14 : 0)
+               - ((track.risk || 1) - 1) * 0.28
+               - (wet ? 0.14 : 0);
+    let safe = 0.18 + (care - 100) / 100 * 0.28
+             + ((track.risk || 1) - 1) * 0.30
+             + (wet ? 0.16 : 0)
+             + (team.style === 'safe' ? 0.14 : 0);
+    attack = Math.max(0.04, Math.min(0.62, attack));
+    safe = Math.max(0.04, Math.min(0.62, safe));
     const r = Math.random();
-    if (r < 0.2) return 'safe';
-    if (r < 0.75) return 'balance';
-    return 'attack';
+    if (r < safe) return 'safe';
+    if (r < safe + attack) return 'attack';
+    return 'balance';
   }
 
   /* ---------- 天候抽選 ---------- */
@@ -1303,7 +1364,7 @@ GP.race = (function () {
         // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
         // 無線で言っていることが、そのままここで効く
         const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty);
+        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
         if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
@@ -1394,11 +1455,11 @@ GP.race = (function () {
           const tyreOver = Math.max(0, e.tyreAge - ty.life);
           let mp = 0.0090
                  * (1 + (e.st.risk - 1) * 0.50)
+                 * S.careMissMul(e.driver)               // その人の「まとめる力」
                  * (1.55 - e.driver.mental / 190)
                  * (1 + tyreOver * 0.075)
                  * (0.55 + wx.chaos * 0.45) * (1 - e.wetSkill * wx.level * 0.55)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
-                 * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
                  * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
@@ -1608,9 +1669,13 @@ GP.race = (function () {
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
         const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
+        /* クラッシュは「腕」ではなく「まとめる力」で決まる。
+           速い人が壊さないとは限らない、というのがこのゲームの取引。
+           ピットの指示（安全第一〜プッシュ）も、そのまま危うさに乗る */
         const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * wx.chaos * e.st.risk
-                    * ((1 - e.bd.rigid * 0.30) / (1 - RIVAL_BODY_REF * 0.30))
-                      * (e.sk('heart') ? 0.40 : 1);
+                    * S.careCrashMul(e.driver)
+                    * (orderOf(e.order).risk != null ? orderOf(e.order).risk : 1)
+                    * ((1 - e.bd.rigid * 0.30) / (1 - RIVAL_BODY_REF * 0.30));
         const r = Math.random();
         if (r < mech) {
           // どこが壊れたかは、いちばん傷んでいる部位に寄せる。
@@ -1803,7 +1868,7 @@ GP.race = (function () {
       // ---- チーム無線 ----
       radioTick({ lap: lap, laps: laps, order: order, radio: radio,
                   scStart: scStarted, scVirtual: scInfo.virtual, scEnd: scEnded,
-                  wxChanged: wxChangedThisLap, wxWet: wx.wet });
+                  wxChanged: wxChangedThisLap, wxWet: wx.wet, wetLevel: wx.level || 0 });
       scStarted = false; wxChangedThisLap = false;
 
       // 順位変動の記録

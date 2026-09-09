@@ -2195,6 +2195,28 @@ body[data-skin="hd"]{
 .sc-bars em{font-style:normal;flex:0 0 46px;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:520px){ .sc-bars{grid-template-columns:1fr} }
 
+
+/* ---- 作戦の中身 ---- */
+.strtbl{display:flex;flex-direction:column;gap:2px;margin:4px 0 6px}
+.strow{display:flex;align-items:center;gap:4px;font-size:11px;
+  font-variant-numeric:tabular-nums;background:var(--paper3);
+  border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.strow.sth{background:none;border:0;padding:0 7px;font-size:9px;color:#7a6a52}
+.strow span{flex:0 0 60px;text-align:right}
+.strow span:first-child{flex:1;text-align:left;font-weight:700}
+.strow .good{color:#1f7a2e}
+.strow .bad{color:#b8331f}
+[data-skin="hd"] .strow .good{color:#7ee08a}
+[data-skin="hd"] .strow .bad{color:#ff9a86}
+.drv-care{white-space:nowrap}
+@media (max-width:520px){ .strow{font-size:10px} .strow span{flex:0 0 50px} }
+
+/* ---- グループの噛み合い：誰の、何が、どれだけ ---- */
+.grp-note u{text-decoration:none;font-size:10px;opacity:.75;
+  border:1px solid currentColor;border-radius:4px;padding:0 4px}
+.grp-note .gn-amt{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
+.grp-note .gn-t{display:block;opacity:.85;margin-top:1px}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -3378,6 +3400,27 @@ GP.data = (function () {
     { n: 5, name: '大器',   color: '#f0a020', growth: 1.85 }
   ];
 
+  /* ---------- 安定感 ----------
+     速さと引き換えに、車を壊す。ドライバーの「まとめる力」。
+     クラッシュとミスの起きやすさに直に効く。練習では上がらない、
+     その人の性質。素質の高い者ほど、この取引をしないで済む
+     （速くて壊さない、が成立する）                              */
+  const CARE_TIERS = [
+    { max:  45, name: '危うい',   icon: '💥', color: '#d0402a',
+      note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
+    { max:  75, name: '荒い',     icon: '⚡', color: '#d08a20',
+      note: '仕掛けはするが、そのぶん傷も作る' },
+    { max: 105, name: 'ふつう',   icon: '🙂', color: '#8a7a5a',
+      note: '無理はしない。無茶もしない' },
+    { max: 135, name: '手堅い',   icon: '🛡️', color: '#3f8b3a',
+      note: '車を持って帰ってくる。指示どおりに走れる' },
+    { max: 999, name: '完璧主義', icon: '💎', color: '#3a7ad9',
+      note: '限界の手前で毎周ぴたりと止める。壊さない' }
+  ];
+  /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
+  const CARE_CRASH = 0.85;    // 安定感0で ×(1+0.85)、190で ×(1-0.75) ほど
+  const CARE_MISS  = 0.45;
+
   /* ---------- 国籍 ---------- */
   const NATIONS = [
     { flag: '🇯🇵', name: '日本' },      { flag: '🇮🇹', name: 'イタリア' },
@@ -3394,19 +3437,19 @@ GP.data = (function () {
      形だけの飾りにせず、すべてゲーム内の数値に効かせている            */
   const PERSONALITIES = [
     { key: 'hot',   name: '熱血漢',        icon: '🔥', desc: '結果に感情が乗る。勝てば絶好調、負ければ落ち込む',
-      up: 1.9, down: 1.9, rest: 1.0, train: 1.0, dev: 0 },
+      up: 1.9, down: 1.9, rest: 1.0, train: 1.0, dev: 0, care: -6 },
     { key: 'cool',  name: 'クール',        icon: '🧊', desc: '結果に左右されず、いつも通りの走りをする',
-      up: 0.5, down: 0.35, rest: 1.0, train: 1.0, dev: 0 },
+      up: 0.5, down: 0.35, rest: 1.0, train: 1.0, dev: 0, care: 14 },
     { key: 'pro',   name: '職人肌',        icon: '🔧', desc: 'マシンへの要求が的確。開発の伸びが上がる',
-      up: 0.9, down: 0.9, rest: 1.0, train: 1.0, dev: 0.14 },
+      up: 0.9, down: 0.9, rest: 1.0, train: 1.0, dev: 0.14, care: 10 },
     { key: 'sunny', name: 'ムードメーカー', icon: '☀️', desc: 'チームの空気が良くなる。休養での回復が大きい',
-      up: 1.2, down: 0.7, rest: 1.7, train: 1.0, dev: 0 },
+      up: 1.2, down: 0.7, rest: 1.7, train: 1.0, dev: 0, care: 2 },
     { key: 'proud', name: '負けず嫌い',    icon: '👑', desc: '表彰台なら絶好調。圏外だと荒れる',
-      up: 1.6, down: 1.5, rest: 0.9, train: 1.15, dev: 0 },
+      up: 1.6, down: 1.5, rest: 0.9, train: 1.15, dev: 0, care: -4 },
     { key: 'study', name: '努力家',        icon: '📚', desc: '練習の効果が高く、経験値も多く得る',
-      up: 1.0, down: 0.8, rest: 1.0, train: 1.35, dev: 0.05 },
+      up: 1.0, down: 0.8, rest: 1.0, train: 1.35, dev: 0.05, care: 8 },
     { key: 'wild',  name: '荒くれ',        icon: '⚡', desc: '攻めの走りを好む。調子の波が激しい',
-      up: 1.5, down: 1.4, rest: 1.2, train: 0.9, dev: 0 }
+      up: 1.5, down: 1.4, rest: 1.2, train: 0.9, dev: 0, care: -16 }
   ];
 
   /* ---------- レース後のひとこと ---------- */
@@ -3850,11 +3893,13 @@ GP.data = (function () {
      無線は雰囲気だけのものではなく、実際に走りを変える。
      攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い       */
   const ORDERS = [
-    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85,
+    { key: 'cool', name: '安全第一', icon: '🛡️', pace: 0.0072, wear: -0.20, miss: 0.50, risk: 0.42,
+      note: '順位より、車を持って帰ることを優先させる。濡れた路面や、傷を負ったときに出す' },
+    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85, risk: 0.85,
       note: 'ペースを落としてタイヤを最後まで持たせる' },
-    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1,
+    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1, risk: 1,
       note: '決めたとおりのペースで' },
-    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30,
+    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30, risk: 1.35,
       note: 'いま前に出るために、持っているものを使う' }
   ];
 
@@ -4330,7 +4375,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -4916,25 +4961,56 @@ GP.state = (function () {
     opts = opts || {};
     const base = 18 + level * 9;
     const sp = (v) => clamp(Math.round(v + rnd(-7, 7)), 5, 190);
+    const pot = opts.pot || rollPotential(opts.youth);
+    const pers = opts.pers || pick(D.PERSONALITIES).key;
+    /* 荒さ（-1 = 丁寧, +1 = 荒い）。荒いほど速いが、そのぶん壊す。
+       素質が高い者ほど、この取引をしないで済む（速くて壊さない）  */
+    const wild = rnd(-1, 1);
+    const trade = 1 - (pot - 1) * 0.20;          // ★1=1.0 … ★5=0.2
+    const lift = (pot - 1) * 3.5;                // 素質のぶんは、速さにも丁寧さにも乗る
+    const persCare = (D.PERSONALITIES.find(x => x.key === pers) || {}).care || 0;
     const d = {
       id: 'd' + Math.random().toString(36).slice(2, 9),
       name: opts.name || freshName(),
       age: opts.age || rint(19, 34),
-      speed: sp(base), technique: sp(base), stamina: sp(base), mental: sp(base),
+      speed: sp(base + wild * 8 * trade + lift * 0.5),
+      technique: sp(base), stamina: sp(base), mental: sp(base),
+      // 安定感。速さと引き換えになる、その人の性質。練習では上がらない
+      care: clamp(Math.round(base - wild * 15 * trade + lift + persCare + rnd(-7, 7)), 5, 190),
       exp: 0, expLv: 1,
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
       poles: 0, fastestLaps: 0, dnfs: 0, best: 99,
       nation: opts.nation || rint(0, D.NATIONS.length - 1),
-      pot: opts.pot || rollPotential(opts.youth),
-      pers: opts.pers || pick(D.PERSONALITIES).key,
+      pot: pot,
+      pers: pers,
       face: rint(0, 999999),          // 顔の見た目を決める種
       skills: opts.skills || rollSkills(level)
     };
-    d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
+    d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95
+                          + careOf(d) * 0.10 + 18);
     return d;
   }
+
+  /* ---------- 安定感 ----------
+     クラッシュとミスの起きやすさを決める、その人の「まとめる力」。
+     鉄の心臓と精密機械は、そのまま安定感として現れる     */
+  function careOf(d) {
+    if (!d) return 100;
+    let v = d.care != null ? d.care : 100;
+    if (hasSkill(d, 'heart')) v += 22;
+    if (hasSkill(d, 'precise')) v += 14;
+    if (d.hurt) v -= 18;
+    return clamp(v, 5, 199);
+  }
+  function careTier(d) {
+    const v = careOf(d);
+    return D.CARE_TIERS.filter(x => v <= x.max)[0] || D.CARE_TIERS[D.CARE_TIERS.length - 1];
+  }
+  /* 100 を等倍として、クラッシュ／ミスが何倍になるか */
+  function careCrashMul(d) { return clamp(1 + (100 - careOf(d)) / 100 * D.CARE_CRASH, 0.22, 2.2); }
+  function careMissMul(d)  { return clamp(1 + (100 - careOf(d)) / 100 * D.CARE_MISS,  0.45, 1.7); }
 
   /* ---------- スキル抽選 ---------- */
   const SKILL_MAX = 5;
@@ -5725,6 +5801,7 @@ GP.state = (function () {
   function relCare(g) {
     return techLv(g, 'cool') * techDef('cool').per + techLv(g, 'tough') * 0.8
          + bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7
+         + bodyRatio(g, 'service') * 6
          + g.facilities.pit * 2.5 + pitPower(g) * 1.4
          + (g.engine ? D.ENGINE.relBonus : 0)
          - crewPenalty(g).rel - puRelDrop(g);
@@ -5860,27 +5937,39 @@ GP.state = (function () {
     const notes = [];
     let mul = 1;
     // ⭐が2人以上。主役が2人いると、どちらも本気を出せない
-    const stars = mem.filter(s => stTrait(s, 'star')).length;
+    const nm = list => list.map(s => s.name).join('・');
+    const starList = mem.filter(s => stTrait(s, 'star'));
+    const stars = starList.length;
     if (stars >= 2) { mul += F.starClash; notes.push({ bad: true, icon: '⚡',
-      text: '主役が' + stars + '人。ぶつかって、どちらも本気を出せていない' }); }
+      who: nm(starList), why: '⭐名うて が' + stars + '人', amt: F.starClash,
+      text: nm(starList) + ' が主役同士でぶつかり、どちらも本気を出せていない' }); }
     // まとめる人がいない
     const chiefs = mem.filter(s => staffRank(s).key === 'chief').length;
     if (mem.length >= 4 && !chiefs) { mul += F.noChief; notes.push({ bad: true, icon: '🧭',
-      text: '' + mem.length + '人いるのに、まとめる人がいない' }); }
+      who: nm(mem), why: mem.length + '人／チーフ 0人', amt: F.noChief,
+      text: mem.length + '人いるのに、まとめる人（チーフ）がいない' }); }
     // 指導者がいる
-    if (mem.some(s => stTrait(s, 'mentor'))) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
-      text: '指導者がいる。下が育ち、判断も速い' }); }
+    const mentors = mem.filter(s => stTrait(s, 'mentor'));
+    if (mentors.length) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
+      who: nm(mentors), why: '🎓指導者', amt: F.mentorLift,
+      text: nm(mentors) + ' が指導役。下が育ち、判断も速い' }); }
     // ベテランと若手が混ざっている
     if (mem.length >= 2) {
-      const sk = mem.map(s => s.skill);
-      if (Math.max.apply(null, sk) - Math.min.apply(null, sk) >= F.mixGap) {
+      const sorted = mem.slice().sort((a, b) => b.skill - a.skill);
+      const top = sorted[0], low = sorted[sorted.length - 1];
+      if (top.skill - low.skill >= F.mixGap) {
         mul += F.mixLift;
-        notes.push({ bad: false, icon: '🤲', text: '教える相手がいる。手が回り、経験も渡っている' });
+        notes.push({ bad: false, icon: '🤲',
+          who: top.name + ' → ' + low.name,
+          why: '技能差 ' + Math.round(top.skill - low.skill), amt: F.mixLift,
+          text: top.name + '（技能 ' + Math.round(top.skill) + '）が ' +
+                low.name + '（技能 ' + Math.round(low.skill) + '）に渡せている' });
       }
     }
     // 1人に寄りかかっている
     if (mem.length === 1 && mem[0].skill >= 45) { mul += F.soloRisk; notes.push({ bad: true, icon: '🪑',
-      text: 'この人ひとりに寄りかかっている。抜けたら止まる' }); }
+      who: mem[0].name, why: 'ひとりだけ', amt: F.soloRisk,
+      text: mem[0].name + ' ひとりに寄りかかっている。抜けたら止まる' }); }
     return { key: key, def: G, members: mem, raw: raw, mul: Math.max(0.5, mul),
              score: raw * Math.max(0.5, mul), chiefs: chiefs, notes: notes };
   }
@@ -6149,10 +6238,18 @@ GP.state = (function () {
   /* ---------- 修理費 ----------
      スピン、コースアウト、クラッシュ。壊したぶんは自分で払う。
      世代の進んだマシンほど部品が高い。難易度でも変わる          */
+  /* 修理代がどれだけ安く済むか（0..0.62）。
+     整備しやすい車体と、高耐久の技術が効く                    */
+  function repairCut(g2) {
+    return clamp(bodyRatio(g2, 'service') * 0.40 + techLv(g2, 'tough') * 0.035, 0, 0.62);
+  }
   function repairBill(g2, res) {
     const R2 = D.REPAIR;
     const genMul = 1 + (g2.carGen || 0) * R2.gen;
     const diff = diffOf(g2).repair == null ? 1 : diffOf(g2).repair;
+    // 整備性の高い車体は、直すのも速くて安い。
+    // 高耐久の技術も、同じところに効く
+    const svc = repairCut(g2);
     let sum = 0;
     const lines = [];
     (res.entries || []).filter(e => e.isPlayer).forEach(e => {
@@ -6162,7 +6259,7 @@ GP.state = (function () {
       else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
       n += R2.dmg * (e.damage || 0);
       if (n <= 0) return;
-      n = Math.round(n * genMul * diff);
+      n = Math.round(n * genMul * diff * (1 - svc));
       sum += n;
       lines.push({ name: e.driver.name, cost: n,
                    what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
@@ -6983,6 +7080,10 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // 端数のまま保存された技能を丸めておく（過去の不具合ぶん）
+      (g.staff || []).forEach(st => {
+        if (typeof st.skill === 'number' && st.skill % 1 !== 0) st.skill = Math.round(st.skill);
+      });
       // 個体に付いていた追加効果は、チームの技術（レベル1）に読み替える
       if (!g.techs) {
         g.techs = {};
@@ -7020,7 +7121,8 @@ GP.state = (function () {
 
   return {
     rnd, rint, pick, clamp,
-    makeDriver, makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    makeDriver, careOf, careTier, careCrashMul, careMissMul, repairCut,
+    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
@@ -7329,6 +7431,20 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- 「順位より、持って帰ってくれ」--- */
+    cool: ['「ここは無理をするな。順位は守れればいい」',
+           '「ここからは車を労わってくれ。まとめて持ち帰ろう」',
+           '「ポイントは持って帰るぞ。抑えていこう」',
+           '「もう十分だ。無理をしないで、きれいにまとめてくれ」',
+           '「一度落ち着こう。マージンを取って走ってくれ」'],
+    coolWet: ['「路面が良くない。無理はするな、抑えて走ってくれ」',
+              '「水の上だ。攻めるところじゃない。持って帰ってくれ」',
+              '「雨脚が強い。今日は完走が仕事だ。落ち着いていこう」',
+              '「白線には乗るな。マージンを取って、丁寧に」'],
+    coolBack: ['「了解。抑える」',
+               '「わかった。まとめて持って帰る」',
+               '「そうする。ここは我慢だな」',
+               '「コピー。マージン取って走る」'],
     /* --- スタート前。グリッドについてから、フォーメーションまでの一往復 --- */
     gridPole: ['「聞こえるか。今日はいちばん前だ。あとは出るだけでいい」',
                '「ポールだ。1コーナーまでは誰も前にいない。思いきり行け」',
@@ -7486,18 +7602,41 @@ GP.race = (function () {
   /* ピットウォールがこの周に出す指示。
      タイヤの残り・前後の車間・残り周回から、攻めるか抑えるかを決める。
      決めた指示は、そのままラップタイムとタイヤの減りに効く          */
-  function decideOrder(e, lap, laps, ty) {
+  function decideOrder(e, lap, laps, ty, wet) {
     const left = ty.life - e.tyreAge;                 // タイヤの余力（周）
     const nextPit = e.pitPlan.find(l => l > lap);
     const toPit = nextPit == null ? laps - lap : nextPit - lap;
     const gapA = e.gapAhead, gapB = e.gapBehind;
+    /* ---- まず「持って帰る」判断 ----
+       濡れた路面や、車に傷を負ったあと、あるいは前後が離れていて
+       走りきるだけでよいときは、順位より完走を取る。
+       慎重なドライバーほど、ここに入りやすい                       */
+    {
+      const careV = S.careOf(e.driver);
+      const alone = (gapA == null || gapA > 4.5) && (gapB == null || gapB > 4.5);
+      const hurt = (e.damage || 0) >= 1.4 || (e.spins || 0) >= 1;
+      const soaked = (wet || 0) >= 0.55;
+      const risky = (e.harsh || 0) >= 1.05;
+      // 攻めろと言われている作戦のときは、そう簡単には引かない
+      const bias = (1.9 - e.st.risk) * (0.6 + careV / 160);
+      let want = 0;
+      if (soaked) want += 1.0;
+      if (hurt) want += 0.9;
+      if (risky) want += 0.7;
+      if (alone) want += 0.5;
+      if (lap > laps * 0.8 && alone) want += 0.4;
+      if (want * bias >= 1.5) return 'cool';
+    }
     // タイヤが持たない見込みなら、まず抑える
     if (left < toPit) return 'save';
     // 攻め続けられる時間には限りがある。何周も出しっぱなしにはできない
     const burnt = (e.pushLaps || 0) >= 4;
+    // 濡れた路面では、そもそも仕掛けにいかない。攻める作戦の人だけが踏む
+    const bold = (wet || 0) < 0.45 ||
+                 Math.random() < 0.30 + (e.st.risk - 1) * 0.22 + (100 - S.careOf(e.driver)) / 400;
     // 終盤、前が射程で、タイヤを使い切ってよいなら出しきる
-    if (laps - lap <= 4 && gapA != null && gapA < 2.0) return 'push';
-    if (!burnt) {
+    if (laps - lap <= 4 && gapA != null && gapA < 2.0 && bold) return 'push';
+    if (!burnt && bold) {
       // 後ろに詰められている。守るのは、タイヤに余裕があるときだけ
       if (gapB != null && gapB < 1.0 && left > toPit * 1.6 + 3) return 'push';
       // 前が射程。仕掛けるのも、余裕があるときだけ
@@ -7514,6 +7653,7 @@ GP.race = (function () {
      状況を伝える。毎周しゃべると、かえって何も伝わらないため     */
   function radioTick(st) {
     const lap = st.lap, laps = st.laps, radio = st.radio;
+    const wxWetNow = st.wetLevel || 0;
     const run = st.order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
     run.forEach((e, i) => {
       if (!e.isPlayer) return;
@@ -7576,6 +7716,11 @@ GP.race = (function () {
       if (e.orderChanged === lap) {                     // 指示が変わった
         e.orderChanged = -1;
         if (e.order === 'push') { push(RADIO.push, 'pit', true); push(RADIO.pushBack, 'drv', true); }
+        else if (e.order === 'cool') {
+          // 「順位より、持って帰ってくれ」。雨と、傷を負ったあとの合図
+          push((wxWetNow >= 0.55 ? RADIO.coolWet : RADIO.cool), 'pit', true);
+          push(RADIO.coolBack, 'drv', true);
+        }
         else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
         else { push(RADIO.clear, 'pit', true); }
         e.radioCool = 3;
@@ -7663,7 +7808,7 @@ GP.race = (function () {
                        cool: RIVAL_BODY, svc: RIVAL_BODY, drive: RIVAL_BODY };
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
-        const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track);
+        const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
         const st = STRATEGIES[strat];
         const sk = k => S.hasSkill(d, k);
         let drv = S.driverRating(d);
@@ -7769,11 +7914,29 @@ GP.race = (function () {
     return fit[0].key;
   }
 
-  function autoStrategy(team, track) {
+  /* ---- ライバルの作戦 ----
+     こちらと同じことを、向こうもやっている。
+     荒いドライバーは攻め、手堅いドライバーは守る。
+     荒れるコースや雨の週末は、全体に慎重になる。
+     チームの性格（style）も、そのまま週末の構えに出る            */
+  function autoStrategy(team, track, weather) {
+    const d = (team.drivers || [])[0];
+    const care = d ? S.careOf(d) : 100;
+    const wet = weather && (weather.key === 'rain' || weather.key === 'storm');
+    let attack = 0.26 + (100 - care) / 100 * 0.30
+               + (team.style === 'attack' ? 0.16 : team.style === 'safe' ? -0.14 : 0)
+               - ((track.risk || 1) - 1) * 0.28
+               - (wet ? 0.14 : 0);
+    let safe = 0.18 + (care - 100) / 100 * 0.28
+             + ((track.risk || 1) - 1) * 0.30
+             + (wet ? 0.16 : 0)
+             + (team.style === 'safe' ? 0.14 : 0);
+    attack = Math.max(0.04, Math.min(0.62, attack));
+    safe = Math.max(0.04, Math.min(0.62, safe));
     const r = Math.random();
-    if (r < 0.2) return 'safe';
-    if (r < 0.75) return 'balance';
-    return 'attack';
+    if (r < safe) return 'safe';
+    if (r < safe + attack) return 'attack';
+    return 'balance';
   }
 
   /* ---------- 天候抽選 ---------- */
@@ -8361,7 +8524,7 @@ GP.race = (function () {
         // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
         // 無線で言っていることが、そのままここで効く
         const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty);
+        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
         if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
@@ -8452,11 +8615,11 @@ GP.race = (function () {
           const tyreOver = Math.max(0, e.tyreAge - ty.life);
           let mp = 0.0090
                  * (1 + (e.st.risk - 1) * 0.50)
+                 * S.careMissMul(e.driver)               // その人の「まとめる力」
                  * (1.55 - e.driver.mental / 190)
                  * (1 + tyreOver * 0.075)
                  * (0.55 + wx.chaos * 0.45) * (1 - e.wetSkill * wx.level * 0.55)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
-                 * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
                  * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
@@ -8666,9 +8829,13 @@ GP.race = (function () {
       order.forEach(e => {
         if (e.dnf || lap < 2) return;
         const mech = (100 - e.rel) / 100 * 0.0022 * track.risk * (e.sk('feeler') ? 0.55 : 1);
+        /* クラッシュは「腕」ではなく「まとめる力」で決まる。
+           速い人が壊さないとは限らない、というのがこのゲームの取引。
+           ピットの指示（安全第一〜プッシュ）も、そのまま危うさに乗る */
         const crash = (1 - e.driver.mental / 230) * 0.0011 * track.risk * wx.chaos * e.st.risk
-                    * ((1 - e.bd.rigid * 0.30) / (1 - RIVAL_BODY_REF * 0.30))
-                      * (e.sk('heart') ? 0.40 : 1);
+                    * S.careCrashMul(e.driver)
+                    * (orderOf(e.order).risk != null ? orderOf(e.order).risk : 1)
+                    * ((1 - e.bd.rigid * 0.30) / (1 - RIVAL_BODY_REF * 0.30));
         const r = Math.random();
         if (r < mech) {
           // どこが壊れたかは、いちばん傷んでいる部位に寄せる。
@@ -8861,7 +9028,7 @@ GP.race = (function () {
       // ---- チーム無線 ----
       radioTick({ lap: lap, laps: laps, order: order, radio: radio,
                   scStart: scStarted, scVirtual: scInfo.virtual, scEnd: scEnded,
-                  wxChanged: wxChangedThisLap, wxWet: wx.wet });
+                  wxChanged: wxChangedThisLap, wxWet: wx.wet, wetLevel: wx.level || 0 });
       scStarted = false; wxChangedThisLap = false;
 
       // 順位変動の記録
@@ -13477,11 +13644,13 @@ GP.ui = (function () {
   }
   function driverCard(d, i) {
     const r = Math.round(S.driverRating(d));
-    const p = S.persOf(d), na = S.nationOf(d);
+    const p = S.persOf(d), na = S.nationOf(d), ct = S.careTier(d);
     return '<div class="drv">' +
       '<div class="drv-head">' + face(d, 34) +
       '<span class="drv-id"><span class="drv-nm">' + esc(d.name) + '</span>' +
-      '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b></span></span>' +
+      '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b>' +
+        ' ／ <b class="drv-care" style="color:' + ct.color + '" title="' + esc(ct.note) +
+        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b></span></span>' +
       '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
@@ -16256,6 +16425,42 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* ---- 作戦の中身 ----
+     「攻める」と「安全第一」が、実際に何を差し引きしているのか。
+     言葉だけだと分からないので、そのコースの数字で出す        */
+  function stratTableHTML(t, lineup) {
+    const base = t.base || 90;
+    const d0 = (lineup || [])[0];
+    const B = R.STRATEGIES.balance;
+    let h = '<div class="strtbl">' +
+      '<div class="strow sth"><span>作戦</span><span>1周</span><span>タイヤの減り</span>' +
+      '<span>ミス</span><span>クラッシュ</span></div>';
+    Object.keys(R.STRATEGIES).forEach(k => {
+      const st = R.STRATEGIES[k];
+      const sec = base * ((1 - st.pace) - (1 - B.pace));      // 秒／周（− なら速い）
+      const miss = 1 + (st.risk - 1) * 0.50;
+      h += '<div class="strow">' +
+        '<span class="stnm">' + st.icon + ' ' + st.name + '</span>' +
+        '<span class="' + (sec < -0.01 ? 'good' : sec > 0.01 ? 'bad' : '') + '">' +
+          (Math.abs(sec) < 0.005 ? '±0.00' : (sec < 0 ? '−' : '+') + Math.abs(sec).toFixed(2)) + '秒</span>' +
+        '<span class="' + (st.tyre > 1 ? 'bad' : st.tyre < 1 ? 'good' : '') + '">×' + st.tyre.toFixed(2) + '</span>' +
+        '<span class="' + (miss > 1 ? 'bad' : 'good') + '">×' + miss.toFixed(2) + '</span>' +
+        '<span class="' + (st.risk > 1 ? 'bad' : 'good') + '">×' + st.risk.toFixed(2) + '</span>' +
+        '</div>';
+    });
+    h += '</div>';
+    h += '<p class="desc">攻めると 1周ぶん速くなるかわりに、タイヤが早く終わり、' +
+      'ミスとクラッシュが増えます。安全第一はその逆です。<br>' +
+      'クラッシュの起きやすさは<b>ドライバーの安定感</b>にも直結します' +
+      (d0 ? '（' + esc(d0.name) + ' は ' + S.careTier(d0).icon + S.careTier(d0).name +
+            '＝クラッシュ ×' + S.careCrashMul(d0).toFixed(2) + '）' : '') + '。<br>' +
+      'レース中はこれとは別に、ピットウォールから周ごとの指示（' +
+      D.ORDERS.map(o => o.icon + o.name).join('／') + '）が出ます。' +
+      '雨や、車に傷を負ったあとは <b>🛡️ 安全第一</b> に切り替わり、' +
+      'クラッシュが ×' + (D.ORDERS.filter(o => o.key === 'cool')[0].risk).toFixed(2) + ' まで下がります。</p>';
+    return h;
+  }
+
   /* ---- スカウトの見立て ----
      若手の中身は、見る側の目が良いほど正確に分かる。
      ユースアカデミーと育成スタッフ、アナリストの力で誤差が縮む。
@@ -16299,8 +16504,12 @@ window.GP = window.GP || {};
     const ov = err <= 2 ? String(Math.round(S.driverRating(d)))
              : Math.round(rate.reduce((a, r) => a + r.lo, 0) / 4) + '〜' +
                Math.round(rate.reduce((a, r) => a + r.hi, 0) / 4);
+    const ct = S.careTier(d);
+    // 荒いか手堅いかは、走りを見れば分かる。見立ての精度とは別に出す
     let h = '<span class="sc-head">' + S.nationOf(d).flag + ' ' + d.age + '歳' +
-      '　総合 <b>' + ov + '</b>　' + pers.icon + pers.name + '</span>' +
+      '　総合 <b>' + ov + '</b>　' + pers.icon + pers.name +
+      '　<b style="color:' + ct.color + '" title="' + esc(ct.note) + '">' +
+      ct.icon + ct.name + '</b></span>' +
       '<span class="sc-pot">才能 ' + pot + '</span>' +
       '<span class="sc-bars">';
     KEYS.forEach(([k, nm], i) => {
@@ -16579,7 +16788,15 @@ window.GP = window.GP || {};
               Math.round(x.lift * 100) + '%</b></span>' +
           '</div>';
         x.notes.forEach(nt => {
-          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' + esc(nt.text) + '</div>';
+          // 「誰の、何が、どれだけ」を一列に出す。
+          // 理由だけ書かれても、どこを直せばいいのか分からない
+          const amt = nt.amt == null ? '' :
+            '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
+            Math.round(Math.abs(nt.amt) * 100) + '%</em>';
+          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
+            (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
+            (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
+            '<span class="gn-t">' + esc(nt.text) + '</span></div>';
         });
         if (!x.members.length) {
           h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
@@ -17288,7 +17505,7 @@ window.GP = window.GP || {};
       });
       body += '</div></div>';
     });
-    body += '<p class="desc">🛡️ 安全第一＝ペースは落ちるがリタイアしにくい／🔥 攻める＝速いがミスとタイヤ消耗のリスク大</p>';
+    body += stratTableHTML(t, lineup);
 
     // ---- スタートタイヤ ----
     const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
@@ -19017,7 +19234,12 @@ window.GP = window.GP || {};
     }
     // 労うと、シーズンの疲れが抜けて少し伸びる
     let n = 0;
-    (g.staff || []).forEach(st => { st.skill = S.clamp(st.skill + S.rnd(1, 3), 1, 99); n++; });
+    // 端数のまま足すと「技能 36.269970727173385」と出てしまう。
+    // 上限もその人の器（staffCap）で止める
+    (g.staff || []).forEach(st => {
+      st.skill = S.clamp(Math.round(st.skill + S.rnd(1, 3)), 1, S.staffCap(st));
+      n++;
+    });
     offMark('staff');
     S.save(g);
     U.modal('👥 スタッフのみんな',

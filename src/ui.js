@@ -231,11 +231,13 @@ GP.ui = (function () {
   }
   function driverCard(d, i) {
     const r = Math.round(S.driverRating(d));
-    const p = S.persOf(d), na = S.nationOf(d);
+    const p = S.persOf(d), na = S.nationOf(d), ct = S.careTier(d);
     return '<div class="drv">' +
       '<div class="drv-head">' + face(d, 34) +
       '<span class="drv-id"><span class="drv-nm">' + esc(d.name) + '</span>' +
-      '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b></span></span>' +
+      '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b>' +
+        ' ／ <b class="drv-care" style="color:' + ct.color + '" title="' + esc(ct.note) +
+        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b></span></span>' +
       '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +

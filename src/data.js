@@ -623,6 +623,27 @@ GP.data = (function () {
     { n: 5, name: '大器',   color: '#f0a020', growth: 1.85 }
   ];
 
+  /* ---------- 安定感 ----------
+     速さと引き換えに、車を壊す。ドライバーの「まとめる力」。
+     クラッシュとミスの起きやすさに直に効く。練習では上がらない、
+     その人の性質。素質の高い者ほど、この取引をしないで済む
+     （速くて壊さない、が成立する）                              */
+  const CARE_TIERS = [
+    { max:  45, name: '危うい',   icon: '💥', color: '#d0402a',
+      note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
+    { max:  75, name: '荒い',     icon: '⚡', color: '#d08a20',
+      note: '仕掛けはするが、そのぶん傷も作る' },
+    { max: 105, name: 'ふつう',   icon: '🙂', color: '#8a7a5a',
+      note: '無理はしない。無茶もしない' },
+    { max: 135, name: '手堅い',   icon: '🛡️', color: '#3f8b3a',
+      note: '車を持って帰ってくる。指示どおりに走れる' },
+    { max: 999, name: '完璧主義', icon: '💎', color: '#3a7ad9',
+      note: '限界の手前で毎周ぴたりと止める。壊さない' }
+  ];
+  /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
+  const CARE_CRASH = 0.85;    // 安定感0で ×(1+0.85)、190で ×(1-0.75) ほど
+  const CARE_MISS  = 0.45;
+
   /* ---------- 国籍 ---------- */
   const NATIONS = [
     { flag: '🇯🇵', name: '日本' },      { flag: '🇮🇹', name: 'イタリア' },
@@ -639,19 +660,19 @@ GP.data = (function () {
      形だけの飾りにせず、すべてゲーム内の数値に効かせている            */
   const PERSONALITIES = [
     { key: 'hot',   name: '熱血漢',        icon: '🔥', desc: '結果に感情が乗る。勝てば絶好調、負ければ落ち込む',
-      up: 1.9, down: 1.9, rest: 1.0, train: 1.0, dev: 0 },
+      up: 1.9, down: 1.9, rest: 1.0, train: 1.0, dev: 0, care: -6 },
     { key: 'cool',  name: 'クール',        icon: '🧊', desc: '結果に左右されず、いつも通りの走りをする',
-      up: 0.5, down: 0.35, rest: 1.0, train: 1.0, dev: 0 },
+      up: 0.5, down: 0.35, rest: 1.0, train: 1.0, dev: 0, care: 14 },
     { key: 'pro',   name: '職人肌',        icon: '🔧', desc: 'マシンへの要求が的確。開発の伸びが上がる',
-      up: 0.9, down: 0.9, rest: 1.0, train: 1.0, dev: 0.14 },
+      up: 0.9, down: 0.9, rest: 1.0, train: 1.0, dev: 0.14, care: 10 },
     { key: 'sunny', name: 'ムードメーカー', icon: '☀️', desc: 'チームの空気が良くなる。休養での回復が大きい',
-      up: 1.2, down: 0.7, rest: 1.7, train: 1.0, dev: 0 },
+      up: 1.2, down: 0.7, rest: 1.7, train: 1.0, dev: 0, care: 2 },
     { key: 'proud', name: '負けず嫌い',    icon: '👑', desc: '表彰台なら絶好調。圏外だと荒れる',
-      up: 1.6, down: 1.5, rest: 0.9, train: 1.15, dev: 0 },
+      up: 1.6, down: 1.5, rest: 0.9, train: 1.15, dev: 0, care: -4 },
     { key: 'study', name: '努力家',        icon: '📚', desc: '練習の効果が高く、経験値も多く得る',
-      up: 1.0, down: 0.8, rest: 1.0, train: 1.35, dev: 0.05 },
+      up: 1.0, down: 0.8, rest: 1.0, train: 1.35, dev: 0.05, care: 8 },
     { key: 'wild',  name: '荒くれ',        icon: '⚡', desc: '攻めの走りを好む。調子の波が激しい',
-      up: 1.5, down: 1.4, rest: 1.2, train: 0.9, dev: 0 }
+      up: 1.5, down: 1.4, rest: 1.2, train: 0.9, dev: 0, care: -16 }
   ];
 
   /* ---------- レース後のひとこと ---------- */
@@ -1095,11 +1116,13 @@ GP.data = (function () {
      無線は雰囲気だけのものではなく、実際に走りを変える。
      攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い       */
   const ORDERS = [
-    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85,
+    { key: 'cool', name: '安全第一', icon: '🛡️', pace: 0.0072, wear: -0.20, miss: 0.50, risk: 0.42,
+      note: '順位より、車を持って帰ることを優先させる。濡れた路面や、傷を負ったときに出す' },
+    { key: 'save', name: '温存', icon: '🔋', pace: 0.0032, wear: -0.34, miss: 0.85, risk: 0.85,
       note: 'ペースを落としてタイヤを最後まで持たせる' },
-    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1,
+    { key: 'hold', name: '通常', icon: '⚙️', pace: 0, wear: 0, miss: 1, risk: 1,
       note: '決めたとおりのペースで' },
-    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30,
+    { key: 'push', name: 'プッシュ', icon: '🔥', pace: -0.0040, wear: 0.40, miss: 1.30, risk: 1.35,
       note: 'いま前に出るために、持っているものを使う' }
   ];
 
@@ -1575,5 +1598,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
