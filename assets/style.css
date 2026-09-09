@@ -2054,3 +2054,18 @@ body[data-skin="hd"]{
          border-radius:0 5px 5px 0;padding:3px 8px;margin-top:3px;line-height:1.5}
 .supnote em{font-style:normal;opacity:.75;font-size:10px}
 [data-skin="hd"] .supnote{background:rgba(58,122,217,.18)}
+
+/* ---- トラックサイド装備 ---- */
+.kitrow .kitlv{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+               border-radius:4px;padding:0 6px;margin-left:6px}
+.kitline{display:flex;align-items:center;gap:2px;margin:3px 0;font-size:13px}
+.kitline u{text-decoration:none;opacity:.45;font-size:10px}
+.kitx{opacity:.35;filter:grayscale(1)}
+.kitx.past{opacity:.7;filter:grayscale(.4)}
+.kitx.on{opacity:1;filter:none;text-shadow:0 0 6px rgba(255,201,60,.9)}
+.forebox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:6px 9px;margin:4px 0 8px}
+.forebox b{display:flex;align-items:center;font-size:13px}
+.forebox b em{font-style:normal;margin-left:auto;font-size:15px;color:#2e8b30}
+[data-skin="hd"] .forebox b em{color:#8ef08e}
+.forebox .grp-bar{margin:4px 0}
+.forebox small{display:block;font-size:11px;opacity:.85;line-height:1.6}

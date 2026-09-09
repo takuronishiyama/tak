@@ -1127,7 +1127,8 @@ GP.state = (function () {
     // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
     return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
-               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0), 0.10, 0.92);
+               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0)
+               + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -1235,6 +1236,30 @@ GP.state = (function () {
                 （回す先が無ければ、やはり何も増えない）
        ready …… 現場の余力。クルーが疲れきっていると、読めていても動けない
      どこかを厚くするより、噛み合わせるほうが伸びる                     */
+  /* ---------- トラックサイド装備 ----------
+     g.kit = { weather: 2, radio: 1, ... }。0 が初期の一段目        */
+  function kitLv(g2, key) { return (g2 && g2.kit && g2.kit[key]) || 0; }
+  function kitOf(g2, key) {
+    const K = D.RACEKIT.filter(x => x.key === key)[0];
+    if (!K) return null;
+    const lv = Math.min(K.tiers.length - 1, kitLv(g2, key));
+    return { def: K, lv: lv, tier: K.tiers[lv], next: K.tiers[lv + 1] || null,
+             max: lv >= K.tiers.length - 1 };
+  }
+  function kitEff(g2, key, field) {
+    const k = kitOf(g2, key);
+    return (k && k.tier.eff && k.tier.eff[field]) || 0;
+  }
+  function kitList(g2) { return D.RACEKIT.map(K => kitOf(g2, K.key)); }
+  function buyKit(g2, key) {
+    const k = kitOf(g2, key);
+    if (!k || !k.next || g2.funds < k.next.cost) return null;
+    g2.funds -= k.next.cost;
+    g2.kit = g2.kit || {};
+    g2.kit[key] = k.lv + 1;
+    return k.next;
+  }
+
   /* ---------- グループ ----------
      職種ごとの一覧ではなく、実際に仕事をしている単位で見る。
      人の組み合わせで、中が噛み合ったり軋んだりする。               */
@@ -1322,7 +1347,8 @@ GP.state = (function () {
   function devPower(g2)   { const o = org(g2); return o.dept.engineer * o.dataMul; }
   function designPower(g2){ return org(g2).dept.designer; }
   function pitPower(g2)   { return org(g2).dept.mechanic; }
-  function readPower(g2)  { const o = org(g2); return o.dept.strategist * o.dataMul; }
+  function readPower(g2)  { const o = org(g2);
+    return (o.dept.strategist + kitEff(g2, 'wall', 'read')) * o.dataMul; }
   function trainPower(g2) { const o = org(g2); return o.dept.trainer * o.dataMul; }
   function analystPower(g2){ return org(g2).dept.analyst; }
 
@@ -1345,7 +1371,7 @@ GP.state = (function () {
     const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
-    const gun = hasGear(g2, 'pit', 'gun') ? 0.12 : 0;
+    const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
     const stand = Math.max(D.PIT_STAND_MIN,
       D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
       / (1 + skill * D.PIT_STAND_CURVE) + cw.pit - gun);
@@ -1360,7 +1386,7 @@ GP.state = (function () {
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
     // 座って休める場所があるだけで、溜まりかたが変わる
-    const rest = hasGear(g2, 'pit', 'rest') ? 0.85 : 1;
+    const rest = (hasGear(g2, 'pit', 'rest') ? 0.85 : 1) * (1 - kitEff(g2, 'home', 'crew'));
     const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
@@ -2382,6 +2408,7 @@ GP.state = (function () {
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
     hasGear, gearList, buyGear, envScore, envTier,
+    kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,

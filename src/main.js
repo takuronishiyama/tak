@@ -2908,6 +2908,13 @@ window.GP = window.GP || {};
           'マシンは仕上げきれないまま週末に入る。', 'bad');
         U.toast('📦 機材の到着が遅れた！', 'bad');
       }
+      // モーターホームがあると、週末のあいだにきちんと休める
+      const homeUp = S.kitEff(g, 'home', 'form');
+      if (homeUp > 0) {
+        g.drivers.forEach(d => { d.form = S.clamp(d.form + homeUp, 62, 122); });
+        U.log(g, S.kitOf(g, 'home').tier.icon + ' ' +
+          S.kitOf(g, 'home').tier.name + 'で、現地でもきちんと休めた（調子 +' + homeUp + '）');
+      }
       S.rollAbsence(g).forEach(d => {
         const cover = g.reserve && S.canDrive(g.reserve);
         U.log(g, '🤒 ' + d.name + ' が体調不良で今週は走れない。' +
@@ -5925,6 +5932,56 @@ window.GP = window.GP || {};
   }
 
   /* ---------- ロジスティクス（週を消費しない）---------- */
+  /* ---- トラックサイド装備 ----
+     施設は本拠地、備品はその中身、こちらは週末に戦うための道具。
+     段階ごとに買い上げていく                                      */
+  function kitBoxHTML() {
+    // いまの「読み」がどこから来ているのかを、その場に出す
+    const fo = S.foresightOf(g);
+    const wKit = S.kitEff(g, 'weather', 'fore');
+    const st = S.readPower(g);
+    let h = '<div class="sub">🧰 トラックサイド装備</div>' +
+      '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
+      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
+      '<small>雨が来る時刻と、路面がどこへ落ち着くかを、どれだけ当てられるか。' +
+      '外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
+      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
+      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>' +
+      '<p class="desc">現地に持ち込むもの。上げるほど、週末の読みと段取りが良くなります。' +
+      '一度買えば残ります。</p><div class="pick gearpick">';
+    S.kitList(g).forEach(k => {
+      const d = k.def, t = k.tier, nx = k.next;
+      const can = nx && g.funds >= nx.cost;
+      h += '<button class="pickbtn kitrow" data-kit="' + d.key + '"' + (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#5a6270">' + t.icon + '</span>' +
+        '<span class="pb-body"><b>' + d.icon + ' ' + d.name +
+          '<em class="kitlv">' + (k.lv + 1) + ' / ' + d.tiers.length + '</em></b>' +
+        '<small><b>' + esc(t.name) + '</b>　' + esc(t.desc) +
+          '<span class="kitline">' + d.tiers.map((x, i) =>
+            '<span class="kitx' + (i === k.lv ? ' on' : i < k.lv ? ' past' : '') + '" title="' +
+            esc(x.name) + '">' + x.icon + '</span>').join('<u>→</u>') + '</span>' +
+          (nx ? '<span class="devup">次は <b>' + esc(nx.name) + '</b>：' + esc(nx.desc) + '</span>'
+              : '<span class="devup">これ以上はありません</span>') +
+          '<br><em class="pnote">' + esc(d.what) + '</em>' +
+        '</small></span>' +
+        '<span class="pb-cost">' + (nx ? '💰' + money(nx.cost) : '—') + '</span></button>';
+    });
+    return h + '</div>';
+  }
+  function bindKit() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-kit]'), b => {
+      b.onclick = () => {
+        const t = S.buyKit(g, b.dataset.kit);
+        if (!t) return;
+        GP.sound.play('build');
+        U.log(g, t.icon + ' ' + t.name + ' を持ち込むことにした（' + t.desc + '）', 'good');
+        U.toast(t.icon + ' ' + t.name + '！', 'good');
+        S.save(g); render(); cmdLogi();
+      };
+    });
+  }
+
   function cmdLogi() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
@@ -6023,7 +6080,9 @@ window.GP = window.GP || {};
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
       'ロジスティクス責任者を雇うと、費用も疲労も遅延も抑えられます。</p>';
 
+    body += kitBoxHTML();
     U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
       g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };

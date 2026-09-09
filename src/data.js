@@ -1400,6 +1400,61 @@ GP.data = (function () {
     wetOnDry:   0.35, // ずれがスピンに効く度合い（ドライタイヤの35%）
     wetMelt:    1.60  // ずれ 1.0 あたり、1周で何周ぶん余計に減るか
   };
+  /* ---------- トラックサイド装備 ----------
+     現地に持ち込むもの。施設は本拠地、備品はその中身、
+     こちらは「週末に戦うための道具」。それぞれ4段階で、
+     買って上げていく。上げるほど、週末の読みと段取りが良くなる。   */
+  const RACEKIT = [
+    { key: 'weather', name: '天気の読み', icon: '🌦️',
+      what: '雨が来る時刻と、路面がどこへ落ち着くかの当たりが良くなる',
+      tiers: [
+        { name: 'お天気ラジオ',   icon: '📻', cost: 0,
+          eff: { fore: 0.00 }, desc: '現地の放送を聞く。降り出してから分かる' },
+        { name: '気象レーダー端末', icon: '📡', cost: 2600,
+          eff: { fore: 0.06 }, desc: '雨雲の位置が見える。あと何分かが読めるようになる' },
+        { name: '自前の気象班',   icon: '🧑‍🔬', cost: 7200,
+          eff: { fore: 0.13 }, desc: 'サーキットに人を張らせる。セクターごとの降り方まで分かる' },
+        { name: '高性能予報AI',   icon: '🛰️', cost: 15000,
+          eff: { fore: 0.22 }, desc: '衛星と地上の観測を全部食わせて、路面の落ち着き先を先に出す' }
+      ] },
+    { key: 'radio', name: 'チーム無線', icon: '🎙️',
+      what: '指示が正しく速く届く。攻めろと言えば攻められる',
+      tiers: [
+        { name: '汎用トランシーバー', icon: '📼', cost: 0,
+          eff: { order: 0.00, miss: 0.00 }, desc: '雑音が多い。肝心なところで途切れる' },
+        { name: '専用回線',       icon: '🎚️', cost: 2200,
+          eff: { order: 0.07, miss: 0.05 }, desc: '声がそのまま届く。言い直しがなくなる' },
+        { name: 'ノイズキャンセル無線', icon: '🎧', cost: 6000,
+          eff: { order: 0.14, miss: 0.10 }, desc: 'エンジン音の向こうの、細かい指示まで通る' },
+        { name: '常時データリンク', icon: '🛜', cost: 13000,
+          eff: { order: 0.22, miss: 0.16 }, desc: '声を出す前に、必要な数字が向こうの画面に出ている' }
+      ] },
+    { key: 'wall', name: 'ピットウォール', icon: '🖥️',
+      what: '作戦を決める速さと、ピットの段取りが良くなる',
+      tiers: [
+        { name: 'クリップボード', icon: '📋', cost: 0,
+          eff: { stand: 0.00, read: 0.00 }, desc: '紙とストップウォッチ。全部を人の頭で回している' },
+        { name: 'タイミングモニター', icon: '⏱️', cost: 3000,
+          eff: { stand: 0.05, read: 0.35 }, desc: '全車のセクターが並ぶ。誰が本当に速いのかが見える' },
+        { name: '戦略シミュレーター', icon: '💻', cost: 8000,
+          eff: { stand: 0.10, read: 0.80 }, desc: '残り周回ぶんを何通りも回して、入る周を決められる' },
+        { name: '統合ウォール',     icon: '🛰️', cost: 16000,
+          eff: { stand: 0.16, read: 1.40 }, desc: '本拠地の解析班と繋がり、現地の判断が一段深くなる' }
+      ] },
+    { key: 'home', name: 'モーターホーム', icon: '🚌',
+      what: 'ドライバーとクルーが、週末のあいだにきちんと休める',
+      tiers: [
+        { name: '折りたたみテント', icon: '⛺', cost: 0,
+          eff: { form: 0, crew: 0.00 }, desc: '雨が降れば濡れる。座る場所の取り合いになる' },
+        { name: 'トラック改造の控室', icon: '🚚', cost: 2400,
+          eff: { form: 2, crew: 0.08 }, desc: '屋根と椅子がある。それだけで日曜の手つきが変わる' },
+        { name: '2階建てホスピタリティ', icon: '🏠', cost: 6600,
+          eff: { form: 4, crew: 0.16 }, desc: '食事も打ち合わせもここで済む。移動の時間がなくなる' },
+        { name: 'モーターホーム艦隊', icon: '🏨', cost: 14000,
+          eff: { form: 7, crew: 0.26 }, desc: '個室と回復設備まで持ち込む。現地が本拠地と同じ環境になる' }
+      ] }
+  ];
+
   /* ---------- 路面の熟成（ラバー）----------
      走れば走るほどタイヤのゴムが路面に乗り、グリップが上がっていく。
      雨が降れば、それは一度に流れてしまう。                        */
@@ -1437,5 +1492,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

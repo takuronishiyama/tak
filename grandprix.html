@@ -2070,6 +2070,21 @@ body[data-skin="hd"]{
 .supnote em{font-style:normal;opacity:.75;font-size:10px}
 [data-skin="hd"] .supnote{background:rgba(58,122,217,.18)}
 
+/* ---- トラックサイド装備 ---- */
+.kitrow .kitlv{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+               border-radius:4px;padding:0 6px;margin-left:6px}
+.kitline{display:flex;align-items:center;gap:2px;margin:3px 0;font-size:13px}
+.kitline u{text-decoration:none;opacity:.45;font-size:10px}
+.kitx{opacity:.35;filter:grayscale(1)}
+.kitx.past{opacity:.7;filter:grayscale(.4)}
+.kitx.on{opacity:1;filter:none;text-shadow:0 0 6px rgba(255,201,60,.9)}
+.forebox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:6px 9px;margin:4px 0 8px}
+.forebox b{display:flex;align-items:center;font-size:13px}
+.forebox b em{font-style:normal;margin-left:auto;font-size:15px;color:#2e8b30}
+[data-skin="hd"] .forebox b em{color:#8ef08e}
+.forebox .grp-bar{margin:4px 0}
+.forebox small{display:block;font-size:11px;opacity:.85;line-height:1.6}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -4030,6 +4045,61 @@ GP.data = (function () {
     wetOnDry:   0.35, // ずれがスピンに効く度合い（ドライタイヤの35%）
     wetMelt:    1.60  // ずれ 1.0 あたり、1周で何周ぶん余計に減るか
   };
+  /* ---------- トラックサイド装備 ----------
+     現地に持ち込むもの。施設は本拠地、備品はその中身、
+     こちらは「週末に戦うための道具」。それぞれ4段階で、
+     買って上げていく。上げるほど、週末の読みと段取りが良くなる。   */
+  const RACEKIT = [
+    { key: 'weather', name: '天気の読み', icon: '🌦️',
+      what: '雨が来る時刻と、路面がどこへ落ち着くかの当たりが良くなる',
+      tiers: [
+        { name: 'お天気ラジオ',   icon: '📻', cost: 0,
+          eff: { fore: 0.00 }, desc: '現地の放送を聞く。降り出してから分かる' },
+        { name: '気象レーダー端末', icon: '📡', cost: 2600,
+          eff: { fore: 0.06 }, desc: '雨雲の位置が見える。あと何分かが読めるようになる' },
+        { name: '自前の気象班',   icon: '🧑‍🔬', cost: 7200,
+          eff: { fore: 0.13 }, desc: 'サーキットに人を張らせる。セクターごとの降り方まで分かる' },
+        { name: '高性能予報AI',   icon: '🛰️', cost: 15000,
+          eff: { fore: 0.22 }, desc: '衛星と地上の観測を全部食わせて、路面の落ち着き先を先に出す' }
+      ] },
+    { key: 'radio', name: 'チーム無線', icon: '🎙️',
+      what: '指示が正しく速く届く。攻めろと言えば攻められる',
+      tiers: [
+        { name: '汎用トランシーバー', icon: '📼', cost: 0,
+          eff: { order: 0.00, miss: 0.00 }, desc: '雑音が多い。肝心なところで途切れる' },
+        { name: '専用回線',       icon: '🎚️', cost: 2200,
+          eff: { order: 0.07, miss: 0.05 }, desc: '声がそのまま届く。言い直しがなくなる' },
+        { name: 'ノイズキャンセル無線', icon: '🎧', cost: 6000,
+          eff: { order: 0.14, miss: 0.10 }, desc: 'エンジン音の向こうの、細かい指示まで通る' },
+        { name: '常時データリンク', icon: '🛜', cost: 13000,
+          eff: { order: 0.22, miss: 0.16 }, desc: '声を出す前に、必要な数字が向こうの画面に出ている' }
+      ] },
+    { key: 'wall', name: 'ピットウォール', icon: '🖥️',
+      what: '作戦を決める速さと、ピットの段取りが良くなる',
+      tiers: [
+        { name: 'クリップボード', icon: '📋', cost: 0,
+          eff: { stand: 0.00, read: 0.00 }, desc: '紙とストップウォッチ。全部を人の頭で回している' },
+        { name: 'タイミングモニター', icon: '⏱️', cost: 3000,
+          eff: { stand: 0.05, read: 0.35 }, desc: '全車のセクターが並ぶ。誰が本当に速いのかが見える' },
+        { name: '戦略シミュレーター', icon: '💻', cost: 8000,
+          eff: { stand: 0.10, read: 0.80 }, desc: '残り周回ぶんを何通りも回して、入る周を決められる' },
+        { name: '統合ウォール',     icon: '🛰️', cost: 16000,
+          eff: { stand: 0.16, read: 1.40 }, desc: '本拠地の解析班と繋がり、現地の判断が一段深くなる' }
+      ] },
+    { key: 'home', name: 'モーターホーム', icon: '🚌',
+      what: 'ドライバーとクルーが、週末のあいだにきちんと休める',
+      tiers: [
+        { name: '折りたたみテント', icon: '⛺', cost: 0,
+          eff: { form: 0, crew: 0.00 }, desc: '雨が降れば濡れる。座る場所の取り合いになる' },
+        { name: 'トラック改造の控室', icon: '🚚', cost: 2400,
+          eff: { form: 2, crew: 0.08 }, desc: '屋根と椅子がある。それだけで日曜の手つきが変わる' },
+        { name: '2階建てホスピタリティ', icon: '🏠', cost: 6600,
+          eff: { form: 4, crew: 0.16 }, desc: '食事も打ち合わせもここで済む。移動の時間がなくなる' },
+        { name: 'モーターホーム艦隊', icon: '🏨', cost: 14000,
+          eff: { form: 7, crew: 0.26 }, desc: '個室と回復設備まで持ち込む。現地が本拠地と同じ環境になる' }
+      ] }
+  ];
+
   /* ---------- 路面の熟成（ラバー）----------
      走れば走るほどタイヤのゴムが路面に乗り、グリップが上がっていく。
      雨が降れば、それは一度に流れてしまう。                        */
@@ -4067,7 +4137,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -5407,7 +5477,8 @@ GP.state = (function () {
     // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
     return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
-               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0), 0.10, 0.92);
+               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0)
+               + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -5515,6 +5586,30 @@ GP.state = (function () {
                 （回す先が無ければ、やはり何も増えない）
        ready …… 現場の余力。クルーが疲れきっていると、読めていても動けない
      どこかを厚くするより、噛み合わせるほうが伸びる                     */
+  /* ---------- トラックサイド装備 ----------
+     g.kit = { weather: 2, radio: 1, ... }。0 が初期の一段目        */
+  function kitLv(g2, key) { return (g2 && g2.kit && g2.kit[key]) || 0; }
+  function kitOf(g2, key) {
+    const K = D.RACEKIT.filter(x => x.key === key)[0];
+    if (!K) return null;
+    const lv = Math.min(K.tiers.length - 1, kitLv(g2, key));
+    return { def: K, lv: lv, tier: K.tiers[lv], next: K.tiers[lv + 1] || null,
+             max: lv >= K.tiers.length - 1 };
+  }
+  function kitEff(g2, key, field) {
+    const k = kitOf(g2, key);
+    return (k && k.tier.eff && k.tier.eff[field]) || 0;
+  }
+  function kitList(g2) { return D.RACEKIT.map(K => kitOf(g2, K.key)); }
+  function buyKit(g2, key) {
+    const k = kitOf(g2, key);
+    if (!k || !k.next || g2.funds < k.next.cost) return null;
+    g2.funds -= k.next.cost;
+    g2.kit = g2.kit || {};
+    g2.kit[key] = k.lv + 1;
+    return k.next;
+  }
+
   /* ---------- グループ ----------
      職種ごとの一覧ではなく、実際に仕事をしている単位で見る。
      人の組み合わせで、中が噛み合ったり軋んだりする。               */
@@ -5602,7 +5697,8 @@ GP.state = (function () {
   function devPower(g2)   { const o = org(g2); return o.dept.engineer * o.dataMul; }
   function designPower(g2){ return org(g2).dept.designer; }
   function pitPower(g2)   { return org(g2).dept.mechanic; }
-  function readPower(g2)  { const o = org(g2); return o.dept.strategist * o.dataMul; }
+  function readPower(g2)  { const o = org(g2);
+    return (o.dept.strategist + kitEff(g2, 'wall', 'read')) * o.dataMul; }
   function trainPower(g2) { const o = org(g2); return o.dept.trainer * o.dataMul; }
   function analystPower(g2){ return org(g2).dept.analyst; }
 
@@ -5625,7 +5721,7 @@ GP.state = (function () {
     const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
-    const gun = hasGear(g2, 'pit', 'gun') ? 0.12 : 0;
+    const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
     const stand = Math.max(D.PIT_STAND_MIN,
       D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
       / (1 + skill * D.PIT_STAND_CURVE) + cw.pit - gun);
@@ -5640,7 +5736,7 @@ GP.state = (function () {
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
     // 座って休める場所があるだけで、溜まりかたが変わる
-    const rest = hasGear(g2, 'pit', 'rest') ? 0.85 : 1;
+    const rest = (hasGear(g2, 'pit', 'rest') ? 0.85 : 1) * (1 - kitEff(g2, 'home', 'crew'));
     const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
     g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
@@ -6662,6 +6758,7 @@ GP.state = (function () {
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
     hasGear, gearList, buyGear, envScore, envTier,
+    kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
@@ -7927,7 +8024,9 @@ GP.race = (function () {
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
         const ord = orderOf(ordKey);
-        t *= (1 + ord.pace);
+        // 無線がまともなほど、言ったことがそのまま伝わる
+        const radio = e.isPlayer ? 1 + S.kitEff(g, 'radio', 'order') : 1;
+        t *= (1 + ord.pace * radio);
         e.tyreAge += ord.wear;
         e.lapOrder[lap - 1] = ordKey;
 
@@ -8019,7 +8118,8 @@ GP.race = (function () {
                  * (e.driver.hurt ? 1.35 : 1)
                  * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
-                 * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
+                 * orderOf(e.order).miss                // 攻めろと言われた周ほど乱れやすい
+                 * (e.isPlayer ? 1 - S.kitEff(g, 'radio', 'miss') : 1);
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
@@ -16436,6 +16536,13 @@ window.GP = window.GP || {};
           'マシンは仕上げきれないまま週末に入る。', 'bad');
         U.toast('📦 機材の到着が遅れた！', 'bad');
       }
+      // モーターホームがあると、週末のあいだにきちんと休める
+      const homeUp = S.kitEff(g, 'home', 'form');
+      if (homeUp > 0) {
+        g.drivers.forEach(d => { d.form = S.clamp(d.form + homeUp, 62, 122); });
+        U.log(g, S.kitOf(g, 'home').tier.icon + ' ' +
+          S.kitOf(g, 'home').tier.name + 'で、現地でもきちんと休めた（調子 +' + homeUp + '）');
+      }
       S.rollAbsence(g).forEach(d => {
         const cover = g.reserve && S.canDrive(g.reserve);
         U.log(g, '🤒 ' + d.name + ' が体調不良で今週は走れない。' +
@@ -19453,6 +19560,56 @@ window.GP = window.GP || {};
   }
 
   /* ---------- ロジスティクス（週を消費しない）---------- */
+  /* ---- トラックサイド装備 ----
+     施設は本拠地、備品はその中身、こちらは週末に戦うための道具。
+     段階ごとに買い上げていく                                      */
+  function kitBoxHTML() {
+    // いまの「読み」がどこから来ているのかを、その場に出す
+    const fo = S.foresightOf(g);
+    const wKit = S.kitEff(g, 'weather', 'fore');
+    const st = S.readPower(g);
+    let h = '<div class="sub">🧰 トラックサイド装備</div>' +
+      '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
+      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
+      '<small>雨が来る時刻と、路面がどこへ落ち着くかを、どれだけ当てられるか。' +
+      '外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
+      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
+      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>' +
+      '<p class="desc">現地に持ち込むもの。上げるほど、週末の読みと段取りが良くなります。' +
+      '一度買えば残ります。</p><div class="pick gearpick">';
+    S.kitList(g).forEach(k => {
+      const d = k.def, t = k.tier, nx = k.next;
+      const can = nx && g.funds >= nx.cost;
+      h += '<button class="pickbtn kitrow" data-kit="' + d.key + '"' + (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#5a6270">' + t.icon + '</span>' +
+        '<span class="pb-body"><b>' + d.icon + ' ' + d.name +
+          '<em class="kitlv">' + (k.lv + 1) + ' / ' + d.tiers.length + '</em></b>' +
+        '<small><b>' + esc(t.name) + '</b>　' + esc(t.desc) +
+          '<span class="kitline">' + d.tiers.map((x, i) =>
+            '<span class="kitx' + (i === k.lv ? ' on' : i < k.lv ? ' past' : '') + '" title="' +
+            esc(x.name) + '">' + x.icon + '</span>').join('<u>→</u>') + '</span>' +
+          (nx ? '<span class="devup">次は <b>' + esc(nx.name) + '</b>：' + esc(nx.desc) + '</span>'
+              : '<span class="devup">これ以上はありません</span>') +
+          '<br><em class="pnote">' + esc(d.what) + '</em>' +
+        '</small></span>' +
+        '<span class="pb-cost">' + (nx ? '💰' + money(nx.cost) : '—') + '</span></button>';
+    });
+    return h + '</div>';
+  }
+  function bindKit() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-kit]'), b => {
+      b.onclick = () => {
+        const t = S.buyKit(g, b.dataset.kit);
+        if (!t) return;
+        GP.sound.play('build');
+        U.log(g, t.icon + ' ' + t.name + ' を持ち込むことにした（' + t.desc + '）', 'good');
+        U.toast(t.icon + ' ' + t.name + '！', 'good');
+        S.save(g); render(); cmdLogi();
+      };
+    });
+  }
+
   function cmdLogi() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
@@ -19551,7 +19708,9 @@ window.GP = window.GP || {};
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
       'ロジスティクス責任者を雇うと、費用も疲労も遅延も抑えられます。</p>';
 
+    body += kitBoxHTML();
     U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
       g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };

@@ -1238,7 +1238,9 @@ GP.race = (function () {
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
         const ord = orderOf(ordKey);
-        t *= (1 + ord.pace);
+        // 無線がまともなほど、言ったことがそのまま伝わる
+        const radio = e.isPlayer ? 1 + S.kitEff(g, 'radio', 'order') : 1;
+        t *= (1 + ord.pace * radio);
         e.tyreAge += ord.wear;
         e.lapOrder[lap - 1] = ordKey;
 
@@ -1330,7 +1332,8 @@ GP.race = (function () {
                  * (e.driver.hurt ? 1.35 : 1)
                  * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
-                 * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
+                 * orderOf(e.order).miss                // 攻めろと言われた周ほど乱れやすい
+                 * (e.isPlayer ? 1 - S.kitEff(g, 'radio', 'miss') : 1);
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
