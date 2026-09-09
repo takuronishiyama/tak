@@ -457,6 +457,10 @@ GP.data = (function () {
      チームが街に根を張るための場所。持っているあいだ維持費がかかり、
      そのぶん収入と、人の集まりかたが変わる。                       */
   const ESTATES = [
+    { key: 'lab', name: 'リサーチセンター', icon: '🔬', cost: 22000, upkeep: 180,
+      desc: '本業から少し離れたところで、まだ形になっていないものを探す施設。' +
+            '研究テーマの進みが速くなり、リサーチャーが集まるようになる',
+      eff: '研究テーマの進み ×' + 1.35 + '／リサーチャーが市場に出やすい' },
     { key: 'shop', name: '直営ショップ', icon: '🏪', cost: 9000, upkeep: 70,
       eff: 'グッズ・入場料 +35%／ファンの増え +8%',
       desc: 'サーキットの外に、チームの店を持つ。' +
@@ -939,7 +943,9 @@ GP.data = (function () {
     { key: 'analyst',    name: 'アナリスト',     icon: '📊', desc: '研究ポイントが増え、開発・作戦・育成の効きも底上げする', salary: 55,
       promote: ['technical', 'logistics'] },
     { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45,
-      promote: ['principal', 'logistics'] }
+      promote: ['principal', 'logistics'] },
+    { key: 'researcher', name: 'リサーチャー',   icon: '🔬', desc: 'まだ形になっていないものを探す。研究テーマの進みが速くなる', salary: 58,
+      promote: ['technical'] }
   ];
 
   /* ---------- グループ ----------
@@ -963,11 +969,16 @@ GP.data = (function () {
     { key: 'pitwall', name: 'ピットウォール', icon: '🧠', place: 'track',   of: 'strategist',
       desc: 'いつ入るかを決める。路面の読み' },
     { key: 'human',   name: 'ヒューマンパフォーマンス', icon: '💪', place: 'track', of: 'trainer',
-      desc: 'ドライバーを鍛える' }
+      desc: 'ドライバーを鍛える' },
+    { key: 'research', name: '研究グループ', icon: '🔬', place: 'factory', of: 'researcher',
+      desc: 'まだ図面になっていないものを探す。開発の一段手前' }
   ];
   /* グループ同士の相補作用。両方が育っているときだけ効く。
      min(片方) が半減値に達したところで、gain の半分がのる          */
   const SYNERGY = [
+    { a: 'research', b: 'design', icon: '🔭', gain: 0.20, half: 2.6,
+      name: '探したものが、そのまま図面になる',
+      desc: '研究が「何が効くか」を先に出すので、設計が当てずっぽうにならない' },
     { a: 'design',  b: 'develop', icon: '🤝', gain: 0.18, half: 3.0,
       name: '図面と現場が同じ言葉で話す',
       desc: '設計が「作れる形」で描いてくるので、開発の手戻りが減る' },
@@ -1009,6 +1020,7 @@ GP.data = (function () {
     // 誰がどの部門を見るか
     DEPT: {
       engineer: 'technical', designer: 'technical', analyst: 'technical',
+      researcher: 'technical',
       mechanic: 'pitchief',  strategist: 'pitchief',
       trainer:  'principal'
     }
@@ -1363,6 +1375,26 @@ GP.data = (function () {
       { at: 9, icon: '🧠', name: 'データ主導の育成プログラム', mul: 1.52,
         desc: '誰を、いつ、何に乗せるかまで組み立てられる' }
     ]}
+  };
+
+  /* ---------- 研究 → 開発 → 改良 ----------
+     いきなり図面は引けない。まず「そもそも何が効くのか」を探し（研究）、
+     分かったことを形にし（開発）、できたものを煮詰める（改良）。
+     研究は部位ごとにテーマを持ち、溜まりきると「知見」がひとつ生まれる。
+     知見は次の開発1回に乗り、伸びもレアリティも大きくなる。         */
+  const RESEARCH = {
+    need:     100,     // 知見ひとつぶんの目盛り
+    step:     22,      // 1週の研究で進む基礎量
+    per:      3.6,     // リサーチャー1人あたりの上乗せ
+    analyst:  1.5,     // アナリストも探索を手伝う
+    lab:      1.35,    // リサーチセンターがあるときの倍率
+    tunnel:   0.06,    // 風洞レベル1あたりの倍率
+    cost:     420,     // 1週の研究にかかる費用（万）
+    rp:       6,       // 同・研究ポイント
+    keep:     3,       // 抱えておける知見の数（部位ごと）
+    devMul:   1.85,    // 知見を使った開発の伸び
+    rarBonus: 1.6,     // 同・レアリティ抽選への上乗せ
+    polMul:   1.55     // 知見を使った改良の進み
   };
 
   /* ---------- 開発のブレイクスルー ----------
@@ -1733,7 +1765,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

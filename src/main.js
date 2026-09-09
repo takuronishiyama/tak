@@ -462,7 +462,12 @@ window.GP = window.GP || {};
         '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rarity) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) +
-        (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') + '</b>' +
+        (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') +
+        // 研究で溜めた知見。この部位を改良すると、1つ使って大きく伸びる
+        (S.findingsOf(g, c.key)
+          ? '<em class="findchip" title="🔬 研究の知見。改良1回に乗って、伸びと熟成が ×' +
+            D.RESEARCH.polMul.toFixed(2) + ' になります">🔬 知見 ' +
+            S.findingsOf(g, c.key) + '</em>' : '') + '</b>' +
         '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
         '（' + pct + '%）' +
         (locked ? ' <em class="warn">供給中は開発できません</em>'
@@ -879,13 +884,16 @@ window.GP = window.GP || {};
     const fc = S.focusOf(g);
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     let crit = false;
+    // 研究で溜めた知見があれば、ここで1つ使う。何を直せばいいか分かっている
+    const found = S.useFinding(g, key);
+    if (found) gain *= D.RESEARCH.polMul;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
        掘り当てると、熟成が一気に進む                                */
     const brk = S.rollBreakthrough(g);
     let upTo = null;
-    let polGain = S.polishStep(g, p);
+    let polGain = S.polishStep(g, p) * (found ? D.RESEARCH.polMul : 1);
     if (brk) {
       gain *= D.INNOV.playerGain; crit = true;
       polGain += 0.55;                 // 掘り当てたぶん、格に近づく
@@ -924,6 +932,7 @@ window.GP = window.GP || {};
     }
 
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
+      (found ? '  🔬研究の知見をひとつ使った' : '') +
       (brk ? '  🔬' + brk + '！' : crit ? '  ✨ひらめき大成功！' : '');
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
@@ -1027,11 +1036,43 @@ window.GP = window.GP || {};
      ======================================================= */
   function cmdResearch() {
     const cur = D.CAR_GENS[g.carGen], nx = D.CAR_GENS[g.carGen + 1];
+    const rp = S.researchPower(g);
     let body = interiorHTML('tunnel') +
       '<div class="pick">' +
-      '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">🔬</span>' +
+      '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">📊</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
       '<span class="pb-cost">+' + Math.round(12 + S.analystPower(g) * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
+
+    /* ---- 研究テーマ ----
+       いきなり図面は引けない。まず「そもそも何が効くのか」を探す。
+       溜まりきると知見がひとつ生まれ、次の改良1回に乗る          */
+    body += '<div class="sub">🔬 研究テーマ</div>' +
+      '<p class="desc"><b>リサーチ → 開発 → 改良</b>の、いちばん手前です。' +
+      '部位をひとつ選んで1週かけて調べると、' + D.RESEARCH.need + ' まで溜まったところで' +
+      '<b>知見</b>がひとつ生まれます。知見は次の <b>🔧 改良</b> 1回に乗り、' +
+      '伸びと熟成が <b>×' + D.RESEARCH.polMul.toFixed(2) + '</b> になります' +
+      '（部位ごとに ' + D.RESEARCH.keep + 'つまで抱えられます）。<br>' +
+      '1週で進むのは <b>' + rp.toFixed(1) + '</b>。' +
+      '🔬リサーチャー・📊アナリスト・風洞の規模・' +
+      (S.hasEstate(g, 'lab') ? '<b>🔬リサーチセンター</b>' : '🔬リサーチセンター') +
+      'で速くなります。<br>費用 💰' + money(D.RESEARCH.cost) + '万／🔬' + D.RESEARCH.rp +
+      '（1週消費）</p><div class="pick">';
+    S.researchList(g).forEach(r => {
+      const poor = g.funds < D.RESEARCH.cost || g.rp < D.RESEARCH.rp;
+      const full = r.found >= D.RESEARCH.keep;
+      body += '<button class="pickbtn' + ((poor || full) ? ' done' : '') +
+        '" data-k="res:' + r.key + '"' + ((poor || full) ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(r.name) +
+          (r.found ? '　<em class="free">知見 ' + '🔬'.repeat(r.found) + '</em>' : '') + '</b>' +
+        '<small><span class="skbar"><i style="width:' + r.pct + '%"></i></span> ' +
+        r.p + ' / ' + r.need +
+        (full ? '<br><b class="warn">これ以上は抱えられません。改良で使ってください</b>'
+              : poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">💰' + money(D.RESEARCH.cost) + '<br>🔬' + D.RESEARCH.rp + '</span></button>';
+    });
+    body += '</div>';
 
     body += '<div class="sub">マシンの世代</div>';
     body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>' +
@@ -1126,9 +1167,32 @@ window.GP = window.GP || {};
     paintInterior();
     bindPick(k => {
       if (k === '__gain') return doResearchGain();
+      if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
       if (k === '__engoff') return doEngineOff();
       if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
     });
+  }
+
+  /* ---- 研究テーマを1週進める ---- */
+  function doResearch(key) {
+    const c = D.PART_CATS.find(x => x.key === key);
+    if (!c) return;
+    if (g.funds < D.RESEARCH.cost || g.rp < D.RESEARCH.rp) return U.toast('資金か研究Pが足りません', 'bad');
+    g.funds -= D.RESEARCH.cost; g.rp -= D.RESEARCH.rp; capSpend(D.RESEARCH.cost);
+    const r = S.advanceResearch(g, key);
+    staffExp('researcher', 16); staffExp('analyst', 6);
+    U.closeModal();
+    if (r.found) {
+      U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ 次の「🔧 改良」で使える（いま ' +
+        r.have + 'つ）', 'good');
+      U.toast('🔬 知見をひとつ掴んだ！', 'good');
+      GP.sound.play('levelup');
+    } else {
+      U.log(g, '🔬 ' + c.name + 'を調べた（' + r.p + ' / ' + r.need + '　+' + r.gain + '）');
+      U.pop('🔬+' + r.gain, 'good');
+      GP.sound.play('confirm');
+    }
+    endWeek();
   }
 
   /* ---- エンジン供給 ---- */
@@ -5693,6 +5757,53 @@ window.GP = window.GP || {};
           const puUp = S.nursePU(g, S.rnd(4, 9));
           return '🔧 ピット作業を洗い直した（クルーの疲労が回復' +
                  (puUp > 0 ? '／PUの残り +' + puUp + '%' : '') + '）';
+        } },
+      { k: 'strat', icon: '🧠', label: '作戦を見直す',
+        note: 'ストラテジストが伸び、路面と天候の読みが上がる',
+        run: () => {
+          staffExp('strategist', 20);
+          staffExp('analyst', 10);
+          const before = S.readPower(g), bf = S.foresightOf(g);
+          // ピットウォールとデータ班がそろって伸びる週
+          const ups = [];
+          (g.staff || []).filter(x => x.type === 'strategist' || x.type === 'analyst')
+            .forEach(x => {
+              const cap = S.staffCap(x);
+              if (x.skill < cap) { x.skill = S.clamp(Math.round(x.skill + 1), 1, cap); ups.push(x.name); }
+            });
+          // まだ専門の人がいない週は、集めたデータが研究に回る
+          let extra = '';
+          if (!ups.length) {
+            const rp2 = Math.round(S.rnd(8, 14) * (1 + S.analystPower(g) * 0.2));
+            g.rp += rp2;
+            extra = '／見る人がいないぶん、データは持ち帰った（研究P +' + rp2 + '）';
+          }
+          const after = S.readPower(g), af = S.foresightOf(g);
+          return '🧠 週末のコールをひとつずつ検証した（作戦の読み ' +
+                 before.toFixed(2) + ' → ' + after.toFixed(2) +
+                 '／天候の読み ' + Math.round(bf * 100) + '% → ' + Math.round(af * 100) + '%' +
+                 (ups.length ? '／' + ups.join('・') + ' の技能 +1' : '') + extra + '）';
+        } },
+      { k: 'check', icon: '🩺', label: 'マシンを総点検する',
+        note: '全パーツのコンディションが戻り、壊れにくくもなる',
+        run: () => {
+          const mech = 1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08;
+          let sum = 0;
+          D.PART_CATS.forEach(c => {
+            const p2 = g.equipped[c.key];
+            if (!p2 || c.key === 'pu') return;
+            const before = p2.cond;
+            p2.cond = S.clamp(p2.cond + S.rnd(9, 15) * mech, 10, 100);
+            sum += p2.cond - before;
+          });
+          const puUp = S.nursePU(g, S.rnd(5, 10) * (1 + S.pitPower(g) * 0.18));
+          // 現場で見つけた弱点は、そのまま「高耐久」の技術になっていく
+          const tech = S.advanceTech(g, 'tough');
+          staffExp('mechanic', 18);
+          return '🩺 一台ずつ分解して見た（コンディション 合計 +' + Math.round(sum) +
+                 (puUp > 0 ? '／PUの残り +' + puUp + '%' : '') +
+                 '／信頼性 ' + Math.round(S.reliability(g)) + '%' +
+                 '／🛡️高耐久 ' + (tech.up ? 'Lv.' + tech.lv + 'に上がった' : '+' + tech.gain) + '）';
         } },
       { k: 'crew', icon: '🗣️', label: 'まず全員をねぎらう',
         note: 'チームの空気が良くなる。ドライバーの調子が大きく上向く',

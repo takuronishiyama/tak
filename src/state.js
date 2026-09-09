@@ -212,6 +212,59 @@ GP.state = (function () {
       lv: techLv(g2, t.key), p: techProg(g2, t.key), max: D.TECH.max
     }));
   }
+  /* =======================================================
+     研究 → 開発 → 改良
+     いきなり図面は引けない。まず「そもそも何が効くのか」を探す。
+     部位ごとにテーマを持ち、溜まりきると「知見」がひとつ生まれる。
+     知見は次の開発（または改良）1回に乗り、伸びもレアリティも大きくなる。
+     ======================================================= */
+  function researchPower(g2) {
+    const R2 = D.RESEARCH;
+    const o = org(g2);
+    return (R2.step
+          + (o.dept.researcher || 0) * R2.per
+          + analystPower(g2) * R2.analyst)
+         * (1 + (g2.facilities.tunnel || 1) * R2.tunnel)
+         * (hasEstate(g2, 'lab') ? R2.lab : 1)
+         * rigMul(g2, 'tunnel')
+         * devRate(g2);
+  }
+  function researchOf(g2, key) {
+    g2.research = g2.research || {};
+    if (!g2.research[key]) g2.research[key] = { p: 0, found: 0 };
+    return g2.research[key];
+  }
+  /* 1週ぶん研究を進める。目盛りが埋まると知見がひとつ増える */
+  function advanceResearch(g2, key) {
+    const r = researchOf(g2, key);
+    const gain = researchPower(g2);
+    r.p += gain;
+    let found = 0;
+    while (r.p >= D.RESEARCH.need && r.found < D.RESEARCH.keep) {
+      r.p -= D.RESEARCH.need; r.found++; found++;
+    }
+    if (r.found >= D.RESEARCH.keep) r.p = Math.min(r.p, D.RESEARCH.need - 1);
+    return { gain: Math.round(gain * 10) / 10, found: found, have: r.found,
+             p: Math.round(r.p), need: D.RESEARCH.need };
+  }
+  /* 開発・改良のときに知見をひとつ使う。使えたら true */
+  function useFinding(g2, key) {
+    const r = researchOf(g2, key);
+    if (r.found <= 0) return false;
+    r.found--;
+    return true;
+  }
+  function findingsOf(g2, key) { return researchOf(g2, key).found; }
+  /* 画面用。部位ごとの進み具合を並べる */
+  function researchList(g2) {
+    return D.PART_CATS.map(c => {
+      const r = researchOf(g2, c.key);
+      return { key: c.key, name: c.name, icon: c.icon, color: c.color,
+               p: r.p, found: r.found, need: D.RESEARCH.need,
+               pct: Math.min(100, Math.round(r.p / D.RESEARCH.need * 100)) };
+    });
+  }
+
   /* 1回の開発で、どれだけ進むか（0..1でレベルが1つ上がる） */
   function techStep(g2) {
     return D.TECH.step
@@ -2568,7 +2621,8 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
-    techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
+    techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
+    researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList, polishStep, polishLeft,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,

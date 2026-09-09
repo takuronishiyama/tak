@@ -2201,3 +2201,7 @@ body[data-skin="hd"]{
   border:1px solid currentColor;border-radius:4px;padding:0 4px}
 .grp-note .gn-amt{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
 .grp-note .gn-t{display:block;opacity:.85;margin-top:1px}
+
+/* ---- 研究の知見 ---- */
+.findchip{font-style:normal;font-size:9px;font-weight:700;margin-left:5px;
+  background:#8a6ad0;color:#fff;border-radius:4px;padding:1px 5px;white-space:nowrap}
