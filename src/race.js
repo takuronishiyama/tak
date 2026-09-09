@@ -271,6 +271,26 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- チームメイトと作戦を分けたとき --- */
+    split: ['「言っておく。{B} とは作戦が違う。向こうは{NS}ストップだ」',
+            '「作戦を分けた。{B} は{NS}ストップ、君はこのまま行く」',
+            '「{B} とは別のことをやる。並んでも気にするな。順番はあとで整える」'],
+    splitBack: ['「了解。自分の作戦に集中する」',
+                '「わかった。向こうは向こう、こっちはこっちだな」',
+                '「コピー。こっちのリズムで行く」'],
+    splitNear: ['「{B} が近いが、作戦が違う。無理に争うな」',
+                '「同士討ちだけは避けてくれ。ストップの数が違う」',
+                '「向こうはあとで入る。いま抑えても、あとで前に出られる」'],
+    splitNearBack: ['「分かってる。当てはしない」',
+                    '「争わないよ。作戦を信じる」',
+                    '「了解。自分のペースを守る」'],
+    /* --- 周回遅れの列 --- */
+    blue: ['「前に周回遅れが{NB}台。青旗は出ている、落ち着いて処理してくれ」',
+           '「周回遅れの列に入る。焦らず、きれいに抜いてくれ」',
+           '「前がごちゃついている。1台ずつ確実に片付けよう」'],
+    blueBack: ['「見えている。1台ずつ行く」',
+               '「なかなかどいてくれないな」',
+               '「了解。無理はしない」'],
     /* --- ピットで手当てしたあと --- */
     fixed: ['「見た目は良くなった。数字も戻っている。行けるはずだ」',
             '「手は入れた。これで少しは楽になる」',
@@ -552,6 +572,7 @@ GP.race = (function () {
       const nextTy = e.pitTyre || ty.key;
       const V = {
         D: e.driver.name, P: i + 1, N: laps - lap, T: tyreOf(nextTy).name,
+        B: e.splitWith || '', NB: e.blueN || 0, NS: e.splitOther || 0,
         L: Math.max(0, Math.round(ty.life - e.tyreAge)),
         GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
@@ -616,6 +637,19 @@ GP.race = (function () {
       if ((e.dryWet || 0) > 0.05 && e.radioCool <= 0) {
         push(RADIO.aqua, 'pit', true);
         push(RADIO.aquaBack, 'drv', true);
+        e.radioCool = 4;
+        return;
+      }
+      if (lap === 1 && e.splitWith) {                   // 作戦を分けた
+        push(RADIO.split, 'pit', true);
+        push(RADIO.splitBack, 'drv', true);
+        e.radioCool = 4;
+        return;
+      }
+      if (e.radioBlue === lap) {                        // 周回遅れの列
+        e.radioBlue = -1;
+        push(RADIO.blue, 'pit', true);
+        push(RADIO.blueBack, 'drv', true);
         e.radioCool = 4;
         return;
       }
@@ -953,6 +987,7 @@ GP.race = (function () {
     let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
     const scInfo = { from: 0, laps: 0, virtual: false };
+    let splitInfo = null;              // チームメイトで作戦を分けたときの控え
     const radio = [];                 // チーム無線。自チームのぶんだけ積む
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
@@ -1082,6 +1117,39 @@ GP.race = (function () {
     const carRef = entries.reduce((a, e) => a + e.carScore, 0) / Math.max(1, entries.length);
 
     // ピット戦略とタイヤの割り当て
+    /* ---- チームメイトで作戦を分ける ----
+       2台とも同じ作戦にすると、読みが外れたときに揃って沈む。
+       腕のあるストラテジストは、わざと1台ずつ違う作戦へ振り分けて、
+       どちらかが必ず当たるようにする。「おまかせ」のときだけ働く    */
+    {
+      const mine = entries.filter(e => e.isPlayer &&
+        (e.stopPlan == null || e.stopPlan === 'auto'));
+      if (mine.length === 2) {
+        const nat = mine.map(e =>
+          S.naturalStops(track, laps, track.tyre * e.st.tyre * e.tyreSkill));
+        if (nat[0] === nat[1]) {
+          const read = S.readPower(g);
+          const p2 = read >= D.SPLIT.need
+            ? Math.min(D.SPLIT.cap, D.SPLIT.sure + (read - D.SPLIT.need) * D.SPLIT.step) : 0;
+          if (p2 > 0 && Math.random() < p2) {
+            // 後ろの1台を逆の作戦へ回す。前の車の作戦は動かさない
+            const b = mine[1], base = nat[1];
+            const alt = base >= 3 ? base - 1
+                      : base <= 1 ? 2
+                      : (Math.random() < 0.6 ? base + 1 : base - 1);
+            b.forceStops = alt;
+            b.tyreBias = alt > base ? 0 : 2;
+            mine[0].splitWith = b.driver.name;
+            b.splitWith = mine[0].driver.name;
+            mine[0].splitStops = base; b.splitStops = alt;
+            mine[0].splitOther = alt; b.splitOther = base;
+            splitInfo = { a: mine[0].driver.name, aStops: base,
+                          b: b.driver.name, bStops: alt };
+          }
+        }
+      }
+    }
+
     entries.forEach(e => {
       const wear = track.tyre * e.st.tyre * e.tyreSkill;
       /* コースとマシンから決まる「素直な」ストップ回数。
@@ -1097,7 +1165,9 @@ GP.race = (function () {
         // プレイヤーは自分で選べる。'auto' ならコース任せ
         const want = e.stopPlan;
         if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
-        e.tyreBias = e.tyrePlan == null ? 1 : e.tyrePlan;
+        else if (e.forceStops) stops = e.forceStops;      // 振り分けられたほう
+        e.tyreBias = e.forceStops ? e.tyreBias
+                   : (e.tyrePlan == null ? 1 : e.tyrePlan);
         e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
@@ -1208,6 +1278,13 @@ GP.race = (function () {
             ? D.WEATHER[2]                                           // 晴れからいきなり大雨にはしない
             : D.WEATHER[Math.random() < 0.22 ? 3 : 2]);              // 降り出す
       wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
+    }
+
+    if (splitInfo) {
+      events.push({ lap: 1, type: 'pit',
+        text: '🧠 ピットウォールが作戦を分けた —— ' + splitInfo.a + ' は' +
+              splitInfo.aStops + 'ストップ、' + splitInfo.b + ' は' +
+              splitInfo.bStops + 'ストップ。どちらかを必ず当てにいく' });
     }
 
     // ---- スタート前の無線 ----
@@ -1389,6 +1466,61 @@ GP.race = (function () {
         if (dow > 0) t *= 1 + dow * D.ENV.dryWetLoss * (1 - e.wetSkill * 0.25);
         // 雨に強い人は、濡れた路面そのものでも速い
         t *= 1 - e.wetSkill * wx.level * 0.012;
+
+        /* ---- 周回遅れの処理 ----
+           速い車はレースの後半、必ず周回遅れの列に追いつく。
+           青旗が出ても譲るのに1コーナーぶんはかかる。
+           「1周ぶん以上うしろにいる車」を、1周でどれだけ追い越すかは
+           ラップタイムの差そのもの（1 - 自分の周回時間 / 相手の周回時間）。
+           抜きにくいコースほど、そして相手が慣れていないほど時間が消える  */
+        if (lap > 2) {
+          const myPrev = e.cum[lap - 2];
+          const myLap = e.lapTimes[lap - 2] || track.base;
+          let meets = 0, n = 0;
+          order.forEach(b => {
+            if (b === e || b.dnf || b.cum[lap - 2] == null) return;
+            const behind = b.cum[lap - 2] - myPrev;
+            // 完全に1周遅れていなくても、コース上で追いつけば同じこと。
+            // 半周以上うしろの車から、少しずつ「列」として効きはじめる
+            if (behind < myLap * 0.55) return;
+            const near = Math.min(1, behind / myLap);
+            const bLap = b.lapTimes[lap - 2] || myLap;
+            const rate = Math.max(0, 1 - myLap / bLap) * near; // 1周でどれだけ詰めるか
+            if (rate <= 0) return;
+            // 譲る側が慣れているほど、双方の損が減る
+            const yieldFast = 1 - (S.careOf(b.driver) - 100) / 100 * D.BLUE.care;
+            meets += Math.min(0.35, rate * 2.2) * Math.max(0.5, yieldFast);
+            n++;
+          });
+          if (meets > 0) {
+            const cost = meets * D.BLUE.loss
+                       * (1 - passEase * D.BLUE.ease)
+                       * (1 - Math.min(0.55, e.driver.technique / 200 * D.BLUE.skill))
+                       * (e.sk('passer') ? 0.65 : 1);
+            t += cost;
+            e.blueLoss = (e.blueLoss || 0) + cost;
+            e.blueN = n;
+            // 列に入ったことを、たまに無線で伝える
+            if (e.isPlayer && n >= 2 && !e.radioBlueAt) {
+              e.radioBlue = lap; e.radioBlueAt = lap;
+            }
+          } else {
+            e.blueN = 0;
+          }
+        }
+        /* 周回遅れ側も、譲るぶんだけ失う */
+        if (lap > 2) {
+          const lead = order.filter(x => !x.dnf && x.cum[lap - 2] != null)
+            .sort((a, b) => a.cum[lap - 2] - b.cum[lap - 2])[0];
+          if (lead && lead !== e) {
+            const down = e.cum[lap - 2] - lead.cum[lap - 2];
+            const lapT = lead.lapTimes[lap - 2] || track.base;
+            if (down >= lapT * 0.55) {
+              const rate = Math.max(0, 1 - lapT / (e.lapTimes[lap - 2] || lapT));
+              t += Math.min(0.30, rate * 2.2) * D.BLUE.yield * Math.max(1, Math.floor(down / lapT));
+            }
+          }
+        }
 
         /* 抱えている不具合のぶん。放っておくほど広がっていく。
            抑えて運べば広がりは遅くなるが、そのぶんペースも落ちる */
@@ -1983,12 +2115,17 @@ GP.race = (function () {
               nx.cum[lap - 1] - e.cum[lap - 1] < 1.0 &&
               (!teamFightAt || lap - teamFightAt > 6)) {
             teamFightAt = lap;
+            // 作戦を分けているときは、争わせない言いかたになる
+            const apart = !!e.splitWith && e.stops !== nx.stops;
             events.push({ lap: lap, type: 'pass', car: e,
-              text: say(SAY.teammate, { A: e.driver.name, B: nx.driver.name }) });
+              text: say(SAY.teammate, { A: e.driver.name, B: nx.driver.name }) +
+                    (apart ? '（作戦が違う2台。ピットは同士討ちを避けたい）' : '') });
             radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
-                         text: say(RADIO.teammate, { D: e.driver.name }) });
+                         text: say(apart ? RADIO.splitNear : RADIO.teammate,
+                                   { D: e.driver.name, B: nx.driver.name }) });
             radio.push({ lap: lap, from: 'drv', name: e.driver.name, id: e.id,
-                         text: say(RADIO.teammateBack, { D: e.driver.name }) });
+                         text: say(apart ? RADIO.splitNearBack : RADIO.teammateBack,
+                                   { D: e.driver.name }) });
           }
         });
         if (lap === laps) {
