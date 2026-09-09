@@ -13,7 +13,10 @@ window.GP = window.GP || {};
   /* =======================================================
      週の進行
      ======================================================= */
-  function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week === S.raceWeek(g.nextRace); }
+  /* レース週かどうか。「ちょうどその週」ではなく「その週以降」で見る。
+     何かの拍子に週を跨いでしまった保存データでも、決勝に行けるようにする
+     （以前は === だったため、跨ぐと二度とレースに行けなくなっていた）  */
+  function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week >= S.raceWeek(g.nextRace); }
 
   function endWeek() {
     crunchConsume(true);
@@ -1918,6 +1921,15 @@ window.GP = window.GP || {};
      ======================================================= */
   function askKart() {
     const K = D.KART;
+    // 施設画面からも開けるので、週を使ってよい時かどうかをここで確かめる。
+    // レース週にこれを走らせると、決勝の週を潰してしまう
+    if (isRaceWeek() || g.offseason) {
+      return U.modal('🏁 カートレース',
+        '<p class="lead">' + (g.offseason ? 'オフのあいだは開けません。' : '今週は決勝です。') + '</p>' +
+        '<p class="desc">カートレースは1週かかります。' +
+        (g.offseason ? '来季が始まってから開きましょう。' : 'レースが終わってからにしましょう。') + '</p>',
+        [{ label: '戻る', cls: 'primary', fn: U.closeModal }]);
+    }
     const ys = (g.youth || []);
     if (!ys.length) {
       return U.modal('🏁 カートレース',
