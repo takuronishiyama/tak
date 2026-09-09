@@ -528,6 +528,11 @@ GP.state = (function () {
     // 供給を受けていたエンジンも新規則では使えない
     g2.engine = null;
     g2.engineStash = null;
+    /* 持ち込んでいたコンセプトも、規則ごと無効になる。
+       ここを残すと、もう車に乗っていないものに裁定が出て、
+       関係のないパーツから性能を引かれてしまう                   */
+    g2.concepts = [];
+    g2.tdLog = [];
     // ライバルも同じところまで戻す。
     // プレイヤーだけが白紙になって、ライバルが前の水準を持ち越すと、
     // 規則変更のたびに一方的に置いていかれることになる
@@ -541,6 +546,7 @@ GP.state = (function () {
         r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
       });
       r.base0 = null;
+      r.concepts = [];
     });
     return g2.reg;
   }
@@ -726,12 +732,82 @@ GP.state = (function () {
         const ref = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
         const mul = 1 + pts / Math.max(1, carScoreOf(r.stats, ref));
         ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= mul; });
+        const what = innovName();
+        // 何を持ち込んだのかは控えておく。あとで裁定が出ることがある
+        r.concepts = (r.concepts || []).concat([{
+          what: what, mul: mul, sec: Math.round(sec * 100) / 100, at: weekStamp(g2)
+        }]);
         g2.innovLog = (g2.innovLog || []).concat([{
-          team: r.name, color: r.color, what: innovName(),
+          team: r.name, color: r.color, what: what,
           sec: Math.round(sec * 100) / 100, mine: false
         }]);
       }
     });
+    rollDirectives(g2);
+  }
+
+  /* ---------- テクニカルディレクティブ ----------
+     掘り当てたものが、あとから「これは想定外だ」と裁定されることがある。
+     規則が新しいうちほど灰色の領域が広く、そこを攻めたぶんリスクも高い。
+     独走しているチームのものは、他所から突かれやすい               */
+  function weekStamp(g2) {
+    return ((g2.season || 1) - 1) * SEASON_WEEKS + (g2.week || 1);
+  }
+  function tdFresh(g2) {
+    const since = ((g2.season || 1) - 1) % REG_EVERY;
+    return D.TD.fresh[Math.min(D.TD.fresh.length - 1, since)];
+  }
+  /* そのコンセプトが今週、裁定を受ける確率 */
+  function tdRisk(g2, isTop, shielded) {
+    let r = D.TD.weekChance * tdFresh(g2);
+    if (isTop) r *= D.TD.protestTop;
+    if (shielded) r /= (1 + analystPower(g2) * D.TD.readShield);
+    return r;
+  }
+  function rollDirectives(g2) {
+    const table = constructorTable(g2);
+    const topName = table.length ? table[0].name : '';
+    const now = weekStamp(g2);
+    const out = [];
+    // ---- ライバルのぶん ----
+    (g2.rivals || []).forEach(r => {
+      const keep = [];
+      (r.concepts || []).forEach(c => {
+        if (now - c.at < D.TD.grace ||
+            Math.random() >= tdRisk(g2, r.name === topName, false)) { keep.push(c); return; }
+        ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] /= c.mul; });
+        out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
+                   why: pick(D.TD.REASONS), mine: false });
+      });
+      r.concepts = keep;
+    });
+    // ---- 自チームのぶん ----
+    const keep = [];
+    (g2.concepts || []).forEach(c => {
+      if (now - c.at < D.TD.grace ||
+          Math.random() >= tdRisk(g2, table.length && table[0].isPlayer, true)) { keep.push(c); return; }
+      let lost = 0;
+      if (c.body) {
+        const v = g2.body[c.body] || 0;
+        lost = Math.min(v - 4, c.gain * 0.85);
+        if (lost > 0) g2.body[c.body] = Math.round((v - lost) * 10) / 10;
+      } else {
+        const p = g2.equipped[c.cat];
+        if (p) {
+          if (c.rarUp && p.rarity > 1) p.rarity--;
+          lost = Math.min(p.power - 8, c.gain * 0.85);
+          if (lost > 0) p.power = Math.round((p.power - lost) * 10) / 10;
+        }
+      }
+      const rp = Math.round(Math.max(0, lost) * D.TD.refundRp);
+      g2.rp += rp;
+      out.push({ team: null, what: c.what, why: pick(D.TD.REASONS), mine: true,
+                 cat: c.cat, body: c.body || null,
+                 lost: Math.round(Math.max(0, lost) * 10) / 10,
+                 rarDown: !!c.rarUp, rp: rp });
+    });
+    g2.concepts = keep;
+    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
   }
 
   /* ---------- 路面を読む力・濡れた路面での強さ ----------
@@ -1788,7 +1864,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, weekStamp, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,

@@ -39,6 +39,26 @@ window.GP = window.GP || {};
       U.toast('🔬 ' + n.team + '「' + n.what + '」', 'warn');
     });
     g.innovLog = [];
+    // FIA の裁定。掘り当てたものが、そのまま認められるとは限らない
+    const tds = g.tdLog || [];
+    g.tdLog = [];
+    tds.forEach(t => {
+      if (t.mine) {
+        const where = t.body
+          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
+          : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
+        U.log(g, '⚖️ FIA が「' + t.what + '」に裁定を出した（' + t.why + '）。' +
+          where + ' の性能 -' + t.lost.toFixed(1) +
+          (t.rarDown ? '／パーツの格も1段下がった' : '') +
+          '。ばらして解析したぶん 研究P +' + t.rp, 'bad');
+      } else {
+        U.log(g, '⚖️ FIA が ' + t.team + ' の「' + t.what + '」に裁定（' + t.why +
+          '）。次戦から使えなくなり、1周あたり約 ' + t.sec.toFixed(2) + '秒 を失った', 'good');
+      }
+    });
+    const myTd = tds.filter(t => t.mine);
+    if (myTd.length) announceTD(myTd);
+    else if (tds.length) U.toast('⚖️ ' + tds[0].team + '「' + tds[0].what + '」が使用禁止に', 'good');
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -522,7 +542,7 @@ window.GP = window.GP || {};
         '<b>' + at2.icon + ' 風洞・CFD使用時間：' + at2.name + '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
         '<small>昨季コンストラクターズ ' + g.lastRank + '位。上位ほど使える時間が減ります。</small></div>';
     }
-    body += aduoBoxHTML(true) + innovBoxHTML();
+    body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
@@ -585,6 +605,11 @@ window.GP = window.GP || {};
     gain = Math.round(gain * fc.cur * 10) / 10;
     g.nextCar = (g.nextCar || 0) + toNext;
     g.body[key] = Math.round((v + gain) * 10) / 10;
+    if (brk) {
+      g.concepts = (g.concepts || []).concat([{
+        body: key, what: brk, gain: gain, at: S.weekStamp(g)
+      }]);
+    }
 
     U.closeModal();
     GP.sound.play(crit ? 'crit' : 'confirm');
@@ -753,6 +778,12 @@ window.GP = window.GP || {};
 
     p.power = Math.round((p.power + gain) * 10) / 10;
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
+    if (brk) {
+      // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
+      g.concepts = (g.concepts || []).concat([{
+        cat: key, what: brk, rarUp: !!upTo, gain: gain, at: S.weekStamp(g)
+      }]);
+    }
     if (upTo) {
       p.rarity = upTo;
       const rr = D.RARITY[upTo - 1];
@@ -2061,6 +2092,34 @@ window.GP = window.GP || {};
     return h;
   }
 
+  /* ---- いま持っているコンセプト ----
+     掘り当てたものは強いが、裁定で取り上げられることがある。
+     何を抱えていて、どれだけ危ういのかを出しておく                */
+  function conceptBoxHTML() {
+    const list = g.concepts || [];
+    if (!list.length) return '';
+    const top = S.constructorTable(g)[0];
+    const risk = S.tdRisk(g, top && top.isPlayer, true);
+    const now = S.weekStamp(g);
+    const pct = (1 - Math.pow(1 - risk, 10)) * 100;   // 今後10週で覆される確率
+    return '<div class="atrbox slim" style="--ac:#8a5ad0">' +
+      '<b>🧪 いま持ち込んでいるコンセプト ' + list.length + '件' +
+      '（10週で覆される確率 およそ ' + pct.toFixed(0) + '%）</b>' +
+      '<div class="cpclist">' + list.map(c => {
+        const where = c.body
+          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === c.body) || {}).name || '')
+          : ((D.PART_CATS.find(x => x.key === c.cat) || {}).name || '');
+        const young = now - c.at < D.TD.grace;
+        return '<span class="cpc' + (young ? ' safe' : '') + '">' +
+          esc(c.what) + '<i>' + esc(where) + (c.rarUp ? '・格上げ' : '') +
+          (young ? '・審査前' : '') + '</i></span>';
+      }).join('') + '</div>' +
+      '<small>規則が新しいうちほど覆されやすく、' +
+      '<b>首位のチームのものは他所から突かれやすい</b>（危険度2倍）。' +
+      'アナリストが厚いほど規則を読み込めるので、危ない橋を避けられます。' +
+      '取り上げられても、ばらして解析したぶんは研究Pとして残ります。</small></div>';
+  }
+
   /* ---- 規則の新しさ ----
      規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
      いつ開発を厚くするかの判断材料として出しておく                */
@@ -2075,7 +2134,9 @@ window.GP = window.GP || {};
       '<small>規則が新しいうちは、まだ誰も見つけていない構造が残っています。' +
       '開発でときどき<b>ブレイクスルー</b>を掘り当て、パーツの格が1段上がります' +
       '（上限そのものが伸びます）。ライバルも同じで、' +
-      '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。</small></div>';
+      '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。<br>' +
+      '<b>ただし裏返しもあります。</b>灰色の領域が広いということは、' +
+      'あとから「これは想定外だ」と<b>裁定</b>が出て、取り上げられる確率も高いということです。</small></div>';
   }
 
   /* ---- ADUO（空力開発格差是正指令）----
@@ -3398,12 +3459,37 @@ window.GP = window.GP || {};
         '見つけていない構造が残っています。開発でブレイクスルーを掘り当てる確率が' +
         '<b>×' + S.innovFresh(g).toFixed(1) + '</b> になり、当たればパーツの格が1段上がって' +
         '上限そのものが伸びます。ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが' +
-        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。</p>',
+        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。' +
+        'ただし灰色の領域が広いぶん、掘り当てたものが<b>あとから裁定で取り上げられる</b>' +
+        '確率も、いまがいちばん高くなります。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
       GP.sound.play('light');
     }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
+  }
+
+  /* ---- 自チームへの裁定 ----
+     掘り当てたものを取り上げられるのは、ひとことで流すには重すぎる  */
+  function announceTD(list) {
+    GP.sound.play('dnf');
+    const rows = list.map(t => {
+      const where = t.body
+        ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
+        : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
+      return '<div><b>' + esc(t.what) + '</b><small>' + esc(t.why) + '<br>' +
+        esc(where) + ' の性能 <b class="bad">-' + t.lost.toFixed(1) + '</b>' +
+        (t.rarDown ? '／パーツの格も1段下がりました' : '') +
+        '<br>ばらして解析したぶん 研究P <b>+' + t.rp + '</b></small></div>';
+    }).join('');
+    U.modal('⚖️ テクニカルディレクティブ',
+      '<p class="lead">FIA が裁定を出しました。持ち込んだコンセプトが、次戦から使えません。</p>' +
+      '<div class="rewardbox bad">' + rows + '</div>' +
+      '<p class="desc">規則が新しいうちは、白黒のはっきりしない領域が広く、' +
+      'そこを攻めたものほど、あとから覆されます。アナリストが厚いほど規則を読み込めるので、' +
+      '危ない橋を渡らずに済む確率が上がります。</p>',
+      [{ label: '仕方ない', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    U.toast('⚖️ 「' + list[0].what + '」が使用禁止に', 'bad');
   }
 
   /* マシンが次の世代に上がったことを知らせる */

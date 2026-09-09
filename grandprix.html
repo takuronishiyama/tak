@@ -1533,6 +1533,15 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 持ち込んでいるコンセプト */
+.cpclist{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.cpc{display:flex;flex-direction:column;gap:1px;padding:3px 7px;font-size:10px;font-weight:bold;
+     border:2px solid var(--ink);border-radius:5px;background:#e7d5f2;color:#3a2611}
+.cpc i{font-style:normal;font-size:8.5px;font-weight:normal;opacity:.85}
+.cpc.safe{background:#d7e7c9}
+[data-skin="hd"] .cpc{background:#42305c;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .cpc.safe{background:#2f4a34}
+
 /* 部門のかみ合い */
 .orgbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
         background:#fff8e3;color:var(--ink)}
@@ -3135,6 +3144,26 @@ GP.data = (function () {
     ]
   };
 
+  /* ---------- テクニカルディレクティブ ----------
+     掘り当てたものが、必ずしもそのまま認められるとは限らない。
+     規則が新しいうちは白黒のはっきりしない領域が広く、
+     そこを攻めたものほど、あとから「これは想定外だ」と裁定が出る。
+     ブレイクスルーの裏側にある、もう一方の顔                        */
+  const TD = {
+    fresh: [1.9, 1.35, 1.05, 0.85],  // 規則からの経過年（新しいほど灰色が広い）
+    weekChance: 0.0075,   // コンセプト1件・1週あたりの裁定リスク
+    protestTop: 2.0,      // 首位のチームのものは、他所から突かれやすい
+    grace: 5,             // 投入からこの週数は、まだ裁定されない
+    readShield: 0.055,    // アナリストの厚み1あたり、危ない橋を避けられる割合
+    refundRp: 0.45,       // 失ったぶんのいくらかは、知見として研究Pに残る
+    REASONS: [
+      '可動空力部品にあたる', '車体寸法の許容を外れている',
+      'テストの手順に沿っていない', '想定していない気流処理だと判断された',
+      '安全基準を満たしていない', '他チームからの提訴が認められた',
+      '規則の文言の解釈が覆された', '重量配分の規定に反している'
+    ]
+  };
+
   /* ---------- ADUO（空力開発格差是正指令）----------
      前年の順位で決まる風洞時間（ATR）は、1年を通して動かない。
      一強のまま季が進んだときに効かないので、そこを見るのがこちら。
@@ -3215,7 +3244,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TD, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -3956,6 +3985,11 @@ GP.state = (function () {
     // 供給を受けていたエンジンも新規則では使えない
     g2.engine = null;
     g2.engineStash = null;
+    /* 持ち込んでいたコンセプトも、規則ごと無効になる。
+       ここを残すと、もう車に乗っていないものに裁定が出て、
+       関係のないパーツから性能を引かれてしまう                   */
+    g2.concepts = [];
+    g2.tdLog = [];
     // ライバルも同じところまで戻す。
     // プレイヤーだけが白紙になって、ライバルが前の水準を持ち越すと、
     // 規則変更のたびに一方的に置いていかれることになる
@@ -3969,6 +4003,7 @@ GP.state = (function () {
         r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
       });
       r.base0 = null;
+      r.concepts = [];
     });
     return g2.reg;
   }
@@ -4154,12 +4189,82 @@ GP.state = (function () {
         const ref = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
         const mul = 1 + pts / Math.max(1, carScoreOf(r.stats, ref));
         ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= mul; });
+        const what = innovName();
+        // 何を持ち込んだのかは控えておく。あとで裁定が出ることがある
+        r.concepts = (r.concepts || []).concat([{
+          what: what, mul: mul, sec: Math.round(sec * 100) / 100, at: weekStamp(g2)
+        }]);
         g2.innovLog = (g2.innovLog || []).concat([{
-          team: r.name, color: r.color, what: innovName(),
+          team: r.name, color: r.color, what: what,
           sec: Math.round(sec * 100) / 100, mine: false
         }]);
       }
     });
+    rollDirectives(g2);
+  }
+
+  /* ---------- テクニカルディレクティブ ----------
+     掘り当てたものが、あとから「これは想定外だ」と裁定されることがある。
+     規則が新しいうちほど灰色の領域が広く、そこを攻めたぶんリスクも高い。
+     独走しているチームのものは、他所から突かれやすい               */
+  function weekStamp(g2) {
+    return ((g2.season || 1) - 1) * SEASON_WEEKS + (g2.week || 1);
+  }
+  function tdFresh(g2) {
+    const since = ((g2.season || 1) - 1) % REG_EVERY;
+    return D.TD.fresh[Math.min(D.TD.fresh.length - 1, since)];
+  }
+  /* そのコンセプトが今週、裁定を受ける確率 */
+  function tdRisk(g2, isTop, shielded) {
+    let r = D.TD.weekChance * tdFresh(g2);
+    if (isTop) r *= D.TD.protestTop;
+    if (shielded) r /= (1 + analystPower(g2) * D.TD.readShield);
+    return r;
+  }
+  function rollDirectives(g2) {
+    const table = constructorTable(g2);
+    const topName = table.length ? table[0].name : '';
+    const now = weekStamp(g2);
+    const out = [];
+    // ---- ライバルのぶん ----
+    (g2.rivals || []).forEach(r => {
+      const keep = [];
+      (r.concepts || []).forEach(c => {
+        if (now - c.at < D.TD.grace ||
+            Math.random() >= tdRisk(g2, r.name === topName, false)) { keep.push(c); return; }
+        ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] /= c.mul; });
+        out.push({ team: r.name, color: r.color, what: c.what, sec: c.sec,
+                   why: pick(D.TD.REASONS), mine: false });
+      });
+      r.concepts = keep;
+    });
+    // ---- 自チームのぶん ----
+    const keep = [];
+    (g2.concepts || []).forEach(c => {
+      if (now - c.at < D.TD.grace ||
+          Math.random() >= tdRisk(g2, table.length && table[0].isPlayer, true)) { keep.push(c); return; }
+      let lost = 0;
+      if (c.body) {
+        const v = g2.body[c.body] || 0;
+        lost = Math.min(v - 4, c.gain * 0.85);
+        if (lost > 0) g2.body[c.body] = Math.round((v - lost) * 10) / 10;
+      } else {
+        const p = g2.equipped[c.cat];
+        if (p) {
+          if (c.rarUp && p.rarity > 1) p.rarity--;
+          lost = Math.min(p.power - 8, c.gain * 0.85);
+          if (lost > 0) p.power = Math.round((p.power - lost) * 10) / 10;
+        }
+      }
+      const rp = Math.round(Math.max(0, lost) * D.TD.refundRp);
+      g2.rp += rp;
+      out.push({ team: null, what: c.what, why: pick(D.TD.REASONS), mine: true,
+                 cat: c.cat, body: c.body || null,
+                 lost: Math.round(Math.max(0, lost) * 10) / 10,
+                 rarDown: !!c.rarUp, rp: rp });
+    });
+    g2.concepts = keep;
+    if (out.length) g2.tdLog = (g2.tdLog || []).concat(out);
   }
 
   /* ---------- 路面を読む力・濡れた路面での強さ ----------
@@ -5216,7 +5321,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, weekStamp, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
@@ -11633,6 +11738,26 @@ window.GP = window.GP || {};
       U.toast('🔬 ' + n.team + '「' + n.what + '」', 'warn');
     });
     g.innovLog = [];
+    // FIA の裁定。掘り当てたものが、そのまま認められるとは限らない
+    const tds = g.tdLog || [];
+    g.tdLog = [];
+    tds.forEach(t => {
+      if (t.mine) {
+        const where = t.body
+          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
+          : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
+        U.log(g, '⚖️ FIA が「' + t.what + '」に裁定を出した（' + t.why + '）。' +
+          where + ' の性能 -' + t.lost.toFixed(1) +
+          (t.rarDown ? '／パーツの格も1段下がった' : '') +
+          '。ばらして解析したぶん 研究P +' + t.rp, 'bad');
+      } else {
+        U.log(g, '⚖️ FIA が ' + t.team + ' の「' + t.what + '」に裁定（' + t.why +
+          '）。次戦から使えなくなり、1周あたり約 ' + t.sec.toFixed(2) + '秒 を失った', 'good');
+      }
+    });
+    const myTd = tds.filter(t => t.mine);
+    if (myTd.length) announceTD(myTd);
+    else if (tds.length) U.toast('⚖️ ' + tds[0].team + '「' + tds[0].what + '」が使用禁止に', 'good');
     // 下部組織の若手が育つ
     S.growYouth(g);
     // コンディション変動（放っておけば平常に戻る。悪循環にはまり込まないように）
@@ -12116,7 +12241,7 @@ window.GP = window.GP || {};
         '<b>' + at2.icon + ' 風洞・CFD使用時間：' + at2.name + '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
         '<small>昨季コンストラクターズ ' + g.lastRank + '位。上位ほど使える時間が減ります。</small></div>';
     }
-    body += aduoBoxHTML(true) + innovBoxHTML();
+    body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
@@ -12179,6 +12304,11 @@ window.GP = window.GP || {};
     gain = Math.round(gain * fc.cur * 10) / 10;
     g.nextCar = (g.nextCar || 0) + toNext;
     g.body[key] = Math.round((v + gain) * 10) / 10;
+    if (brk) {
+      g.concepts = (g.concepts || []).concat([{
+        body: key, what: brk, gain: gain, at: S.weekStamp(g)
+      }]);
+    }
 
     U.closeModal();
     GP.sound.play(crit ? 'crit' : 'confirm');
@@ -12347,6 +12477,12 @@ window.GP = window.GP || {};
 
     p.power = Math.round((p.power + gain) * 10) / 10;
     p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
+    if (brk) {
+      // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
+      g.concepts = (g.concepts || []).concat([{
+        cat: key, what: brk, rarUp: !!upTo, gain: gain, at: S.weekStamp(g)
+      }]);
+    }
     if (upTo) {
       p.rarity = upTo;
       const rr = D.RARITY[upTo - 1];
@@ -13655,6 +13791,34 @@ window.GP = window.GP || {};
     return h;
   }
 
+  /* ---- いま持っているコンセプト ----
+     掘り当てたものは強いが、裁定で取り上げられることがある。
+     何を抱えていて、どれだけ危ういのかを出しておく                */
+  function conceptBoxHTML() {
+    const list = g.concepts || [];
+    if (!list.length) return '';
+    const top = S.constructorTable(g)[0];
+    const risk = S.tdRisk(g, top && top.isPlayer, true);
+    const now = S.weekStamp(g);
+    const pct = (1 - Math.pow(1 - risk, 10)) * 100;   // 今後10週で覆される確率
+    return '<div class="atrbox slim" style="--ac:#8a5ad0">' +
+      '<b>🧪 いま持ち込んでいるコンセプト ' + list.length + '件' +
+      '（10週で覆される確率 およそ ' + pct.toFixed(0) + '%）</b>' +
+      '<div class="cpclist">' + list.map(c => {
+        const where = c.body
+          ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === c.body) || {}).name || '')
+          : ((D.PART_CATS.find(x => x.key === c.cat) || {}).name || '');
+        const young = now - c.at < D.TD.grace;
+        return '<span class="cpc' + (young ? ' safe' : '') + '">' +
+          esc(c.what) + '<i>' + esc(where) + (c.rarUp ? '・格上げ' : '') +
+          (young ? '・審査前' : '') + '</i></span>';
+      }).join('') + '</div>' +
+      '<small>規則が新しいうちほど覆されやすく、' +
+      '<b>首位のチームのものは他所から突かれやすい</b>（危険度2倍）。' +
+      'アナリストが厚いほど規則を読み込めるので、危ない橋を避けられます。' +
+      '取り上げられても、ばらして解析したぶんは研究Pとして残ります。</small></div>';
+  }
+
   /* ---- 規則の新しさ ----
      規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
      いつ開発を厚くするかの判断材料として出しておく                */
@@ -13669,7 +13833,9 @@ window.GP = window.GP || {};
       '<small>規則が新しいうちは、まだ誰も見つけていない構造が残っています。' +
       '開発でときどき<b>ブレイクスルー</b>を掘り当て、パーツの格が1段上がります' +
       '（上限そのものが伸びます）。ライバルも同じで、' +
-      '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。</small></div>';
+      '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。<br>' +
+      '<b>ただし裏返しもあります。</b>灰色の領域が広いということは、' +
+      'あとから「これは想定外だ」と<b>裁定</b>が出て、取り上げられる確率も高いということです。</small></div>';
   }
 
   /* ---- ADUO（空力開発格差是正指令）----
@@ -14992,12 +15158,37 @@ window.GP = window.GP || {};
         '見つけていない構造が残っています。開発でブレイクスルーを掘り当てる確率が' +
         '<b>×' + S.innovFresh(g).toFixed(1) + '</b> になり、当たればパーツの格が1段上がって' +
         '上限そのものが伸びます。ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが' +
-        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。</p>',
+        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。' +
+        'ただし灰色の領域が広いぶん、掘り当てたものが<b>あとから裁定で取り上げられる</b>' +
+        '確率も、いまがいちばん高くなります。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
       GP.sound.play('light');
     }
     if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
+  }
+
+  /* ---- 自チームへの裁定 ----
+     掘り当てたものを取り上げられるのは、ひとことで流すには重すぎる  */
+  function announceTD(list) {
+    GP.sound.play('dnf');
+    const rows = list.map(t => {
+      const where = t.body
+        ? '車体の' + ((D.BODY_ATTRS.find(a => a.key === t.body) || {}).name || '')
+        : ((D.PART_CATS.find(c => c.key === t.cat) || {}).name || '');
+      return '<div><b>' + esc(t.what) + '</b><small>' + esc(t.why) + '<br>' +
+        esc(where) + ' の性能 <b class="bad">-' + t.lost.toFixed(1) + '</b>' +
+        (t.rarDown ? '／パーツの格も1段下がりました' : '') +
+        '<br>ばらして解析したぶん 研究P <b>+' + t.rp + '</b></small></div>';
+    }).join('');
+    U.modal('⚖️ テクニカルディレクティブ',
+      '<p class="lead">FIA が裁定を出しました。持ち込んだコンセプトが、次戦から使えません。</p>' +
+      '<div class="rewardbox bad">' + rows + '</div>' +
+      '<p class="desc">規則が新しいうちは、白黒のはっきりしない領域が広く、' +
+      'そこを攻めたものほど、あとから覆されます。アナリストが厚いほど規則を読み込めるので、' +
+      '危ない橋を渡らずに済む確率が上がります。</p>',
+      [{ label: '仕方ない', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
+    U.toast('⚖️ 「' + list[0].what + '」が使用禁止に', 'bad');
   }
 
   /* マシンが次の世代に上がったことを知らせる */

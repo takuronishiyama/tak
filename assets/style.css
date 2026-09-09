@@ -1518,6 +1518,15 @@ body[data-skin="hd"]{
 [data-skin="hd"] .wetdrv span{background:#2f2540;border-color:#5b4a74}
 [data-skin="hd"] .wetdrv em{background:#4b3d68;color:#efe4cf}
 
+/* 持ち込んでいるコンセプト */
+.cpclist{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.cpc{display:flex;flex-direction:column;gap:1px;padding:3px 7px;font-size:10px;font-weight:bold;
+     border:2px solid var(--ink);border-radius:5px;background:#e7d5f2;color:#3a2611}
+.cpc i{font-style:normal;font-size:8.5px;font-weight:normal;opacity:.85}
+.cpc.safe{background:#d7e7c9}
+[data-skin="hd"] .cpc{background:#42305c;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .cpc.safe{background:#2f4a34}
+
 /* 部門のかみ合い */
 .orgbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
         background:#fff8e3;color:var(--ink)}
