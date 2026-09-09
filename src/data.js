@@ -1136,6 +1136,75 @@ GP.data = (function () {
       desc: '設計と製造が同じ頭で回る。図面のほうが機械に合わせてくる' }
   ];
 
+  /* ---------- 設備の世代 ----------
+     建物を大きくすると、中に置いてある機械そのものが入れ替わる。
+     ファクトリーの工作機械（WORKSHOP）と同じ考えかたを、
+     ほかの施設にも広げたもの。レベルがその段に届くと自動で切り替わり、
+     名前と効きが変わる。mul は、その施設がいちばん得意にしている
+     仕事にかかる倍率。設備を伸ばす値打ちを、目に見える形にするためのもの。 */
+  const RIGS = {
+    tunnel: { what: 'エアロ・サスの開発と、車体を煮詰める速さ', tiers: [
+      { at: 1, icon: '🎈', name: '扇風機と煙', mul: 1.00,
+        desc: '流れが見えるだけでもありがたい。数字にはならない' },
+      { at: 3, icon: '🌀', name: '50%スケール風洞', mul: 1.09,
+        desc: '模型を吊って測れるようになった。一日にひとつ形が決まる' },
+      { at: 5, icon: '🛤️', name: 'ムービングベルト風洞', mul: 1.19,
+        desc: '路面が動く。地面との隙間が、やっと本物の数字になる' },
+      { at: 7, icon: '🖥️', name: 'CFDクラスタ併用', mul: 1.31,
+        desc: '計算機の中で百通り試してから、風洞へ持ち込む' },
+      { at: 9, icon: '🧠', name: 'AI流体最適化', mul: 1.45,
+        desc: '形のほうから提案が出てくる。人は選ぶ側に回る' }
+    ]},
+    sim: { what: 'ドライバーの練習と、研究で取れるデータ', tiers: [
+      { at: 1, icon: '🕹️', name: '市販のレースゲーム', mul: 1.00,
+        desc: 'コースは覚えられる。それ以上は望めない' },
+      { at: 3, icon: '🖱️', name: '固定式シミュレーター', mul: 1.10,
+        desc: '実車のデータを流し込める。感触の話ができるようになった' },
+      { at: 5, icon: '🎢', name: '6軸モーションリグ', mul: 1.21,
+        desc: '荷重が体に来る。限界の手前がどこか、体で覚えられる' },
+      { at: 7, icon: '🥽', name: 'ドーム投影シミュレーター', mul: 1.34,
+        desc: '視界が全部コースになる。目の使いかたまで練習できる' },
+      { at: 9, icon: '🧠', name: '実車連動シミュレーター', mul: 1.50,
+        desc: '週末のデータが夜のうちに反映される。土曜の朝には答えが出ている' }
+    ]},
+    market: { what: 'グッズ・入場料の売り上げと、スポンサー料', tiers: [
+      { at: 1, icon: '📠', name: '電話とファックス', mul: 1.00,
+        desc: '担当がひとりで回している。話が通るかは相手次第' },
+      { at: 3, icon: '🖨️', name: '社内デザイン室', mul: 1.08,
+        desc: '提案書が自分たちで作れる。見栄えは口説き文句になる' },
+      { at: 5, icon: '📺', name: '放送用スタジオ', mul: 1.17,
+        desc: '自前で映像を出せる。露出を買わずに作れるようになった' },
+      { at: 7, icon: '📡', name: '配信とSNSの運用チーム', mul: 1.28,
+        desc: 'レースのない日にもチームの話が流れ続ける' },
+      { at: 9, icon: '🌐', name: 'グローバル・ブランド本部', mul: 1.42,
+        desc: '各国に窓口がある。向こうから話が来る側になった' }
+    ]},
+    pit: { what: 'ピット作業の速さと確実さ', tiers: [
+      { at: 1, icon: '🔩', name: '手回しジャッキ', mul: 1.00,
+        desc: '人数と気合い。掛け声がそのまま作業時間になる' },
+      { at: 3, icon: '🔫', name: '空圧ホイールガン', mul: 1.12,
+        desc: 'ナットが一発で緩む。ここから秒の勝負になる' },
+      { at: 5, icon: '🚦', name: '自動リリースシグナル', mul: 1.26,
+        desc: '人の判断を待たずに青が出る。出し遅れも、出し急ぎも減る' },
+      { at: 7, icon: '🦿', name: '軽量ガンと自動ジャッキ', mul: 1.42,
+        desc: '道具が軽くなったぶん、腕が最後まで振れる' },
+      { at: 9, icon: '🤖', name: 'ロボット補助ピットクルー', mul: 1.60,
+        desc: '人と機械が同じ拍で動く。2秒台が当たり前になる' }
+    ]},
+    youth: { what: '若手の伸びと、スカウトの見立ての正確さ', tiers: [
+      { at: 1, icon: '🛞', name: '借り物のカート', mul: 1.00,
+        desc: '走らせる場所がある、というだけ。素質は見た目で判断するしかない' },
+      { at: 3, icon: '🏫', name: '寮つきの練習場', mul: 1.10,
+        desc: '住み込みで通える。生活ごと預かれるようになった' },
+      { at: 5, icon: '🩺', name: '測定室とトレーナー', mul: 1.22,
+        desc: '心拍も筋量も数字で出る。伸びしろが勘から表に変わる' },
+      { at: 7, icon: '🏎️', name: '下位カテゴリーの実車', mul: 1.36,
+        desc: '本物のダウンフォースを覚えさせられる。話が一段速くなる' },
+      { at: 9, icon: '🧠', name: 'データ主導の育成プログラム', mul: 1.52,
+        desc: '誰を、いつ、何に乗せるかまで組み立てられる' }
+    ]}
+  };
+
   /* ---------- 開発のブレイクスルー ----------
      規則が新しいうちは、まだ誰も見つけていないものが残っている。
      ときどき、どこかのチームがそれを掘り当てて一気に速くなる。
@@ -1505,6 +1574,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
-           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

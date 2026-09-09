@@ -289,6 +289,35 @@ GP.state = (function () {
     return D.WORKSHOP.filter(x => x.at > lv)[0] || null;
   }
 
+  /* ---------- 設備の世代 ----------
+     ファクトリーの工作機械と同じ考えかたを、ほかの施設にも通す。
+     建物のレベルがその段に届くと、中の機械そのものが入れ替わる  */
+  function rigOf(g2, key) {
+    if (key === 'factory') return workshopOf(g2);
+    const def = D.RIGS[key];
+    if (!def) return null;
+    const lv = (g2.facilities && g2.facilities[key]) || 1;
+    let r = def.tiers[0];
+    def.tiers.forEach(x => { if (lv >= x.at) r = x; });
+    return r;
+  }
+  function rigNext(g2, key) {
+    if (key === 'factory') return workshopNext(g2);
+    const def = D.RIGS[key];
+    if (!def) return null;
+    const lv = (g2.facilities && g2.facilities[key]) || 1;
+    return def.tiers.filter(x => x.at > lv)[0] || null;
+  }
+  /* その施設がいちばん得意にしている仕事にかかる倍率 */
+  function rigMul(g2, key) {
+    const r = rigOf(g2, key);
+    if (!r) return 1;
+    return r.mul != null ? r.mul : (r.prec != null ? r.prec : 1);
+  }
+  function rigTiers(key) {
+    return key === 'factory' ? D.WORKSHOP : ((D.RIGS[key] || {}).tiers || []);
+  }
+
   /* 設計時のレアリティ抽選（デザイナーの腕と、工作機械の世代で上振れする） */
   function rollRarity(g) {
     // グリッドで他所のマシンを間近に見てきたぶんは、次の設計に効く
@@ -1384,7 +1413,8 @@ GP.state = (function () {
      ピットロードを制限速度で走るぶん（コース側の数字）はいくら鍛えても縮まない。
      腕が上がるほど、ナットを落とすような大きなしくじりも減っていく          */
   function pitCrew(g2) {
-    const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
+    const skill = (g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5)
+                * rigMul(g2, 'pit');
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
     const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
@@ -1655,7 +1685,8 @@ GP.state = (function () {
     // 直営ショップとミュージアムは、週末以外の日にも売り上げを作る
     const own = (hasEstate(g2, 'shop') ? 0.35 : 0) + (hasEstate(g2, 'museum') ? 0.28 : 0);
     const mult = (1 + g2.facilities.market * 0.08) * (1 + osk(g2, 'money') * 0.05)
-               * (1 + (g2.hype || 0) / 100 * 0.35) * (1 + own);
+               * (1 + (g2.hype || 0) / 100 * 0.35) * (1 + own)
+               * rigMul(g2, 'market');
     return Math.round(D.FAN_INCOME * Math.sqrt(Math.max(0, g2.fans || 0)) * mult);
   }
   /* ファンが「これくらいはやるだろう」と思っている順位。
@@ -1792,7 +1823,7 @@ GP.state = (function () {
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
-    const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
+    const scale = (1 + g2.facilities.market * 0.07) * rigMul(g2, 'market') * boost * diff.sponsor
                 * (1 + osk(g2, 'money') * 0.06)    // 商才
                 * (hasGear(g2, 'market', 'hosp') ? 1.08 : 1);
     const ts = titleOf(g2);
@@ -2172,7 +2203,8 @@ GP.state = (function () {
                         + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0)
                         + (hasEstate(g2, 'kart') ? 0.12 : 0)
                         + (hasEstate(g2, 'academy') ? 0.20 : 0);
-      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul * gearMul;
+      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05)
+                 * ageMul * gearMul * rigMul(g2, 'youth');
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
         const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
         d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * extra * (1 - d[k] / 300), 1, 199);
@@ -2467,7 +2499,7 @@ GP.state = (function () {
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
-    makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
+    makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,

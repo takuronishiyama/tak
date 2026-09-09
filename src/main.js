@@ -706,7 +706,8 @@ window.GP = window.GP || {};
       if (g.funds < cost || g.rp < 8) return;
       g.funds -= cost; g.rp -= 8; capSpend(cost);
     }
-    const facBonus = 1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06;
+    const facBonus = (1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06)
+                   * S.rigMul(g, 'tunnel');
     const engBonus = 1 + S.devPower(g) * 0.12;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
@@ -827,8 +828,9 @@ window.GP = window.GP || {};
     if (!p) return null;
     const cap = S.partCap(g, p);
     const fc = S.focusOf(g);
-    const facBonus = 1 + g.facilities.factory * 0.10 +
-      ((c.key === 'aero' || c.key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
+    const wind = (c.key === 'aero' || c.key === 'susp');
+    const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
+                   * (wind ? S.rigMul(g, 'tunnel') : 1);
     const engBonus = 1 + S.devPower(g) * 0.14;
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
@@ -865,8 +867,9 @@ window.GP = window.GP || {};
       g.funds -= cost; g.rp -= c.rp; capSpend(cost);
     }
 
-    const facBonus = 1 + g.facilities.factory * 0.10 +
-      ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
+    const wind = (key === 'aero' || key === 'susp');
+    const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
+                   * (wind ? S.rigMul(g, 'tunnel') : 1);
     const engBonus = 1 + S.devPower(g) * 0.14;
     // 現場に入れた道具のぶん
     const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
@@ -1190,7 +1193,8 @@ window.GP = window.GP || {};
 
   function doResearchGain() {
     const gain = Math.round((12 + S.analystPower(g) * 4 + g.facilities.sim * 2
-                            + S.osk(g, 'eye') + S.rnd(-2, 6)) * crunchMul());   // 技術眼
+                            + S.osk(g, 'eye') + S.rnd(-2, 6))
+                            * crunchMul() * S.rigMul(g, 'sim'));   // 技術眼
     g.rp += gain;
     U.closeModal();
     staffExp('analyst', 12);
@@ -1390,7 +1394,8 @@ window.GP = window.GP || {};
     g.funds -= cost;
     const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
                      + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
-                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0)) * S.persOf(d).train;
+                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
+                * S.persOf(d).train * S.rigMul(g, 'sim');
     let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
@@ -2118,7 +2123,7 @@ window.GP = window.GP || {};
     const max = lv >= 10;
     let h = '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
       '<p class="desc">' + f.desc + '</p>' +
-      (baseSel === 'factory' ? workshopBoxHTML() : '') +
+      rigBoxHTML(baseSel) +
       '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
     for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
     h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
@@ -2197,8 +2202,8 @@ window.GP = window.GP || {};
      ユースアカデミーと育成スタッフ、アナリストの力で誤差が縮む。
      同じ相手には毎回同じ見立てを返す（開き直すたびに変わらない）  */
   function scoutErr() {
-    const p = ((g.facilities && g.facilities.youth) || 1) * 1.1
-            + S.trainPower(g) * 0.9 + S.analystPower(g) * 0.5;
+    const p = (((g.facilities && g.facilities.youth) || 1) * 1.1
+            + S.trainPower(g) * 0.9 + S.analystPower(g) * 0.5) * S.rigMul(g, 'youth');
     return Math.max(0, 10 - p * 1.4);
   }
   function scoutJit(id, k) {
@@ -2724,23 +2729,34 @@ window.GP = window.GP || {};
   /* ---- 工作機械の世代 ----
      パーツが勝手に良くなるのではなく、それを作る機械が変わるから
      良いものが作れるようになる。いま何で削っているのかを出す      */
-  function workshopBoxHTML() {
-    const w = S.workshopOf(g);
-    const nx = S.workshopNext(g);
-    const lv = g.facilities.factory;
+  /* ---- 設備の世代 ----
+     建物を大きくすると、中に置いてある機械そのものが入れ替わる。
+     ファクトリーの工作機械と同じ見せかたを、すべての施設で使う  */
+  function rigBoxHTML(key) {
+    const f = D.FACILITIES.find(x => x.key === key) || {};
+    const w = S.rigOf(g, key);
+    if (!w) return '';
+    const nx = S.rigNext(g, key);
+    const lv = g.facilities[key];
+    const tiers = S.rigTiers(key);
+    const eff = key === 'factory'
+      ? 'レアリティ抽選 <b>+' + w.rar.toFixed(1) + '</b>／製作の精度 <b>×' + w.prec.toFixed(2) + '</b>'
+      : (D.RIGS[key] || {}).what + ' <b>×' + (w.mul || 1).toFixed(2) + '</b>';
+    const nxEff = !nx ? '' : (key === 'factory'
+      ? '（抽選 +' + nx.rar.toFixed(1) + '／精度 ×' + nx.prec.toFixed(2) + '）'
+      : '（×' + (nx.mul || 1).toFixed(2) + '）');
     return '<div class="wsbox">' +
-      '<b>' + w.icon + ' ' + w.name + '<em>ファクトリー Lv.' + lv + '</em></b>' +
-      '<small>' + w.desc + '<br>' +
-      'レアリティ抽選 <b>+' + w.rar.toFixed(1) + '</b>／製作の精度 <b>×' + w.prec.toFixed(2) + '</b>' +
-      (nx ? '　→　次は Lv.' + nx.at + ' で <b>' + nx.icon + ' ' + nx.name + '</b>' +
-            '（抽選 +' + nx.rar.toFixed(1) + '／精度 ×' + nx.prec.toFixed(2) + '）'
-          : '　これ以上の機械はありません') +
+      '<b>' + w.icon + ' ' + w.name + '<em>' + esc(f.name || '') + ' Lv.' + lv + '</em></b>' +
+      '<small>' + esc(w.desc) + '<br>' + eff +
+      (nx ? '　→　次は Lv.' + nx.at + ' で <b>' + nx.icon + ' ' + esc(nx.name) + '</b>' + nxEff
+          : '　これ以上の設備はありません') +
       '</small>' +
-      '<div class="wsline">' + D.WORKSHOP.map(x =>
+      '<div class="wsline">' + tiers.map(x =>
         '<span class="wsx' + (x.at === w.at ? ' on' : lv >= x.at ? ' past' : '') + '">' +
-          x.icon + '<i>' + x.name + '</i></span>').join('<u>→</u>') + '</div>' +
+          x.icon + '<i>' + esc(x.name) + '</i></span>').join('<u>→</u>') + '</div>' +
       '</div>';
   }
+  function workshopBoxHTML() { return rigBoxHTML('factory'); }
 
   /* ---- 規則の新しさ ----
      規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
