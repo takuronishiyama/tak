@@ -627,9 +627,13 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-dnf{color:#ff9a8a}
 .rv-ev.rv-pit{color:#8ecfff}
 .rv-ev.rv-sc{color:#ffd23a;font-weight:bold}
+.rv-ev.rv-restart{color:#8ef08e;font-weight:bold}
 .rv-ev.rv-weather{color:#7fe4ff;font-weight:bold}
 .rv-ev.rv-penalty{color:#ffb0a0;font-weight:bold}
 .rv-ev.rv-miss{color:#ffcf8a}
+.rv-ev.rv-fast{color:#d8a8ff;font-weight:bold}
+.rv-ev.rv-final{color:#fff2c8;font-weight:bold}
+.rv-ev.rv-home{color:#9fe6c8}
 
 /* レース中の急変を、画面いっぱいの帯で知らせる */
 .rv-flash{position:absolute;left:0;right:0;top:15%;padding:10px 8px;text-align:center;

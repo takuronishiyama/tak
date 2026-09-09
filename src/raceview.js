@@ -861,7 +861,8 @@ GP.raceview = (function () {
         const lLap = lapInfo(lead.e, t).lap;
         if (lLap >= sc.from && lLap < sc.from + sc.laps) {
           const p2 = placeInLap(lead.e, lead.p + 0.014);
-          drawSafetyCar(p2.x, p2.y, p2.ang, t);
+          // 引き上げる周は回転灯を消す。現実でもこれが「今周で入る」の合図
+          drawSafetyCar(p2.x, p2.y, p2.ang, t, lLap === sc.from + sc.laps - 1);
         }
       }
     }
@@ -949,8 +950,8 @@ GP.raceview = (function () {
      1m≒5.5px で置いたもの。世代が上がるほど部品が増えていく。
      前方が +x、車体の右が +y。光は車体の前左（-y側）から当たっている前提。   */
   /* セーフティカー。市販車然としたシルエットに、屋根の回転灯 */
-  function drawSafetyCar(x, y, ang, t) {
-    const on = ((t * 5) | 0) % 2 === 0;      // 回転灯の明滅
+  function drawSafetyCar(x, y, ang, t, lightsOff) {
+    const on = !lightsOff && ((t * 5) | 0) % 2 === 0;   // 回転灯の明滅
     ctx.save();
     ctx.translate(x, y); ctx.rotate(ang);
     // 影
@@ -1365,8 +1366,17 @@ GP.raceview = (function () {
     const lapNow = vt / res.track.base + 1;
     while (shownRadio < list.length) {
       const r = list[shownRadio];
-      if (!all && r.lap > lapNow) break;
-      if (!all) radioQueue.push(r);
+      if (!all) {
+        // チェッカー後のやりとりは、その車がラインを通過してから。
+        // 周回数から出したおおよそのラップで出すと、ファイナルラップの頭で
+        // 「よくやった」が流れてしまう
+        if (r.end) {
+          const e = res.entries.filter(x => x.id === r.id)[0];
+          const ft = e && e.cum.length ? e.cum[e.cum.length - 1] : duration;
+          if (vt < ft) break;
+        } else if (r.lap > lapNow) break;
+        radioQueue.push(r);
+      }
       shownRadio++;
     }
     if (!all) drainRadio();
@@ -1418,6 +1428,10 @@ GP.raceview = (function () {
           const v = res.safetyCar && res.safetyCar.virtual;
           GP.sound.play('dnf', 260);
           flash(v ? '🟡 VIRTUAL SAFETY CAR' : '🚨 SAFETY CAR', false);
+        }
+        else if (ev.type === 'restart') {
+          GP.sound.play('pass', 220);
+          flash('🟢 レース再開！', false);
         }
         else if (ev.type === 'weather') {
           GP.sound.play('pit', 240);

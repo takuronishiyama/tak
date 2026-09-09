@@ -44,7 +44,11 @@ GP.race = (function () {
       '{A} と {B}、真横に並んだまま——先に前に出たのは {A}！',
       '{A} が {B} の真後ろから飛び出した！ 完璧な仕掛け！',
       '{A}、加速で勝った！ {B} は成す術なし！',
-      '{A} が {B} をブレーキングで仕留めた！'
+      '{A} が {B} をブレーキングで仕留めた！',
+      '{A}、スリップに入った——そのまま横に出て {B} を抜き去る！',
+      '{A} が {B} のミラーいっぱいに現れた！ もう止められない！',
+      '{A}、トウをきれいに使った。{B} は反応できない！',
+      '{A} が {B} をアウト側から。度胸のある仕掛けだ！'
     ],
     /* コーナーで抜いた */
     passCorner: [
@@ -55,20 +59,30 @@ GP.race = (function () {
       '{A} が {B} のわずかな乱れを見逃さない！ {C} で前へ！',
       '{A}、{C} を一段速いラインで抜けて {B} をパス！',
       '{A} と {B}、{C} で並走——競り勝ったのは {A}！',
-      '{A} が {C} で強引に鼻をねじ込んだ！'
+      '{A} が {C} で強引に鼻をねじ込んだ！',
+      '{A}、{C} でブレーキを遅らせた！ {B} の前に出る！',
+      '{A} が {C} の1コーナー手前でフェイント——{B} が食いついた隙に前へ！',
+      '{A}、{C} を抜けたところで {B} を並びなおして仕留めた！',
+      '{A} が {C} でインを閉めた！ {B} は下がるしかない！'
     ],
     /* 抜いてトップに立った */
     passLead: [
       '{A} が {B} をとらえた！ ついにトップ！',
       '{A}、{B} を抜いて首位に立つ！ レースが動いた！',
       '先頭が入れ替わった！ {A} が {B} の前へ！',
-      '{A} がついに {B} を仕留めた——ここからは自分のレースだ！'
+      '{A} がついに {B} を仕留めた——ここからは自分のレースだ！',
+      '{A}、トップに躍り出た！ ガレージが総立ちだ！',
+      '{A} が {B} を攻略！ この瞬間、レースの色が変わった！',
+      '首位交代！ {A} が {B} を退けて先頭へ！'
     ],
     /* 終盤の抜き */
     passLate: [
       '残りわずか、{A} が {B} を抜いた！ この一撃は大きい！',
       '土壇場！ {A} が {B} をかわして {P}位に浮上！',
-      '最後の最後で {A}！ {B} は守りきれなかった！'
+      '最後の最後で {A}！ {B} は守りきれなかった！',
+      '{A} が終盤に賭けた！ {B} をとらえて {P}位！',
+      '残り数周でこの一撃！ {A} が {B} の前に出た！',
+      '{A}、最後の力を振り絞って {B} をパス！ {P}位だ！'
     ],
     /* 抜けずに詰まった */
     stuck: [
@@ -77,7 +91,11 @@ GP.race = (function () {
       '{A}、{C} で並びかけたが押し戻された…',
       '{A} は {B} の乱気流に苦しんでいる。近づくほど曲がらない',
       '{A}、仕掛けどころを探しているが糸口がない…',
-      '{B} のブロックが巧い。{A} はまた1周を失う'
+      '{B} のブロックが巧い。{A} はまた1周を失う',
+      '{A}、{C} で顔を出すが届かない。{B} が完璧にラインを守る',
+      '{A} は近づけば近づくほど失速する。前のマシンが空気を乱している',
+      '{A}、無線で苛立ちを見せる——それでも {B} は前にいる',
+      '{A} が仕掛ける、しかし {B} も譲らない！ この2台、動かない'
     ],
     /* 小さなミス */
     miss: [
@@ -87,7 +105,11 @@ GP.race = (function () {
       '{A}、縁石に乗りすぎてマシンが跳ねた！',
       '{A} がブレーキを残しすぎた…立ち上がりが鈍い',
       '{A}、シフトを一段まちがえた！ もったいない',
-      '{A} が {C} でラインを外した！'
+      '{A} が {C} でラインを外した！',
+      '{A}、{C} でわずかにブレーキをロック。前が入らない',
+      '{A} が {C} でリズムを崩した。細かいロスが積み重なる',
+      '{A}、ギアが噛み合わない！ 一瞬の空白',
+      '{A} が {C} で車体を暴れさせた。ひやりとする場面'
     ],
     /* タイヤが終わっているときのミス */
     missTyre: [
@@ -95,7 +117,9 @@ GP.race = (function () {
       '{A}、タイヤが音を上げている。{C} で止まりきれない！',
       '{A} が {C} でずるりと滑った——タイヤの限界だ',
       '{A}、リアが出た！ タイヤはもう終わっている',
-      '{A} が必死にカウンターを当てる！ グリップがない！'
+      '{A} が必死にカウンターを当てる！ グリップがない！',
+      '{A}、タイヤがブリスターを起こしている。もう限界だ',
+      '{A} が {C} で真っ白な煙を上げた！ フラットスポットができた！'
     ],
     /* 雨でのミス */
     missWet: [
@@ -103,14 +127,18 @@ GP.race = (function () {
       '{A}、視界がない中で {C} をオーバーラン！',
       '{A} が白線に乗ってヒヤリ！ よく立て直した！',
       '{A}、リアが流れた！ 雨がじわじわ効いてくる',
-      '{A} が {C} でハイドロプレーニング！ 肝が冷える！'
+      '{A} が {C} でハイドロプレーニング！ 肝が冷える！',
+      '{A}、{C} で完全に前が見えない！ 手探りの走りだ',
+      '{A} が川のようになった {C} でマシンを持っていかれかけた！'
     ],
     /* 攻めすぎたときのミス */
     missPush: [
       '{A}、攻めすぎた！ {C} で完全に行き過ぎた！',
       '{A} が突っ込みすぎてコースを外れた！',
       '{A}、限界を超えた！ {C} で大きくはらんだ！',
-      '{A} が無理な体勢から立て直す！ 危ない！'
+      '{A} が無理な体勢から立て直す！ 危ない！',
+      '{A}、欲を出しすぎた！ {C} でタイヤをロックさせる！',
+      '{A} が {C} で行き場を失った！ 攻めの代償だ'
     ],
     /* 大きなミス（スピン級） */
     missBig: [
@@ -118,7 +146,9 @@ GP.race = (function () {
       '{A} がコースを飛び出した！ 砂煙が上がる！',
       '{A}、完全に姿勢を失った！ グラベルまで運ばれる！',
       '{A} スピンターン！ なんとかコースには戻ったが大きなロス…',
-      '{A} が {C} でグラベルへ！ 順位を大きく落とす！'
+      '{A} が {C} でグラベルへ！ 順位を大きく落とす！',
+      '{A}、{C} で完全にコントロールを失った！ 一回転！',
+      '{A} が半回転！ 対向のマシンをかろうじてかわす！'
     ],
     /* 機械の故障でリタイア */
     dnfMech: [
@@ -126,7 +156,10 @@ GP.race = (function () {
       '{A}、{B}！ 白煙とともにマシンを止める…',
       '{A} のマシンが力を失った——{B}だ',
       '{A}、{B}でストップ。ガレージが沈黙する…',
-      '{A} が路肩にマシンを寄せる。{B}——今日はここまで'
+      '{A} が路肩にマシンを寄せる。{B}——今日はここまで',
+      '{A}、{B}。ステアリングを外してマシンを降りる…',
+      '{A} のマシンから煙が上がった！ {B}だ',
+      '{A}、無線で「終わった」——{B}'
     ],
     /* クラッシュでリタイア */
     dnfCrash: [
@@ -134,7 +167,9 @@ GP.race = (function () {
       '{A}、{B}！ マシンは大きなダメージ…',
       '{A} が{B}でストップ！ 無線に応答はない…',
       '{A}、{B}——一瞬の出来事だった',
-      '{A} が {C} で{B}！ 週末が終わってしまった…'
+      '{A} が {C} で{B}！ 週末が終わってしまった…',
+      '{A} が {C} でバリアに！ {B}——マシンは動かない',
+      '{A}、{B}！ 破片がコース上に散らばる！'
     ],
     /* ピットイン */
     pit: [
@@ -148,6 +183,49 @@ GP.race = (function () {
       '{A} ピットイン！ …作業が止まった！ {B}に交換（静止{S}秒・計{P}秒）',
       '{A} ピットイン、しかしタイヤがはまらない！ {B}（静止{S}秒・計{P}秒）',
       '{A} ピットで痛恨のロス！ {B}に交換（静止{S}秒・計{P}秒）'
+    ],
+    /* ファステストラップを更新した */
+    fastest: [
+      '{A} がファステストラップ！ {T} でこのペースは驚異的だ！',
+      '{A}、この周でトップタイム！ まだ余力があるということか',
+      '{A} が全体ベストを塗り替えた！ マシンが完全に決まっている',
+      '{A}、ファステスト更新！ ガレージがモニターを見上げる'
+    ],
+    /* 表彰台圏に入った／落ちた */
+    intoPodium: [
+      '{A} が3位に浮上！ 表彰台が見えてきた！',
+      '{A}、ついに表彰台圏内！ ここからは守りに入れない',
+      '{A} が {P}位——シャンパンの射程に入った！'
+    ],
+    outPodium: [
+      '{A} が表彰台圏から落ちた…{P}位',
+      '{A}、譲るしかなかった。表彰台が遠ざかる…',
+      '{A} が {P}位へ後退。ここから立て直せるか'
+    ],
+    /* 入賞圏に入った */
+    intoPoints: [
+      '{A} が10位以内に入った！ ポイント圏内だ！',
+      '{A}、{P}位でポイント圏内！ 苦しいレースが報われるか',
+      '{A} が入賞圏に滑り込んだ！ この1点が大きい'
+    ],
+    /* チームメイトどうしの争い */
+    teammate: [
+      '同士討ちは避けたい——{A} と {B}、同じ色の2台が並んだ！',
+      '{A} と {B}、チームメイト同士の一騎打ち！ ピットは気が気でない',
+      'ガレージが息を呑む。{A} が {B} の内に飛び込んだ！',
+      '{A} と {B}、同じマシンで同じライン。譲る気配はない'
+    ],
+    /* 最終ラップ突入 */
+    finalLap: [
+      'ファイナルラップ！ 最後の1周が始まった！',
+      '白熱のまま最終周へ。ここからは何が起きてもおかしくない！',
+      '残り1周。全員がすべてを出しきる！'
+    ],
+    /* 母国グランプリ */
+    home: [
+      '{A} にとっては母国グランプリ。スタンドの声援が明らかに大きい',
+      'ホームの {A}。この一戦にかける思いは特別だ',
+      '{A} の国旗がスタンドを埋めている。母国での一戦だ'
     ],
     /* 隊列が遅いあいだのピット。ピットロードのぶんが安く済む */
     pitCheap: [
@@ -212,11 +290,35 @@ GP.race = (function () {
     win: ['「P1！ P1だ！ よくやった！！」',
           '「チェッカー、P1！ 信じられない、最高だ！」'],
     podium: ['「P{P}！ 表彰台だ！ よくやった！」',
-             '「チェッカー、P{P}。素晴らしい走りだった」'],
+             '「チェッカー、P{P}。素晴らしい走りだった」',
+             '「表彰台、表彰台！ よく持ち帰ってくれた！」',
+             '「P{P}。この一歩は大きい。おめでとう」'],
     points: ['「チェッカー、P{P}。ポイントを持ち帰った。よくやった」',
              '「P{P} でフィニッシュ。悪くない一日だ」'],
     plain: ['「チェッカー、P{P}。今日はここまでだ。お疲れさま」',
             '「P{P}。持ち帰れたことをよしとしよう」'],
+    fastest: ['「いまのがファステストだ。いいペースを刻んでいる」',
+              '「全体ベスト。そのリズムを崩すな」',
+              '「トップタイムだ。まだ余裕はあるか？」'],
+    fastestBack: ['「まだいける。マシンが決まっている」',
+                  '「感触はいい。このまま行く」',
+                  '「もう少し攻められる」'],
+    teammate: ['「後ろはチームメイトだ。接触だけは避けろ」',
+               '「同士討ちは絶対に避ける。クリーンに行け」',
+               '「同じ色の2台だ。頭を冷やして走れ」'],
+    teammateBack: ['「わかっている。フェアにやる」',
+                   '「譲るつもりはないが、当てはしない」',
+                   '「了解、クリーンに行く」'],
+    intoPodium: ['「3番手に上がった。ここからは守りきるぞ」',
+                 '「表彰台圏内だ。焦らず、確実に」'],
+    home: ['「ホームだ。スタンドは全部お前の味方だぞ」',
+           '「母国のファンが見ている。いい走りを見せてやれ」'],
+    restart: ['「この周でセーフティカーが入る。ラインから再開だ、準備しろ」',
+              '「隊列解除。ホームストレートで一斉に行くぞ」',
+              '「次の周、グリーンだ。タイヤを温めておけ」',
+              '「リスタート、リスタート。前に集中しろ」'],
+    restartBack: ['「了解、行く」', '「タイヤは温まっている」',
+                  '「準備できている」', '「ここで前に出る」'],
     dnfPit: ['「マシンを止めてくれ。安全な場所に寄せろ」',
              '「今日は終わりだ。ゆっくり降りてくれ」'],
 
@@ -326,6 +428,12 @@ GP.race = (function () {
       if (st.scStart) {                                 // セーフティカーが出た
         push(st.scVirtual ? RADIO.vsc : RADIO.sc, 'pit', true);
         push(RADIO.rogerShort, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (st.scEnd) {                                   // 次の周からレース再開
+        push(RADIO.restart, 'pit', true);
+        push(RADIO.restartBack, 'drv', true);
         e.radioCool = 2;
         return;
       }
@@ -766,6 +874,8 @@ GP.race = (function () {
 
     let order = grid.slice();
     const posHistory = [];
+    let raceBest = Infinity;      // レース全体のベストラップ
+    let teamFightAt = 0;          // 同士討ちの実況を出しすぎないための間隔
 
     // 途中で天気が変わるかどうかを先に決めておく（実況では出さない）
     if (!special && laps >= 12 && Math.random() < 0.30) {
@@ -774,6 +884,18 @@ GP.race = (function () {
         : D.WEATHER[Math.random() < 0.30 ? 3 : 2];                   // 降り出す
       wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
     }
+
+    // ---- 母国グランプリ ----
+    // 自国のコースで走る週末は、それだけで特別な一戦になる
+    entries.forEach(e => {
+      if (!e.isPlayer || e.dnf) return;
+      const nat = S.nationOf(e.driver);
+      if (nat && nat.flag && nat.flag === track.country) {
+        events.push({ lap: 1, type: 'home', text: say(SAY.home, { A: e.driver.name }) });
+        radio.push({ lap: 1, from: 'pit', name: e.driver.name, id: e.id,
+                     text: say(RADIO.home, { D: e.driver.name }) });
+      }
+    });
 
     for (let lap = 1; lap <= laps; lap++) {
       /* ---- 路面が変わっていく ----
@@ -1269,6 +1391,86 @@ GP.race = (function () {
         });
       }
 
+      /* ---- 隊列解除（リスタート）----
+         先導の最終周が終わったところで、もう一度きれいに詰め直す。
+         先導中にピットへ入った車は隊列の後ろに戻るが、隊列そのものが遅いので、
+         次にラインを越えるころには車間は詰まっている。
+         つまり再開はいつもホームストレートから、一列に並んだ状態で始まる。
+         バーチャルは全車が同じだけ遅いだけなので、車間はそのまま     */
+      let scEnded = false;
+      if (scLaps > 0 && lap === scFrom + scLaps - 1 && lap < laps) {
+        scEnded = true;
+        if (!scInfo.virtual) {
+          const line = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+          let acc = line.length ? line[0].cum[lap - 1] : 0;
+          line.forEach((e, i) => {
+            if (i > 0) acc += S.rnd(0.55, 0.95);
+            e.cum[lap - 1] = acc;
+          });
+        }
+        events.push({ lap: lap + 1, type: 'restart',
+          text: scInfo.virtual
+            ? '🟢 バーチャルセーフティカー解除。コントロールラインから通常のレースに戻る'
+            : '🟢 セーフティカーがピットへ！ ホームストレートから一斉にレース再開！' });
+      }
+
+      /* ---- レースの節目 ----
+         抜いた・ミスした以外にも、見ていて「おっ」となる瞬間はある。
+         ファステスト、表彰台圏の出入り、チームメイト同士の並走、最終ラップ  */
+      {
+        const run3 = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
+        run3.forEach((e, i) => {
+          const pos = i + 1;
+          if (lap > 1 && e.isPlayer) {
+            // ファステストラップ。全体ベストを塗り替えた周だけ
+            const t2 = e.lapTimes[lap - 1];
+            if (t2 != null && !e.pitTime[lap - 1] && t2 < raceBest - 0.001) {
+              raceBest = t2;
+              if (!e.saidFastest || lap - e.saidFastest > 4) {
+                e.saidFastest = lap;
+                events.push({ lap: lap, type: 'fast', car: e,
+                  text: say(SAY.fastest, { A: e.driver.name, T: track.name }) });
+                radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
+                             text: say(RADIO.fastest, { D: e.driver.name }) });
+                radio.push({ lap: lap, from: 'drv', name: e.driver.name, id: e.id,
+                             text: say(RADIO.fastestBack, { D: e.driver.name }) });
+              }
+            }
+            // 表彰台圏・入賞圏の出入り
+            const was = e.lastPos || pos;
+            if (lap > 2 && was !== pos) {
+              const V2 = { A: e.driver.name, P: pos };
+              if (was > 3 && pos <= 3) {
+                events.push({ lap: lap, type: 'pass', car: e, text: say(SAY.intoPodium, V2) });
+                radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
+                             text: say(RADIO.intoPodium, { P: pos }) });
+              } else if (was <= 3 && pos > 3) {
+                events.push({ lap: lap, type: 'miss', car: e, text: say(SAY.outPodium, V2) });
+              } else if (was > D.POINTS.length && pos <= D.POINTS.length) {
+                events.push({ lap: lap, type: 'pass', car: e, text: say(SAY.intoPoints, V2) });
+              }
+            }
+            e.lastPos = pos;
+          }
+          // チームメイト同士の並走。同じ色の2台が1秒以内に並んだとき
+          const nx = run3[i + 1];
+          if (e.isPlayer && nx && nx.isPlayer && lap > 2 &&
+              nx.cum[lap - 1] - e.cum[lap - 1] < 1.0 &&
+              (!teamFightAt || lap - teamFightAt > 6)) {
+            teamFightAt = lap;
+            events.push({ lap: lap, type: 'pass', car: e,
+              text: say(SAY.teammate, { A: e.driver.name, B: nx.driver.name }) });
+            radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
+                         text: say(RADIO.teammate, { D: e.driver.name }) });
+            radio.push({ lap: lap, from: 'drv', name: e.driver.name, id: e.id,
+                         text: say(RADIO.teammateBack, { D: e.driver.name }) });
+          }
+        });
+        if (lap === laps) {
+          events.push({ lap: lap, type: 'final', text: say(SAY.finalLap, {}) });
+        }
+      }
+
       // ---- 次の周のために、前後の車間を控えておく ----
       const now2 = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
       now2.forEach((e, i) => {
@@ -1280,7 +1482,7 @@ GP.race = (function () {
 
       // ---- チーム無線 ----
       radioTick({ lap: lap, laps: laps, order: order, radio: radio,
-                  scStart: scStarted, scVirtual: scInfo.virtual,
+                  scStart: scStarted, scVirtual: scInfo.virtual, scEnd: scEnded,
                   wxChanged: wxChangedThisLap, wxWet: wx.wet });
       scStarted = false; wxChangedThisLap = false;
 
@@ -1315,8 +1517,11 @@ GP.race = (function () {
                  : e.pos <= 3 ? [RADIO.podium, RADIO.thanks]
                  : e.pos <= D.POINTS.length ? [RADIO.points, RADIO.thanksOk]
                  : [RADIO.plain, RADIO.thanksOk];
-      radio.push({ lap: at, from: 'pit', name: e.driver.name, id: e.id, text: say(pair[0], V) });
-      radio.push({ lap: at, from: 'drv', name: e.driver.name, id: e.id, text: say(pair[1], V) });
+      // end：チェッカーを受けてからのやりとり。ファイナルラップの頭ではなく、
+      // 自分の車が実際にラインを通過してから鳴らす
+      const end = !e.dnf;
+      radio.push({ lap: at, end: end, from: 'pit', name: e.driver.name, id: e.id, text: say(pair[0], V) });
+      radio.push({ lap: at, end: end, from: 'drv', name: e.driver.name, id: e.id, text: say(pair[1], V) });
     });
     radio.sort((a, b) => a.lap - b.lap);
 
@@ -1547,6 +1752,28 @@ GP.race = (function () {
           notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回無料で行える）');
           res.gotTicket = true;
         }
+      }
+    }
+
+    /* ---- ADUO（空力開発格差是正指令）----
+       この1戦で選手権がどれだけ一方的になったかを見て、FIA が動く。
+       段が上がった／下がったときだけ、報せとして残す                */
+    if (!sp) {
+      const ad = S.aduoOf(g);
+      const was = g.aduoLevel || 0;
+      if (ad.level !== was) {
+        g.aduoLevel = ad.level;
+        g.aduoNews = ad.level ? {
+          level: ad.level, name: ad.name, icon: ad.icon, color: ad.color, note: ad.note,
+          top: ad.top, mine: !!ad.topIsPlayer, up: ad.level > was,
+          cut: ad.cut, lift: ad.lift
+        } : { level: 0, up: false };
+        notes.push(ad.level
+          ? ad.icon + ' FIA が ADUO（空力開発格差是正指令）レベル' + ad.level + '「' + ad.name +
+            '」を発令。' + (ad.topIsPlayer
+              ? '独走している自チームの風洞・CFD時間が ×' + ad.cut.toFixed(2) + ' に削られる。'
+              : ad.top + ' の時間が削られ、離されたチームに ×' + ad.lift.toFixed(2) + ' が回る。')
+          : '⚖️ 選手権が競り合ってきたため、ADUO は解除された。開発時間の配り直しは終わり。');
       }
     }
 

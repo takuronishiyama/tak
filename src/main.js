@@ -515,6 +515,7 @@ window.GP = window.GP || {};
         '<b>' + at2.icon + ' 風洞・CFD使用時間：' + at2.name + '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
         '<small>昨季コンストラクターズ ' + g.lastRank + '位。上位ほど使える時間が減ります。</small></div>';
     }
+    body += aduoBoxHTML(true);
 
     const dc = designCost();
     body += '</div><div class="sub">新しいパーツを設計する</div>' +
@@ -2027,6 +2028,23 @@ window.GP = window.GP || {};
     return h;
   }
 
+  /* ---- ADUO（空力開発格差是正指令）----
+     いま選手権がどれだけ一方的で、自分がどちら側にいるのかを出す      */
+  function aduoBoxHTML(slim) {
+    const ad = S.aduoOf(g);
+    if (!ad.level) return '';
+    const rank = S.constructorTable(g).findIndex(r => r.isPlayer) + 1;
+    const mul = S.aduoMul(g, rank, ad);
+    const side = mul < 1 ? '削られる側' : mul > 1 ? '上乗せを受ける側' : '据え置き';
+    return '<div class="atrbox' + (slim ? ' slim' : '') + '" style="--ac:' + ad.color + '">' +
+      '<b>' + ad.icon + ' ADUO レベル' + ad.level + '「' + ad.name + '」発令中</b>' +
+      '<small>首位 <b>' + esc(ad.top) + '</b> が取りうる得点の <b>' +
+      Math.round(ad.share * 100) + '%</b> を取り、2位に <b>1戦あたり ' +
+      ad.lead.toFixed(1) + '点</b> の差をつけています。' + ad.note + '。<br>' +
+      '首位 ×' + ad.cut.toFixed(2) + '／大きく離されたチーム ×' + ad.lift.toFixed(2) +
+      '。<b>自チーム（' + rank + '位）は ×' + mul.toFixed(2) + ' の' + side + '</b>です。</small></div>';
+  }
+
   function hrManagement() {
     let body = '<p class="lead">役職は1人ずつ。据えると<b>その部門の人が出す力に掛かります</b>。<br>' +
       '各役職に、<b>自前のスタッフからの昇進</b>と<b>外からの招聘</b>を並べてあります。' +
@@ -3222,7 +3240,8 @@ window.GP = window.GP || {};
       '<b>' + at.icon + ' 来季の風洞・CFD使用時間：' + at.name +
       '（開発の伸び ×' + S.atrOf(g).toFixed(2) + '）</b>' +
       '<small>上位で終えたチームほど、翌年に使える開発時間が減ります。' +
-      '勝てば勝つほど次は苦しく、負ければ作り直す時間がもらえる、という制度です。</small></div>';
+      '勝てば勝つほど次は苦しく、負ければ作り直す時間がもらえる、という制度です。</small></div>' +
+      aduoBoxHTML(false);
     U.modal('🎊 シーズン終了', body,
       [{ label: '🌱 オフへ →', cls: 'primary', fn: enterOffseason }], { wide: true });
     U.log(g, '🎊 シーズン' + g.season + ' 終了。コンストラクターズ ' + rank + '位。賞金 +' + money(prize) + '万', 'good');
@@ -3236,6 +3255,7 @@ window.GP = window.GP || {};
     g.history.push({ season: g.season, points: g.points, rank: S.constructorTable(g).findIndex(r => r.isPlayer) + 1 });
     g.season++;
     g.week = 1;
+    g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
     S.puReset(g);                // パワーユニットの使用基数も新品から数え直す
     const capRes = S.settleCap(g);   // 予算の精算

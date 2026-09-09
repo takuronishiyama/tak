@@ -584,9 +584,42 @@ GP.state = (function () {
     if (!r) return pen;                                // 1年目は順位の傾斜なし
     return D.ATR[Math.min(D.ATR.length - 1, r - 1)] * pen;
   }
-  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度ぶんを合わせたもの */
+  /* ---------- ADUO（空力開発格差是正指令）----------
+     風洞時間（ATR）が前年の順位で決まる静的なものなのに対して、
+     こちらは「いまのシーズンがどれだけ一方的か」を見て季中に発動する。
+     独走しているチームは削られ、大きく離されたチームは上乗せされる。
+     プレイヤーが独走している場合も、当然プレイヤーが削られる側になる   */
+  function aduoOf(g2) {
+    const none = { level: 0, cut: 1, lift: 1, share: 0, lead: 0, half: 99 };
+    const done = g2.nextRace || 0;
+    if (done < D.ADUO_FROM) return none;
+    const table = constructorTable(g2);
+    if (table.length < 2) return none;
+    const max = (D.POINTS[0] + D.POINTS[1] + D.FASTEST_LAP_POINT) * done;
+    const share = max > 0 ? table[0].points / max : 0;
+    const lead = (table[0].points - table[1].points) / done;
+    let hit = null;
+    D.ADUO_LEVELS.forEach(L => { if (share >= L.share && lead >= L.lead) hit = L; });
+    if (!hit) return none;
+    return {
+      level: hit.level, name: hit.name, icon: hit.icon, color: hit.color, note: hit.note,
+      cut: hit.cut, lift: hit.lift, share: share, lead: lead,
+      top: table[0].name, topIsPlayer: !!table[0].isPlayer,
+      half: Math.max(2, Math.round(table.length * D.ADUO_HALF))
+    };
+  }
+  /* そのチームが ADUO で受ける開発の倍率。順位表のどこにいるかで決まる */
+  function aduoMul(g2, rank, ad) {
+    const a = ad || aduoOf(g2);
+    if (!a.level) return 1;
+    if (rank === 1) return a.cut;         // 独走している当人が削られる
+    if (rank > a.half) return a.lift;     // 大きく離されたチームに回る
+    return 1;
+  }
+  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度と、ADUO を合わせたもの */
   function devRate(g2) {
-    return atrOf(g2) * (diffOf(g2).dev || 1);
+    const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
+    return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
@@ -624,6 +657,13 @@ GP.state = (function () {
     // いまの選手権順位。上位のチームほど開発に使える時間が少ない
     const rivalRank = {};
     constructorTable(g2).forEach((t, i) => { rivalRank[t.name] = i + 1; });
+    const ad = aduoOf(g2);
+    /* ADUO 発令中は、離されているぶんに応じた「追い上げ」がつく。
+       開発時間の配り直しだけでは、すでに仕上がったマシンには追いつけない。
+       差が大きいほど効き、追いついたぶんだけ効かなくなる            */
+    const sum = st => st.speed + st.corner + st.accel;
+    const mine = sum(carStats(g2));
+    const topScore = Math.max.apply(null, [mine].concat((g2.rivals || []).map(r => sum(r.stats))));
     (g2.rivals || []).forEach(r => {
       // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
       if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
@@ -632,10 +672,15 @@ GP.state = (function () {
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
       const atr = D.ATR[Math.min(D.ATR.length - 1, (rivalRank[r.name] || 6) - 1)];
-      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * atr
+      // 一強状態なら、離されたチームには是正措置ぶんが上乗せされる
+      const relief = aduoMul(g2, rivalRank[r.name] || 6, ad);
+      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * atr * relief
                  * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
+      const behind = (ad.level && (rivalRank[r.name] || 6) > 1)
+        ? Math.max(0, topScore - sum(r.stats)) : 0;
+      const catchUp = behind * D.ADUO_CATCH * ad.level / 3;   // 3項目に振り分ける
       ['speed', 'corner', 'accel'].forEach(k => {
-        r.stats[k] = r.stats[k] + step * (0.8 + Math.random() * 0.5);
+        r.stats[k] = r.stats[k] + (step + catchUp) * (0.8 + Math.random() * 0.5);
       });
       // 信頼性も少しずつ上がる
       r.rel = clamp(r.rel + 0.012 * (diff.rivalGrow || 1), 40, 98);
@@ -1696,7 +1741,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, championshipStake,
+    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
