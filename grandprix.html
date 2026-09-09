@@ -2649,15 +2649,15 @@ GP.data = (function () {
   const BODY_ATTRS = [
     { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
       desc: 'コーナー性能がわずかに上がる',
-      eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -30%）',
+      eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -20%）',
       gain: { speed: 0.00, corner: 0.18, accel: 0.00 } },
     { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
       desc: '最高速と加速がわずかに上がる',
-      eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -22%）',
+      eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -15%）',
       gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
     { key: 'aeroBody', name: '空力コンセプト', icon: '🌬️', color: '#3a7ad9',
       desc: 'コーナー性能がわずかに上がる',
-      eff: 'エアロパーツの効きが増し、前車を追いやすくなる（追い抜き +20%）',
+      eff: 'エアロパーツの効きが増し、前車を追いやすくなる（追い抜き +11%）',
       gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
     { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
       desc: '加速がごくわずかに上がる',
@@ -2669,7 +2669,7 @@ GP.data = (function () {
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
     { key: 'drive',    name: 'ドライバビリティ', icon: '🎯', color: '#e0644a',
       desc: 'マシンそのものの速さは変わらない',
-      eff: '素直で乗りやすくなり、ドライバーが腕をそのまま出せる（ドライバー評価 +8%／ミス -25%）',
+      eff: '素直で乗りやすくなり、ドライバーが腕をそのまま出せる（ドライバー評価 +12%／ミス -25%）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
     { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
       desc: 'マシンそのものの速さは変わらない',
@@ -4423,10 +4423,12 @@ GP.state = (function () {
     if (rank > a.half) return a.lift;     // 大きく離されたチームに回る
     return 1;
   }
-  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度と、ADUO を合わせたもの */
+  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度と、ADUO、
+     そしてオーナーの技術眼（+7%/Lv）を合わせたもの                */
   function devRate(g2) {
     const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
-    return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99);
+    return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99)
+         * (1 + osk(g2, 'eye') * 0.07);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);

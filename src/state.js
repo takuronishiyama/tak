@@ -679,10 +679,12 @@ GP.state = (function () {
     if (rank > a.half) return a.lift;     // 大きく離されたチームに回る
     return 1;
   }
-  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度と、ADUO を合わせたもの */
+  /* 開発の伸びにかかる倍率。風洞時間の傾斜と、難易度と、ADUO、
+     そしてオーナーの技術眼（+7%/Lv）を合わせたもの                */
   function devRate(g2) {
     const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
-    return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99);
+    return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99)
+         * (1 + osk(g2, 'eye') * 0.07);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
