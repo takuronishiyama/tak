@@ -924,8 +924,14 @@ GP.race = (function () {
                                     : RADIO.gridBack;
       const form = e.driver.form || 100;
       const back = form >= 108 ? RADIO.gridHot : form >= 92 ? RADIO.gridCalm : RADIO.gridLow;
-      radio.push({ lap: 0, from: 'pit', name: e.driver.name, id: e.id, text: say(pool, V0) });
-      radio.push({ lap: 0, from: 'drv', name: e.driver.name, id: e.id, text: say(back, V0) });
+      // 2台に同じ言い回しが並ばないよう、二度までは引き直す
+      const fresh = (poolX) => {
+        let t = say(poolX, V0);
+        for (let k = 0; k < 2 && radio.some(r => r.text === t); k++) t = say(poolX, V0);
+        return t;
+      };
+      radio.push({ lap: 0, from: 'pit', name: e.driver.name, id: e.id, text: fresh(pool) });
+      radio.push({ lap: 0, from: 'drv', name: e.driver.name, id: e.id, text: fresh(back) });
     });
 
     // ---- 母国グランプリ ----

@@ -353,9 +353,9 @@ GP.data = (function () {
   /* ---------- 施設 ---------- */
   const FACILITIES = [
     { key: 'factory', name: 'ファクトリー', icon: '🏭', desc: '工作機械が新しくなり、開発の伸びと、作るパーツの質が上がる', base: 1800 },
-    { key: 'tunnel',  name: '風洞',         icon: '💨', desc: 'エアロ／サスの開発が伸びる',   base: 2200 },
-    { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速する',   base: 2000 },
-    { key: 'market',  name: 'マーケティング室', icon: '📣', desc: 'スポンサー収入が増える',   base: 1600 },
+    { key: 'tunnel',  name: '風洞',         icon: '💨', desc: 'エアロとサスの開発が伸び、車体を煮詰めるのも速くなる',   base: 2200 },
+    { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速し、研究でとれるデータも増える',   base: 2000 },
+    { key: 'market',  name: 'マーケティング室', icon: '📣', desc: '契約できるスポンサーの枠が増え、収入と営業の効きも上がる',   base: 1600 },
     { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピットの静止時間が縮み、信頼性も上がる', base: 1900 },
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
   ];
