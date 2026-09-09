@@ -1818,3 +1818,8 @@ body[data-skin="hd"]{
 .ec-row b{font-size:14px}
 .ec-row.dim{opacity:.65}
 .ec-row.up b{color:#2e8b30}
+
+/* ---- 環境係数（いまどれだけ際どいか） ---- */
+.rvo.grip.mid { background:#3a4030; color:#d8e8c0; }
+.rvo.grip.warn{ background:#6a4a12; color:#ffe1a0; }
+.rvo.grip.bad { background:#7a2018; color:#ffd0c8; animation:blink 1s steps(2,end) infinite; }

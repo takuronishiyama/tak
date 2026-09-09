@@ -1322,8 +1322,15 @@ GP.raceview = (function () {
         const l = lapInfo(e, vt).lap;
         const k = (e.lapOrder || [])[l - 1] || 'hold';
         const o = (GP.data.ORDERS || []).find(x => x.key === k) || { icon: '⚙️', name: '通常' };
+        // いま、そのクルマがどれだけ際どいところに居るか（環境係数）
+        const h = (e.lapHarsh || [])[l - 1] || 0;
+        const lv = h >= 1.30 ? { c: 'bad',  t: '限界' }
+                 : h >= 0.90 ? { c: 'warn', t: '際どい' }
+                 : h >= 0.50 ? { c: 'mid',  t: '負担' } : null;
         return '<i class="rvo ' + k + '" title="' + (o.note || '') + '">' +
-          o.icon + ' ' + e.driver.name.split('・')[0] + ' ' + o.name + '</i>';
+          o.icon + ' ' + e.driver.name.split('・')[0] + ' ' + o.name + '</i>' +
+          (lv ? '<i class="rvo grip ' + lv.c + '" title="路面と銘柄のずれ・タイヤの残り・攻めの度合いから見た、いまの余裕">'
+                + '🫱 ' + lv.t + '</i>' : '');
       }).join('');
     }
 
