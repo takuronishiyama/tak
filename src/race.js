@@ -833,7 +833,8 @@ GP.race = (function () {
   /* いちばん傷んでいた部位から、壊れかたを決める */
   const MECH_BY_CAT = {
     pu:   'エンジンブロー', gear: 'ギアボックストラブル', elec: '電装系トラブル',
-    susp: 'サスペンション破損', chas: '油圧系トラブル', aero: 'フロアの破損'
+    susp: 'サスペンション破損', chas: '油圧系トラブル', aero: 'フロアの破損',
+    brake: 'ブレーキトラブル'
   };
 
   const tyreOf = key => D.TYRES.find(t => t.key === key) || D.TYRES[1];
@@ -883,9 +884,9 @@ GP.race = (function () {
   /* ---------- 天候抽選 ---------- */
   function rollWeather(track) {
     const r = Math.random() * (0.9 + track.tyre * 0.1);
-    if (r < 0.58)  return D.WEATHER[0];   // 晴れ
-    if (r < 0.845) return D.WEATHER[1];   // くもり
-    if (r < 0.955) return D.WEATHER[2];   // 雨
+    if (r < 0.62)  return D.WEATHER[0];   // 晴れ
+    if (r < 0.885) return D.WEATHER[1];   // くもり
+    if (r < 0.965) return D.WEATHER[2];   // 雨
     return D.WEATHER[3];                  // 大雨
   }
 
@@ -1269,14 +1270,23 @@ GP.race = (function () {
     /* 途中で天気が変わるかどうかを先に決めておく（実況では出さない）。
        どの空模様でも一律に変わることにすると、晴れの日でも次々に降り出して
        雨のレースばかりになってしまう。いまの空から素直に決める           */
-    const WX_ODDS = { sunny: 0.08, cloud: 0.16, rain: 0.42, storm: 0.45 };
-    const odds = WX_ODDS[weather.key] != null ? WX_ODDS[weather.key] : 0.22;
+    /* 空模様は、雨でなくても動く。晴れがくもりに、くもりが晴れに変わる
+       だけでも、路面の乾きかたとタイヤの選択が変わる。
+       「雨のレース」は減らしつつ、動きのある週末は増やしたい       */
+    const WX_ODDS = { sunny: 0.26, cloud: 0.34, rain: 0.55, storm: 0.55 };
+    const odds = WX_ODDS[weather.key] != null ? WX_ODDS[weather.key] : 0.30;
     if (!special && laps >= 12 && Math.random() < odds) {
-      wxTo = weather.wetTyres
-        ? D.WEATHER[Math.random() < 0.55 ? 1 : 0]                    // 雨が上がる
-        : (weather.key === 'sunny'
-            ? D.WEATHER[2]                                           // 晴れからいきなり大雨にはしない
-            : D.WEATHER[Math.random() < 0.22 ? 3 : 2]);              // 降り出す
+      if (weather.wetTyres) {
+        // 雨は、たいてい上がっていく。乾いていく路面がいちばん面白い
+        wxTo = D.WEATHER[Math.random() < 0.62 ? 1 : 0];
+      } else if (weather.key === 'sunny') {
+        // 晴れの日はまず曇る。そこからさらに降り出すのは、ときどきだけ
+        wxTo = Math.random() < 0.80 ? D.WEATHER[1] : D.WEATHER[2];
+      } else {
+        // くもりは、晴れることも降り出すこともある
+        const r2 = Math.random();
+        wxTo = r2 < 0.56 ? D.WEATHER[0] : (r2 < 0.95 ? D.WEATHER[2] : D.WEATHER[3]);
+      }
       wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
     }
 
@@ -1719,6 +1729,24 @@ GP.race = (function () {
           }
         }
 
+        /* 隊列を流しているあいだは、全車がゆっくり走る。
+           ピットで止まるぶんはこのあとで足すので、
+           「入った車だけが損をする」ことにはならない              */
+        if (underSC) t *= scInfo.virtual ? D.SC_PACE.vsc : D.SC_PACE.sc;
+
+        /* 隊列に詰める／離れるぶんを、この周のタイムとして払う。
+           1周で払いきれないぶんは次の周へ持ち越す。
+           先頭が待ち、後ろが追いつく、という時間の流れをそのまま出す */
+        if (e.scPull) {
+          // どれだけ急いでも、まともに走る周より速くは走れない
+          const floor = t * 0.68;
+          const pay = S.clamp(e.scPull, floor - t, t * 1.20);
+          t += pay;
+          e.scPull -= pay;
+          if (Math.abs(e.scPull) < 0.05) e.scPull = 0;
+          e.noRec[lap - 1] = true;                   // 記録には残さない
+        }
+
         // ピットイン（新しいタイヤに履き替える）
         let pitAdd = 0;
         if (e.pitPlan.indexOf(lap) >= 0) {
@@ -1985,14 +2013,15 @@ GP.race = (function () {
           // 先導車の後ろに一列に並び直す。
           // 前の車との差を積み上げていく（i 倍していたため、
           // 後ろほど間隔が開き、順番まで入れ替わってしまっていた）
+          /* 隊列に詰めるぶんは、その場で持ち時間を書き換えるのではなく
+             「次の周で詰める」ぶんとして預ける。こうしないと、
+             すでに走り終えた周のタイムが後から書き換わってしまい、
+             観戦画面で車がコース上を飛ぶように見える              */
           let acc = run.length ? run[0].cum[lap - 1] : 0;
           run.forEach((e, i) => {
             if (i > 0) acc += S.rnd(0.55, 0.95);
-            e.cum[lap - 1] = acc;
+            e.scPull = (e.scPull || 0) + (acc - e.cum[lap - 1]);
             e.scBunched = true;
-            // 隊列に吸い寄せられたぶんは、速く走った結果ではない。
-            // ベストラップ・ベストセクターの記録からは外す
-            e.noRec[lap - 1] = true;
           });
         }
         events.push({ lap: lap, type: 'sc',
@@ -2036,8 +2065,8 @@ GP.race = (function () {
           let acc = line.length ? line[0].cum[lap - 1] : 0;
           line.forEach((e, i) => {
             if (i > 0) acc += S.rnd(0.55, 0.95);
-            e.cum[lap - 1] = acc;
-            e.noRec[lap - 1] = true;
+            // 出動時の詰め残しは、ここでの並びにもう入っている。足さずに置き換える
+            e.scPull = acc - e.cum[lap - 1];
           });
         }
         events.push({ lap: lap + 1, type: 'restart',

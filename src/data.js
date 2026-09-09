@@ -122,6 +122,18 @@ GP.data = (function () {
         '前後の翼を走行中に動かす。直線では寝かせて抵抗を捨て、コーナーで起こして押しつける',
         '境界層を能動的に制御。剥離が起きないので、抵抗を増やさずに押しつけ量だけを積める'
       ] },
+    { key: 'brake', name: 'ブレーキ', icon: '🛑', color: '#c0392b',
+      gain: { speed: 0.05, corner: 0.55, accel: 0.40 }, cost: 250, rp: 5, wear: 1.30,
+      names: ['ドラムブレーキ', 'ソリッドディスク', 'ベンチレーテッドディスク',
+              'カーボンディスク', 'ブレーキ・バイ・ワイヤ', 'アクティブ熱制御ブレーキ'],
+      notes: [
+        '踏めば止まるが、続けて踏むと効かなくなる。1周に何度も強く踏める代物ではない',
+        '鋳鉄の円盤に替えた。熱を受ける面積が増え、周回を重ねてもタッチが変わりにくい',
+        '内部に通風孔を通した。走っている風がそのまま冷やしてくれるので、奥まで突っ込める',
+        'カーボン化。軽くて熱に強く、温まってからの効きが桁違いになった',
+        '踏力を電気信号で送り、回生と摩擦を自動で配分する。ペダルの感触が常に一定になった',
+        'ダクトと圧を走行中に制御。1コーナーも最終ラップも、まったく同じところで止まれる'
+      ] },
     { key: 'chas',  name: 'シャシー', icon: '🧱', color: '#4ea63f',
       gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
       names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'],
@@ -398,7 +410,11 @@ GP.data = (function () {
     { key: 'sim',     name: 'シミュレーター', icon: '🕹️', desc: 'ドライバー育成が加速し、研究でとれるデータも増える',   base: 2000 },
     { key: 'market',  name: 'マーケティング室', icon: '📣', desc: '契約できるスポンサーの枠が増え、収入と営業の効きも上がる',   base: 1600 },
     { key: 'pit',     name: 'ピット設備',   icon: '🔧', desc: 'ピットの静止時間が縮み、信頼性も上がる', base: 1900 },
-    { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
+    { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 },
+    { key: 'mission', name: 'ミッションコントロール', icon: '🛰️', base: 2600,
+      desc: '本国に残った人間が、回線の向こうからレースに加わる。作戦と天候の読みが伸びる' },
+    { key: 'depot',   name: '物流倉庫',       icon: '📦', base: 1700,
+      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' }
   ];
 
   /* ---------- 備品 ----------
@@ -413,11 +429,7 @@ GP.data = (function () {
       { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
         eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
       { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
-        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
-      { key: 'mission', name: 'ミッションコントロール室', icon: '🛰️', cost: 8200, need: 6, env: 2,
-        eff: '本国の分析チームがレースに加わる（作戦の読み +0.8／天候 +8%）',
-        note: '本国に残った人間が、回線の向こうからレースを見る。' +
-              '現地に人を出さなくても、読みと作戦が落ちなくなる' }
+        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' }
     ],
     tunnel: [
       { key: 'piv',  name: '粒子画像流速計', icon: '🌫️', cost: 2200, need: 2, env: 1,
@@ -444,6 +456,19 @@ GP.data = (function () {
         eff: '働きやすさ ++／クルーの消耗 -15%', note: '座って休める場所があるだけで、日曜の手つきが変わる' },
       { key: 'rig2', name: '整備リフトと工具壁', icon: '🧰', cost: 3800, need: 5, env: 2,
         eff: '整備の回復量 +25%', note: '工具を探す時間がゼロになる。それだけで1日ぶん違う' }
+    ],
+    mission: [
+      { key: 'wall2', name: '常設ウォールボード', icon: '🖥️', cost: 3200, need: 2, env: 1,
+        eff: '作戦の読み +0.35', note: '全車の位置と残量が、いつでも同じ画面に出ている' },
+      { key: 'twin',  name: 'デジタルツイン', icon: '🧬', cost: 7400, need: 6, env: 2,
+        eff: '天候の読み +6%／作戦の読み +0.55',
+        note: '走っている車と同じものが計算機の中にもいる。next lap を先に走らせられる' }
+    ],
+    depot: [
+      { key: 'rack', name: '自動ラック', icon: '🗄️', cost: 2400, need: 2, env: 1,
+        eff: '遅延の危険 -20%', note: '番地で出てくる。積み忘れという言葉がなくなった' },
+      { key: 'crate', name: '専用コンテナ一式', icon: '🧳', cost: 5200, need: 5, env: 2,
+        eff: '輸送費 -8%／クルーの消耗 -2', note: '寸法が決まっているぶん、積むのも解くのも速い' }
     ],
     youth: [
       { key: 'dorm', name: '若手寮', icon: '🏠', cost: 2600, need: 2, env: 3,
@@ -528,20 +553,24 @@ GP.data = (function () {
   /* ---------- ロジスティクス ----------
      サーカスをどう運ぶか。安く運べば金は浮くが、クルーが消耗し、
      現地でのセットアップ時間も削られる。                          */
-  const LOGI_BASE = 640;          // 1戦あたりの輸送費の基準
+  /* 1戦あたりの輸送費の基準。
+     機材を地球の裏側まで運ぶのは、チームの支出のなかでも大きな塊。
+     ここが軽いと、運びかたも積荷も遠征の編成も「全部いちばん良いもの」で
+     済んでしまい、物流のスポンサーもロジスティクス責任者も要らなくなる  */
+  const LOGI_BASE = 1100;
   /* 運びかた。速さ・確実さ・値段の三すくみ。
      遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
     { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
-      cost: 2.20, fatigue: -8, perf: 1.008, delay: 0.00,
+      cost: 2.45, fatigue: -8, perf: 1.008, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
-      note: '費用は約2倍' },
+      note: '費用は約2.5倍' },
     { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
       cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.07,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
     { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
-      cost: 0.34, fatigue: 12, perf: 0.990, delay: 0.20,
+      cost: 0.30, fatigue: 12, perf: 0.990, delay: 0.20,
       desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
       note: '費用は約3割' }
   ];
@@ -549,17 +578,17 @@ GP.data = (function () {
      予備を置いてくれば安いが、現場で何かあっても手当てができない     */
   const LOGI_LOADS = [
     { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
-      cost: 0.70, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
+      cost: 0.62, spares: 0, wear: 1.34, delay: -0.03, fatigue: -2,
       desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
-      note: '費用は3割減' },
+      note: '費用は4割減' },
     { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
       cost: 1.00, spares: 1, wear: 1.00, delay: 0, fatigue: 0,
       desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
       note: '標準' },
     { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
-      cost: 1.45, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
+      cost: 1.55, spares: 2, wear: 0.82, delay: 0.04, fatigue: 4,
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
-      note: '費用は約1.5倍' }
+      note: '費用は約1.55倍' }
   ];
   /* ---------- 遠征の編成 ----------
      誰を現地へ連れて行くか。部署ごと運べば現場は厚くなるが、
@@ -568,7 +597,7 @@ GP.data = (function () {
      同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
   const LOGI_CREWS = [
     { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
-      cost: 0.62, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
+      cost: 0.58, fatigue: -7, pit: -0.60, read: -0.70, fore: -0.05,
       desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
       note: '費用は4割減／現場が薄くなる' },
     { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
@@ -576,19 +605,29 @@ GP.data = (function () {
       desc: 'いつもの遠征メンバー。過不足のない布陣',
       note: '標準' },
     { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
-      cost: 1.58, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
+      cost: 1.70, fatigue: 7, pit: 0.75, read: 0.90, fore: 0.05,
       desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
-      note: '費用は約1.6倍／全員が疲れる' }
+      note: '費用は約1.7倍／全員が疲れる' }
   ];
   /* ---------- ミッションコントロール ----------
      ファクトリーに残った分析チームが、回線の向こうからレースに加わる。
      現地に人を出さなくても、読みと作戦は落ちなくなる。
      現代のF1が「工場のほうが人が多い」と言われる理由そのもの。     */
   const MISSION = {
-    read: 0.80,        // 本国の分析チームが足す作戦の読み
-    fore: 0.08,        // 同・天候の読み
-    leanCover: 0.85,   // 最小構成で薄くなったぶんを、どれだけ埋め戻せるか
-    fatigue: -3        // 現地の人数が減るぶん、クルーの消耗も軽くなる
+    read: 0.17,        // レベル1あたり、本国の分析チームが足す作戦の読み
+    fore: 0.018,       // 同・天候の読み
+    coverBase: 0.20,   // 最小構成で薄くなったぶんを埋め戻す割合（Lv0のとき）
+    coverLv:   0.070,  // 同・レベル1あたり
+    fatigue: -0.4      // 現地の人数が減るぶん、クルーの消耗も軽くなる
+  };
+  /* ---------- 物流倉庫 ----------
+     機材と予備をここに集めておく。荷造りが速くなり、
+     輸送費も遅延も減る。積み下ろしでクルーが消耗する量も減っていく。 */
+  const DEPOT = {
+    cut:     0.035,    // レベル1あたり、輸送費がどれだけ安くなるか
+    delay:   0.060,    // 同・遅延の危険がどれだけ減るか
+    fatigue: -0.5,     // 同・クルーの消耗
+    spareAt: 6         // このレベルから、予備をもう1点よけいに持てる
   };
 
   const LOGI_SPARE_FIX = 5;       // 予備1つで戻せるパーツのコンディション
@@ -608,6 +647,11 @@ GP.data = (function () {
   const PIT_STAND_MIN   = 1.8;    // どれだけ鍛えてもこれより速くは止まれない
   const PIT_STAND_CURVE = 0.16;   // 設備とクルーの効きかた（大きいほど早く頭打ち）
   const PIT_STAND_RIVAL = 3.7;    // ライバルチームの標準的な静止時間
+  /* 隊列を流しているあいだの周回時間。
+     先導車の後ろは、まともに走っているときよりずっと遅い。
+     ここを入れていないと「みんな全開のまま、入った車だけ20秒損する」
+     ことになり、セーフティカー中のピットが一方的に不利になる      */
+  const SC_PACE = { sc: 1.34, vsc: 1.18 };
   const PIT_LANE_SC     = 0.38;   // 実車セーフティカー中のピットロード係数
   const PIT_LANE_VSC    = 0.64;   // バーチャルセーフティカー中
   const PIT_FUMBLE_BASE = 0.115;  // 作業をしくじる確率（腕が上がるほど下がる）
@@ -841,6 +885,12 @@ GP.data = (function () {
     { name: 'カメカメ物流',   icon: '📦', kind: 'supply', per: 260,  rp: 0,  fan: 0,
       bonus: 1200,  bonusRp: 0,   need: 10, fans: 400,   hype: 8,
       perk: { key: 'logi', cut: 0.22 } },
+    { name: 'ツバサ航空',     icon: '✈️', kind: 'supply', per: 520,  rp: 0,  fan: 40,
+      bonus: 2400,  bonusRp: 0,   need: 6,  fans: 2600,  hype: 18,
+      perk: { key: 'logi', cut: 0.34 } },
+    { name: 'ホライゾン・カーゴ', icon: '🛫', kind: 'supply', per: 780, rp: 6, fan: 30,
+      bonus: 3600,  bonusRp: 20,  need: 4,  fans: 9000,  hype: 30,
+      perk: { key: 'logi', cut: 0.42 } },
     { name: 'ハヤブサ工機',   icon: '🏭', kind: 'supply', per: 300,  rp: 8,  fan: 0,
       bonus: 1300,  bonusRp: 20,  need: 8,  fans: 1500,  hype: 14,
       perk: { key: 'fac:factory', cut: 0.35 } },
@@ -945,7 +995,9 @@ GP.data = (function () {
     { key: 'trainer',    name: 'トレーナー',     icon: '💪', desc: 'ドライバー育成が上がる',       salary: 45,
       promote: ['principal', 'logistics'] },
     { key: 'researcher', name: 'リサーチャー',   icon: '🔬', desc: 'まだ形になっていないものを探す。研究テーマの進みが速くなる', salary: 58,
-      promote: ['technical'] }
+      promote: ['technical'] },
+    { key: 'logi',       name: 'ロジスタッフ',   icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
+      promote: ['logistics'] }
   ];
 
   /* ---------- グループ ----------
@@ -971,11 +1023,16 @@ GP.data = (function () {
     { key: 'human',   name: 'ヒューマンパフォーマンス', icon: '💪', place: 'track', of: 'trainer',
       desc: 'ドライバーを鍛える' },
     { key: 'research', name: '研究グループ', icon: '🔬', place: 'factory', of: 'researcher',
-      desc: 'まだ図面になっていないものを探す。開発の一段手前' }
+      desc: 'まだ図面になっていないものを探す。開発の一段手前' },
+    { key: 'logi', name: '物流グループ', icon: '📦', place: 'track', of: 'logi',
+      desc: '機材を運び、組み、片づける。週末が始まる前の勝負どころ' }
   ];
   /* グループ同士の相補作用。両方が育っているときだけ効く。
      min(片方) が半減値に達したところで、gain の半分がのる          */
   const SYNERGY = [
+    { a: 'logi',     b: 'crew',   icon: '🧳', gain: 0.16, half: 2.4,
+      name: '着いた時点で、もう組み上がっている',
+      desc: '荷解きが速いぶん、クルーは組み立てと調整に時間を使える' },
     { a: 'research', b: 'design', icon: '🔭', gain: 0.20, half: 2.6,
       name: '探したものが、そのまま図面になる',
       desc: '研究が「何が効くか」を先に出すので、設計が当てずっぽうにならない' },
@@ -1020,7 +1077,7 @@ GP.data = (function () {
     // 誰がどの部門を見るか
     DEPT: {
       engineer: 'technical', designer: 'technical', analyst: 'technical',
-      researcher: 'technical',
+      researcher: 'technical', logi: 'logistics',
       mechanic: 'pitchief',  strategist: 'pitchief',
       trainer:  'principal'
     }
@@ -1242,7 +1299,7 @@ GP.data = (function () {
       nurseSay: ['「無理に踏むな。まとめて持ち帰ろう」'],
       pit: ['「入ってくれ。一度リセットをかける」'],
       quit:['「これでは戦えない。降ろそう」'] },
-    { key: 'brake', name: 'ブレーキのタッチがおかしい', icon: '🛑', cat: 'susp',
+    { key: 'brake', name: 'ブレーキのタッチがおかしい', icon: '🛑', cat: 'brake',
       loss: 0.32, grow: 0.11, dnf: 0.0060, fix: 0.35, nurse: 0.35,
       drv: ['「ブレーキが奥に入る。踏みしろが変わってきた」',
             '「フロントがロックする。タッチが安定しない」',
@@ -1363,6 +1420,30 @@ GP.data = (function () {
       { at: 9, icon: '🤖', name: 'ロボット補助ピットクルー', mul: 1.60,
         desc: '人と機械が同じ拍で動く。2秒台が当たり前になる' }
     ]},
+    mission: { what: '本国からの支援（作戦と天候の読み）', tiers: [
+      { at: 1, icon: '📻', name: '無線の中継卓', mul: 1.00,
+        desc: '現地の声を本国でも聞ける、というだけ。判断は向こう任せ' },
+      { at: 3, icon: '🖥️', name: 'データリンク室', mul: 1.12,
+        desc: '車の数字がそのまま本国に流れてくる。同じ画面を見て話せる' },
+      { at: 5, icon: '🛰️', name: '衛星回線と大型スクリーン', mul: 1.24,
+        desc: '遅れがなくなった。本国が現地と同じ速さで口を出せる' },
+      { at: 7, icon: '🧮', name: 'リアルタイム・シミュレーション', mul: 1.38,
+        desc: '5周先を計算しながらレースを見る。入る周が数字で出る' },
+      { at: 9, icon: '🧠', name: '自動戦略提案システム', mul: 1.55,
+        desc: '起きうる展開を全部走らせて、いちばん良い手を先に出す' }
+    ]},
+    depot: { what: '輸送費と遅延の減り', tiers: [
+      { at: 1, icon: '🧰', name: '間借りの倉庫', mul: 1.00,
+        desc: '棚もない。何がどこにあるかは、覚えている人しか分からない' },
+      { at: 3, icon: '📦', name: '棚と台帳', mul: 1.14,
+        desc: '番地が付いた。積み忘れが減り、荷造りが半分の時間で終わる' },
+      { at: 5, icon: '🚛', name: '専用トラックヤード', mul: 1.28,
+        desc: '横付けして積める。段取りの待ち時間がなくなった' },
+      { at: 7, icon: '🏗️', name: '自動倉庫', mul: 1.44,
+        desc: 'クレーンが棚から出してくる。人は数を数えるだけになった' },
+      { at: 9, icon: '🛫', name: '空港直結ハブ', mul: 1.62,
+        desc: '滑走路の隣に建てた。降ろしてから現地まで、誰も待たない' }
+    ]},
     youth: { what: '若手の伸びと、スカウトの見立ての正確さ', tiers: [
       { at: 1, icon: '🛞', name: '借り物のカート', mul: 1.00,
         desc: '走らせる場所がある、というだけ。素質は見た目で判断するしかない' },
@@ -1395,6 +1476,24 @@ GP.data = (function () {
     devMul:   1.85,    // 知見を使った開発の伸び
     rarBonus: 1.6,     // 同・レアリティ抽選への上乗せ
     polMul:   1.55     // 知見を使った改良の進み
+  };
+
+  /* ---------- トレンド（真似）----------
+     誰かが掘り当てた解釈は、隠しておけない。写真に撮られ、
+     風洞で再現され、数戦のうちにグリッドの半分が同じ形になる。
+     真似るほうが速いが、本家の写しでしかないので届ききらない。
+     本家は、真似られたぶんだけ相対的な優位を失っていく。       */
+  const TREND = {
+    life:      8,      // トレンドが生きている週数
+    startWeek: 2,      // 掘り当ててから、他所が動き出すまでの週
+    week:      0.16,   // 1チーム・1週あたり、真似に踏み切る確率
+    copyOf:    0.72,   // 真似で届く割合（本家の伸びに対して）
+    lateFade:  0.055,  // 遅れて真似るほど、届く量が落ちる（1週あたり）
+    fadeBack:  0.030,  // 本家が失う相対的な優位（真似1チームあたり）
+    playerCost: 1900,  // プレイヤーが持ち込むときの費用（万）
+    playerRp:   22,    // 同・研究ポイント
+    playerOf:   0.86,  // プレイヤーが真似たときに届く割合（設計陣で上下する）
+    tdRisk:     0.20   // 灰色の解釈を持ち込むと、裁定を呼び込みやすくなる
   };
 
   /* ---------- 開発のブレイクスルー ----------
@@ -1442,6 +1541,11 @@ GP.data = (function () {
       a: [['😠 「失礼な質問です。図面を見せましょうか」', 13, 3, '疑いを正面から否定した'],
           ['🙂 「正しく作っていた、それだけです」', 7, 2, '落ち着いて答えた'],
           ['🤐 「ノーコメントです」', 1, -1, '答えを避けた']] },
+    { key: 'trend', weight: 7, icon: '📸',
+      q: '「グリッドの半分が {W} を積みはじめました。真似する側になる気は？」',
+      a: [['😏 「良いものは良い。使えるものは使います」', 12, 3, '真似も勝負のうちだと言い切った'],
+          ['🙂 「うちはうちのやり方で行きます」', 9, 2, '自分たちの道を行くと答えた'],
+          ['🤐 「うちの開発の話はできません」', 3, 0, 'トレンドについては語らなかった']] },
     { key: 'brk', weight: 8, icon: '🔬',
       q: '「{W} が話題ですね。どこから出てきたアイデアなんですか？」',
       a: [['🔥 「うちの技術陣の勝利です。まだ隠し球はあります」', 16, 4, '新機構を誇った'],
@@ -1749,12 +1853,16 @@ GP.data = (function () {
   };
 
   /* 路面の濡れ具合の見え方。セクターごとにこれで色分けする */
+  /* 路面の呼び名。タイヤの担当範囲の境目とそろえてある。
+     「ウェット」と出ていたらウェットタイヤが速い、と読めるようにするため。
+       〜0.18 ドライ ／ 0.18〜0.42 湿り ／ 0.42〜0.67 ハーフ
+       0.67〜0.88 ウェット ／ 0.88〜 大雨                           */
   const WET_LEVELS = [
-    { at: 0.10, name: 'ドライ',   short: 'D', color: '#c8a86a' },
-    { at: 0.32, name: '湿り',     short: 'd', color: '#9aae7a' },
-    { at: 0.58, name: 'ハーフ',   short: 'H', color: '#5f9e6a' },
-    { at: 0.80, name: 'ウェット', short: 'W', color: '#3f86c0' },
-    { at: 1.01, name: '大雨',     short: 'X', color: '#2a5fa0' }
+    { at: 0.18, name: 'ドライ',   short: 'D', color: '#c8a86a', tyre: 'medium' },
+    { at: 0.42, name: '湿り',     short: 'd', color: '#9aae7a', tyre: 'inter' },
+    { at: 0.67, name: 'ハーフ',   short: 'H', color: '#5f9e6a', tyre: 'inter' },
+    { at: 0.88, name: 'ウェット', short: 'W', color: '#3f86c0', tyre: 'wet' },
+    { at: 1.01, name: '大雨',     short: 'X', color: '#2a5fa0', tyre: 'wet' }
   ];
 
   /* ---------- 天候 ---------- */
@@ -1765,7 +1873,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

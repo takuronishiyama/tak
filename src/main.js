@@ -638,6 +638,7 @@ window.GP = window.GP || {};
 
     // ---- パーツの設計 ----
     const dc = designCost();
+    body += trendBoxHTML();
     body += '<div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
       '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
       '格（レアリティ）は、<b>改良で煮詰めて上げるもの</b>です。ここで出るのは出発点です。</p>' +
@@ -668,6 +669,27 @@ window.GP = window.GP || {};
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
     });
+    bindAct('data-copytrend', () => doCopyTrend());
+  }
+
+  /* ---- 他所の解釈を持ち込む ----
+     写すのは速い。ただし本家の写しでしかないので、届ききらない  */
+  function doCopyTrend() {
+    const cur = S.canCopyTrend(g);
+    if (!cur || cur.tooEarly) return;
+    const cost = D.TREND.playerCost, rp = D.TREND.playerRp;
+    if (g.funds < cost || g.rp < rp) return U.toast('資金か研究Pが足りません', 'bad');
+    g.funds -= cost; g.rp -= rp; capSpend(cost);
+    const r = S.copyTrend(g);
+    if (!r) return;
+    U.closeModal();
+    U.log(g, '📐 ' + esc(r.by) + ' の「' + esc(r.what) + '」を読み解いて持ち込んだ' +
+      '（全パーツ +' + (r.gain * 100).toFixed(1) + '％／本家の ' +
+      Math.round(r.ratio * 100) + '%）', 'good');
+    U.toast('📐 他所の解釈を持ち込んだ', 'good');
+    GP.sound.play('levelup');
+    S.pushNews(g, 'trend', r.what, { by: r.by });
+    endWeek();
   }
 
   /* 技術をひとつ進める。1週かかる */
@@ -731,6 +753,14 @@ window.GP = window.GP || {};
         body: key, what: brk, gain: gain, at: S.weekStamp(g)
       }]);
       S.pushNews(g, 'brk', brk);
+      /* 掘り当てたものは隠しておけない。写真に撮られ、風洞で再現され、
+         数戦のうちにグリッドの半分が同じ形になる                    */
+      {
+        const t2 = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+        const sec = S.rnd(D.INNOV.secMin, D.INNOV.secMax);
+        const mul = 1 + S.secToScore(g, sec) / Math.max(1, S.carScore(g, t2));
+        S.setTrend(g, g.team, brk, mul, true);
+      }
     }
 
     U.closeModal();
@@ -2869,6 +2899,52 @@ window.GP = window.GP || {};
       '</div>';
   }
   function workshopBoxHTML() { return rigBoxHTML('factory'); }
+
+  /* ---- いまのトレンド ----
+     誰かが掘り当てた解釈は、隠しておけない。
+     写すのは速いが、本家の写しでしかないので届ききらない       */
+  function trendBoxHTML() {
+    const cur = S.trendOf(g);
+    if (!cur) return '';
+    const t = cur.t;
+    const mine = t.mine;
+    const copiedN = (t.copied || []).length;
+    let h = '<div class="sub">📸 いまのトレンド</div>' +
+      '<div class="atrbox slim" style="--ac:#8a6ad0">' +
+      '<b>' + (mine ? '🔬 うちの ' : '📸 ') + esc(t.what) +
+      (mine ? '' : '（' + esc(t.by) + '）') + '</b>' +
+      '<small>' +
+      (mine
+        ? 'うちが持ち込んだ解釈です。もう写真に撮られています。'
+        : esc(t.by) + ' が持ち込んだ解釈が、グリッドに広がりはじめています。') +
+      (copiedN ? '　すでに <b>' + copiedN + 'チーム</b>が同じ形にしてきました。' : '') +
+      '<br>効き目は <b>+' + ((t.mul - 1) * 100).toFixed(1) + '%</b>。' +
+      'トレンドが生きているのは、あと <b>' + Math.max(0, D.TREND.life - cur.age) + '週</b>です。' +
+      '</small>';
+    if (!mine && !t.playerCopied) {
+      const cost = D.TREND.playerCost, rp = D.TREND.playerRp;
+      const early = cur.age < D.TREND.startWeek;
+      const ratio = S.copyRatio(g, cur.age);
+      const poor = g.funds < cost || g.rp < rp;
+      h += '<div class="pufresh2">' +
+        '<button class="btn' + ((poor || early) ? '' : ' primary') + '" data-copytrend="1"' +
+          ((poor || early) ? ' disabled' : '') + '>' +
+          '📐 他所の解釈を持ち込む（💰' + money(cost) + '万／🔬' + rp + '）</button>' +
+        '<small>' +
+        (early
+          ? '<b class="warn">まだ写真も図面も足りません。' +
+            'あと' + (D.TREND.startWeek - cur.age) + '週ほどで、形が読めるようになります。</b>'
+          : '装着している全パーツの性能が <b>+' + ((t.mul - 1) * ratio * 100).toFixed(1) +
+            '%</b>（本家の ' + Math.round(ratio * 100) + '%）。' +
+            'デザイナーが厚いほど写しの精度が上がり、遅れるほど届かなくなります。' +
+            '<br><b class="warn">よそのものを持ち込むと、裁定の対象になりやすくなります。</b>') +
+        (poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
+        '</small></div>';
+    } else if (t.playerCopied) {
+      h += '<small class="pupool">✅ うちもすでに同じ形にしています。</small>';
+    }
+    return h + '</div>';
+  }
 
   /* ---- 規則の新しさ ----
      規則が変わった直後ほど、まだ誰も掘っていないものが残っている。
@@ -6653,7 +6729,13 @@ window.GP = window.GP || {};
     }
     body += '</div><p class="desc">遠いコースほど輸送費も遅延の危険も上がります。' +
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
-      'ロジスティクス責任者を雇うと、費用も疲労も遅延も抑えられます。</p>';
+      '🏗️ <b>物流倉庫</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
+      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗も減ります。' +
+      '📦 <b>ロジスタッフ</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
+      '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
+      '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
+      (S.perkCut(g, 'logi') > 0
+        ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
 
     body += kitBoxHTML();
     U.modal('🚚 ロジスティクス', body, [{ label: '閉じる', fn: U.closeModal }]);

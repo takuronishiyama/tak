@@ -1321,11 +1321,17 @@ GP.raceview = (function () {
       if (wl && Math.max(wl[0], wl[1], wl[2]) >= 0.08) {
         const lv = v => (GP.data.WET_LEVELS || []).find(x => v < x.at) ||
                         (GP.data.WET_LEVELS || [])[0];
+        // いまの濡れ具合が、どのタイヤの担当なのかも一緒に出す。
+        // 「ウェットと出ているのにインターのまま」が起きないように
+        const avg = (wl[0] + wl[1] + wl[2]) / 3;
+        const want = GP.data.TYRES.filter(t => t.key === lv(avg).tyre)[0];
         wb.innerHTML = '<i class="rvw-h">路面</i>' + wl.map((v, k) => {
           const l = lv(v);
           return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
             '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
-        }).join('');
+        }).join('') +
+        (want ? '<i class="rvw want" style="background:' + want.color + ';color:' + want.text +
+          '" title="いまの路面でいちばん速い銘柄">→ ' + want.name + '</i>' : '');
       } else { wb.innerHTML = ''; }
     }
 
@@ -1662,6 +1668,10 @@ GP.raceview = (function () {
         return '<i class="tbw" style="background:' + l.color + '" title="セクター' + (k + 1) +
                '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
       }).join('');
+      const avg2 = (wl[0] + wl[1] + wl[2]) / 3;
+      const w2 = GP.data.TYRES.filter(t => t.key === lv(avg2).tyre)[0];
+      if (w2) wet += '<i class="tbw" style="background:' + w2.color + ';color:' + w2.text +
+        '" title="いまの路面でいちばん速い銘柄">→ ' + w2.name + '</i>';
     } else {
       wet = '<i class="tbw dry">路面ドライ</i>';
     }

@@ -8,16 +8,18 @@ window.GP = window.GP || {};
 GP.base = (function () {
   'use strict';
 
-  const W = 600, H = 340;
+  const W = 780, H = 340;
 
   /* 建物の区画。x,y は左下（正面）を基準にする */
   const PLOTS = [
     { key: 'pit',     x: 12,  y: 238, label: 'ピット設備' },
     { key: 'factory', x: 98,  y: 246, label: 'ファクトリー' },
     { key: 'tunnel',  x: 186, y: 238, label: '風洞' },
-    { key: 'sim',     x: 298, y: 246, label: 'シミュレーター' },
-    { key: 'youth',   x: 386, y: 240, label: 'ユース' },
-    { key: 'market',  x: 466, y: 234, label: 'マーケ室' }
+    { key: 'depot',   x: 262, y: 242, label: '物流倉庫' },
+    { key: 'sim',     x: 360, y: 246, label: 'シミュレーター' },
+    { key: 'mission', x: 448, y: 236, label: 'ミッションコントロール' },
+    { key: 'youth',   x: 552, y: 240, label: 'ユース' },
+    { key: 'market',  x: 640, y: 234, label: 'マーケ室' }
   ];
 
   let hitBoxes = [];
@@ -29,22 +31,22 @@ GP.base = (function () {
   const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
 
   /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
-  const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516];
+  const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516, 584, 652, 720];
   let yard = [];             // [{key,label,color,hair,face,hat,done}]
   function setYard(list) { yard = (list || []).slice(0, YARD_X.length); }
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
-    { key: 'off:drv0',    x: 40,  kind: 'person' },
-    { key: 'off:drv1',    x: 96,  kind: 'person' },
-    { key: 'off:staff',   x: 152, kind: 'person' },
-    { key: 'off:youth',   x: 208, kind: 'person' },
-    { key: 'off:mgr',     x: 264, kind: 'person' },
-    { key: 'off:test',    x: 322, kind: 'prop' },    // 合同テスト
-    { key: 'off:plan',    x: 380, kind: 'prop' },    // 来季のマシン方針
-    { key: 'off:sponsor', x: 438, kind: 'prop' },    // スポンサー交渉
-    { key: 'off:scout',   x: 496, kind: 'prop' },    // 若手のスカウト
-    { key: 'off:next',    x: 556, kind: 'gate' }     // 来季への出発
+    { key: 'off:drv0',    x: 50,  kind: 'person' },
+    { key: 'off:drv1',    x: 122, kind: 'person' },
+    { key: 'off:staff',   x: 194, kind: 'person' },
+    { key: 'off:youth',   x: 266, kind: 'person' },
+    { key: 'off:mgr',     x: 338, kind: 'person' },
+    { key: 'off:test',    x: 412, kind: 'prop' },    // 合同テスト
+    { key: 'off:plan',    x: 486, kind: 'prop' },    // 来季のマシン方針
+    { key: 'off:sponsor', x: 560, kind: 'prop' },    // スポンサー交渉
+    { key: 'off:scout',   x: 634, kind: 'prop' },    // 若手のスカウト
+    { key: 'off:next',    x: 724, kind: 'gate' }     // 来季への出発
   ];
 
   /* その x に入口がある建物を返す（建物の真下に立つと入れる）*/
@@ -364,8 +366,65 @@ GP.base = (function () {
     return { x: p.x - 2, y: p.y - h - th - 6, w: w + 4, h: h + th + 8 };
   }
 
+  /* ミッションコントロール：低い箱に、パラボラと大きな画面 */
+  function drawMission(g, p, lv, color) {
+    const s = tierOf(lv);
+    const w = s.w * 0.86, h = s.h * 0.78;
+    box(g, p.x, p.y, w, h, '#cfd4dc', color);
+    // 正面の大画面（レベルで大きく、明るくなる）
+    const sw = Math.min(w - 10, 16 + lv * 2.6), sh = Math.min(h - 8, 10 + lv * 1.5);
+    g.fillStyle = '#1b2430'; g.fillRect(p.x + (w - sw) / 2, p.y - h + 5, sw, sh);
+    g.fillStyle = 'rgba(120,200,255,' + (0.25 + lv * 0.06).toFixed(2) + ')';
+    for (let i = 0; i < 3; i++) {
+      g.fillRect(p.x + (w - sw) / 2 + 2, p.y - h + 7 + i * (sh / 3), sw - 4, Math.max(1, sh / 5));
+    }
+    // 屋根のパラボラ
+    const dr = 5 + lv * 0.9;
+    g.fillStyle = '#8f9aa6';
+    g.fillRect(p.x + w - dr * 2 - 6, p.y - h - 4, 3, 6);
+    g.beginPath();
+    g.arc(p.x + w - dr - 5, p.y - h - dr - 3, dr, Math.PI * 0.15, Math.PI * 1.15);
+    g.closePath(); g.fill();
+    g.fillStyle = color; g.fillRect(p.x + w - dr - 6, p.y - h - dr - 4, 2, 2);
+    // アンテナ塔
+    const th = 6 + lv * 1.5;
+    g.fillStyle = '#7c828e'; g.fillRect(p.x + 5, p.y - h - th, 2, th);
+    g.fillStyle = '#e04a3f'; g.fillRect(p.x + 4, p.y - h - th - 3, 4, 3);
+    return { x: p.x - 2, y: p.y - h - th - 6, w: w + 4, h: h + th + 8 };
+  }
+
+  /* 物流倉庫：横長の切妻屋根に、シャッターとコンテナ */
+  function drawWarehouse(g, p, lv, color) {
+    const s = tierOf(lv);
+    const w = s.w * 1.02, h = s.h * 0.62;
+    box(g, p.x, p.y, w, h, '#c6bfae', color);
+    // シャッター（レベルで増える）
+    const doors = Math.min(4, 1 + Math.floor(lv / 3));
+    const dw = Math.min(16, (w - 8) / doors - 3);
+    for (let i = 0; i < doors; i++) {
+      const dx = p.x + 4 + i * (dw + 3);
+      g.fillStyle = '#6b7078'; g.fillRect(dx, p.y - h * 0.72, dw, h * 0.72);
+      g.fillStyle = '#858c96';
+      for (let yy = 0; yy < h * 0.72; yy += 3) g.fillRect(dx, p.y - h * 0.72 + yy, dw, 1);
+      g.fillStyle = color; g.fillRect(dx, p.y - h * 0.72, dw, 2);
+    }
+    // 積んであるコンテナ
+    const cn = Math.min(5, Math.floor(lv / 2));
+    for (let i = 0; i < cn; i++) {
+      const cx = p.x + w + 3, cy = p.y - 7 - Math.floor(i / 2) * 8;
+      const off2 = (i % 2) * 9;
+      g.fillStyle = '#3a2413'; g.fillRect(cx + off2 - 1, cy - 1, 10, 8);
+      g.fillStyle = ['#c85040', '#4070c0', '#50a050', '#d0a030'][i % 4];
+      g.fillRect(cx + off2, cy, 8, 6);
+      g.fillStyle = 'rgba(0,0,0,.22)';
+      g.fillRect(cx + off2 + 2, cy, 1, 6); g.fillRect(cx + off2 + 5, cy, 1, 6);
+    }
+    return { x: p.x - 2, y: p.y - h - 4, w: w + (cn ? 22 : 4), h: h + 6 };
+  }
+
   const DRAW = { factory: drawFactory, tunnel: drawTunnel, sim: drawSim,
-                 market: drawMarket, pit: drawPit, youth: drawYouth };
+                 market: drawMarket, pit: drawPit, youth: drawYouth,
+                 mission: drawMission, depot: drawWarehouse };
 
   /* ---------- 賑わい（ファン数・タイトル）---------- */
   function drawCrowd(g, fans, titles, color, rnd) {

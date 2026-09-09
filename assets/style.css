@@ -2205,3 +2205,4 @@ body[data-skin="hd"]{
 /* ---- 研究の知見 ---- */
 .findchip{font-style:normal;font-size:9px;font-weight:700;margin-left:5px;
   background:#8a6ad0;color:#fff;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.rvw.want{font-weight:700;border:1px solid rgba(0,0,0,.35)}
