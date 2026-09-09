@@ -582,14 +582,14 @@ GP.state = (function () {
       // 保管していた同じ種類のパーツぶんの上乗せ
       const spare = Math.min(8, legacy.power * 0.012);
       // 規則が変わってもチームの設計力までは失われない。
-      // レアリティ（＝到達できる上限）は引き継ぎ、性能だけが白紙に戻る。
+      // 改良で積み上げたレアリティ（＝到達できる上限）は引き継ぎ、
+      // 性能だけが白紙に戻る。開発で得た技術（タグ）も、そのまま残る。
       // 保管庫により良いものがあれば、そこまで引き上げられる
       const rar = Math.max(old2 ? old2.rarity : 1, bestRar[c.key] || 1);
       if (old2 && rar > old2.rarity) {
         legacy.up.push({ cat: c.name, from: old2.rarity, to: rar });
       }
-      g2.equipped[c.key] = makePart(c.key, 0, rar,
-        { power: 10 + carry + spare, traits: old2 ? old2.traits : [] });
+      g2.equipped[c.key] = makePart(c.key, 0, rar, { power: 10 + carry + spare });
     });
     // 旧規則のパーツそのものは使えなくなる
     // （ここが inventory ではなく stock になっていて、保管しておけば
