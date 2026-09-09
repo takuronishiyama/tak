@@ -401,6 +401,65 @@ GP.data = (function () {
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
   ];
 
+  /* ---------- 備品 ----------
+     建物を大きくするのが「規模」なら、こちらは「中身」。
+     現場に良い道具と、まともな職場環境を入れていく。
+     一度買えば残り、施設のレベルが足りないと置く場所がない。
+     env は職場環境（働きやすさ）への寄与で、スタッフの伸びと定着に効く。 */
+  const GEAR = {
+    factory: [
+      { key: 'jig',  name: '専用治具の棚', icon: '🗜️', cost: 1600, need: 1, env: 1,
+        eff: '改良の伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
+      { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
+        eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
+      { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
+        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' }
+    ],
+    tunnel: [
+      { key: 'piv',  name: '粒子画像流速計', icon: '🌫️', cost: 2200, need: 2, env: 1,
+        eff: '技術開発が +10% 速い', note: '空気の流れそのものが見える。仮説を潰す速さが変わる' },
+      { key: 'cfd',  name: 'CFD計算クラスタ', icon: '🖥️', cost: 4800, need: 5, env: 2,
+        eff: '技術開発 +12%／設計のレアリティ +0.6', note: '風を吹かせる前に、何万通りも試せる' }
+    ],
+    sim: [
+      { key: 'rig',  name: '6軸モーションリグ', icon: '🎢', cost: 2800, need: 2, env: 2,
+        eff: 'ドライバー育成 +12%', note: '荷重が体に入る。画面を見ているだけの練習ではなくなる' },
+      { key: 'eye',  name: '視線計測システム', icon: '👁️', cost: 3600, need: 5, env: 1,
+        eff: '育成 +8%／作戦の読み +0.04', note: '見えていないものが分かる。指摘が具体になる' }
+    ],
+    market: [
+      { key: 'stud', name: '撮影スタジオ', icon: '🎬', cost: 2000, need: 2, env: 1,
+        eff: 'ファンの増え +12%', note: '自前で撮って自前で出す。話題の作り方が自分の手に戻る' },
+      { key: 'hosp', name: 'ホスピタリティ設備', icon: '🥂', cost: 4200, need: 5, env: 2,
+        eff: 'スポンサー収入 +8%', note: '週末に招く場ができる。契約は数字ではなく席で決まる' }
+    ],
+    pit: [
+      { key: 'gun',  name: '軽量ホイールガン', icon: '🔫', cost: 1900, need: 1, env: 1,
+        eff: '静止時間 -0.12秒', note: '振り回すものが軽くなる。3人ぶんの疲れが減る' },
+      { key: 'rest', name: 'クルー休憩室', icon: '🛋️', cost: 2400, need: 3, env: 4,
+        eff: '働きやすさ ++／クルーの消耗 -15%', note: '座って休める場所があるだけで、日曜の手つきが変わる' },
+      { key: 'rig2', name: '整備リフトと工具壁', icon: '🧰', cost: 3800, need: 5, env: 2,
+        eff: '整備の回復量 +25%', note: '工具を探す時間がゼロになる。それだけで1日ぶん違う' }
+    ],
+    youth: [
+      { key: 'dorm', name: '若手寮', icon: '🏠', cost: 2600, need: 2, env: 3,
+        eff: '若手の成長 +15%', note: '遠くの子でも預かれる。才能を地理で取りこぼさなくなる' },
+      { key: 'lab',  name: 'フィジカルラボ', icon: '💪', cost: 3400, need: 4, env: 2,
+        eff: '若手の成長 +10%／体力の伸び +', note: '18歳の体をきちんと作る。20代で効いてくる' }
+    ]
+  };
+  /* 職場環境（働きやすさ）。備品の env を足したもの */
+  const ENVW = {
+    growth: 0.020,     // スタッフの伸び +2%/pt
+    keep:   0.016,     // 引き抜きに耐える力
+    TIERS: [
+      { at: 0,  name: 'ぎりぎり',   icon: '😓', desc: '道具も場所も足りていない' },
+      { at: 4,  name: 'ふつう',     icon: '🙂', desc: '不足はないが、特別でもない' },
+      { at: 9,  name: '働きやすい', icon: '😊', desc: '道具が揃い、休む場所もある' },
+      { at: 15, name: '理想の職場', icon: '🌟', desc: '来たがる人がいる、出ていかない人がいる' }
+    ]
+  };
+
   /* ---------- 難易度 ----------
      数値はすべて実際の計算に掛かる倍率。ticket は
      「何戦入賞できなければ開発チケットが1枚もらえるか」        */
@@ -1243,5 +1302,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

@@ -56,6 +56,43 @@ GP.state = (function () {
 
   const hasT = (p, k) => p.traits && p.traits.indexOf(k) >= 0;
 
+  /* ---------- 備品と職場環境 ----------
+     g.gear = ['factory:jig', 'pit:rest', ...]。買えば残る          */
+  function hasGear(g2, fac, key) {
+    return ((g2 && g2.gear) || []).indexOf(fac + ':' + key) >= 0;
+  }
+  function gearList(g2, fac) {
+    return (D.GEAR[fac] || []).map(x => ({
+      fac: fac, key: x.key, name: x.name, icon: x.icon, cost: x.cost, need: x.need,
+      env: x.env, eff: x.eff, note: x.note,
+      owned: hasGear(g2, fac, x.key),
+      open: ((g2.facilities && g2.facilities[fac]) || 1) >= x.need
+    }));
+  }
+  function buyGear(g2, fac, key) {
+    const x = (D.GEAR[fac] || []).filter(y => y.key === key)[0];
+    if (!x || hasGear(g2, fac, key)) return null;
+    if (((g2.facilities && g2.facilities[fac]) || 1) < x.need) return null;
+    if (g2.funds < x.cost) return null;
+    g2.funds -= x.cost;
+    g2.gear = (g2.gear || []).concat([fac + ':' + key]);
+    return x;
+  }
+  /* 職場環境（働きやすさ）。備品の env を足したもの */
+  function envScore(g2) {
+    let n = 0;
+    Object.keys(D.GEAR).forEach(fac => {
+      D.GEAR[fac].forEach(x => { if (hasGear(g2, fac, x.key)) n += x.env; });
+    });
+    return n;
+  }
+  function envTier(g2) {
+    const v = envScore(g2);
+    let t = D.ENVW.TIERS[0];
+    D.ENVW.TIERS.forEach(x => { if (v >= x.at) t = x; });
+    return t;
+  }
+
   /* ---------- 開発技術（タグ）----------
      チームが積み上げるもので、パーツを載せ替えても失われない。
      g.techs = { light: { lv: 2, p: 0.35 }, ... }                */
@@ -984,7 +1021,8 @@ GP.state = (function () {
   function foresightOf(g2) {
     // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
-    return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
+    return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
+               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0), 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -1134,8 +1172,11 @@ GP.state = (function () {
   function pitCrew(g2) {
     const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
     const cw = crewPenalty(g2);
-    const stand = D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
-                / (1 + skill * D.PIT_STAND_CURVE) + cw.pit;
+    // 軽いホイールガンは、腕とは別に一律で削れる
+    const gun = hasGear(g2, 'pit', 'gun') ? 0.12 : 0;
+    const stand = Math.max(D.PIT_STAND_MIN,
+      D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
+      / (1 + skill * D.PIT_STAND_CURVE) + cw.pit - gun);
     const fumble = clamp(D.PIT_FUMBLE_BASE / (1 + skill * 0.20) + cw.mistake * 0.8,
                          D.PIT_FUMBLE_MIN, 0.30);
     return { skill: skill, stand: stand, fumble: fumble };
@@ -1146,8 +1187,10 @@ GP.state = (function () {
     if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
+    // 座って休める場所があるだけで、溜まりかたが変わる
+    const rest = hasGear(g2, 'pit', 'rest') ? 0.85 : 1;
     const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
-    g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft : d), 0, 100);
+    g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
   function restCrew(g2, amount) {
@@ -1503,7 +1546,8 @@ GP.state = (function () {
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
     const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
-                * (1 + osk(g2, 'money') * 0.06);   // 商才
+                * (1 + osk(g2, 'money') * 0.06)    // 商才
+                * (hasGear(g2, 'market', 'hosp') ? 1.08 : 1);
     const ts = titleOf(g2);
     const perRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.per || 0), 0)
                                 + (ts ? ts.per : 0)) * scale);
@@ -1825,6 +1869,8 @@ GP.state = (function () {
     if (stTrait(cand, 'loyal')) p *= 0.35;
     if (stTrait(cand, 'star'))  p *= 1.8;
     p *= Math.max(0.5, 1 - osk(g2, 'nego') * 0.04);       // 交渉術で引き止めやすい
+    // 働きやすい職場からは、そもそも人が出ていきにくい
+    p *= Math.max(0.35, 1 - envScore(g2) * D.ENVW.keep);
     if (Math.random() > Math.min(0.34, p)) return null;
     const names = (g2.rivals || []).map(r => r.name);
     return {
@@ -1874,9 +1920,12 @@ GP.state = (function () {
     (g2.youth || []).forEach(d => {
       // 若いうちほど伸びる。24歳を過ぎるとほとんど伸びなくなる
       const ageMul = d.age <= 21 ? 1 : d.age <= 23 ? 0.55 : 0.12;
-      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul;
+      const gearMul = 1 + (hasGear(g2, 'youth', 'dorm') ? 0.15 : 0)
+                        + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0);
+      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul * gearMul;
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
-        d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * (1 - d[k] / 300), 1, 199);
+        const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
+        d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * extra * (1 - d[k] / 300), 1, 199);
       });
       d.trained++;
       d.exp += Math.round(3 * rate);
@@ -2012,6 +2061,7 @@ GP.state = (function () {
       const chiefs = g.staff.filter(s => s !== st && s.type === st.type &&
                                     staffRank(s).key === 'chief').length;
       const off = rnd(26, 44) * (1 + mentors * 0.14 + chiefs * D.STAFF_CHIEF_MENTOR)
+                * (1 + envScore(g) * D.ENVW.growth)      // 働きやすい職場ほど伸びる
                 * (stTrait(st, 'grower') ? 1.35 : 1);
       const u = giveStaffExp(st, off * staffGrowMul(st));
       if (u) grown.push(st.name + '（技能 ' + st.skill + '／Lv.' + st.expLv + '）');
@@ -2153,6 +2203,7 @@ GP.state = (function () {
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
+    hasGear, gearList, buyGear, envScore, envTier,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

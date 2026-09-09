@@ -1971,7 +1971,8 @@ GP.race = (function () {
     if (merch > 0) notes.push('🎫 グッズ・入場料 +' + merch + '万（' + S.fanTier(g).icon + S.fanTier(g).name + '）');
     g.funds += prize + sponsorIncome + merch;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
-    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08));
+    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
+                                            * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1));
     // 負けが込んでも、離れていくのは一度に1割ちょっとまで。
     // どんなときも残ってくれる人たちがいる
     if (fanDelta < 0) fanDelta = Math.max(fanDelta, -Math.round(g.fans * 0.12) - 20);

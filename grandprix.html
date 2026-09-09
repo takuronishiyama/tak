@@ -1853,6 +1853,21 @@ body[data-skin="hd"]{
 .ptr em{font-style:normal;font-size:8px;background:var(--ink);color:#ffeec4;border-radius:3px;
         padding:0 3px;margin-left:3px}
 
+/* ---- 備品と職場環境 ---- */
+.envbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 9px;margin:4px 0 6px}
+.envbox b{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.envbox b em{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+             border-radius:4px;padding:0 7px}
+.envbox small{display:block;font-size:10px;opacity:.85;margin-top:2px}
+.gearpick{gap:5px}
+.gearrow .pb-ic{background:#5a6270;font-size:15px}
+.gearrow.done{opacity:.95;background:var(--paper2);box-shadow:none}
+.gowned{font-style:normal;font-size:9px;background:#2e8b30;color:#fff;border-radius:4px;
+        padding:0 6px;margin-left:6px}
+.gearn{font-style:normal;font-size:9px;background:#5a6270;color:#fff;border-radius:4px;
+       padding:0 5px;margin-left:4px}
+.gearn.full{background:#2e8b30}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2811,6 +2826,65 @@ GP.data = (function () {
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 }
   ];
 
+  /* ---------- 備品 ----------
+     建物を大きくするのが「規模」なら、こちらは「中身」。
+     現場に良い道具と、まともな職場環境を入れていく。
+     一度買えば残り、施設のレベルが足りないと置く場所がない。
+     env は職場環境（働きやすさ）への寄与で、スタッフの伸びと定着に効く。 */
+  const GEAR = {
+    factory: [
+      { key: 'jig',  name: '専用治具の棚', icon: '🗜️', cost: 1600, need: 1, env: 1,
+        eff: '改良の伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
+      { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
+        eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
+      { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
+        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' }
+    ],
+    tunnel: [
+      { key: 'piv',  name: '粒子画像流速計', icon: '🌫️', cost: 2200, need: 2, env: 1,
+        eff: '技術開発が +10% 速い', note: '空気の流れそのものが見える。仮説を潰す速さが変わる' },
+      { key: 'cfd',  name: 'CFD計算クラスタ', icon: '🖥️', cost: 4800, need: 5, env: 2,
+        eff: '技術開発 +12%／設計のレアリティ +0.6', note: '風を吹かせる前に、何万通りも試せる' }
+    ],
+    sim: [
+      { key: 'rig',  name: '6軸モーションリグ', icon: '🎢', cost: 2800, need: 2, env: 2,
+        eff: 'ドライバー育成 +12%', note: '荷重が体に入る。画面を見ているだけの練習ではなくなる' },
+      { key: 'eye',  name: '視線計測システム', icon: '👁️', cost: 3600, need: 5, env: 1,
+        eff: '育成 +8%／作戦の読み +0.04', note: '見えていないものが分かる。指摘が具体になる' }
+    ],
+    market: [
+      { key: 'stud', name: '撮影スタジオ', icon: '🎬', cost: 2000, need: 2, env: 1,
+        eff: 'ファンの増え +12%', note: '自前で撮って自前で出す。話題の作り方が自分の手に戻る' },
+      { key: 'hosp', name: 'ホスピタリティ設備', icon: '🥂', cost: 4200, need: 5, env: 2,
+        eff: 'スポンサー収入 +8%', note: '週末に招く場ができる。契約は数字ではなく席で決まる' }
+    ],
+    pit: [
+      { key: 'gun',  name: '軽量ホイールガン', icon: '🔫', cost: 1900, need: 1, env: 1,
+        eff: '静止時間 -0.12秒', note: '振り回すものが軽くなる。3人ぶんの疲れが減る' },
+      { key: 'rest', name: 'クルー休憩室', icon: '🛋️', cost: 2400, need: 3, env: 4,
+        eff: '働きやすさ ++／クルーの消耗 -15%', note: '座って休める場所があるだけで、日曜の手つきが変わる' },
+      { key: 'rig2', name: '整備リフトと工具壁', icon: '🧰', cost: 3800, need: 5, env: 2,
+        eff: '整備の回復量 +25%', note: '工具を探す時間がゼロになる。それだけで1日ぶん違う' }
+    ],
+    youth: [
+      { key: 'dorm', name: '若手寮', icon: '🏠', cost: 2600, need: 2, env: 3,
+        eff: '若手の成長 +15%', note: '遠くの子でも預かれる。才能を地理で取りこぼさなくなる' },
+      { key: 'lab',  name: 'フィジカルラボ', icon: '💪', cost: 3400, need: 4, env: 2,
+        eff: '若手の成長 +10%／体力の伸び +', note: '18歳の体をきちんと作る。20代で効いてくる' }
+    ]
+  };
+  /* 職場環境（働きやすさ）。備品の env を足したもの */
+  const ENVW = {
+    growth: 0.020,     // スタッフの伸び +2%/pt
+    keep:   0.016,     // 引き抜きに耐える力
+    TIERS: [
+      { at: 0,  name: 'ぎりぎり',   icon: '😓', desc: '道具も場所も足りていない' },
+      { at: 4,  name: 'ふつう',     icon: '🙂', desc: '不足はないが、特別でもない' },
+      { at: 9,  name: '働きやすい', icon: '😊', desc: '道具が揃い、休む場所もある' },
+      { at: 15, name: '理想の職場', icon: '🌟', desc: '来たがる人がいる、出ていかない人がいる' }
+    ]
+  };
+
   /* ---------- 難易度 ----------
      数値はすべて実際の計算に掛かる倍率。ticket は
      「何戦入賞できなければ開発チケットが1枚もらえるか」        */
@@ -3653,7 +3727,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -3921,6 +3995,43 @@ GP.state = (function () {
   }
 
   const hasT = (p, k) => p.traits && p.traits.indexOf(k) >= 0;
+
+  /* ---------- 備品と職場環境 ----------
+     g.gear = ['factory:jig', 'pit:rest', ...]。買えば残る          */
+  function hasGear(g2, fac, key) {
+    return ((g2 && g2.gear) || []).indexOf(fac + ':' + key) >= 0;
+  }
+  function gearList(g2, fac) {
+    return (D.GEAR[fac] || []).map(x => ({
+      fac: fac, key: x.key, name: x.name, icon: x.icon, cost: x.cost, need: x.need,
+      env: x.env, eff: x.eff, note: x.note,
+      owned: hasGear(g2, fac, x.key),
+      open: ((g2.facilities && g2.facilities[fac]) || 1) >= x.need
+    }));
+  }
+  function buyGear(g2, fac, key) {
+    const x = (D.GEAR[fac] || []).filter(y => y.key === key)[0];
+    if (!x || hasGear(g2, fac, key)) return null;
+    if (((g2.facilities && g2.facilities[fac]) || 1) < x.need) return null;
+    if (g2.funds < x.cost) return null;
+    g2.funds -= x.cost;
+    g2.gear = (g2.gear || []).concat([fac + ':' + key]);
+    return x;
+  }
+  /* 職場環境（働きやすさ）。備品の env を足したもの */
+  function envScore(g2) {
+    let n = 0;
+    Object.keys(D.GEAR).forEach(fac => {
+      D.GEAR[fac].forEach(x => { if (hasGear(g2, fac, x.key)) n += x.env; });
+    });
+    return n;
+  }
+  function envTier(g2) {
+    const v = envScore(g2);
+    let t = D.ENVW.TIERS[0];
+    D.ENVW.TIERS.forEach(x => { if (v >= x.at) t = x; });
+    return t;
+  }
 
   /* ---------- 開発技術（タグ）----------
      チームが積み上げるもので、パーツを載せ替えても失われない。
@@ -4850,7 +4961,8 @@ GP.state = (function () {
   function foresightOf(g2) {
     // 上限に張りつくのが早すぎると、雇っても伸びた気がしない。
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
-    return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06, 0.10, 0.92);
+    return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
+               + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0), 0.10, 0.92);
   }
   function wetSkillOf(d) {
     if (!d) return 0;
@@ -5000,8 +5112,11 @@ GP.state = (function () {
   function pitCrew(g2) {
     const skill = g2.facilities.pit * 0.55 + pitPower(g2) + osk(g2, 'call') * 0.5;
     const cw = crewPenalty(g2);
-    const stand = D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
-                / (1 + skill * D.PIT_STAND_CURVE) + cw.pit;
+    // 軽いホイールガンは、腕とは別に一律で削れる
+    const gun = hasGear(g2, 'pit', 'gun') ? 0.12 : 0;
+    const stand = Math.max(D.PIT_STAND_MIN,
+      D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
+      / (1 + skill * D.PIT_STAND_CURVE) + cw.pit - gun);
     const fumble = clamp(D.PIT_FUMBLE_BASE / (1 + skill * 0.20) + cw.mistake * 0.8,
                          D.PIT_FUMBLE_MIN, 0.30);
     return { skill: skill, stand: stand, fumble: fumble };
@@ -5012,8 +5127,10 @@ GP.state = (function () {
     if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
     const soft = 1 - Math.min(0.5, mgr(g2, 'logistics') * 0.010);
     // レースの合間にいくらかは休める。荷が多いほど積み下ろしがこたえる
+    // 座って休める場所があるだけで、溜まりかたが変わる
+    const rest = hasGear(g2, 'pit', 'rest') ? 0.85 : 1;
     const d = logiPlan(g2).fatigue + logiLoad(g2).fatigue - 2;
-    g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft : d), 0, 100);
+    g2.logi.crew = clamp(crew(g2) + (d > 0 ? d * soft * rest : d), 0, 100);
   }
   /* 休養・オフシーズンでの回復 */
   function restCrew(g2, amount) {
@@ -5369,7 +5486,8 @@ GP.state = (function () {
     const diff = diffOf(g2);
     const boost = hypeBonus(g2) * (1 + mgr(g2, 'principal') * 0.006);
     const scale = (1 + g2.facilities.market * 0.07) * boost * diff.sponsor
-                * (1 + osk(g2, 'money') * 0.06);   // 商才
+                * (1 + osk(g2, 'money') * 0.06)    // 商才
+                * (hasGear(g2, 'market', 'hosp') ? 1.08 : 1);
     const ts = titleOf(g2);
     const perRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.per || 0), 0)
                                 + (ts ? ts.per : 0)) * scale);
@@ -5691,6 +5809,8 @@ GP.state = (function () {
     if (stTrait(cand, 'loyal')) p *= 0.35;
     if (stTrait(cand, 'star'))  p *= 1.8;
     p *= Math.max(0.5, 1 - osk(g2, 'nego') * 0.04);       // 交渉術で引き止めやすい
+    // 働きやすい職場からは、そもそも人が出ていきにくい
+    p *= Math.max(0.35, 1 - envScore(g2) * D.ENVW.keep);
     if (Math.random() > Math.min(0.34, p)) return null;
     const names = (g2.rivals || []).map(r => r.name);
     return {
@@ -5740,9 +5860,12 @@ GP.state = (function () {
     (g2.youth || []).forEach(d => {
       // 若いうちほど伸びる。24歳を過ぎるとほとんど伸びなくなる
       const ageMul = d.age <= 21 ? 1 : d.age <= 23 ? 0.55 : 0.12;
-      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul;
+      const gearMul = 1 + (hasGear(g2, 'youth', 'dorm') ? 0.15 : 0)
+                        + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0);
+      const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05) * ageMul * gearMul;
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
-        d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * (1 - d[k] / 300), 1, 199);
+        const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
+        d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * extra * (1 - d[k] / 300), 1, 199);
       });
       d.trained++;
       d.exp += Math.round(3 * rate);
@@ -5878,6 +6001,7 @@ GP.state = (function () {
       const chiefs = g.staff.filter(s => s !== st && s.type === st.type &&
                                     staffRank(s).key === 'chief').length;
       const off = rnd(26, 44) * (1 + mentors * 0.14 + chiefs * D.STAFF_CHIEF_MENTOR)
+                * (1 + envScore(g) * D.ENVW.growth)      // 働きやすい職場ほど伸びる
                 * (stTrait(st, 'grower') ? 1.35 : 1);
       const u = giveStaffExp(st, off * staffGrowMul(st));
       if (u) grown.push(st.name + '（技能 ' + st.skill + '／Lv.' + st.expLv + '）');
@@ -6019,6 +6143,7 @@ GP.state = (function () {
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
+    hasGear, gearList, buyGear, envScore, envTier,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
@@ -8016,7 +8141,8 @@ GP.race = (function () {
     if (merch > 0) notes.push('🎫 グッズ・入場料 +' + merch + '万（' + S.fanTier(g).icon + S.fanTier(g).name + '）');
     g.funds += prize + sponsorIncome + merch;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
-    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08));
+    if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
+                                            * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1));
     // 負けが込んでも、離れていくのは一度に1割ちょっとまで。
     // どんなときも残ってくれる人たちがいる
     if (fanDelta < 0) fanDelta = Math.max(fanDelta, -Math.round(g.fans * 0.12) - 20);
@@ -13486,10 +13612,13 @@ window.GP = window.GP || {};
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
     const engBonus = 1 + S.devPower(g) * 0.14;
+    // 現場に入れた道具のぶん
+    const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
+                        + (S.hasGear(g, 'factory', 'am')  ? 0.09 : 0);
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
@@ -13834,7 +13963,8 @@ window.GP = window.GP || {};
   }
   function doMaintain(cost) {
     g.funds -= cost;
-    const mech = 1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08;
+    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
+               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
@@ -13951,7 +14081,9 @@ window.GP = window.GP || {};
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16) * S.persOf(d).train;
+    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+                     + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0)) * S.persOf(d).train;
     let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
@@ -14453,6 +14585,51 @@ window.GP = window.GP || {};
     };
   }
 
+  /* ---- 備品 ----
+     建物を大きくするのが「規模」なら、こちらは「中身」。
+     現場に良い道具を入れ、まともに休める場所を作る。
+     一度買えば残り、施設のレベルが足りないと置く場所がない。     */
+  function gearBoxHTML(fac) {
+    const list = S.gearList(g, fac);
+    if (!list.length) return '';
+    const tier = S.envTier(g), sc = S.envScore(g);
+    let h = '<div class="sub small">備品と職場環境</div>' +
+      '<div class="envbox"><b>' + tier.icon + ' ' + tier.name + '<em>働きやすさ ' + sc + '</em></b>' +
+      '<small>' + esc(tier.desc) + '　—　スタッフの伸び <b>+' +
+      Math.round(sc * D.ENVW.growth * 100) + '%</b>／引き抜かれにくさ <b>+' +
+      Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
+      '<div class="pick gearpick">';
+    list.forEach(x => {
+      const can = !x.owned && x.open && g.funds >= x.cost;
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-gear="' + fac + ':' + x.key + '"' +
+        (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic">' + x.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.name) +
+          (x.owned ? '<em class="gowned">導入済み</em>'
+                   : !x.open ? '<em class="warn">Lv.' + x.need + ' から</em>' : '') + '</b>' +
+        '<small><b>' + esc(x.eff) + '</b>' + (x.env ? '　働きやすさ +' + x.env : '') +
+        '<br><em class="pnote">' + esc(x.note) + '</em></small></span>' +
+        '<span class="pb-cost">' + (x.owned ? '—' : '💰' + money(x.cost)) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+  function bindGear() {
+    const box = $('baseDetail');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-gear]'), b => {
+      b.onclick = () => {
+        const [fac, key] = b.dataset.gear.split(':');
+        const x = S.buyGear(g, fac, key);
+        if (!x) return;
+        GP.sound.play('build');
+        U.log(g, x.icon + ' ' + x.name + ' を導入した（' + x.eff + '）', 'good');
+        U.toast(x.icon + ' ' + x.name + ' を導入！', 'good');
+        if (x.env) U.pop('働きやすさ +' + x.env, 'good');
+        S.save(g); render(); drawBase();
+      };
+    });
+  }
+
   function drawBase() {
     const cv = $('baseCv');
     if (!cv) return;
@@ -14476,15 +14653,20 @@ window.GP = window.GP || {};
                : '💰' + money(cost) + '万')) + '</button></div>' +
       (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
         Math.round(facCut * 100) + '%</b> になっています。</p>' : '') +
+      gearBoxHTML(baseSel) +
       '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
+      const gn = (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length;
+      const gt = (D.GEAR[x.key] || []).length;
       h += '<button class="pickbtn small' + (x.key === baseSel ? ' on' : '') + '" data-fac="' + x.key + '">' +
         x.icon + ' ' + x.name + ' <b>Lv.' + l2 + '</b>' +
+        (gt ? ' <i class="gearn' + (gn === gt ? ' full' : '') + '">備品 ' + gn + '/' + gt + '</i>' : '') +
         (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
     });
     h += '</div>';
     $('baseDetail').innerHTML = h;
+    bindGear();
 
     const up = $('baseUp');
     if (up) up.onclick = () => {

@@ -1837,3 +1837,18 @@ body[data-skin="hd"]{
 .devpol{display:block;font-size:9px;opacity:.85;margin-top:2px}
 .ptr em{font-style:normal;font-size:8px;background:var(--ink);color:#ffeec4;border-radius:3px;
         padding:0 3px;margin-left:3px}
+
+/* ---- 備品と職場環境 ---- */
+.envbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 9px;margin:4px 0 6px}
+.envbox b{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.envbox b em{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+             border-radius:4px;padding:0 7px}
+.envbox small{display:block;font-size:10px;opacity:.85;margin-top:2px}
+.gearpick{gap:5px}
+.gearrow .pb-ic{background:#5a6270;font-size:15px}
+.gearrow.done{opacity:.95;background:var(--paper2);box-shadow:none}
+.gowned{font-style:normal;font-size:9px;background:#2e8b30;color:#fff;border-radius:4px;
+        padding:0 6px;margin-left:6px}
+.gearn{font-style:normal;font-size:9px;background:#5a6270;color:#fff;border-radius:4px;
+       padding:0 5px;margin-left:4px}
+.gearn.full{background:#2e8b30}

@@ -865,10 +865,13 @@ window.GP = window.GP || {};
     const facBonus = 1 + g.facilities.factory * 0.10 +
       ((key === 'aero' || key === 'susp') ? g.facilities.tunnel * 0.12 : 0);
     const engBonus = 1 + S.devPower(g) * 0.14;
+    // 現場に入れた道具のぶん
+    const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
+                        + (S.hasGear(g, 'factory', 'am')  ? 0.09 : 0);
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
@@ -1213,7 +1216,8 @@ window.GP = window.GP || {};
   }
   function doMaintain(cost) {
     g.funds -= cost;
-    const mech = 1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08;
+    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
+               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (p) p.cond = S.clamp(p.cond + S.rnd(16, 26) * mech, 10, 100);
@@ -1330,7 +1334,9 @@ window.GP = window.GP || {};
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16) * S.persOf(d).train;
+    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+                     + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0)) * S.persOf(d).train;
     let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
@@ -1832,6 +1838,51 @@ window.GP = window.GP || {};
     };
   }
 
+  /* ---- 備品 ----
+     建物を大きくするのが「規模」なら、こちらは「中身」。
+     現場に良い道具を入れ、まともに休める場所を作る。
+     一度買えば残り、施設のレベルが足りないと置く場所がない。     */
+  function gearBoxHTML(fac) {
+    const list = S.gearList(g, fac);
+    if (!list.length) return '';
+    const tier = S.envTier(g), sc = S.envScore(g);
+    let h = '<div class="sub small">備品と職場環境</div>' +
+      '<div class="envbox"><b>' + tier.icon + ' ' + tier.name + '<em>働きやすさ ' + sc + '</em></b>' +
+      '<small>' + esc(tier.desc) + '　—　スタッフの伸び <b>+' +
+      Math.round(sc * D.ENVW.growth * 100) + '%</b>／引き抜かれにくさ <b>+' +
+      Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
+      '<div class="pick gearpick">';
+    list.forEach(x => {
+      const can = !x.owned && x.open && g.funds >= x.cost;
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-gear="' + fac + ':' + x.key + '"' +
+        (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic">' + x.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.name) +
+          (x.owned ? '<em class="gowned">導入済み</em>'
+                   : !x.open ? '<em class="warn">Lv.' + x.need + ' から</em>' : '') + '</b>' +
+        '<small><b>' + esc(x.eff) + '</b>' + (x.env ? '　働きやすさ +' + x.env : '') +
+        '<br><em class="pnote">' + esc(x.note) + '</em></small></span>' +
+        '<span class="pb-cost">' + (x.owned ? '—' : '💰' + money(x.cost)) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+  function bindGear() {
+    const box = $('baseDetail');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-gear]'), b => {
+      b.onclick = () => {
+        const [fac, key] = b.dataset.gear.split(':');
+        const x = S.buyGear(g, fac, key);
+        if (!x) return;
+        GP.sound.play('build');
+        U.log(g, x.icon + ' ' + x.name + ' を導入した（' + x.eff + '）', 'good');
+        U.toast(x.icon + ' ' + x.name + ' を導入！', 'good');
+        if (x.env) U.pop('働きやすさ +' + x.env, 'good');
+        S.save(g); render(); drawBase();
+      };
+    });
+  }
+
   function drawBase() {
     const cv = $('baseCv');
     if (!cv) return;
@@ -1855,15 +1906,20 @@ window.GP = window.GP || {};
                : '💰' + money(cost) + '万')) + '</button></div>' +
       (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
         Math.round(facCut * 100) + '%</b> になっています。</p>' : '') +
+      gearBoxHTML(baseSel) +
       '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
+      const gn = (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length;
+      const gt = (D.GEAR[x.key] || []).length;
       h += '<button class="pickbtn small' + (x.key === baseSel ? ' on' : '') + '" data-fac="' + x.key + '">' +
         x.icon + ' ' + x.name + ' <b>Lv.' + l2 + '</b>' +
+        (gt ? ' <i class="gearn' + (gn === gt ? ' full' : '') + '">備品 ' + gn + '/' + gt + '</i>' : '') +
         (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
     });
     h += '</div>';
     $('baseDetail').innerHTML = h;
+    bindGear();
 
     const up = $('baseUp');
     if (up) up.onclick = () => {
