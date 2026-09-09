@@ -37,12 +37,27 @@ GP.state = (function () {
     return {
       id: 'p' + (++partSeq) + Math.random().toString(36).slice(2, 6),
       cat: catKey,
-      name: cat.names[Math.min(cat.names.length - 1, gen)],
+      // 型式名の頭に世代の印。保管庫に古い世代が混ざっても一目で分かる
+      name: (D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, gen)] || {}).name + ' ' +
+            cat.names[Math.min(cat.names.length - 1, gen)],
       gen: gen, rarity: rarity,
       power: power,
       cond: opts.cond != null ? opts.cond : 100,
       traits: traits
     };
+  }
+
+  /* その世代で何が変わったのか。前の世代との差だけを書いてある */
+  function partNote(catKey, gen) {
+    const c = D.PART_CATS.find(x => x.key === catKey);
+    if (!c || !c.notes) return '';
+    return c.notes[Math.min(c.notes.length - 1, gen || 0)] || '';
+  }
+  /* 世代の印つきの型式名（これから作るものの名前を先に見せたいとき） */
+  function partModel(catKey, gen) {
+    const c = D.PART_CATS.find(x => x.key === catKey);
+    const gn = (D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, gen || 0)] || {}).name || '';
+    return gn + ' ' + (c ? c.names[Math.min(c.names.length - 1, gen || 0)] : '');
   }
 
   const hasT = (p, k) => p.traits && p.traits.indexOf(k) >= 0;
@@ -866,8 +881,9 @@ GP.state = (function () {
     return p ? Math.max(0, Math.min(p.power - 8, c.gain * 0.85)) : 0;
   }
   function tdFee(g2, c) {
-    return Math.round(D.TD.feeBase + tdLoss(g2, c) * D.TD.feePerLost
-                    + (g2.season || 1) * D.TD.feePerSeason);
+    return perkPrice(g2, 'legal',
+      Math.round(D.TD.feeBase + tdLoss(g2, c) * D.TD.feePerLost
+               + (g2.season || 1) * D.TD.feePerSeason));
   }
   /* 受け入れる：そのコンセプトを失う。解析したぶんは研究Pに残る。
      争って敗れた場合は、ばらして調べるひまもないので残らない       */
@@ -963,7 +979,8 @@ GP.state = (function () {
   function logiCost(g2, track) {
     const far = (track && track.far) || 1;
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.012 + osk(g2, 'money') * 0.03);
-    return Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut));
+    return perkPrice(g2, 'logi',
+      Math.round(D.LOGI_BASE * far * logiPlan(g2).cost * logiLoad(g2).cost * (1 - cut)));
   }
   /* 荷が遅れる確率。遠いコースほど、そして安く運ぶほど高い。
      ロジスティクス責任者がいると、通関も現地手配も段取りよく進む     */
@@ -1115,7 +1132,7 @@ GP.state = (function () {
   function puPerf(g2) { return puMode(g2).perf - D.PU_PERF_DROP * puTired(g2); }
   /* 新品1基の値段。世代が進むほど高くつく */
   function puFreshCost(g2) {
-    return Math.round(D.PU_FRESH_COST * (1 + (g2.carGen || 0) * 0.20));
+    return perkPrice(g2, 'pu', Math.round(D.PU_FRESH_COST * (1 + (g2.carGen || 0) * 0.20)));
   }
   /* いま載せているユニットを降ろして保管する（残量があれば） */
   function stowPU(pu) {
@@ -1317,6 +1334,42 @@ GP.state = (function () {
   function mgr(g2, key) {
     const m = g2.managers && g2.managers[key];
     return m ? m.skill : 0;
+  }
+
+  /* ---------- サプライヤーの特典 ----------
+     金を出す代わりに、自分たちの商売そのものを安くしてくれる。
+     'fac:factory' のような細かい指定と、'fac' のような広い指定があり、
+     どちらもその費目に効く。合わせても割引には上限を置く          */
+  function perkCut(g2, target) {
+    let cut = 0;
+    (g2.sponsors || []).forEach(sp => {
+      const pk = sp.perk;
+      if (!pk) return;
+      // 'fac' は 'fac:factory' にも効く。逆は効かない
+      if (pk.key === target || (target.indexOf(pk.key + ':') === 0)) cut += pk.cut;
+    });
+    const ts = titleOf(g2);
+    if (ts && ts.perk && (ts.perk.key === target || target.indexOf(ts.perk.key + ':') === 0)) {
+      cut += ts.perk.cut;
+    }
+    return Math.min(D.PERK_CAP, cut);
+  }
+  /* 特典を効かせた値段 */
+  function perkPrice(g2, target, amount) {
+    return Math.round(amount * (1 - perkCut(g2, target)));
+  }
+  /* いま効いている特典の一覧（画面用） */
+  function perkList(g2) {
+    const out = [];
+    const add2 = (sp, pk) => {
+      if (!pk) return;
+      const d = D.PERKS[pk.key] || { icon: '🏭', name: pk.key };
+      out.push({ from: sp.name, icon: d.icon, name: d.name, cut: pk.cut, key: pk.key });
+    };
+    (g2.sponsors || []).forEach(sp => add2(sp, sp.perk));
+    const ts = titleOf(g2);
+    if (ts) add2(ts, ts.perk);
+    return out;
   }
 
   /* ---------- 収支の内訳 ---------- */
@@ -1963,7 +2016,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
-    hypeTier, hypeBonus, addHype, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
+    hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     REG_EVERY, regulationDue, regulationNext, applyRegulation,
@@ -1972,7 +2025,7 @@ GP.state = (function () {
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
-    makePart, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
+    makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,

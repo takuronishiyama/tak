@@ -138,6 +138,8 @@ GP.ui = (function () {
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
       (partTraitChips(p) ? '<span class="p-trs">' + partTraitChips(p) + '</span>' : '') +
+      // その世代で何が変わったのか。読み飛ばせるが、読むと分かる
+      (S.partNote ? '<span class="p-note">' + esc(S.partNote(p.cat, p.gen)) + '</span>' : '') +
       '</div>';
   }
 

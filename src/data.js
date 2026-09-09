@@ -97,22 +97,64 @@ GP.data = (function () {
   ];
 
   /* ---------- マシンパーツのカテゴリ ---------- */
+  /* names は世代ごとの型式名、notes はその世代で「何が変わったのか」。
+     前の世代との差だけを、現場の言葉で書いてある                    */
   const PART_CATS = [
     { key: 'pu',    name: 'パワーユニット', icon: '⚙️', color: '#e04a3f',
       gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6,
-      names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'] },
+      names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'],
+      notes: [
+        '自然吸気の6気筒。ボアもストロークも市販車から借りてきた寸法で、回して稼ぐしかない',
+        'シングルターボと空冷インタークーラーを追加。過給圧がかかるぶん、低い回転からトルクが立つ',
+        '8気筒化とあわせてMGU-Kを載せた。減速で捨てていた運動エネルギーを電気で拾い、立ち上がりに戻す',
+        '機械式過給を併用してターボラグを潰した。アクセルの踏み始めに遅れがなくなる',
+        '合成燃料へ全面移行。燃焼温度が上がったぶん、冷却レイアウトが性能そのものを決めるようになった',
+        '電動過給と可変圧縮比。回転域ごとに別のエンジンのように振る舞い、どこを踏んでも谷がない'
+      ] },
     { key: 'aero',  name: 'エアロダイナミクス', icon: '🪽', color: '#3a7ad9',
       gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6,
-      names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'] },
+      names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'],
+      notes: [
+        '一枚翼を角度で振るだけ。効くには効くが、抵抗もそのまま増える',
+        '翼を上下2段に分けた。下段で寝かせた気流を上段が拾い、同じ抵抗でより多く押しつけられる',
+        '排気をディフューザーへ導く。アクセルを開けているあいだ、床下の負圧が跳ね上がる',
+        '床下をトンネル形状に。翼をほとんど寝かせたまま、車体そのものが吸いつくようになった',
+        '前後の翼を走行中に動かす。直線では寝かせて抵抗を捨て、コーナーで起こして押しつける',
+        '境界層を能動的に制御。剥離が起きないので、抵抗を増やさずに押しつけ量だけを積める'
+      ] },
     { key: 'chas',  name: 'シャシー', icon: '🧱', color: '#4ea63f',
       gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
-      names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'] },
+      names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'],
+      notes: [
+        '鋼管を溶接した骨組み。重いうえによじれるので、足まわりを詰めても手応えが返ってこない',
+        'アルミの箱で一体化。ねじり剛性が上がり、サスの動きがそのままタイヤに伝わるようになった',
+        '炭素繊維で成型。同じ剛性が半分の重さで出るので、余った重量を好きな場所へ置ける',
+        '芯にハニカム材を挟む。局所的な潰れに強くなり、クラッシュ後も車体を再利用できる',
+        '繊維をナノ単位で配向。荷重のかかる向きにだけ硬く、それ以外はしなやかに作り分けられる',
+        'グラフェン積層の一体成型。もはや部品ではなく、車体そのものが一枚の構造材になった'
+      ] },
     { key: 'susp',  name: 'サスペンション', icon: '🌀', color: '#b06fd0',
       gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5,
-      names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'] },
+      names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'],
+      notes: [
+        '上下2本のアームで支える基本形。素直だが、ダンパーが気流のなかに剥き出しで残る',
+        'ロッドで押してダンパーを車体上部へ。ばね下が軽くなり、前まわりの気流もきれいになった',
+        'ロッドで引く方式に変更。重いものを低い位置に置けるので、重心が下がって向きが変わりやすい',
+        '油圧で車高を能動的に保つ。ブレーキでもコーナーでも、床下の隙間が一定のまま走れる',
+        '磁性流体で減衰力を可変に。路面の入力ごとに、1ミリ秒単位で硬さを切り替える',
+        'リニアアクチュエータで4輪を独立制御。もはや「ばね」ではなく、姿勢そのものを作りにいく'
+      ] },
     { key: 'elec',  name: 'エレクトロニクス', icon: '💡', color: '#f0a020',
       gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
-      names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'] }
+      names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'],
+      notes: [
+        '点火と燃料をマップで引くだけ。開幕前に決めた表を、そのまま1年使う',
+        '全面デジタル化。走行中のセンサー値からマップを補正できるようになった',
+        '駆動輪の滑りを検出して出力を落とす。踏みっぱなしでも前に進むようになる',
+        '路面と気温から先読みして設定を変える。ドライバーが気づく前に、車のほうが合わせてくる',
+        '学習型の制御。走るほどそのコースに最適化され、週末のあいだに別物になっていく',
+        '量子計算で全系統を同時最適化。エンジン・足・空力が、ひとつの意思のように動く'
+      ] }
   ];
 
   /* ---------- オーナー（プレイヤー自身） ----------
@@ -507,8 +549,27 @@ GP.data = (function () {
     cash:  { name: '現金型',   icon: '💰', desc: '毎戦まとまった資金が入る' },
     tech:  { name: '技術提携', icon: '🔬', desc: '資金は少ないが、研究ポイントが大きく入る' },
     mixed: { name: '複合型',   icon: '🔀', desc: '資金と研究ポイントの両方が入る' },
-    media: { name: '露出型',   icon: '📣', desc: '資金は控えめだが、ファンと注目度が伸びる' }
+    media: { name: '露出型',   icon: '📣', desc: '資金は控えめだが、ファンと注目度が伸びる' },
+    supply:{ name: 'サプライヤー', icon: '🏭', desc: '現金は少ないが、自社の製品や役務を安く入れてくれる' }
   };
+
+  /* ---------- サプライヤーの特典 ----------
+     金を出す代わりに、自分たちの商売そのものを安くしてくれる。
+     工作機械メーカーなら機械の導入費、燃料屋ならパワーユニット、
+     運送屋なら輸送費。現金の額だけでは測れない価値がここに出る    */
+  const PERKS = {
+    'fac:factory': { icon: '🏭', name: 'ファクトリーの拡張費' },
+    'fac:tunnel':  { icon: '🌀', name: '風洞の拡張費' },
+    'fac:sim':     { icon: '🖥️', name: 'シミュレーターの拡張費' },
+    'fac:pit':     { icon: '🔧', name: 'ピット設備の拡張費' },
+    'fac':         { icon: '🏗️', name: '設備の拡張費（すべて）' },
+    'design':      { icon: '📐', name: 'パーツの設計費' },
+    'improve':     { icon: '🔩', name: 'パーツの開発費' },
+    'pu':          { icon: '⚙️', name: '新品パワーユニットの代金' },
+    'logi':        { icon: '🚚', name: '輸送費' },
+    'legal':       { icon: '⚖️', name: '提訴の費用' }
+  };
+  const PERK_CAP = 0.60;      // 同じ費目への割引は、合わせてここまで
 
   /* ---------- タイトルスポンサー ----------
      チーム名に冠がつく、いちばん大きな契約。
@@ -517,7 +578,8 @@ GP.data = (function () {
   const TITLE_SPONSORS = [
     { key: 'aoi',   name: 'アオイ精機', icon: '🔧', short: 'アオイ',
       per: 1500, rp: 12, fan: 180, fans: 4000,  hype: 26, years: 2,
-      desc: '国内最大の工作機械メーカー。堅実で、契約も長い' },
+      perk: { key: 'fac:factory', cut: 0.30 },
+      desc: '国内最大の工作機械メーカー。堅実で、契約も長い。工場の機械は言い値の7割で入る' },
     { key: 'kuro',  name: 'クロガネ銀行', icon: '🏦', short: 'クロガネ',
       per: 2400, rp: 0,  fan: 120, fans: 12000, hype: 42, years: 2,
       desc: '大手金融。金払いは良いが、結果を強く求めてくる' },
@@ -551,7 +613,36 @@ GP.data = (function () {
     { name: 'オリオン航空',   icon: '✈️', kind: 'media', per: 1500, rp: 0,  fan: 420,
       bonus: 7000,  bonusRp: 0,   need: 2,  fans: 26000, hype: 68 },
     { name: 'ワールドテック', icon: '🌐', kind: 'mixed', per: 1900, rp: 26, fan: 160,
-      bonus: 9000,  bonusRp: 80,  need: 1,  fans: 45000, hype: 82 }
+      bonus: 9000,  bonusRp: 80,  need: 1,  fans: 45000, hype: 82 },
+    /* ---- サプライヤー型 ----
+       現金は控えめだが、自分たちが売っているものを安く入れてくれる  */
+    { name: 'トビウメ工作所', icon: '🔨', kind: 'supply', per: 180,  rp: 4,  fan: 0,
+      bonus: 700,   bonusRp: 12,  need: 12, fans: 200,   hype: 5,
+      perk: { key: 'fac:factory', cut: 0.25 } },
+    { name: 'カメカメ物流',   icon: '📦', kind: 'supply', per: 260,  rp: 0,  fan: 0,
+      bonus: 1200,  bonusRp: 0,   need: 10, fans: 400,   hype: 8,
+      perk: { key: 'logi', cut: 0.22 } },
+    { name: 'ハヤブサ工機',   icon: '🏭', kind: 'supply', per: 300,  rp: 8,  fan: 0,
+      bonus: 1300,  bonusRp: 20,  need: 8,  fans: 1500,  hype: 14,
+      perk: { key: 'fac:factory', cut: 0.35 } },
+    { name: 'ソラカゼ流体',   icon: '🌀', kind: 'supply', per: 280,  rp: 14, fan: 0,
+      bonus: 1100,  bonusRp: 44,  need: 7,  fans: 1800,  hype: 16,
+      perk: { key: 'fac:tunnel', cut: 0.32 } },
+    { name: 'イズミ石油',     icon: '🛢️', kind: 'supply', per: 520,  rp: 6,  fan: 40,
+      bonus: 2400,  bonusRp: 18,  need: 6,  fans: 4000,  hype: 24,
+      perk: { key: 'pu', cut: 0.28 } },
+    { name: 'コウノ素材',     icon: '🧱', kind: 'supply', per: 460,  rp: 16, fan: 0,
+      bonus: 1900,  bonusRp: 50,  need: 5,  fans: 5000,  hype: 26,
+      perk: { key: 'design', cut: 0.30 } },
+    { name: '八重樫法律事務所', icon: '⚖️', kind: 'supply', per: 340, rp: 10, fan: 30,
+      bonus: 1500,  bonusRp: 30,  need: 5,  fans: 3500,  hype: 20,
+      perk: { key: 'legal', cut: 0.45 } },
+    { name: 'ゲンバ商会',     icon: '🏗️', kind: 'supply', per: 700,  rp: 10, fan: 60,
+      bonus: 3200,  bonusRp: 30,  need: 3,  fans: 16000, hype: 48,
+      perk: { key: 'fac', cut: 0.22 } },
+    { name: 'テツヤ精密',     icon: '🔩', kind: 'supply', per: 820,  rp: 22, fan: 0,
+      bonus: 3800,  bonusRp: 70,  need: 2,  fans: 22000, hype: 56,
+      perk: { key: 'improve', cut: 0.24 } }
   ];
 
   /* 目標達成ボーナスは、1シーズンにこの回数まで（契約上の上限） */
@@ -1060,5 +1151,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

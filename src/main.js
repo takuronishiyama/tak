@@ -352,9 +352,10 @@ window.GP = window.GP || {};
   /* =======================================================
      コマンド：開発
      ======================================================= */
-  const improveCost = p => Math.round(D.PART_CATS.find(c => c.key === p.cat).cost * (1 + p.power / 20));
+  const improveCost = p => S.perkPrice(g, 'improve',
+    Math.round(D.PART_CATS.find(c => c.key === p.cat).cost * (1 + p.power / 20)));
   const designCost = () => ({
-    money: Math.round(1000 + g.carGen * 2200),
+    money: S.perkPrice(g, 'design', Math.round(1000 + g.carGen * 2200)),
     rp: Math.round(26 + g.carGen * 24)
   });
 
@@ -548,13 +549,17 @@ window.GP = window.GP || {};
     body += '</div><div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
       '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
       '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
+    const desCut = S.perkCut(g, 'design');
     D.PART_CATS.forEach(c => {
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
       body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
-        '<span class="pb-body"><b>' + esc(c.names[Math.min(c.names.length - 1, g.carGen)]) + ' を設計</b>' +
-        '<small>' + c.name + '／' + D.CAR_GENS[g.carGen].name + '世代</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
+        '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を設計</b>' +
+        '<small>' + c.name + '<br><em class="pnote">' + esc(S.partNote(c.key, g.carGen)) +
+        '</em></small></span>' +
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
+          : (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
+            '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
     });
     body += '</div>';
     U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
@@ -1218,7 +1223,9 @@ window.GP = window.GP || {};
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
-      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。</p>';
+      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。<br>' +
+      '<b>🏭 サプライヤー型</b>は現金こそ少ないものの、自分たちが売っているものを安く入れてくれます。' +
+      '設備の導入費や新品PUの代金は、まとまると効きます。</p>' + perkBoxHTML();
 
     if (g.sponsorOffer) {
       const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
@@ -1305,6 +1312,23 @@ window.GP = window.GP || {};
       };
     });
   }
+  /* ---- いま効いているサプライヤー特典 ----
+     契約の値打ちは、毎戦の入金だけでは測れない                  */
+  function perkBoxHTML() {
+    const list = S.perkList(g);
+    if (!list.length) return '';
+    // 同じ費目に複数ついていれば、合計でいくら安くなっているかを出す
+    const seen = {};
+    list.forEach(x => { seen[x.key] = true; });
+    return '<div class="perkbox"><b>🏭 いま効いている現物支援</b>' +
+      '<div class="perklist">' + list.map(x =>
+        '<span class="perkrow"><b>' + x.icon + ' ' + esc(x.name) + '</b>' +
+        '<em>-' + Math.round(S.perkCut(g, x.key) * 100) + '%</em>' +
+        '<i>' + esc(x.from) + '</i></span>').join('') + '</div>' +
+      '<small>同じ費目に何社かつけば重なりますが、合わせて ' +
+      Math.round(D.PERK_CAP * 100) + '% までです。</small></div>';
+  }
+
   function kindChip(s) {
     const k = D.SPONSOR_KINDS[s.kind] || D.SPONSOR_KINDS.cash;
     return '<em class="skind ' + s.kind + '" title="' + esc(k.desc) + '">' + k.icon + k.name + '</em>';
@@ -1314,7 +1338,14 @@ window.GP = window.GP || {};
     if (s.per) parts.push('💰' + money(s.per) + '万');
     if (s.rp) parts.push('🔬' + s.rp);
     if (s.fan) parts.push('👥' + money(s.fan));
-    return '毎戦 ' + parts.join('　');
+    return '毎戦 ' + parts.join('　') + perkChip(s);
+  }
+  /* 現物で支える相手は、金額だけ見ても価値が分からない */
+  function perkChip(s) {
+    if (!s || !s.perk) return '';
+    const d = D.PERKS[s.perk.key] || { icon: '🏭', name: s.perk.key };
+    return '<em class="perk">' + d.icon + ' ' + d.name + ' -' +
+      Math.round(s.perk.cut * 100) + '%</em>';
   }
 
   function doPromo() {
@@ -1642,7 +1673,8 @@ window.GP = window.GP || {};
   function facilityCost(key) {
     const f = D.FACILITIES.find(x => x.key === key);
     const lv = g.facilities[key];
-    return Math.round(f.base * Math.pow(lv, 1.55));
+    // サプライヤーがついていれば、その設備の導入費が安くなる
+    return S.perkPrice(g, 'fac:' + key, Math.round(f.base * Math.pow(lv, 1.55)));
   }
 
   function cmdFacility() {
@@ -1671,6 +1703,7 @@ window.GP = window.GP || {};
     const f = D.FACILITIES.find(x => x.key === baseSel);
     const lv = g.facilities[baseSel];
     const cost = facilityCost(baseSel);
+    const facCut = S.perkCut(g, 'fac:' + baseSel);
     const max = lv >= 10;
     let h = '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
       '<p class="desc">' + f.desc + '</p>' +
@@ -1680,7 +1713,12 @@ window.GP = window.GP || {};
     h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
       '<div class="basebtns">' +
       '<button class="btn primary" id="baseUp"' + ((max || g.funds < cost) ? ' disabled' : '') + '>' +
-      (max ? '最大まで拡張済み' : '🔨 拡張する　💰' + money(cost) + '万') + '</button></div>' +
+      (max ? '最大まで拡張済み'
+           : '🔨 拡張する　' + (facCut > 0
+               ? '<s>💰' + money(Math.round(cost / (1 - facCut))) + '</s> 💰' + money(cost) + '万'
+               : '💰' + money(cost) + '万')) + '</button></div>' +
+      (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
+        Math.round(facCut * 100) + '%</b> になっています。</p>' : '') +
       '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
@@ -4007,7 +4045,7 @@ window.GP = window.GP || {};
           '<span class="pb-ic" style="background:' + (D.SPONSOR_KINDS[sp.kind] || {}).color + '">' +
             ((D.SPONSOR_KINDS[sp.kind] || {}).icon || '📣') + '</span>' +
           '<span class="pb-body"><b>' + esc(sp.name) + '</b>' +
-          '<small>毎戦 💰' + money(per) + (rp ? '＋🔬' + rp : '') + '</small></span>' +
+          '<small>毎戦 💰' + money(per) + (rp ? '＋🔬' + rp : '') + perkChip(sp) + '</small></span>' +
           '</button>';
       });
       body += '</div>';
