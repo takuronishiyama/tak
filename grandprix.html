@@ -1987,6 +1987,26 @@ body[data-skin="hd"]{
 .rv-ty.aqua{box-shadow:inset 0 0 0 2px #4aa8ff, 0 0 6px rgba(74,168,255,.9);
             animation:blink .7s steps(2,end) infinite}
 
+/* ---- 長いモーダルの区画分け ----
+   見出しから次の見出しまでを一区画にして、たためるようにする。
+   上に飛び先の並びを貼りつけ、いまどこを見ているかを分かるようにする。 */
+.msecbar{position:-webkit-sticky;position:sticky;top:-12px;z-index:5;
+         display:flex;gap:4px;flex-wrap:wrap;margin:-12px -12px 8px;padding:8px 12px;
+         background:var(--paper2);border-bottom:2px solid var(--ink)}
+.msecbar button{background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
+                font-size:11px;padding:4px 9px;box-shadow:0 2px 0 rgba(74,47,26,.35);white-space:nowrap}
+.msecbar button:active{transform:translateY(2px);box-shadow:0 0 0}
+.msec{margin-bottom:2px}
+.msec-h{cursor:pointer;position:-webkit-sticky;position:sticky;top:34px;z-index:4;
+        display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box}
+.msec-h::after{content:'▾';margin-left:auto;font-size:11px;opacity:.8}
+.msec.closed > .msec-h::after{content:'▸'}
+.msec.closed > *:not(.msec-h){display:none}
+@media (max-width:520px), (hover:none) and (pointer:coarse){
+  .msecbar button{font-size:12px;padding:7px 10px;min-height:36px}
+  .msec-h{min-height:36px;top:44px}
+}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -13179,7 +13199,54 @@ GP.ui = (function () {
       el.onclick = b.fn;
       bar.appendChild(el);
     });
+    sectionize($('modalBody'));
     return $('modalBody');
+  }
+
+  /* ---- 長いモーダルを、たたんだり飛んだりできるようにする ----
+     見出し（.sub）から次の見出しまでを一区画として包み、
+     上に飛び先の並びを出す。見出しは触るとたためる。
+     短いモーダルには何もしない。                                  */
+  function sectionize(body) {
+    if (!body) return;
+    const kids = Array.prototype.slice.call(body.children);
+    const subs = kids.filter(el => el.classList && el.classList.contains('sub') &&
+                                   !el.classList.contains('small'));
+    if (subs.length < 2) return;
+    // 1画面半に収まるものは、そのままのほうが読みやすい
+    if (body.scrollHeight < body.clientHeight * 1.5) return;
+
+    subs.forEach(h => {
+      const sec = document.createElement('div');
+      sec.className = 'msec';
+      h.parentNode.insertBefore(sec, h);
+      sec.appendChild(h);
+      let n = sec.nextSibling;
+      while (n && !(n.classList && n.classList.contains('sub') &&
+                    !n.classList.contains('small'))) {
+        const nx = n.nextSibling;
+        sec.appendChild(n);
+        n = nx;
+      }
+      h.classList.add('msec-h');
+      h.setAttribute('role', 'button');
+      h.onclick = () => { sec.classList.toggle('closed'); };
+    });
+
+    // 飛び先の並び。上に貼りついて、いまどこに居るかが分かる
+    const secs = Array.prototype.slice.call(body.querySelectorAll('.msec'));
+    const nav = document.createElement('div');
+    nav.className = 'msecbar';
+    secs.forEach((sec, i) => {
+      const b = document.createElement('button');
+      b.textContent = (sec.firstChild.textContent || '').trim();
+      b.onclick = () => {
+        sec.classList.remove('closed');
+        body.scrollTop = sec.offsetTop - nav.offsetHeight - 4;
+      };
+      nav.appendChild(b);
+    });
+    body.insertBefore(nav, secs[0]);
   }
   function closeModal() { $('modal').className = ''; }
 
@@ -13205,7 +13272,10 @@ window.GP = window.GP || {};
   /* =======================================================
      週の進行
      ======================================================= */
-  function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week === S.raceWeek(g.nextRace); }
+  /* レース週かどうか。「ちょうどその週」ではなく「その週以降」で見る。
+     何かの拍子に週を跨いでしまった保存データでも、決勝に行けるようにする
+     （以前は === だったため、跨ぐと二度とレースに行けなくなっていた）  */
+  function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week >= S.raceWeek(g.nextRace); }
 
   function endWeek() {
     crunchConsume(true);
@@ -15110,6 +15180,15 @@ window.GP = window.GP || {};
      ======================================================= */
   function askKart() {
     const K = D.KART;
+    // 施設画面からも開けるので、週を使ってよい時かどうかをここで確かめる。
+    // レース週にこれを走らせると、決勝の週を潰してしまう
+    if (isRaceWeek() || g.offseason) {
+      return U.modal('🏁 カートレース',
+        '<p class="lead">' + (g.offseason ? 'オフのあいだは開けません。' : '今週は決勝です。') + '</p>' +
+        '<p class="desc">カートレースは1週かかります。' +
+        (g.offseason ? '来季が始まってから開きましょう。' : 'レースが終わってからにしましょう。') + '</p>',
+        [{ label: '戻る', cls: 'primary', fn: U.closeModal }]);
+    }
     const ys = (g.youth || []);
     if (!ys.length) {
       return U.modal('🏁 カートレース',

@@ -721,7 +721,54 @@ GP.ui = (function () {
       el.onclick = b.fn;
       bar.appendChild(el);
     });
+    sectionize($('modalBody'));
     return $('modalBody');
+  }
+
+  /* ---- 長いモーダルを、たたんだり飛んだりできるようにする ----
+     見出し（.sub）から次の見出しまでを一区画として包み、
+     上に飛び先の並びを出す。見出しは触るとたためる。
+     短いモーダルには何もしない。                                  */
+  function sectionize(body) {
+    if (!body) return;
+    const kids = Array.prototype.slice.call(body.children);
+    const subs = kids.filter(el => el.classList && el.classList.contains('sub') &&
+                                   !el.classList.contains('small'));
+    if (subs.length < 2) return;
+    // 1画面半に収まるものは、そのままのほうが読みやすい
+    if (body.scrollHeight < body.clientHeight * 1.5) return;
+
+    subs.forEach(h => {
+      const sec = document.createElement('div');
+      sec.className = 'msec';
+      h.parentNode.insertBefore(sec, h);
+      sec.appendChild(h);
+      let n = sec.nextSibling;
+      while (n && !(n.classList && n.classList.contains('sub') &&
+                    !n.classList.contains('small'))) {
+        const nx = n.nextSibling;
+        sec.appendChild(n);
+        n = nx;
+      }
+      h.classList.add('msec-h');
+      h.setAttribute('role', 'button');
+      h.onclick = () => { sec.classList.toggle('closed'); };
+    });
+
+    // 飛び先の並び。上に貼りついて、いまどこに居るかが分かる
+    const secs = Array.prototype.slice.call(body.querySelectorAll('.msec'));
+    const nav = document.createElement('div');
+    nav.className = 'msecbar';
+    secs.forEach((sec, i) => {
+      const b = document.createElement('button');
+      b.textContent = (sec.firstChild.textContent || '').trim();
+      b.onclick = () => {
+        sec.classList.remove('closed');
+        body.scrollTop = sec.offsetTop - nav.offsetHeight - 4;
+      };
+      nav.appendChild(b);
+    });
+    body.insertBefore(nav, secs[0]);
   }
   function closeModal() { $('modal').className = ''; }
 
