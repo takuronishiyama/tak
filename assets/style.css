@@ -1857,3 +1857,33 @@ body[data-skin="hd"]{
 .kartgo{color:#2e8b30}
 [data-skin="hd"] .kartgo{color:#8ef08e}
 .kartlog{height:auto;max-height:120px;margin:8px 0}
+
+/* ---- タイミングモニター（全車） ---- */
+.rv-sectors.board{max-height:230px;overflow-y:auto;padding:2px 4px}
+.tb-row{display:flex;align-items:center;gap:3px;font-size:10px;color:#e8dcc0;
+        font-variant-numeric:tabular-nums;padding:1px 0;border-bottom:1px solid rgba(255,238,196,.07)}
+.tb-row.tb-head{color:#cbbb9a;font-size:9px;border-bottom:1px dashed rgba(255,238,196,.28);
+                position:sticky;top:0;background:#241a12;z-index:2}
+.tb-row.me{background:rgba(255,242,196,.16);font-weight:bold}
+.tb-row.out{opacity:.38;text-decoration:line-through}
+.tb-row.pit{background:rgba(255,243,77,.14)}
+.tb-p{width:18px;text-align:right;flex-shrink:0}
+.tb-nm{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden;
+       text-overflow:ellipsis;white-space:nowrap}
+.tb-nm i{width:7px;height:7px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
+.tb-lap{width:20px;text-align:right;flex-shrink:0;opacity:.85}
+.tb-ty{width:34px;text-align:center;flex-shrink:0}
+.tb-ty .rv-ty{min-width:0;padding:0 3px}
+.tb-g{width:44px;text-align:right;flex-shrink:0}
+.tb-g.lead{color:#ffd23a;font-weight:bold}
+.tb-s{width:50px;text-align:right;flex-shrink:0;color:#d8ccb0}
+.tb-s.green{color:#6cf06c;font-weight:bold}
+.tb-s.purple{color:#d88cff;font-weight:bold}
+.tb-s.old{opacity:.42;font-weight:normal}
+.tb-t{width:62px;text-align:right;flex-shrink:0;color:#fff}
+.tb-t.purple{color:#d88cff;font-weight:bold}
+@media (max-width:860px){
+  .tb-s{width:42px}
+  .tb-t{width:54px}
+  .tb-lap{display:none}
+}

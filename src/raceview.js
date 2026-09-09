@@ -1487,13 +1487,15 @@ GP.raceview = (function () {
      セッション最速（紫）と自己ベスト（緑）を更新していく
      ========================================================= */
   let secTimeline = [], secPtr = 0, liveBest = [Infinity, Infinity, Infinity], liveCar = {};
+  let liveBestLap = Infinity;
+  let timingAll = false;        // タイミングモニター（全車）を出しているか
 
   function buildSectorTimeline() {
     secTimeline = []; secPtr = 0;
-    liveBest = [Infinity, Infinity, Infinity]; liveCar = {};
+    liveBest = [Infinity, Infinity, Infinity]; liveCar = {}; liveBestLap = Infinity;
     res.entries.forEach(e => {
       liveCar[e.id] = { best: [Infinity, Infinity, Infinity], cur: [null, null, null],
-                        at: [0, 0, 0], lastLap: null, lap: 0 };
+                        at: [0, 0, 0], lastLap: null, bestLap: null, lap: 0 };
       const laps = e.dnf && e.dnfLap > 0 ? e.dnfLap - 1 : e.sectors.length;
       for (let l = 0; l < laps; l++) {
         const sec = e.sectors[l];
@@ -1523,7 +1525,12 @@ GP.raceview = (function () {
         if (s.v < c.best[s.k]) c.best[s.k] = s.v;
         if (s.v < liveBest[s.k]) liveBest[s.k] = s.v;
       }
-      if (s.k === 2) c.lastLap = s.lapTime;
+      if (s.k === 2) {
+        c.lastLap = s.lapTime;
+        // 1周目はスタート進行ぶんが乗るので、ベストからは外す
+        if (s.lap > 1 && (c.bestLap == null || s.lapTime < c.bestLap)) c.bestLap = s.lapTime;
+        if (s.lap > 1 && s.lapTime < liveBestLap) liveBestLap = s.lapTime;
+      }
     }
   }
 
@@ -1540,6 +1547,8 @@ GP.raceview = (function () {
   function renderSectors() {
     const box = document.getElementById('rvSectors');
     if (!box) return;
+    box.classList.toggle('board', timingAll);
+    if (timingAll) return renderTimingBoard(box);
     const mine = res.entries.filter(e => e.isPlayer);
     let h = '';
     mine.forEach(e => {
@@ -1585,6 +1594,82 @@ GP.raceview = (function () {
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';
     box.innerHTML = h;
+  }
+
+  /* ---------- タイミングモニター（全車）----------
+     ピットウォールで見ている画面。全車のセクタータイム、いまの周、
+     ベストラップ、前の車とのギャップを、そのまま並べる。          */
+  function renderTimingBoard(box) {
+    const ord = orderAt(vt);
+    const leader = ord[0];
+    // 先頭との差を先に出しておく。前の車との差は、その引き算で出す
+    const behind = ord.map((o, i) => o.out ? null
+      : (i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p))));
+    let h = '<div class="tb-row tb-head">' +
+      '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
+      '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
+      '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
+      '<span class="tb-s">S1</span><span class="tb-s">S2</span><span class="tb-s">S3</span>' +
+      '<span class="tb-t">ラップ</span><span class="tb-t">ベスト</span></div>';
+    ord.forEach((o, i) => {
+      const e = o.e;
+      const c = liveCar[e.id] || { cur: [null, null, null], best: [Infinity, Infinity, Infinity],
+                                   at: [0, 0, 0], lap: 0, lastLap: null, bestLap: null };
+      const pitting = !o.out && inPit(e, vt);
+      const li = lapInfo(e, vt);
+      const ty = tyreNow(e, vt);
+      let tychip = '<span class="tb-ty">–</span>';
+      if (ty) {
+        const td = GP.data.TYRES.filter(x => x.key === ty.key)[0] || GP.data.TYRES[1];
+        const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.7 ? ' old' : '';
+        tychip = '<span class="tb-ty"><b class="rv-ty' + worn + '" style="background:' + td.color +
+          ';color:' + td.text + '">' + td.short + '<em>' + ty.age + '</em></b></span>';
+      }
+      const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
+                 : '+' + (behind[i] - behind[i - 1]).toFixed(1);
+      const gapL = o.out ? 'DNF' : pitting ? 'PIT'
+                 : (i === 0 ? '先頭' : '+' + behind[i].toFixed(1));
+      let secs = '';
+      for (let k = 0; k < 3; k++) {
+        const v = c.cur[k];
+        let cls = '';
+        if (v != null && liveBest[k] !== Infinity) {
+          if (v <= liveBest[k] + 1e-9) cls = ' purple';
+          else if (c.best[k] !== Infinity && v <= c.best[k] + 1e-9) cls = ' green';
+        }
+        if (v != null && c.at[k] !== c.lap) cls += ' old';
+        secs += '<span class="tb-s' + cls + '">' + fmtSec(v) + '</span>';
+      }
+      const bl = c.bestLap;
+      const blCls = (bl != null && liveBestLap !== Infinity && bl <= liveBestLap + 1e-9) ? ' purple' : '';
+      h += '<div class="tb-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') +
+        (pitting ? ' pit' : '') + '">' +
+        '<span class="tb-p">' + (i + 1) + '</span>' +
+        '<span class="tb-nm"><i style="background:' + e.color + '"></i>' + rvEsc(e.driver.name) + '</span>' +
+        '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
+        tychip +
+        '<span class="tb-g">' + gapA + '</span>' +
+        '<span class="tb-g' + (i === 0 ? ' lead' : '') + '">' + gapL + '</span>' +
+        secs +
+        '<span class="tb-t">' + fmtLap(c.lastLap) + '</span>' +
+        '<span class="tb-t' + blCls + '">' + fmtLap(bl) + '</span></div>';
+    });
+    h += '<div class="tb-row tb-head"><span class="tb-p"></span>' +
+      '<span class="tb-nm">セッション最速</span><span class="tb-lap"></span><span class="tb-ty"></span>' +
+      '<span class="tb-g"></span><span class="tb-g"></span>' +
+      [0, 1, 2].map(k => '<span class="tb-s purple">' +
+        (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
+      '<span class="tb-t"></span><span class="tb-t purple">' +
+      (liveBestLap === Infinity ? '--:--.---' : fmtLap(liveBestLap)) + '</span></div>';
+    box.innerHTML = h;
+  }
+
+  /* タイミングモニターの表示切り替え。止まっていても、すぐ描き直す */
+  function setTiming(on) {
+    timingAll = !!on;
+    advanceSectors(vt);
+    renderSectors();
+    return timingAll;
   }
 
   function finish() { if (onEnd) { const f = onEnd; onEnd = null; f(); } }
@@ -1700,6 +1785,6 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, paintCar,
+  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, setTiming, paintCar,
            _drawCar: drawCar, _drawPitCrew: drawPitCrew, _drawSafetyCar: drawSafetyCar };
 })();

@@ -5813,6 +5813,13 @@ window.GP = window.GP || {};
       U.toast('⏱ 実時間で進みます（残り約 ' + Math.ceil(sec / 60) + ' 分）', 'good');
     };
     $('rvSkip').onclick = () => RV.skip();
+    // 📋 タイミング：全車のセクター・ラップ・ベスト・前車とのギャップ
+    const tm = $('rvTiming');
+    if (tm) tm.onclick = () => {
+      const on = RV.setTiming(!tm.classList.contains('primary'));
+      tm.classList.toggle('primary', on);
+      GP.sound.play('tap');
+    };
     Array.prototype.forEach.call($('rvCam').children, b => {
       b.onclick = () => { GP.sound.play('tap'); RV.setCamMode(b.dataset.cam); };
     });
