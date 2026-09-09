@@ -2321,6 +2321,35 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* ---- 決勝の空模様の見通し ----
+     予選が終わった時点で、この先どうなりそうかを％で出す。
+     当たるかどうかは読みの力しだい。ここを信じてタイヤを賭けられる */
+  function forecastHTML(pre) {
+    if (!pre || !pre.forecast) return '';
+    const f = pre.forecast;
+    const wx = pre.weather;
+    const pc = Math.round(f.p * 100);
+    const fo = Math.round(S.foresightOf(g) * 100);
+    const cls = pc >= 65 ? 'hi' : pc >= 35 ? 'mid' : 'lo';
+    const wet = f.to && (f.to.key === 'rain' || f.to.key === 'storm');
+    return '<div class="sub">🌤️ 決勝の空模様</div>' +
+      '<div class="fcbox ' + cls + '">' +
+      '<span class="fc-now"><u>スタート時</u><b>' + wx.icon + '</b><span>' + wx.name + '</span></span>' +
+      '<span class="fc-arrow">→</span>' +
+      '<span class="fc-next"><u>この先</u><b>' + (f.to ? f.to.icon : '☁️') + '</b>' +
+      '<span>' + (f.to ? f.to.name : 'くもり') + ' <b>' + pc + '%</b></span></span>' +
+      '<small>ピットウォールの読み <b>' + fo + '%</b>' +
+      '（🧠ストラテジストと📡天気の設備で上がります）。' +
+      '読みが高いほど、この％は本当のことに近づきます。<br>' +
+      (pc >= 65
+        ? (wet ? '<b class="warn">降る可能性が高い。スタートタイヤを賭けるなら、ここです。</b>'
+               : '<b>路面は良くなっていく見込みです。</b>')
+        : pc >= 35
+        ? '<b>五分に近い。読み違えると大きく損をしますが、当てれば一気に前へ出られます。</b>'
+        : 'いまのところ、大きく動く気配はありません。') +
+      '</small></div>';
+  }
+
   /* そのチームが機材をどうやって運んできたか。荷が遅れていれば⏳ */
   function logiChip(e) {
     if (!e.logi) return '<span class="gp-lg"></span>';
@@ -3915,6 +3944,7 @@ window.GP = window.GP || {};
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
+    body += forecastHTML(res);
     body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
     // 選び直したら、決勝ぶんの数字だけ入れ替えて出し直す（並びは動かさない）

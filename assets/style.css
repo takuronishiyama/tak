@@ -2333,3 +2333,36 @@ body[data-skin="hd"]{
     border-radius:5px;font-size:11px;padding:3px 8px}
 }
 @keyframes rotatehint{0%,60%,100%{transform:rotate(0)}30%{transform:rotate(90deg)}}
+
+/* ---- 空模様：過去・いま・この先 ---- */
+.rv-fore{display:inline-flex;align-items:stretch;gap:3px;flex-shrink:0}
+.rv-fore .fc{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-style:normal;min-width:46px;padding:1px 5px;border-radius:6px;line-height:1.15;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,238,196,.25)}
+.rv-fore .fc u{text-decoration:none;font-size:8px;opacity:.7}
+.rv-fore .fc b{font-size:12px}
+.rv-fore .fc span{font-size:9px;white-space:nowrap}
+.rv-fore .fc.past{opacity:.55}
+.rv-fore .fc.now{background:rgba(255,238,196,.20);border-color:rgba(255,238,196,.55)}
+.rv-fore .fc.next.hi{background:rgba(58,122,217,.42);border-color:#7fb2ff}
+.rv-fore .fc.next.mid{background:rgba(201,139,16,.36);border-color:#e0b24a}
+.rv-fore .fc.next.lo{background:rgba(255,255,255,.07)}
+@media (orientation:landscape) and (max-height:520px){
+  .rv-fore .fc{min-width:40px;padding:0 4px}
+  .rv-fore .fc b{font-size:11px}
+  .rv-fore .fc span{font-size:8px}
+}
+
+/* ---- 決勝の空模様の見通し ---- */
+.fcbox{display:grid;grid-template-columns:auto auto 1fr;gap:6px 10px;align-items:center;
+  background:var(--paper3);border:3px solid var(--ink);border-radius:9px;padding:8px 10px;
+  margin:4px 0 8px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
+.fcbox.hi{border-color:#3a7ad9}
+.fcbox.mid{border-color:#c98b10}
+.fcbox .fc-now,.fcbox .fc-next{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.fcbox .fc-now u,.fcbox .fc-next u{text-decoration:none;font-size:9px;opacity:.7}
+.fcbox .fc-now b,.fcbox .fc-next b{font-size:22px}
+.fcbox .fc-now span,.fcbox .fc-next span{font-size:11px;white-space:nowrap}
+.fcbox .fc-next span b{font-size:13px}
+.fcbox .fc-arrow{font-size:16px;opacity:.6}
+.fcbox small{grid-column:1 / -1;font-size:11px;line-height:1.55}

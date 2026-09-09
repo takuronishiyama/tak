@@ -2349,6 +2349,39 @@ body[data-skin="hd"]{
 }
 @keyframes rotatehint{0%,60%,100%{transform:rotate(0)}30%{transform:rotate(90deg)}}
 
+/* ---- 空模様：過去・いま・この先 ---- */
+.rv-fore{display:inline-flex;align-items:stretch;gap:3px;flex-shrink:0}
+.rv-fore .fc{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-style:normal;min-width:46px;padding:1px 5px;border-radius:6px;line-height:1.15;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,238,196,.25)}
+.rv-fore .fc u{text-decoration:none;font-size:8px;opacity:.7}
+.rv-fore .fc b{font-size:12px}
+.rv-fore .fc span{font-size:9px;white-space:nowrap}
+.rv-fore .fc.past{opacity:.55}
+.rv-fore .fc.now{background:rgba(255,238,196,.20);border-color:rgba(255,238,196,.55)}
+.rv-fore .fc.next.hi{background:rgba(58,122,217,.42);border-color:#7fb2ff}
+.rv-fore .fc.next.mid{background:rgba(201,139,16,.36);border-color:#e0b24a}
+.rv-fore .fc.next.lo{background:rgba(255,255,255,.07)}
+@media (orientation:landscape) and (max-height:520px){
+  .rv-fore .fc{min-width:40px;padding:0 4px}
+  .rv-fore .fc b{font-size:11px}
+  .rv-fore .fc span{font-size:8px}
+}
+
+/* ---- 決勝の空模様の見通し ---- */
+.fcbox{display:grid;grid-template-columns:auto auto 1fr;gap:6px 10px;align-items:center;
+  background:var(--paper3);border:3px solid var(--ink);border-radius:9px;padding:8px 10px;
+  margin:4px 0 8px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
+.fcbox.hi{border-color:#3a7ad9}
+.fcbox.mid{border-color:#c98b10}
+.fcbox .fc-now,.fcbox .fc-next{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.fcbox .fc-now u,.fcbox .fc-next u{text-decoration:none;font-size:9px;opacity:.7}
+.fcbox .fc-now b,.fcbox .fc-next b{font-size:22px}
+.fcbox .fc-now span,.fcbox .fc-next span{font-size:11px;white-space:nowrap}
+.fcbox .fc-next span b{font-size:13px}
+.fcbox .fc-arrow{font-size:16px;opacity:.6}
+.fcbox small{grid-column:1 / -1;font-size:11px;line-height:1.55}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2465,6 +2498,7 @@ body[data-skin="hd"]{
       <b id="rvTrack">-</b>
       <span id="rvWeather">-</span>
       <span id="rvLap">LAP 1 / 1</span>
+      <span id="rvFore" class="rv-fore"></span>
       <span id="rvRubber" class="rv-wet"></span>
       <span id="rvWet" class="rv-wet"></span>
       <span id="rvOrders" class="rv-orders"></span>
@@ -8841,6 +8875,65 @@ GP.race = (function () {
              entries: entries, grid: grid, special: special, isFP: true };
   }
 
+  /* ---------- 天候の先ゆき ----------
+     決勝の途中で空模様が動くかどうかを、予選の時点で決めておく。
+     こうしておくと「まだ起きていないこと」に対して予報が出せる。
+     予報が当たるかどうかは、読みの力（ストラテジスト＋天気の設備）しだい。 */
+  function rollWxChange(weather, laps, special) {
+    if (special || laps < 12) return null;
+    const WX_ODDS = { sunny: 0.26, cloud: 0.34, rain: 0.55, storm: 0.55 };
+    const odds = WX_ODDS[weather.key] != null ? WX_ODDS[weather.key] : 0.30;
+    if (Math.random() >= odds) return null;
+    let to;
+    if (weather.wetTyres) {
+      to = D.WEATHER[Math.random() < 0.62 ? 1 : 0];
+    } else if (weather.key === 'sunny') {
+      to = Math.random() < 0.80 ? D.WEATHER[1] : D.WEATHER[2];
+    } else {
+      const r2 = Math.random();
+      to = r2 < 0.56 ? D.WEATHER[0] : (r2 < 0.95 ? D.WEATHER[2] : D.WEATHER[3]);
+    }
+    return { to: to, at: S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74)) };
+  }
+  /* ある時点から見た「この先の予報」。
+     近づくほど当たり、読みが浅いほど、直前まではっきりしない。
+     読みが浅いチームは、ありもしない雨を見ることもある            */
+  function forecastAt(chg, lap, laps, foresight, seed) {
+    const f = S.clamp(foresight == null ? 0.3 : foresight, 0.05, 0.95);
+    const horizon = Math.max(6, Math.round(laps * 0.45));
+    // 同じ状況なら同じ予報になるよう、ぶれは種から作る
+    const jit = (k) => {
+      const str = 'f' + seed + '|' + lap + '|' + k;
+      let h = 5;
+      for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 100003;
+      return h / 100003;
+    };
+    /* 決勝が始まる前（lap 0）は「この週末に動くかどうか」を出す。
+       何周目に、までは当てられないが、動くか動かないかは読める     */
+    if (lap === 0) {
+      if (chg) {
+        return { to: chg.to, at: chg.at, in: chg.at,
+                 p: S.clamp(0.10 + f * 0.72 + (jit('c') - 0.5) * (1 - f) * 0.95, 0.05, 0.96),
+                 real: true };
+      }
+      return { to: D.WEATHER[2], at: null, in: null,
+               p: S.clamp((1 - f) * 0.62 * jit('d'), 0.02, 0.62), real: false };
+    }
+    if (chg && chg.at >= lap) {
+      const d = chg.at - lap;
+      if (d <= horizon) {
+        const near = 1 - d / horizon;
+        const p = S.clamp(0.12 + near * (0.30 + f * 0.66)
+                        + (jit('a') - 0.5) * (1 - f) * 0.55, 0.05, 0.97);
+        return { to: chg.to, at: chg.at, in: d, p: p, real: true };
+      }
+    }
+    // 何も来ない週。読みが浅いほど、ありもしない予報を見る
+    const p = S.clamp((1 - f) * 0.50 * jit('b'), 0.02, 0.55);
+    const wet = chg ? chg.to : null;
+    return { to: wet || D.WEATHER[2], at: null, in: null, p: p, real: false };
+  }
+
   /* ---------- 予選まで ----------
      グリッドを先に確定させて、決勝の前に見せられるようにする。
      ここで作ったものを simulate に渡すと、そのまま決勝に使われる      */
@@ -8852,8 +8945,13 @@ GP.race = (function () {
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
     const grid = qualify(entries, track, weather);
+    const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
+    const wxChange = rollWxChange(weather, laps, special);
     return { trackIndex: trackIndex, track: track, weather: weather,
-             entries: entries, grid: grid, special: special };
+             entries: entries, grid: grid, special: special,
+             laps: laps, wxChange: wxChange,
+             // 決勝が始まる前に見える予報（0周目から見た先ゆき）
+             forecast: forecastAt(wxChange, 0, laps, S.foresightOf(g), trackIndex + '|' + g.season) };
   }
 
   /* 予選が終わったあとで出力モードを変えたときに、決勝ぶんの速さと
@@ -9185,21 +9283,16 @@ GP.race = (function () {
     /* 空模様は、雨でなくても動く。晴れがくもりに、くもりが晴れに変わる
        だけでも、路面の乾きかたとタイヤの選択が変わる。
        「雨のレース」は減らしつつ、動きのある週末は増やしたい       */
-    const WX_ODDS = { sunny: 0.26, cloud: 0.34, rain: 0.55, storm: 0.55 };
-    const odds = WX_ODDS[weather.key] != null ? WX_ODDS[weather.key] : 0.30;
-    if (!special && laps >= 12 && Math.random() < odds) {
-      if (weather.wetTyres) {
-        // 雨は、たいてい上がっていく。乾いていく路面がいちばん面白い
-        wxTo = D.WEATHER[Math.random() < 0.62 ? 1 : 0];
-      } else if (weather.key === 'sunny') {
-        // 晴れの日はまず曇る。そこからさらに降り出すのは、ときどきだけ
-        wxTo = Math.random() < 0.80 ? D.WEATHER[1] : D.WEATHER[2];
-      } else {
-        // くもりは、晴れることも降り出すこともある
-        const r2 = Math.random();
-        wxTo = r2 < 0.56 ? D.WEATHER[0] : (r2 < 0.95 ? D.WEATHER[2] : D.WEATHER[3]);
-      }
-      wxAt = S.rint(Math.round(laps * 0.22), Math.round(laps * 0.74));
+    // 予選の時点で決めてあれば、それをそのまま使う（予報と食い違わせない）
+    const chg = pre && pre.wxChange !== undefined ? pre.wxChange
+              : rollWxChange(weather, laps, special);
+    if (chg) { wxTo = chg.to; wxAt = chg.at; }
+    /* 各周から見た「この先の予報」。読みの力でぶれる。
+       観戦画面の 過去／いま／この先 の表示に使う                */
+    const foreSeed = trackIndex + '|' + (g.season || 1);
+    const foreLog = [];
+    for (let l = 1; l <= laps; l++) {
+      foreLog.push(forecastAt(chg, l, laps, S.foresightOf(g), foreSeed));
     }
 
     if (splitInfo) {
@@ -10133,7 +10226,7 @@ GP.race = (function () {
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
-      events, radio: radio, wetLog: wetLog, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
+      events, radio: radio, wetLog: wetLog, foreLog: foreLog, wxChange: chg, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
@@ -11762,6 +11855,42 @@ GP.raceview = (function () {
           '%;background:' + lv.color + '"></u></span>' +
           '<i class="rvw-h">' + lv.name + '</i>';
       }
+    }
+
+    /* ---- 空模様：過去・いま・この先 ----
+       いま何が起きているかだけでなく、何周か前がどうだったか、
+       この先どうなりそうかを並べる。この先は「％」で出るので、
+       賭けに出るかどうかを自分で決められる                    */
+    const fb = document.getElementById('rvFore');
+    if (fb) {
+      const wl2 = res.wetLog || [];
+      const avgAt = l => {
+        const a = wl2[Math.max(0, Math.min(wl2.length - 1, l - 1))];
+        return a ? (a[0] + a[1] + a[2]) / 3 : 0;
+      };
+      const lvOf = v => (GP.data.WET_LEVELS || []).filter(x => v < x.at)[0] ||
+                        (GP.data.WET_LEVELS || [])[0];
+      const back = Math.max(1, lap - 4);
+      const past = lvOf(avgAt(back)), now = lvOf(avgAt(lap));
+      const f = (res.foreLog || [])[Math.max(0, lap - 1)];
+      const wx = res.weather || {};
+      const cell = (ttl, icon, name, cls, tip) =>
+        '<i class="fc' + (cls || '') + '" title="' + rvEsc(tip || '') + '">' +
+        '<u>' + ttl + '</u><b>' + icon + '</b><span>' + rvEsc(name) + '</span></i>';
+      let h = cell('L' + back, '', past.name, ' past',
+                   back + '周目の路面：' + past.name);
+      h += cell('いま', wx.icon || '', now.name, ' now',
+                '第' + lap + '周の路面：' + now.name);
+      if (f) {
+        const pc = Math.round(f.p * 100);
+        const cls = pc >= 65 ? ' hi' : pc >= 35 ? ' mid' : ' lo';
+        const when = f.in != null && f.p >= 0.35
+          ? '約' + Math.max(1, f.in) + '周後' : 'この先';
+        h += cell(when, f.to.icon, pc + '%', ' next' + cls,
+          'この先 ' + f.to.name + ' になる見込み ' + pc + '%。' +
+          '読みの力（ストラテジストと天気の設備）が高いほど、この数字は当たります');
+      }
+      fb.innerHTML = h;
     }
 
     // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
@@ -17676,6 +17805,35 @@ window.GP = window.GP || {};
   const staffFee = st => st.salary * 8;
   const mgrFee = m => Math.round(m.salary * 10);
 
+  /* ---- 決勝の空模様の見通し ----
+     予選が終わった時点で、この先どうなりそうかを％で出す。
+     当たるかどうかは読みの力しだい。ここを信じてタイヤを賭けられる */
+  function forecastHTML(pre) {
+    if (!pre || !pre.forecast) return '';
+    const f = pre.forecast;
+    const wx = pre.weather;
+    const pc = Math.round(f.p * 100);
+    const fo = Math.round(S.foresightOf(g) * 100);
+    const cls = pc >= 65 ? 'hi' : pc >= 35 ? 'mid' : 'lo';
+    const wet = f.to && (f.to.key === 'rain' || f.to.key === 'storm');
+    return '<div class="sub">🌤️ 決勝の空模様</div>' +
+      '<div class="fcbox ' + cls + '">' +
+      '<span class="fc-now"><u>スタート時</u><b>' + wx.icon + '</b><span>' + wx.name + '</span></span>' +
+      '<span class="fc-arrow">→</span>' +
+      '<span class="fc-next"><u>この先</u><b>' + (f.to ? f.to.icon : '☁️') + '</b>' +
+      '<span>' + (f.to ? f.to.name : 'くもり') + ' <b>' + pc + '%</b></span></span>' +
+      '<small>ピットウォールの読み <b>' + fo + '%</b>' +
+      '（🧠ストラテジストと📡天気の設備で上がります）。' +
+      '読みが高いほど、この％は本当のことに近づきます。<br>' +
+      (pc >= 65
+        ? (wet ? '<b class="warn">降る可能性が高い。スタートタイヤを賭けるなら、ここです。</b>'
+               : '<b>路面は良くなっていく見込みです。</b>')
+        : pc >= 35
+        ? '<b>五分に近い。読み違えると大きく損をしますが、当てれば一気に前へ出られます。</b>'
+        : 'いまのところ、大きく動く気配はありません。') +
+      '</small></div>';
+  }
+
   /* そのチームが機材をどうやって運んできたか。荷が遅れていれば⏳ */
   function logiChip(e) {
     if (!e.logi) return '<span class="gp-lg"></span>';
@@ -19270,6 +19428,7 @@ window.GP = window.GP || {};
         '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
     });
     body += '</div>';
+    body += forecastHTML(res);
     body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
     // 選び直したら、決勝ぶんの数字だけ入れ替えて出し直す（並びは動かさない）

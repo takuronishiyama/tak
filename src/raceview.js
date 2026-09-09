@@ -1314,6 +1314,42 @@ GP.raceview = (function () {
       }
     }
 
+    /* ---- 空模様：過去・いま・この先 ----
+       いま何が起きているかだけでなく、何周か前がどうだったか、
+       この先どうなりそうかを並べる。この先は「％」で出るので、
+       賭けに出るかどうかを自分で決められる                    */
+    const fb = document.getElementById('rvFore');
+    if (fb) {
+      const wl2 = res.wetLog || [];
+      const avgAt = l => {
+        const a = wl2[Math.max(0, Math.min(wl2.length - 1, l - 1))];
+        return a ? (a[0] + a[1] + a[2]) / 3 : 0;
+      };
+      const lvOf = v => (GP.data.WET_LEVELS || []).filter(x => v < x.at)[0] ||
+                        (GP.data.WET_LEVELS || [])[0];
+      const back = Math.max(1, lap - 4);
+      const past = lvOf(avgAt(back)), now = lvOf(avgAt(lap));
+      const f = (res.foreLog || [])[Math.max(0, lap - 1)];
+      const wx = res.weather || {};
+      const cell = (ttl, icon, name, cls, tip) =>
+        '<i class="fc' + (cls || '') + '" title="' + rvEsc(tip || '') + '">' +
+        '<u>' + ttl + '</u><b>' + icon + '</b><span>' + rvEsc(name) + '</span></i>';
+      let h = cell('L' + back, '', past.name, ' past',
+                   back + '周目の路面：' + past.name);
+      h += cell('いま', wx.icon || '', now.name, ' now',
+                '第' + lap + '周の路面：' + now.name);
+      if (f) {
+        const pc = Math.round(f.p * 100);
+        const cls = pc >= 65 ? ' hi' : pc >= 35 ? ' mid' : ' lo';
+        const when = f.in != null && f.p >= 0.35
+          ? '約' + Math.max(1, f.in) + '周後' : 'この先';
+        h += cell(when, f.to.icon, pc + '%', ' next' + cls,
+          'この先 ' + f.to.name + ' になる見込み ' + pc + '%。' +
+          '読みの力（ストラテジストと天気の設備）が高いほど、この数字は当たります');
+      }
+      fb.innerHTML = h;
+    }
+
     // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
     const wb = document.getElementById('rvWet');
     if (wb) {
