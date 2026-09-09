@@ -1402,7 +1402,7 @@ GP.raceview = (function () {
 
   function pumpRadio(all) {
     const list = res.radio || [];
-    const lapNow = vt / res.track.base + 1;
+    const leadP = all ? Infinity : leaderProgress();
     while (shownRadio < list.length) {
       const r = list[shownRadio];
       if (!all) {
@@ -1413,7 +1413,11 @@ GP.raceview = (function () {
           const e = res.entries.filter(x => x.id === r.id)[0];
           const ft = e && e.cum.length ? e.cum[e.cum.length - 1] : duration;
           if (vt < ft) break;
-        } else if (r.lap > lapNow) break;
+        } else {
+          // 無線は、その車がその周に入ってから流す
+          const car = res.entries.filter(x => x.id === r.id)[0];
+          if (!reachedLap(car, r.lap, leadP)) break;
+        }
         radioQueue.push(r);
       }
       shownRadio++;
@@ -1455,12 +1459,30 @@ GP.raceview = (function () {
     if (box) box.innerHTML = '';
   }
 
+  /* その出来事が、もう画面上で起きたか。
+     以前は「基準ラップタイム × 周回数」で概算していたが、実際のラップは
+     それより遅いので、実況が走っている車より先に出てしまっていた。
+     出来事に車が紐づいていればその車の、なければ先頭の進み具合で見る   */
+  function leaderProgress() {
+    let best = 0;
+    res.entries.forEach(e => {
+      if (e.dnf && vt >= (e.cum[e.dnfLap - 1] || 0)) return;
+      const pr = progress(e, vt);
+      if (pr.p > best) best = pr.p;
+    });
+    return best;
+  }
+  function reachedLap(car, lap, leadP) {
+    if (car && car.cum) return progress(car, vt).p >= lap - 1;
+    return leadP >= lap - 1;
+  }
+
   function flushEvents(all) {
-    const lapNow = vt / (res.track.base) + 1;
+    const leadP = all ? Infinity : leaderProgress();
     const log = document.getElementById('rvLog');
     while (shownEvents < res.events.length) {
       const ev = res.events[shownEvents];
-      if (!all && ev.lap > lapNow) break;
+      if (!all && !reachedLap(ev.car, ev.lap, leadP)) break;
       if (ev.type === 'weather' && res.weatherChange) {
         // 早送りでも、いまの天候はそろえておく
         wetNow = res.weatherChange.to === '雨' || res.weatherChange.to === '大雨';
@@ -1520,7 +1542,10 @@ GP.raceview = (function () {
         let acc = lapStart;
         for (let k = 0; k < 3; k++) {
           acc += sec[k];
-          secTimeline.push({ t: acc, id: e.id, lap: l + 1, k: k, v: sec[k], lapTime: k === 2 ? e.lapTimes[l] : 0 });
+          secTimeline.push({ t: acc, id: e.id, lap: l + 1, k: k, v: sec[k],
+                             // 隊列で詰め直された周は、記録としては数えない
+                             rec: !(e.noRec || [])[l],
+                             lapTime: k === 2 ? e.lapTimes[l] : 0 });
         }
       }
     });
@@ -1537,15 +1562,16 @@ GP.raceview = (function () {
       c.at[s.k] = s.lap;
       c.lap = s.lap;
       // 1周目はスタート進行ぶんで大きくブレるのでベスト判定から外す
-      if (s.lap > 1) {
+      const rec = s.lap > 1 && s.rec !== false;
+      if (rec) {
         if (s.v < c.best[s.k]) c.best[s.k] = s.v;
         if (s.v < liveBest[s.k]) liveBest[s.k] = s.v;
       }
       if (s.k === 2) {
         c.lastLap = s.lapTime;
         // 1周目はスタート進行ぶんが乗るので、ベストからは外す
-        if (s.lap > 1 && (c.bestLap == null || s.lapTime < c.bestLap)) c.bestLap = s.lapTime;
-        if (s.lap > 1 && s.lapTime < liveBestLap) liveBestLap = s.lapTime;
+        if (rec && (c.bestLap == null || s.lapTime < c.bestLap)) c.bestLap = s.lapTime;
+        if (rec && s.lapTime < liveBestLap) liveBestLap = s.lapTime;
       }
     }
   }

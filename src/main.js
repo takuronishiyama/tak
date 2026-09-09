@@ -1604,6 +1604,51 @@ window.GP = window.GP || {};
      使い込んだユニットは出力も信頼性も落ちる。新品を入れれば速いが
      基数を1つ食い、上限を超えるとグリッド降格。降ろしたユニットは
      残量があるかぎり取っておけるので、あとでまた積める        */
+  /* ---- タイヤの担当範囲 ----
+     路面の濡れ具合を 0〜1 で刻み、そのときいちばん速い銘柄を選び直して
+     境目を割り出す。数字を手で書かず、実際の計算式から帯を引く       */
+  function tyreBandHTML() {
+    const D2 = D;
+    const lossOf = (ty, w) => {
+      const ideal = ty.wetIdeal || 0, tol = ty.wetTol || 0.2;
+      const gap = Math.max(0, Math.abs(w - ideal) - tol);
+      let m = ty.pace * (1 + (gap <= 0 ? 0
+              : gap * D2.WET_MISMATCH + gap * gap * D2.WET_MISMATCH2));
+      if (!ty.wet) {
+        const dow = Math.max(0, w - D2.ENV.dryWetFrom);
+        if (dow > 0) m *= 1 + dow * D2.ENV.dryWetLoss;
+      }
+      return m;
+    };
+    const picks = ['medium', 'inter', 'wet'].map(k => D2.TYRES.find(x => x.key === k));
+    const label = ['ドライ', 'インター', 'ウェット'];
+    const seg = [];
+    for (let i = 0; i <= 200; i++) {
+      const w = i / 200;
+      let bi = 0, bv = Infinity;
+      picks.forEach((ty, j) => { const v = lossOf(ty, w); if (v < bv) { bv = v; bi = j; } });
+      if (!seg.length || seg[seg.length - 1].i !== bi) seg.push({ i: bi, from: w, to: w });
+      seg[seg.length - 1].to = w;
+    }
+    let bar = '';
+    seg.forEach(sg => {
+      const wd = (sg.to - sg.from) * 100;
+      bar += '<b style="width:' + wd.toFixed(1) + '%;background:' + picks[sg.i].color +
+             ';color:' + picks[sg.i].text + '">' + label[sg.i] + '</b>';
+    });
+    const cross = seg.slice(1).map(sg => Math.round(sg.from * 100));
+    return '<div class="sub">タイヤの担当範囲</div>' +
+      '<p class="desc">路面の濡れ具合で、いちばん速い銘柄は入れ替わります。' +
+      '担当から外れるほど損は加速度的に大きくなり、' +
+      '大雨をインターのまま走ると1周で10秒近く失います。' +
+      'ドライタイヤで水に乗ると、遅いどころかまともに走れません。<br>' +
+      '雨に強いドライバーほど、この範囲が左右に広がります。</p>' +
+      '<div class="tband"><div class="tb-bar">' + bar + '</div>' +
+      '<div class="tb-scale"><span>乾き</span><span>湿り</span><span>ハーフ</span>' +
+      '<span>ウェット</span><span>大雨</span></div>' +
+      '<p class="note">切り替わりの目安：濡れ ' + cross.join('% / ') + '%</p></div>';
+  }
+
   function puBoxHTML(t) {
     const pu = S.puOf(g);
     const wear = t ? S.puWear(g, t, 1) : 0;
@@ -3070,6 +3115,7 @@ window.GP = window.GP || {};
       body += '</div></div>';
       pendingStrategy['tyre_' + d.id] = 'medium';
     });
+    body += tyreBandHTML();
 
     // ---- ピット回数とタイヤの狙い ----
     {

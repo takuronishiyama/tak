@@ -2069,3 +2069,15 @@ body[data-skin="hd"]{
 [data-skin="hd"] .forebox b em{color:#8ef08e}
 .forebox .grp-bar{margin:4px 0}
 .forebox small{display:block;font-size:11px;opacity:.85;line-height:1.6}
+
+
+/* ---- タイヤの担当範囲 ---- */
+.tband { margin: 6px 0 10px; }
+.tband .tb-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden;
+  border: 2px solid #3a2413; }
+.tband .tb-bar b { display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; overflow: hidden;
+  white-space: nowrap; }
+.tband .tb-scale { display: flex; margin-top: 3px; }
+.tband .tb-scale span { flex: 1; font-size: 10px; color: #7a6a52; text-align: center; }
+.tband .note { margin-top: 4px; }

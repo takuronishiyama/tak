@@ -1323,20 +1323,25 @@ GP.data = (function () {
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.14,
-      desc: 'いちばん速いが、あっという間に摩耗する' },
+      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
+      band: '乾き〜わずかな湿り',
+      desc: 'いちばん速いが、あっという間に摩耗する。湿りにはいちばん弱い' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
-      pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.16,
+      pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.12,
+      band: '乾き〜湿りはじめ',
       desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.18,
+      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
+      band: '乾き〜湿りはじめ',
       desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
-      pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
-      desc: '小雨と半乾き用。濡れはじめと乾きかけの、いちばん長い時間を受け持つ' },
+      pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.42, wetTol: 0.20,
+      band: '湿り〜ハーフ',
+      desc: '小雨と半乾き用。掻き出せる水の量には限りがあり、大雨では浮いてしまう' },
     { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
-      pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
-      desc: '大雨用。水を大量に掻き出すが、乾いた路面では溶けてしまう' }
+      pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.88, wetTol: 0.18,
+      band: 'ウェット〜大雨',
+      desc: '大雨用。水を大量に掻き出すが、路面が乾くと溝が溶けてなくなる' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
   /* 路面と噛み合わないぶん、1周でどれだけ失うか。
@@ -1366,7 +1371,15 @@ GP.data = (function () {
     relBonus: 3       // 出来合いを積むぶん、信頼性が少し上がる
   };
 
-  const WET_MISMATCH = 0.16;
+  /* 路面の濡れと銘柄のずれ。ずれが広がるほど加速度的に効くよう、
+     一次と二次を足す。これで銘柄ごとの担当範囲がはっきり分かれる。
+       乾き（〜0.18）      ドライ
+       湿り〜ハーフ（〜0.66） インター
+       ウェット〜大雨（0.66〜） ウェット
+     たとえば大雨（1.0）でインターのままだと 1周 +10%、
+     乾いた路面でインターだと +5%、ウェットだと +23% になる      */
+  const WET_MISMATCH  = 0.18;
+  const WET_MISMATCH2 = 0.22;
 
   /* ---------- 環境係数 ----------
      路面と銘柄のずれ、終わったタイヤ、濡れた路面、攻めろという指示。
@@ -1492,5 +1505,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

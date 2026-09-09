@@ -649,7 +649,8 @@ GP.race = (function () {
           weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) =>
             ((g.equipped[a.key] || {}).cond || 100) - ((g.equipped[b.key] || {}).cond || 100))[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
-          lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
+          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [],
+        bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
         });
@@ -664,8 +665,10 @@ GP.race = (function () {
     e.penalty = (e.penalty || 0) + P.sec;
     e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: P.sec }]);
     // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
-    if (e.cum[lap - 1] != null) e.cum[lap - 1] += P.sec;
-    else e.penPending = (e.penPending || 0) + P.sec;
+    if (e.cum[lap - 1] != null) {
+      e.cum[lap - 1] += P.sec;
+      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + P.sec;
+    } else e.penPending = (e.penPending || 0) + P.sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
@@ -801,8 +804,14 @@ GP.race = (function () {
       const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
       return Math.max(0, Math.abs(w - ideal) - tol);
     }
+    /* 担当範囲から外れたぶんの、1周あたりの損。
+       外れかたが大きいほど加速度的に重くなる（二次の項）ので、
+       「大雨なのにインターのまま」は目に見えて割に合わなくなる  */
     function wetLoss(ty, w, e) {
-      return wetGap(ty, w, e) * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
+      const gap = wetGap(ty, w, e);
+      if (gap <= 0) return 0;
+      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2)
+           * (1 - (e ? e.wetSkill : 0) * 0.35);
     }
 
     /* 溝のないタイヤが、掻き出せない水の上に取り残されている量。
@@ -821,7 +830,11 @@ GP.race = (function () {
       const over = Math.max(0, e.tyreAge - ty.life);
       // ずれの効きかたは、銘柄で性格が違う。
       // 溝のあるタイヤを乾いた路面で使うのは「溶ける」であって「滑る」ではない
-      return wetGap(ty, w, e) * E2.mismatch * (ty.wet ? E2.wetOnDry : 1)
+      // ずれの向きで意味が変わる。水に対してタイヤが足りなければ「滑る」、
+      // タイヤに対して水が足りなければ「溶ける」。滑るほうがずっと危ない
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tooLittle = (w || 0) > ideal;
+      return wetGap(ty, w, e) * E2.mismatch * (tooLittle ? 1 : E2.wetOnDry)
            + over * E2.wear
            + (w || 0) * E2.wet * (1 - e.wetSkill * 0.45)
            + (ordKey === 'push' ? E2.push : 0)
@@ -1417,19 +1430,10 @@ GP.race = (function () {
         const prev = lap === 1 ? 0 : e.cum[lap - 2];
         // 罰則はラップタイムではなく持ち時間に足す（区間タイムの表示を汚さない）
         e.cum[lap - 1] = prev + t + (e.penPending || 0);
+        e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + (e.penPending || 0);
         e.penPending = 0;
-        if (lap > 1 && t < e.fastest) e.fastest = t;
-
-        // 区間タイム：走行ぶんはマシンの速度プロファイルの配分で割り、
-        // ピットでの停止時間は最終セクターにまとめて足す
-        const sh = e.prof.share;
-        const drive = t - pitAdd;
-        const sec = [drive * sh[0], drive * sh[1], drive * sh[2] + pitAdd];
-        e.sectors[lap - 1] = sec;
-        for (let k = 0; k < 3; k++) {
-          if (lap > 1 && sec[k] < e.bestSec[k]) e.bestSec[k] = sec[k];
-          if (lap > 1 && sec[k] < bestSector[k]) { bestSector[k] = sec[k]; bestSectorBy[k] = e.id; }
-        }
+        // ラップタイム・区間タイム・ベストは、この周の持ち時間が
+        // ブロックやセーフティカーで動いたあと、syncLapTime で確定させる
       });
 
       // ブロッキング（前車に詰まると遅くなる＝抜きにくいコースほど顕著）
@@ -1592,6 +1596,9 @@ GP.race = (function () {
             if (i > 0) acc += S.rnd(0.55, 0.95);
             e.cum[lap - 1] = acc;
             e.scBunched = true;
+            // 隊列に吸い寄せられたぶんは、速く走った結果ではない。
+            // ベストラップ・ベストセクターの記録からは外す
+            e.noRec[lap - 1] = true;
           });
         }
         events.push({ lap: lap, type: 'sc',
@@ -1636,6 +1643,7 @@ GP.race = (function () {
           line.forEach((e, i) => {
             if (i > 0) acc += S.rnd(0.55, 0.95);
             e.cum[lap - 1] = acc;
+            e.noRec[lap - 1] = true;
           });
         }
         events.push({ lap: lap + 1, type: 'restart',
@@ -1643,6 +1651,31 @@ GP.race = (function () {
             ? '🟢 バーチャルセーフティカー解除。コントロールラインから通常のレースに戻る'
             : '🟢 セーフティカーがピットへ！ ホームストレートから一斉にレース再開！' });
       }
+
+      /* 持ち時間（cum）を動かしたあとで、ラップタイムと区間タイムを合わせ直す。
+         ブロックや追い抜き、セーフティカーの並び直しは cum だけを動かしていたため、
+         ここを飛ばすと「ラップは速いのに前とのギャップが縮まらない」表示になる */
+      entries.forEach(e => {
+        if (e.cum[lap - 1] == null || e.synced === lap) return;
+        e.synced = lap;
+        const prevC = lap === 1 ? 0 : (e.cum[lap - 2] || 0);
+        const real = Math.max(0.1, e.cum[lap - 1] - prevC - (e.penSec[lap - 1] || 0));
+        e.lapTimes[lap - 1] = real;
+        const pitAdd = (e.pitTime || [])[lap - 1] || 0;
+        const sh = e.prof.share;
+        const dr = Math.max(0.1, real - pitAdd);
+        const sec = [dr * sh[0], dr * sh[1], dr * sh[2] + pitAdd];
+        e.sectors[lap - 1] = sec;
+        const scNow3 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        if (scNow3) e.noRec[lap - 1] = true;
+        if (lap > 1 && !e.dnf && !e.noRec[lap - 1]) {
+          if (real < e.fastest) e.fastest = real;
+          for (let k = 0; k < 3; k++) {
+            if (sec[k] < e.bestSec[k]) e.bestSec[k] = sec[k];
+            if (sec[k] < bestSector[k]) { bestSector[k] = sec[k]; bestSectorBy[k] = e.id; }
+          }
+        }
+      });
 
       /* ---- レースの節目 ----
          抜いた・ミスした以外にも、見ていて「おっ」となる瞬間はある。
@@ -1654,7 +1687,7 @@ GP.race = (function () {
           if (lap > 1 && e.isPlayer) {
             // ファステストラップ。全体ベストを塗り替えた周だけ
             const t2 = e.lapTimes[lap - 1];
-            if (t2 != null && !e.pitTime[lap - 1] && t2 < raceBest - 0.001) {
+            if (t2 != null && !e.pitTime[lap - 1] && !e.noRec[lap - 1] && t2 < raceBest - 0.001) {
               raceBest = t2;
               if (!e.saidFastest || lap - e.saidFastest > 4) {
                 e.saidFastest = lap;

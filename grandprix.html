@@ -2085,6 +2085,18 @@ body[data-skin="hd"]{
 .forebox .grp-bar{margin:4px 0}
 .forebox small{display:block;font-size:11px;opacity:.85;line-height:1.6}
 
+
+/* ---- タイヤの担当範囲 ---- */
+.tband { margin: 6px 0 10px; }
+.tband .tb-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden;
+  border: 2px solid #3a2413; }
+.tband .tb-bar b { display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; overflow: hidden;
+  white-space: nowrap; }
+.tband .tb-scale { display: flex; margin-top: 3px; }
+.tband .tb-scale span { flex: 1; font-size: 10px; color: #7a6a52; text-align: center; }
+.tband .note { margin-top: 4px; }
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -3968,20 +3980,25 @@ GP.data = (function () {
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.14,
-      desc: 'いちばん速いが、あっという間に摩耗する' },
+      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
+      band: '乾き〜わずかな湿り',
+      desc: 'いちばん速いが、あっという間に摩耗する。湿りにはいちばん弱い' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
-      pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.16,
+      pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.12,
+      band: '乾き〜湿りはじめ',
       desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.18,
+      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
+      band: '乾き〜湿りはじめ',
       desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
-      pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.45, wetTol: 0.28,
-      desc: '小雨と半乾き用。濡れはじめと乾きかけの、いちばん長い時間を受け持つ' },
+      pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.42, wetTol: 0.20,
+      band: '湿り〜ハーフ',
+      desc: '小雨と半乾き用。掻き出せる水の量には限りがあり、大雨では浮いてしまう' },
     { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
-      pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.85, wetTol: 0.30,
-      desc: '大雨用。水を大量に掻き出すが、乾いた路面では溶けてしまう' }
+      pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.88, wetTol: 0.18,
+      band: 'ウェット〜大雨',
+      desc: '大雨用。水を大量に掻き出すが、路面が乾くと溝が溶けてなくなる' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
   /* 路面と噛み合わないぶん、1周でどれだけ失うか。
@@ -4011,7 +4028,15 @@ GP.data = (function () {
     relBonus: 3       // 出来合いを積むぶん、信頼性が少し上がる
   };
 
-  const WET_MISMATCH = 0.16;
+  /* 路面の濡れと銘柄のずれ。ずれが広がるほど加速度的に効くよう、
+     一次と二次を足す。これで銘柄ごとの担当範囲がはっきり分かれる。
+       乾き（〜0.18）      ドライ
+       湿り〜ハーフ（〜0.66） インター
+       ウェット〜大雨（0.66〜） ウェット
+     たとえば大雨（1.0）でインターのままだと 1周 +10%、
+     乾いた路面でインターだと +5%、ウェットだと +23% になる      */
+  const WET_MISMATCH  = 0.18;
+  const WET_MISMATCH2 = 0.22;
 
   /* ---------- 環境係数 ----------
      路面と銘柄のずれ、終わったタイヤ、濡れた路面、攻めろという指示。
@@ -4137,7 +4162,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -7435,7 +7460,8 @@ GP.race = (function () {
           weakCat: t.isPlayer ? (D.PART_CATS.slice().sort((a, b) =>
             ((g.equipped[a.key] || {}).cond || 100) - ((g.equipped[b.key] || {}).cond || 100))[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
-          lapTimes: [], cum: [], pits: [], sectors: [], bestSec: [Infinity, Infinity, Infinity],
+          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [],
+        bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
         });
@@ -7450,8 +7476,10 @@ GP.race = (function () {
     e.penalty = (e.penalty || 0) + P.sec;
     e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: P.sec }]);
     // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
-    if (e.cum[lap - 1] != null) e.cum[lap - 1] += P.sec;
-    else e.penPending = (e.penPending || 0) + P.sec;
+    if (e.cum[lap - 1] != null) {
+      e.cum[lap - 1] += P.sec;
+      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + P.sec;
+    } else e.penPending = (e.penPending || 0) + P.sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
@@ -7587,8 +7615,14 @@ GP.race = (function () {
       const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
       return Math.max(0, Math.abs(w - ideal) - tol);
     }
+    /* 担当範囲から外れたぶんの、1周あたりの損。
+       外れかたが大きいほど加速度的に重くなる（二次の項）ので、
+       「大雨なのにインターのまま」は目に見えて割に合わなくなる  */
     function wetLoss(ty, w, e) {
-      return wetGap(ty, w, e) * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
+      const gap = wetGap(ty, w, e);
+      if (gap <= 0) return 0;
+      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2)
+           * (1 - (e ? e.wetSkill : 0) * 0.35);
     }
 
     /* 溝のないタイヤが、掻き出せない水の上に取り残されている量。
@@ -7607,7 +7641,11 @@ GP.race = (function () {
       const over = Math.max(0, e.tyreAge - ty.life);
       // ずれの効きかたは、銘柄で性格が違う。
       // 溝のあるタイヤを乾いた路面で使うのは「溶ける」であって「滑る」ではない
-      return wetGap(ty, w, e) * E2.mismatch * (ty.wet ? E2.wetOnDry : 1)
+      // ずれの向きで意味が変わる。水に対してタイヤが足りなければ「滑る」、
+      // タイヤに対して水が足りなければ「溶ける」。滑るほうがずっと危ない
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tooLittle = (w || 0) > ideal;
+      return wetGap(ty, w, e) * E2.mismatch * (tooLittle ? 1 : E2.wetOnDry)
            + over * E2.wear
            + (w || 0) * E2.wet * (1 - e.wetSkill * 0.45)
            + (ordKey === 'push' ? E2.push : 0)
@@ -8203,19 +8241,10 @@ GP.race = (function () {
         const prev = lap === 1 ? 0 : e.cum[lap - 2];
         // 罰則はラップタイムではなく持ち時間に足す（区間タイムの表示を汚さない）
         e.cum[lap - 1] = prev + t + (e.penPending || 0);
+        e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + (e.penPending || 0);
         e.penPending = 0;
-        if (lap > 1 && t < e.fastest) e.fastest = t;
-
-        // 区間タイム：走行ぶんはマシンの速度プロファイルの配分で割り、
-        // ピットでの停止時間は最終セクターにまとめて足す
-        const sh = e.prof.share;
-        const drive = t - pitAdd;
-        const sec = [drive * sh[0], drive * sh[1], drive * sh[2] + pitAdd];
-        e.sectors[lap - 1] = sec;
-        for (let k = 0; k < 3; k++) {
-          if (lap > 1 && sec[k] < e.bestSec[k]) e.bestSec[k] = sec[k];
-          if (lap > 1 && sec[k] < bestSector[k]) { bestSector[k] = sec[k]; bestSectorBy[k] = e.id; }
-        }
+        // ラップタイム・区間タイム・ベストは、この周の持ち時間が
+        // ブロックやセーフティカーで動いたあと、syncLapTime で確定させる
       });
 
       // ブロッキング（前車に詰まると遅くなる＝抜きにくいコースほど顕著）
@@ -8378,6 +8407,9 @@ GP.race = (function () {
             if (i > 0) acc += S.rnd(0.55, 0.95);
             e.cum[lap - 1] = acc;
             e.scBunched = true;
+            // 隊列に吸い寄せられたぶんは、速く走った結果ではない。
+            // ベストラップ・ベストセクターの記録からは外す
+            e.noRec[lap - 1] = true;
           });
         }
         events.push({ lap: lap, type: 'sc',
@@ -8422,6 +8454,7 @@ GP.race = (function () {
           line.forEach((e, i) => {
             if (i > 0) acc += S.rnd(0.55, 0.95);
             e.cum[lap - 1] = acc;
+            e.noRec[lap - 1] = true;
           });
         }
         events.push({ lap: lap + 1, type: 'restart',
@@ -8429,6 +8462,31 @@ GP.race = (function () {
             ? '🟢 バーチャルセーフティカー解除。コントロールラインから通常のレースに戻る'
             : '🟢 セーフティカーがピットへ！ ホームストレートから一斉にレース再開！' });
       }
+
+      /* 持ち時間（cum）を動かしたあとで、ラップタイムと区間タイムを合わせ直す。
+         ブロックや追い抜き、セーフティカーの並び直しは cum だけを動かしていたため、
+         ここを飛ばすと「ラップは速いのに前とのギャップが縮まらない」表示になる */
+      entries.forEach(e => {
+        if (e.cum[lap - 1] == null || e.synced === lap) return;
+        e.synced = lap;
+        const prevC = lap === 1 ? 0 : (e.cum[lap - 2] || 0);
+        const real = Math.max(0.1, e.cum[lap - 1] - prevC - (e.penSec[lap - 1] || 0));
+        e.lapTimes[lap - 1] = real;
+        const pitAdd = (e.pitTime || [])[lap - 1] || 0;
+        const sh = e.prof.share;
+        const dr = Math.max(0.1, real - pitAdd);
+        const sec = [dr * sh[0], dr * sh[1], dr * sh[2] + pitAdd];
+        e.sectors[lap - 1] = sec;
+        const scNow3 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        if (scNow3) e.noRec[lap - 1] = true;
+        if (lap > 1 && !e.dnf && !e.noRec[lap - 1]) {
+          if (real < e.fastest) e.fastest = real;
+          for (let k = 0; k < 3; k++) {
+            if (sec[k] < e.bestSec[k]) e.bestSec[k] = sec[k];
+            if (sec[k] < bestSector[k]) { bestSector[k] = sec[k]; bestSectorBy[k] = e.id; }
+          }
+        }
+      });
 
       /* ---- レースの節目 ----
          抜いた・ミスした以外にも、見ていて「おっ」となる瞬間はある。
@@ -8440,7 +8498,7 @@ GP.race = (function () {
           if (lap > 1 && e.isPlayer) {
             // ファステストラップ。全体ベストを塗り替えた周だけ
             const t2 = e.lapTimes[lap - 1];
-            if (t2 != null && !e.pitTime[lap - 1] && t2 < raceBest - 0.001) {
+            if (t2 != null && !e.pitTime[lap - 1] && !e.noRec[lap - 1] && t2 < raceBest - 0.001) {
               raceBest = t2;
               if (!e.saidFastest || lap - e.saidFastest > 4) {
                 e.saidFastest = lap;
@@ -10265,7 +10323,7 @@ GP.raceview = (function () {
 
   function pumpRadio(all) {
     const list = res.radio || [];
-    const lapNow = vt / res.track.base + 1;
+    const leadP = all ? Infinity : leaderProgress();
     while (shownRadio < list.length) {
       const r = list[shownRadio];
       if (!all) {
@@ -10276,7 +10334,11 @@ GP.raceview = (function () {
           const e = res.entries.filter(x => x.id === r.id)[0];
           const ft = e && e.cum.length ? e.cum[e.cum.length - 1] : duration;
           if (vt < ft) break;
-        } else if (r.lap > lapNow) break;
+        } else {
+          // 無線は、その車がその周に入ってから流す
+          const car = res.entries.filter(x => x.id === r.id)[0];
+          if (!reachedLap(car, r.lap, leadP)) break;
+        }
         radioQueue.push(r);
       }
       shownRadio++;
@@ -10318,12 +10380,30 @@ GP.raceview = (function () {
     if (box) box.innerHTML = '';
   }
 
+  /* その出来事が、もう画面上で起きたか。
+     以前は「基準ラップタイム × 周回数」で概算していたが、実際のラップは
+     それより遅いので、実況が走っている車より先に出てしまっていた。
+     出来事に車が紐づいていればその車の、なければ先頭の進み具合で見る   */
+  function leaderProgress() {
+    let best = 0;
+    res.entries.forEach(e => {
+      if (e.dnf && vt >= (e.cum[e.dnfLap - 1] || 0)) return;
+      const pr = progress(e, vt);
+      if (pr.p > best) best = pr.p;
+    });
+    return best;
+  }
+  function reachedLap(car, lap, leadP) {
+    if (car && car.cum) return progress(car, vt).p >= lap - 1;
+    return leadP >= lap - 1;
+  }
+
   function flushEvents(all) {
-    const lapNow = vt / (res.track.base) + 1;
+    const leadP = all ? Infinity : leaderProgress();
     const log = document.getElementById('rvLog');
     while (shownEvents < res.events.length) {
       const ev = res.events[shownEvents];
-      if (!all && ev.lap > lapNow) break;
+      if (!all && !reachedLap(ev.car, ev.lap, leadP)) break;
       if (ev.type === 'weather' && res.weatherChange) {
         // 早送りでも、いまの天候はそろえておく
         wetNow = res.weatherChange.to === '雨' || res.weatherChange.to === '大雨';
@@ -10383,7 +10463,10 @@ GP.raceview = (function () {
         let acc = lapStart;
         for (let k = 0; k < 3; k++) {
           acc += sec[k];
-          secTimeline.push({ t: acc, id: e.id, lap: l + 1, k: k, v: sec[k], lapTime: k === 2 ? e.lapTimes[l] : 0 });
+          secTimeline.push({ t: acc, id: e.id, lap: l + 1, k: k, v: sec[k],
+                             // 隊列で詰め直された周は、記録としては数えない
+                             rec: !(e.noRec || [])[l],
+                             lapTime: k === 2 ? e.lapTimes[l] : 0 });
         }
       }
     });
@@ -10400,15 +10483,16 @@ GP.raceview = (function () {
       c.at[s.k] = s.lap;
       c.lap = s.lap;
       // 1周目はスタート進行ぶんで大きくブレるのでベスト判定から外す
-      if (s.lap > 1) {
+      const rec = s.lap > 1 && s.rec !== false;
+      if (rec) {
         if (s.v < c.best[s.k]) c.best[s.k] = s.v;
         if (s.v < liveBest[s.k]) liveBest[s.k] = s.v;
       }
       if (s.k === 2) {
         c.lastLap = s.lapTime;
         // 1周目はスタート進行ぶんが乗るので、ベストからは外す
-        if (s.lap > 1 && (c.bestLap == null || s.lapTime < c.bestLap)) c.bestLap = s.lapTime;
-        if (s.lap > 1 && s.lapTime < liveBestLap) liveBestLap = s.lapTime;
+        if (rec && (c.bestLap == null || s.lapTime < c.bestLap)) c.bestLap = s.lapTime;
+        if (rec && s.lapTime < liveBestLap) liveBestLap = s.lapTime;
       }
     }
   }
@@ -15232,6 +15316,51 @@ window.GP = window.GP || {};
      使い込んだユニットは出力も信頼性も落ちる。新品を入れれば速いが
      基数を1つ食い、上限を超えるとグリッド降格。降ろしたユニットは
      残量があるかぎり取っておけるので、あとでまた積める        */
+  /* ---- タイヤの担当範囲 ----
+     路面の濡れ具合を 0〜1 で刻み、そのときいちばん速い銘柄を選び直して
+     境目を割り出す。数字を手で書かず、実際の計算式から帯を引く       */
+  function tyreBandHTML() {
+    const D2 = D;
+    const lossOf = (ty, w) => {
+      const ideal = ty.wetIdeal || 0, tol = ty.wetTol || 0.2;
+      const gap = Math.max(0, Math.abs(w - ideal) - tol);
+      let m = ty.pace * (1 + (gap <= 0 ? 0
+              : gap * D2.WET_MISMATCH + gap * gap * D2.WET_MISMATCH2));
+      if (!ty.wet) {
+        const dow = Math.max(0, w - D2.ENV.dryWetFrom);
+        if (dow > 0) m *= 1 + dow * D2.ENV.dryWetLoss;
+      }
+      return m;
+    };
+    const picks = ['medium', 'inter', 'wet'].map(k => D2.TYRES.find(x => x.key === k));
+    const label = ['ドライ', 'インター', 'ウェット'];
+    const seg = [];
+    for (let i = 0; i <= 200; i++) {
+      const w = i / 200;
+      let bi = 0, bv = Infinity;
+      picks.forEach((ty, j) => { const v = lossOf(ty, w); if (v < bv) { bv = v; bi = j; } });
+      if (!seg.length || seg[seg.length - 1].i !== bi) seg.push({ i: bi, from: w, to: w });
+      seg[seg.length - 1].to = w;
+    }
+    let bar = '';
+    seg.forEach(sg => {
+      const wd = (sg.to - sg.from) * 100;
+      bar += '<b style="width:' + wd.toFixed(1) + '%;background:' + picks[sg.i].color +
+             ';color:' + picks[sg.i].text + '">' + label[sg.i] + '</b>';
+    });
+    const cross = seg.slice(1).map(sg => Math.round(sg.from * 100));
+    return '<div class="sub">タイヤの担当範囲</div>' +
+      '<p class="desc">路面の濡れ具合で、いちばん速い銘柄は入れ替わります。' +
+      '担当から外れるほど損は加速度的に大きくなり、' +
+      '大雨をインターのまま走ると1周で10秒近く失います。' +
+      'ドライタイヤで水に乗ると、遅いどころかまともに走れません。<br>' +
+      '雨に強いドライバーほど、この範囲が左右に広がります。</p>' +
+      '<div class="tband"><div class="tb-bar">' + bar + '</div>' +
+      '<div class="tb-scale"><span>乾き</span><span>湿り</span><span>ハーフ</span>' +
+      '<span>ウェット</span><span>大雨</span></div>' +
+      '<p class="note">切り替わりの目安：濡れ ' + cross.join('% / ') + '%</p></div>';
+  }
+
   function puBoxHTML(t) {
     const pu = S.puOf(g);
     const wear = t ? S.puWear(g, t, 1) : 0;
@@ -16698,6 +16827,7 @@ window.GP = window.GP || {};
       body += '</div></div>';
       pendingStrategy['tyre_' + d.id] = 'medium';
     });
+    body += tyreBandHTML();
 
     // ---- ピット回数とタイヤの狙い ----
     {
