@@ -114,11 +114,17 @@ GP.ui = (function () {
   /* ---------- マシンパネル ---------- */
   function stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
-  function partTraitChips(p) {
-    if (!p.traits || !p.traits.length) return '';
-    return p.traits.map(k => {
-      const t = D.PART_TRAITS.find(x => x.key === k);
-      return t ? '<span class="ptr" title="' + esc(t.desc) + '">' + t.icon + t.name + '</span>' : '';
+  /* タグはチームの技術になったので、どのパーツにも同じものが乗る。
+     レベルつきで並べて、載せ替えても失われないことが分かるようにする   */
+  function partTraitChips(p, g) {
+    if (!g) return '';
+    return D.PART_TRAITS.map(t => {
+      const lv = S.techLv(g, t.key);
+      if (!lv) return '';
+      const now = t.per >= 1 ? '+' + (lv * t.per).toFixed(1)
+                             : '+' + Math.round(lv * t.per * 100) + '%';
+      return '<span class="ptr" title="' + esc(t.desc) + '（' + now + '）チームの技術なので、' +
+        'パーツを載せ替えても残ります">' + t.icon + t.name + '<em>' + lv + '</em></span>';
     }).join('');
   }
 
@@ -137,7 +143,7 @@ GP.ui = (function () {
       '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
-      (partTraitChips(p) ? '<span class="p-trs">' + partTraitChips(p) + '</span>' : '') +
+      (partTraitChips(p, g) ? '<span class="p-trs">' + partTraitChips(p, g) + '</span>' : '') +
       // その世代で何が変わったのか。読み飛ばせるが、読むと分かる
       (S.partNote ? '<span class="p-note">' + esc(S.partNote(p.cat, p.gen)) + '</span>' : '') +
       '</div>';

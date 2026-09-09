@@ -24,16 +24,9 @@ GP.state = (function () {
     const rr = D.RARITY[rarity - 1];
     const power = opts.power != null ? opts.power
       : Math.round((10 + gen * 13) * rr.mult * rnd(0.92, 1.10) * 10) / 10;
-    const traits = [];
-    if (opts.traits) traits.push.apply(traits, opts.traits);
-    else {
-      // レアリティが高いほど追加効果が付きやすい
-      if (Math.random() < 0.10 + rarity * 0.07) traits.push(pick(D.PART_TRAITS).key);
-      if (rarity >= 4 && Math.random() < 0.30) {
-        const t = pick(D.PART_TRAITS).key;
-        if (traits.indexOf(t) < 0) traits.push(t);
-      }
-    }
+    // 追加効果はチームの技術（📐 開発）が受け持つので、
+    // パーツ個体には付かない。運ではなく、積み上げで手に入れる
+    const traits = opts.traits ? opts.traits.slice() : [];
     return {
       id: 'p' + (++partSeq) + Math.random().toString(36).slice(2, 6),
       cat: catKey,
@@ -41,6 +34,7 @@ GP.state = (function () {
       name: (D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, gen)] || {}).name + ' ' +
             cat.names[Math.min(cat.names.length - 1, gen)],
       gen: gen, rarity: rarity,
+      polish: 0,            // 改良で溜まる熟成。満ちるとレアリティが上がる
       power: power,
       cond: opts.cond != null ? opts.cond : 100,
       traits: traits
@@ -62,18 +56,72 @@ GP.state = (function () {
 
   const hasT = (p, k) => p.traits && p.traits.indexOf(k) >= 0;
 
-  /* パーツ1つが生む3性能 */
-  function partStats(p) {
+  /* ---------- 開発技術（タグ）----------
+     チームが積み上げるもので、パーツを載せ替えても失われない。
+     g.techs = { light: { lv: 2, p: 0.35 }, ... }                */
+  function techLv(g2, key)   { const t = g2 && g2.techs && g2.techs[key]; return (t && t.lv) || 0; }
+  function techProg(g2, key) { const t = g2 && g2.techs && g2.techs[key]; return (t && t.p) || 0; }
+  function techDef(key)      { return D.PART_TRAITS.filter(x => x.key === key)[0] || null; }
+  /* いま持っている技術（レベル1以上）を、表示しやすい形で */
+  function techList(g2) {
+    return D.PART_TRAITS.map(t => ({
+      key: t.key, name: t.name, icon: t.icon, color: t.color,
+      desc: t.desc, eff: t.eff, note: t.note, per: t.per,
+      lv: techLv(g2, t.key), p: techProg(g2, t.key), max: D.TECH.max
+    }));
+  }
+  /* 1回の開発で、どれだけ進むか（0..1でレベルが1つ上がる） */
+  function techStep(g2) {
+    return D.TECH.step
+         * (1 + designPower(g2) * D.TECH.designer + (g2.facilities.factory || 1) * D.TECH.factory)
+         * devRate(g2);
+  }
+  function techCost(g2, key) {
+    const lv = techLv(g2, key);
+    return { money: Math.round(D.TECH.cost * (1 + lv * D.TECH.costLv)),
+             rp:    Math.round(D.TECH.rp   * (1 + lv * D.TECH.rpLv)) };
+  }
+  /* 技術をひとつ進める。レベルが上がったら、その番号を返す */
+  function advanceTech(g2, key) {
+    g2.techs = g2.techs || {};
+    const t = g2.techs[key] || (g2.techs[key] = { lv: 0, p: 0 });
+    if (t.lv >= D.TECH.max) return { lv: t.lv, up: false, gain: 0 };
+    const gain = techStep(g2);
+    t.p += gain;
+    let up = false;
+    while (t.p >= 1 && t.lv < D.TECH.max) { t.p -= 1; t.lv++; up = true; }
+    if (t.lv >= D.TECH.max) t.p = 0;
+    return { lv: t.lv, up: up, gain: Math.round(gain * 100) / 100 };
+  }
+
+  /* パーツ1つが生む3性能。技術のレベルぶんだけ上に乗る */
+  function partStats(p, g2) {
     const cat = D.PART_CATS.find(c => c.key === p.cat);
     const st = {
       speed:  p.power * cat.gain.speed,
       corner: p.power * cat.gain.corner,
       accel:  p.power * cat.gain.accel
     };
-    if (hasT(p, 'boost')) st.speed  *= 1.14;
-    if (hasT(p, 'sharp')) st.corner *= 1.14;
-    if (hasT(p, 'light')) st.accel  *= 1.16;
+    const lv = k => techLv(g2, k);
+    st.speed  *= 1 + lv('boost') * (techDef('boost').per);
+    st.corner *= 1 + lv('sharp') * (techDef('sharp').per);
+    st.accel  *= 1 + lv('light') * (techDef('light').per);
     return st;
+  }
+
+  /* ---------- 熟成（改良でレアリティが上がる）----------
+     1回の改良でどれだけ熟成が進むか。格が上がるほど、次は遠い    */
+  function polishStep(g2, p) {
+    const eng = devPower(g2);
+    return D.POLISH.step
+         * (1 + eng * D.POLISH.eng + (g2.facilities.factory || 1) * D.POLISH.factory)
+         * D.POLISH.rarStep(p.rarity);
+  }
+  /* あと何回の改良で格が上がるか（表示用） */
+  function polishLeft(g2, p) {
+    if (p.rarity >= D.RARITY.length) return 0;
+    const st = polishStep(g2, p);
+    return Math.max(1, Math.ceil((1 - (p.polish || 0)) / Math.max(0.001, st)));
   }
 
   /* 改良の上限（マシン世代 × レアリティ） */
@@ -82,8 +130,8 @@ GP.state = (function () {
   }
 
   /* パーツの総合評価（表示用） */
-  function partScore(p) {
-    const st = partStats(p);
+  function partScore(p, g2) {
+    const st = partStats(p, g2);
     return Math.round(st.speed + st.corner + st.accel);
   }
 
@@ -234,7 +282,7 @@ GP.state = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
-      const ps = partStats(p);
+      const ps = partStats(p, g);
       // コンディションが落ちたパーツは本来の性能を出しきれない
       const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1)
               * (c.key === 'pu' ? puForm(g) : 1);
@@ -957,10 +1005,10 @@ GP.state = (function () {
       const p = g.equipped[c.key];
       if (!p) { sum += 40; n++; return; }
       sum += p.cond; n++;
-      if (hasT(p, 'cool')) bonus += 4;
-      if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
+    // 冷却強化と高耐久は、いまやチームの技術。台数ぶんではなく一度だけ効く
+    bonus += techLv(g, 'cool') * (techDef('cool').per) + techLv(g, 'tough') * 0.8;
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
                + g.facilities.pit * 2.5 + pitPower(g) * 1.4
@@ -1273,7 +1321,8 @@ GP.state = (function () {
       const p = g.equipped[c.key];
       if (!p) return;
       // ギアボックスのように、そもそも消耗の速い部位がある
-      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc * (c.wear || 1);
+      const w = amount * Math.max(0.35, 1 - techLv(g, 'tough') * (D.PART_TRAITS.filter(t => t.key === 'tough')[0].per))
+              * svc * (c.wear || 1);
       p.cond = clamp(p.cond - w, 5, 100);
     });
   }
@@ -1561,6 +1610,7 @@ GP.state = (function () {
       lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
       pu: { used: 1, life: 100, grid: 0, over: 0 },   // パワーユニットの基数と残り
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
+      techs: {},            // 開発で積み上げた技術（タグ）
       standings: [], results: [],
       log: [],
       flags: { firstWin: false, tutorial: true },
@@ -2058,6 +2108,22 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // 個体に付いていた追加効果は、チームの技術（レベル1）に読み替える
+      if (!g.techs) {
+        g.techs = {};
+        const soak = q => (q && q.traits || []).forEach(k => {
+          if (!D.PART_TRAITS.filter(t => t.key === k).length) return;
+          g.techs[k] = g.techs[k] || { lv: 0, p: 0 };
+          if (g.techs[k].lv < 1) g.techs[k].lv = 1;
+        });
+        D.PART_CATS.forEach(c => soak(g.equipped && g.equipped[c.key]));
+        (g.inventory || []).forEach(soak);
+      }
+      D.PART_CATS.forEach(c => {
+        const q = g.equipped && g.equipped[c.key];
+        if (q && q.polish == null) q.polish = 0;
+      });
+      (g.inventory || []).forEach(q => { if (q.polish == null) q.polish = 0; });
       // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
       if (g.equipped) {
         D.PART_CATS.forEach(c => {
@@ -2086,6 +2152,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
+    techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

@@ -1839,6 +1839,20 @@ body[data-skin="hd"]{
 .rvo.grip.warn{ background:#6a4a12; color:#ffe1a0; }
 .rvo.grip.bad { background:#7a2018; color:#ffd0c8; animation:blink 1s steps(2,end) infinite; }
 
+/* ---- 技術開発（タグ） ---- */
+.techrow .techlv{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+                 border-radius:4px;padding:0 6px;margin-left:6px}
+.techbar{display:block;height:8px;background:var(--trough);border:2px solid var(--ink);
+         border-radius:5px;overflow:hidden;margin:3px 0}
+.techbar i{display:block;height:100%;transition:width .35s}
+/* ---- 熟成（改良でレアリティが上がる） ---- */
+.polbar{display:inline-block;width:64px;height:7px;background:var(--trough);border:1px solid var(--ink);
+        border-radius:4px;overflow:hidden;vertical-align:middle;margin:0 4px}
+.polbar i{display:block;height:100%;background:linear-gradient(#ffd76a,#e8a800)}
+.devpol{display:block;font-size:9px;opacity:.85;margin-top:2px}
+.ptr em{font-style:normal;font-size:8px;background:var(--ink);color:#ffeec4;border-radius:3px;
+        padding:0 3px;margin-left:3px}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -1905,7 +1919,8 @@ body[data-skin="hd"]{
   <!-- ================= コマンドバー ================= -->
   <nav class="cmdbar">
     <div id="cmdNormal" class="cmdset">
-      <button class="cmd" id="cDevelop"><span>🔧</span>開発</button>
+      <button class="cmd" id="cDevelop" title="いま積んでいるものを煮詰める。格（レアリティ）が上がる"><span>🔧</span>改良</button>
+      <button class="cmd" id="cDesign" title="新しい技術とパーツを作る。技術（タグ）のレベルが上がる"><span>📐</span>開発</button>
       <button class="cmd" id="cResearch"><span>🔬</span>研究</button>
       <button class="cmd" id="cMaintain"><span>🛠️</span>整備</button>
       <button class="cmd" id="cTrain"><span>💪</span>練習</button>
@@ -2657,14 +2672,44 @@ GP.data = (function () {
     { n: 5, name: 'レジェンド',   color: '#f0a020', mult: 2.30, capMult: 1.48 }
   ];
 
-  /* ---------- パーツに付く追加効果（製作時に稀に付与）---------- */
+  /* ---------- 開発技術（タグ）----------
+     以前は、パーツを作るたびに運で付いてくる「追加効果」だった。
+     それをチームが積み上げる技術として持ち直した。
+     一度ものにした技術は、パーツを載せ替えても失われない。
+     ここで上がるのはレベルで、レベルぶんだけ効きが強くなる。      */
   const PART_TRAITS = [
-    { key: 'light',  name: '軽量化',   icon: '🪶', desc: '加速性能がさらに上がる' },
-    { key: 'tough',  name: '高耐久',   icon: '🛡️', desc: '消耗しにくい' },
-    { key: 'cool',   name: '冷却強化', icon: '❄️', desc: 'トラブルが起きにくい' },
-    { key: 'sharp',  name: '高剛性',   icon: '💠', desc: 'コーナー性能がさらに上がる' },
-    { key: 'boost',  name: '高出力',   icon: '🔥', desc: '最高速がさらに上がる' }
+    { key: 'boost', name: '高出力',   icon: '🔥', color: '#e04a3f',
+      desc: '最高速がさらに上がる', per: 0.035, eff: '最高速 +3.5%/Lv',
+      note: '燃焼室と過給を詰め直す。同じ排気量から、もう少しだけ引き出す' },
+    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4ea63f',
+      desc: 'コーナー性能がさらに上がる', per: 0.035, eff: 'コーナー +3.5%/Lv',
+      note: '締結と積層を見直す。入力が逃げないぶん、狙った線をそのまま踏める' },
+    { key: 'light', name: '軽量化',   icon: '🪶', color: '#7ecbf0',
+      desc: '加速がさらに上がる', per: 0.040, eff: '加速 +4%/Lv',
+      note: '削れるところを削る。1グラムずつの積み重ねが、立ち上がりに出る' },
+    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#c98b4a',
+      desc: 'パーツが消耗しにくい', per: 0.090, eff: '消耗 -9%/Lv',
+      note: '先に音を上げる箇所を、先に潰しておく。週明けの現場が楽になる' },
+    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3a7ad9',
+      desc: 'マシンが壊れにくくなる', per: 1.60, eff: '信頼性 +1.6/Lv',
+      note: '熱の出口を作る。壊れるときは、たいてい熱から壊れる' }
   ];
+  /* 技術開発（📐 開発コマンド）の重み。レベルが上がるほど遠くなる */
+  const TECH = {
+    max: 5,
+    cost: 820, costLv: 0.75,     // 1つ上げるのにかかる資金（レベルで増える）
+    rp: 12,    rpLv: 0.60,       // 同じく研究P
+    step: 0.42,                  // 1回でどれだけ進むか（0..1でレベルアップ）
+    designer: 0.030,             // デザイナーの腕ぶん
+    factory:  0.020              // ファクトリーのレベルぶん
+  };
+  /* 改良（🔧 改良コマンド）で溜まる「熟成」。満ちるとレアリティが上がる */
+  const POLISH = {
+    step: 0.16,                  // 1回ぶんの基本
+    eng: 0.012,                  // エンジニアの腕ぶん
+    factory: 0.010,              // ファクトリーのレベルぶん
+    rarStep: r => 1 / (0.5 + r * 0.55)   // 格が上がるほど、次は遠い
+  };
 
   /* ---------- 車体（マシン本体）----------
      パーツとは別に、車体そのものを1年かけて熟成させる。
@@ -3607,7 +3652,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
-           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -3845,16 +3890,9 @@ GP.state = (function () {
     const rr = D.RARITY[rarity - 1];
     const power = opts.power != null ? opts.power
       : Math.round((10 + gen * 13) * rr.mult * rnd(0.92, 1.10) * 10) / 10;
-    const traits = [];
-    if (opts.traits) traits.push.apply(traits, opts.traits);
-    else {
-      // レアリティが高いほど追加効果が付きやすい
-      if (Math.random() < 0.10 + rarity * 0.07) traits.push(pick(D.PART_TRAITS).key);
-      if (rarity >= 4 && Math.random() < 0.30) {
-        const t = pick(D.PART_TRAITS).key;
-        if (traits.indexOf(t) < 0) traits.push(t);
-      }
-    }
+    // 追加効果はチームの技術（📐 開発）が受け持つので、
+    // パーツ個体には付かない。運ではなく、積み上げで手に入れる
+    const traits = opts.traits ? opts.traits.slice() : [];
     return {
       id: 'p' + (++partSeq) + Math.random().toString(36).slice(2, 6),
       cat: catKey,
@@ -3862,6 +3900,7 @@ GP.state = (function () {
       name: (D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, gen)] || {}).name + ' ' +
             cat.names[Math.min(cat.names.length - 1, gen)],
       gen: gen, rarity: rarity,
+      polish: 0,            // 改良で溜まる熟成。満ちるとレアリティが上がる
       power: power,
       cond: opts.cond != null ? opts.cond : 100,
       traits: traits
@@ -3883,18 +3922,72 @@ GP.state = (function () {
 
   const hasT = (p, k) => p.traits && p.traits.indexOf(k) >= 0;
 
-  /* パーツ1つが生む3性能 */
-  function partStats(p) {
+  /* ---------- 開発技術（タグ）----------
+     チームが積み上げるもので、パーツを載せ替えても失われない。
+     g.techs = { light: { lv: 2, p: 0.35 }, ... }                */
+  function techLv(g2, key)   { const t = g2 && g2.techs && g2.techs[key]; return (t && t.lv) || 0; }
+  function techProg(g2, key) { const t = g2 && g2.techs && g2.techs[key]; return (t && t.p) || 0; }
+  function techDef(key)      { return D.PART_TRAITS.filter(x => x.key === key)[0] || null; }
+  /* いま持っている技術（レベル1以上）を、表示しやすい形で */
+  function techList(g2) {
+    return D.PART_TRAITS.map(t => ({
+      key: t.key, name: t.name, icon: t.icon, color: t.color,
+      desc: t.desc, eff: t.eff, note: t.note, per: t.per,
+      lv: techLv(g2, t.key), p: techProg(g2, t.key), max: D.TECH.max
+    }));
+  }
+  /* 1回の開発で、どれだけ進むか（0..1でレベルが1つ上がる） */
+  function techStep(g2) {
+    return D.TECH.step
+         * (1 + designPower(g2) * D.TECH.designer + (g2.facilities.factory || 1) * D.TECH.factory)
+         * devRate(g2);
+  }
+  function techCost(g2, key) {
+    const lv = techLv(g2, key);
+    return { money: Math.round(D.TECH.cost * (1 + lv * D.TECH.costLv)),
+             rp:    Math.round(D.TECH.rp   * (1 + lv * D.TECH.rpLv)) };
+  }
+  /* 技術をひとつ進める。レベルが上がったら、その番号を返す */
+  function advanceTech(g2, key) {
+    g2.techs = g2.techs || {};
+    const t = g2.techs[key] || (g2.techs[key] = { lv: 0, p: 0 });
+    if (t.lv >= D.TECH.max) return { lv: t.lv, up: false, gain: 0 };
+    const gain = techStep(g2);
+    t.p += gain;
+    let up = false;
+    while (t.p >= 1 && t.lv < D.TECH.max) { t.p -= 1; t.lv++; up = true; }
+    if (t.lv >= D.TECH.max) t.p = 0;
+    return { lv: t.lv, up: up, gain: Math.round(gain * 100) / 100 };
+  }
+
+  /* パーツ1つが生む3性能。技術のレベルぶんだけ上に乗る */
+  function partStats(p, g2) {
     const cat = D.PART_CATS.find(c => c.key === p.cat);
     const st = {
       speed:  p.power * cat.gain.speed,
       corner: p.power * cat.gain.corner,
       accel:  p.power * cat.gain.accel
     };
-    if (hasT(p, 'boost')) st.speed  *= 1.14;
-    if (hasT(p, 'sharp')) st.corner *= 1.14;
-    if (hasT(p, 'light')) st.accel  *= 1.16;
+    const lv = k => techLv(g2, k);
+    st.speed  *= 1 + lv('boost') * (techDef('boost').per);
+    st.corner *= 1 + lv('sharp') * (techDef('sharp').per);
+    st.accel  *= 1 + lv('light') * (techDef('light').per);
     return st;
+  }
+
+  /* ---------- 熟成（改良でレアリティが上がる）----------
+     1回の改良でどれだけ熟成が進むか。格が上がるほど、次は遠い    */
+  function polishStep(g2, p) {
+    const eng = devPower(g2);
+    return D.POLISH.step
+         * (1 + eng * D.POLISH.eng + (g2.facilities.factory || 1) * D.POLISH.factory)
+         * D.POLISH.rarStep(p.rarity);
+  }
+  /* あと何回の改良で格が上がるか（表示用） */
+  function polishLeft(g2, p) {
+    if (p.rarity >= D.RARITY.length) return 0;
+    const st = polishStep(g2, p);
+    return Math.max(1, Math.ceil((1 - (p.polish || 0)) / Math.max(0.001, st)));
   }
 
   /* 改良の上限（マシン世代 × レアリティ） */
@@ -3903,8 +3996,8 @@ GP.state = (function () {
   }
 
   /* パーツの総合評価（表示用） */
-  function partScore(p) {
-    const st = partStats(p);
+  function partScore(p, g2) {
+    const st = partStats(p, g2);
     return Math.round(st.speed + st.corner + st.accel);
   }
 
@@ -4055,7 +4148,7 @@ GP.state = (function () {
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
-      const ps = partStats(p);
+      const ps = partStats(p, g);
       // コンディションが落ちたパーツは本来の性能を出しきれない
       const f = (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1)
               * (c.key === 'pu' ? puForm(g) : 1);
@@ -4778,10 +4871,10 @@ GP.state = (function () {
       const p = g.equipped[c.key];
       if (!p) { sum += 40; n++; return; }
       sum += p.cond; n++;
-      if (hasT(p, 'cool')) bonus += 4;
-      if (hasT(p, 'tough')) bonus += 2;
     });
     const avg = sum / Math.max(1, n);
+    // 冷却強化と高耐久は、いまやチームの技術。台数ぶんではなく一度だけ効く
+    bonus += techLv(g, 'cool') * (techDef('cool').per) + techLv(g, 'tough') * 0.8;
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
                + g.facilities.pit * 2.5 + pitPower(g) * 1.4
@@ -5094,7 +5187,8 @@ GP.state = (function () {
       const p = g.equipped[c.key];
       if (!p) return;
       // ギアボックスのように、そもそも消耗の速い部位がある
-      const w = amount * (hasT(p, 'tough') ? 0.55 : 1) * svc * (c.wear || 1);
+      const w = amount * Math.max(0.35, 1 - techLv(g, 'tough') * (D.PART_TRAITS.filter(t => t.key === 'tough')[0].per))
+              * svc * (c.wear || 1);
       p.cond = clamp(p.cond - w, 5, 100);
     });
   }
@@ -5382,6 +5476,7 @@ GP.state = (function () {
       lastRank: 0,          // 前年のコンストラクターズ順位（風洞時間の傾斜に使う）
       pu: { used: 1, life: 100, grid: 0, over: 0 },   // パワーユニットの基数と残り
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
+      techs: {},            // 開発で積み上げた技術（タグ）
       standings: [], results: [],
       log: [],
       flags: { firstWin: false, tutorial: true },
@@ -5879,6 +5974,22 @@ GP.state = (function () {
       if (!g.pu.n) g.pu.n = g.pu.used || 1;
       if (g.reserve === undefined) g.reserve = null;
       if (g.capSpent == null) g.capSpent = 0;
+      // 個体に付いていた追加効果は、チームの技術（レベル1）に読み替える
+      if (!g.techs) {
+        g.techs = {};
+        const soak = q => (q && q.traits || []).forEach(k => {
+          if (!D.PART_TRAITS.filter(t => t.key === k).length) return;
+          g.techs[k] = g.techs[k] || { lv: 0, p: 0 };
+          if (g.techs[k].lv < 1) g.techs[k].lv = 1;
+        });
+        D.PART_CATS.forEach(c => soak(g.equipped && g.equipped[c.key]));
+        (g.inventory || []).forEach(soak);
+      }
+      D.PART_CATS.forEach(c => {
+        const q = g.equipped && g.equipped[c.key];
+        if (q && q.polish == null) q.polish = 0;
+      });
+      (g.inventory || []).forEach(q => { if (q.polish == null) q.polish = 0; });
       // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
       if (g.equipped) {
         D.PART_CATS.forEach(c => {
@@ -5907,6 +6018,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
+    techLv, techProg, techDef, techList, techStep, techCost, advanceTech, polishStep, polishLeft,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
@@ -11889,11 +12001,17 @@ GP.ui = (function () {
   /* ---------- マシンパネル ---------- */
   function stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
-  function partTraitChips(p) {
-    if (!p.traits || !p.traits.length) return '';
-    return p.traits.map(k => {
-      const t = D.PART_TRAITS.find(x => x.key === k);
-      return t ? '<span class="ptr" title="' + esc(t.desc) + '">' + t.icon + t.name + '</span>' : '';
+  /* タグはチームの技術になったので、どのパーツにも同じものが乗る。
+     レベルつきで並べて、載せ替えても失われないことが分かるようにする   */
+  function partTraitChips(p, g) {
+    if (!g) return '';
+    return D.PART_TRAITS.map(t => {
+      const lv = S.techLv(g, t.key);
+      if (!lv) return '';
+      const now = t.per >= 1 ? '+' + (lv * t.per).toFixed(1)
+                             : '+' + Math.round(lv * t.per * 100) + '%';
+      return '<span class="ptr" title="' + esc(t.desc) + '（' + now + '）チームの技術なので、' +
+        'パーツを載せ替えても残ります">' + t.icon + t.name + '<em>' + lv + '</em></span>';
     }).join('');
   }
 
@@ -11912,7 +12030,7 @@ GP.ui = (function () {
       '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
-      (partTraitChips(p) ? '<span class="p-trs">' + partTraitChips(p) + '</span>' : '') +
+      (partTraitChips(p, g) ? '<span class="p-trs">' + partTraitChips(p, g) + '</span>' : '') +
       // その世代で何が変わったのか。読み飛ばせるが、読むと分かる
       (S.partNote ? '<span class="p-note">' + esc(S.partNote(p.cat, p.gen)) + '</span>' : '') +
       '</div>';
@@ -12870,7 +12988,7 @@ window.GP = window.GP || {};
 
   let useTicket = false;
 
-  function cmdDevelop() {
+  function cmdImprove() {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const fc = S.focusOf(g);
@@ -12934,7 +13052,8 @@ window.GP = window.GP || {};
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
-      '同じ金額なら、伸びしろの大きいところに入れたほうが効きます。</p><div class="pick">';
+      '手を入れ続けると<b>熟成</b>が溜まり、満ちたところで<b>格（レアリティ）が上がって上限そのものが伸びます</b>。' +
+      'タグ（追加効果）は「📐 開発」の担当です。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -12973,6 +13092,12 @@ window.GP = window.GP || {};
           (upLine ? '　→　' + upLine : '') +
           '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
           (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
+        // 熟成。手を入れ続けると、このパーツの「格」そのものが上がる
+        (locked ? '' : (p.rarity >= D.RARITY.length
+          ? '<span class="devpol">✨ 【' + D.RARITY[p.rarity - 1].name + '】これ以上の格はありません</span>'
+          : '<span class="devpol">熟成 <span class="polbar"><i style="width:' +
+            Math.round((p.polish || 0) * 100) + '%"></i></span>' +
+            'あと ' + S.polishLeft(g, p) + '回で【' + D.RARITY[p.rarity].name + '】へ格上げ</span>')) +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
@@ -13054,10 +13179,82 @@ window.GP = window.GP || {};
     }
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
+    body += '</div>';
+    U.modal('🔧 改良', body, [
+      { label: '📐 開発へ', fn: () => { U.closeModal(); cmdDesign(); } },
+      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+    ]);
+    paintInterior();
+    const tg = $('tkToggle');
+    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdImprove(); };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
+      b.onclick = () => {
+        g.focus = b.dataset.focus;
+        GP.sound.play('tap');
+        const f = S.focusOf(g);
+        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
+        S.save(g); render(); cmdImprove();
+      };
+    });
+    bindPick(k => {
+      const [kind, key] = k.split(':');
+      if (kind === 'imp') doImprove(key);
+      else if (kind === 'bdy') doBody(key);
+    });
+  }
+
+  /* =======================================================
+     コマンド：開発
+     「新しいものを作る」側。ここでは技術（タグ）を積み上げ、
+     新しいパーツを設計する。格（レアリティ）は改良の担当。
+     ======================================================= */
+  function cmdDesign() {
+    const tk = g.tickets || 0;
+    if (!tk) useTicket = false;
+    let body = interiorHTML('factory');
+    if (tk) {
+      body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle2">' +
+        '<span class="tk-ic">🎫</span>' +
+        '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+        '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
+        '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
+    }
+
+    // ---- 技術開発 ----
+    body += '<div class="sub">技術の開発</div>' +
+      '<p class="desc">ここで積み上げるのは<b>チームの技術</b>です。' +
+      '一度ものにした技術は、パーツを作り替えても、載せ替えても失われません。' +
+      'レベルが上がるほど効きが強くなります。</p><div class="pick">';
+    S.techList(g).forEach(t => {
+      const c = S.techCost(g, t.key);
+      const maxed = t.lv >= t.max;
+      const ok = !maxed && (useTicket || (g.funds >= c.money && g.rp >= c.rp));
+      const step = S.techStep(g);
+      const left = maxed ? 0 : Math.max(1, Math.ceil((1 - t.p) / Math.max(0.001, step)));
+      const now = t.lv > 0 ? (t.per >= 1 ? '+' + (t.lv * t.per).toFixed(1)
+                                         : '+' + Math.round(t.lv * t.per * 100) + '%') : '—';
+      body += '<button class="pickbtn techrow" data-k="tec:' + t.key + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:' + t.color + '">' + t.icon + '</span>' +
+        '<span class="pb-body"><b>' + t.name +
+          '<em class="techlv">Lv.' + t.lv + ' / ' + t.max + '</em></b>' +
+        '<small>' + esc(t.desc) + '（' + t.eff + '）　いまの効き <b>' + now + '</b>' +
+        '<span class="techbar"><i style="width:' + Math.round((maxed ? 1 : t.p) * 100) + '%;background:' + t.color + '"></i></span>' +
+        (maxed ? '<span class="devup">これ以上は上がりません</span>'
+               : '<span class="devup">あと ' + left + '回でLv.' + (t.lv + 1) + '　' +
+                 '<em class="pnote">' + esc(t.note) + '</em></span>') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (maxed ? '—'
+          : useTicket ? '<b class="free">🎫 無料</b>'
+          : '💰' + money(c.money) + '<br>🔬' + c.rp) + '</span></button>';
+    });
+    body += '</div>';
+
+    // ---- パーツの設計 ----
     const dc = designCost();
-    body += '</div><div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
-      '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
-      '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
+    body += '<div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
+      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
+      '格（レアリティ）は、<b>改良で煮詰めて上げるもの</b>です。ここで出るのは出発点です。</p>' +
+      '<div class="pick">';
     const desCut = S.perkCut(g, 'design');
     D.PART_CATS.forEach(c => {
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
@@ -13071,25 +13268,47 @@ window.GP = window.GP || {};
             '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
     });
     body += '</div>';
-    U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+
+    U.modal('📐 開発', body, [
+      { label: '🔧 改良へ', fn: () => { U.closeModal(); cmdImprove(); } },
+      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+    ]);
     paintInterior();
-    const tg = $('tkToggle');
-    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
-      b.onclick = () => {
-        g.focus = b.dataset.focus;
-        GP.sound.play('tap');
-        const f = S.focusOf(g);
-        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
-        S.save(g); render(); cmdDevelop();
-      };
-    });
+    const tg2 = $('tkToggle2');
+    if (tg2) tg2.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDesign(); };
     bindPick(k => {
       const [kind, key] = k.split(':');
-      if (kind === 'imp') doImprove(key);
-      else if (kind === 'bdy') doBody(key);
-      else doDesign(key);
+      if (kind === 'tec') doTech(key);
+      else if (kind === 'des') doDesign(key);
     });
+  }
+
+  /* 技術をひとつ進める。1週かかる */
+  function doTech(key) {
+    const t = D.PART_TRAITS.filter(x => x.key === key)[0];
+    if (!t) return;
+    if (S.techLv(g, key) >= D.TECH.max) return;
+    const c = S.techCost(g, key);
+    const free = spendTicket();
+    if (!free) {
+      if (g.funds < c.money || g.rp < c.rp) return;
+      g.funds -= c.money; g.rp -= c.rp; capSpend(c.money);
+    }
+    const r = S.advanceTech(g, key);
+    staffExp('designer', 12); staffExp('engineer', 4);
+    U.closeModal();
+    if (r.up) {
+      const now = t.per >= 1 ? '+' + (r.lv * t.per).toFixed(1)
+                             : '+' + Math.round(r.lv * t.per * 100) + '%';
+      U.log(g, t.icon + ' 「' + t.name + '」が Lv.' + r.lv + ' になった（いまの効き ' + now + '）', 'good');
+      U.toast(t.icon + ' ' + t.name + ' Lv.' + r.lv + '！', 'good');
+      GP.sound.play('levelup');
+      U.pop('Lv.' + r.lv, 'crit');
+    } else {
+      U.log(g, t.icon + ' 「' + t.name + '」の開発を進めた（+' + Math.round(r.gain * 100) + '%）');
+      GP.sound.play('confirm');
+    }
+    endWeek();
   }
 
   const bodyCost = v => Math.round(380 + v * 34);
@@ -13242,7 +13461,7 @@ window.GP = window.GP || {};
     p.power = keep;
     const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
     return {
-      cur: S.partStats(p), gain: now, toNext: next, cap: cap,
+      cur: S.partStats(p, g), gain: now, toNext: next, cap: cap,
       ratio: Math.min(1, p.power / cap),
       dSpeed: after.speed - before.speed,
       dCorner: after.corner - before.corner,
@@ -13275,15 +13494,22 @@ window.GP = window.GP || {};
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
-       掘り当てるとパーツそのものの格が上がり、到達できる上限まで伸びる  */
+       掘り当てると、熟成が一気に進む                                */
     const brk = S.rollBreakthrough(g);
     let upTo = null;
+    let polGain = S.polishStep(g, p);
     if (brk) {
       gain *= D.INNOV.playerGain; crit = true;
-      // 格上げは上に行くほど難しい。すでに高いパーツはそう簡単には上がらない
-      if (p.rarity < D.RARITY.length && Math.random() < D.INNOV.rarStep(p.rarity)) {
-        upTo = p.rarity + 1;
-      }
+      polGain += 0.55;                 // 掘り当てたぶん、格に近づく
+    }
+    /* ---- 熟成 ----
+       手を入れるたびに、そのパーツは少しずつ「良いもの」になっていく。
+       満ちたところで格が上がり、到達できる上限そのものが伸びる      */
+    if (p.rarity < D.RARITY.length) {
+      p.polish = (p.polish || 0) + polGain;
+      if (p.polish >= 1) { p.polish = 0; upTo = p.rarity + 1; }
+    } else {
+      p.polish = 0;
     }
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     // 来季に回したぶんは今季に乗らない
@@ -13292,7 +13518,7 @@ window.GP = window.GP || {};
     g.nextCar = (g.nextCar || 0) + toNext;
 
     p.power = Math.round((p.power + gain) * 10) / 10;
-    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
+    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * Math.max(0.4, 1 - S.techLv(g, 'tough') * 0.08), 10, 100);
     if (brk) {
       // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
       g.concepts = (g.concepts || []).concat([{
@@ -13303,8 +13529,9 @@ window.GP = window.GP || {};
     if (upTo) {
       p.rarity = upTo;
       const rr = D.RARITY[upTo - 1];
-      U.log(g, '🔬 ' + brk + '！ ' + p.name + ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
-      U.toast('🔬 ' + brk + '！ ' + rr.name + ' へ格上げ！', 'good');
+      U.log(g, (brk ? '🔬 ' + brk + '！ ' : '✨ 熟成が実った！ ') + p.name +
+        ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
+      U.toast('✨ ' + rr.name + ' へ格上げ！', 'good');
       GP.sound.play('levelup');
     }
 
@@ -13318,7 +13545,7 @@ window.GP = window.GP || {};
     showDevResult({
       icon: U.partIcon(c.key, 44, p.rarity), color: c.color,
       title: p.name,
-      sub: upTo ? '🔬 ' + brk + ' — 【' + D.RARITY[upTo - 1].name + '】へ'
+      sub: upTo ? (brk ? '🔬 ' + brk + ' — ' : '✨ 熟成 — ') + '【' + D.RARITY[upTo - 1].name + '】へ'
          : brk ? '🔬 ' + brk : c.name,
       from: p.power - gain, to: p.power, cap: upTo ? S.partCap(g, p) : cap, gain: gain, crit: crit,
       next: toNext > 0.05 ? toNext : 0
@@ -13401,7 +13628,7 @@ window.GP = window.GP || {};
 
     // 装着中より強ければすすめる
     const cur = g.equipped[key];
-    if (!cur || S.partScore(part) > S.partScore(cur)) {
+    if (!cur || S.partScore(part, g) > S.partScore(cur, g)) {
       U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
     }
     endWeek();
@@ -17620,7 +17847,7 @@ window.GP = window.GP || {};
   }
 
   const HUB_DOORS = {
-    factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
+    factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
@@ -18007,7 +18234,7 @@ window.GP = window.GP || {};
 
   function bindCommands() {
     const map = {
-      cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
+      cDevelop: cmdImprove, cDesign: cmdDesign, cResearch: cmdResearch, cMaintain: cmdMaintain,
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
       cLogi: cmdLogi, cLogiR: cmdLogi, cLogiO: cmdLogi,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,

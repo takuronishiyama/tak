@@ -262,14 +262,44 @@ GP.data = (function () {
     { n: 5, name: 'レジェンド',   color: '#f0a020', mult: 2.30, capMult: 1.48 }
   ];
 
-  /* ---------- パーツに付く追加効果（製作時に稀に付与）---------- */
+  /* ---------- 開発技術（タグ）----------
+     以前は、パーツを作るたびに運で付いてくる「追加効果」だった。
+     それをチームが積み上げる技術として持ち直した。
+     一度ものにした技術は、パーツを載せ替えても失われない。
+     ここで上がるのはレベルで、レベルぶんだけ効きが強くなる。      */
   const PART_TRAITS = [
-    { key: 'light',  name: '軽量化',   icon: '🪶', desc: '加速性能がさらに上がる' },
-    { key: 'tough',  name: '高耐久',   icon: '🛡️', desc: '消耗しにくい' },
-    { key: 'cool',   name: '冷却強化', icon: '❄️', desc: 'トラブルが起きにくい' },
-    { key: 'sharp',  name: '高剛性',   icon: '💠', desc: 'コーナー性能がさらに上がる' },
-    { key: 'boost',  name: '高出力',   icon: '🔥', desc: '最高速がさらに上がる' }
+    { key: 'boost', name: '高出力',   icon: '🔥', color: '#e04a3f',
+      desc: '最高速がさらに上がる', per: 0.035, eff: '最高速 +3.5%/Lv',
+      note: '燃焼室と過給を詰め直す。同じ排気量から、もう少しだけ引き出す' },
+    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4ea63f',
+      desc: 'コーナー性能がさらに上がる', per: 0.035, eff: 'コーナー +3.5%/Lv',
+      note: '締結と積層を見直す。入力が逃げないぶん、狙った線をそのまま踏める' },
+    { key: 'light', name: '軽量化',   icon: '🪶', color: '#7ecbf0',
+      desc: '加速がさらに上がる', per: 0.040, eff: '加速 +4%/Lv',
+      note: '削れるところを削る。1グラムずつの積み重ねが、立ち上がりに出る' },
+    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#c98b4a',
+      desc: 'パーツが消耗しにくい', per: 0.090, eff: '消耗 -9%/Lv',
+      note: '先に音を上げる箇所を、先に潰しておく。週明けの現場が楽になる' },
+    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3a7ad9',
+      desc: 'マシンが壊れにくくなる', per: 1.60, eff: '信頼性 +1.6/Lv',
+      note: '熱の出口を作る。壊れるときは、たいてい熱から壊れる' }
   ];
+  /* 技術開発（📐 開発コマンド）の重み。レベルが上がるほど遠くなる */
+  const TECH = {
+    max: 5,
+    cost: 820, costLv: 0.75,     // 1つ上げるのにかかる資金（レベルで増える）
+    rp: 12,    rpLv: 0.60,       // 同じく研究P
+    step: 0.42,                  // 1回でどれだけ進むか（0..1でレベルアップ）
+    designer: 0.030,             // デザイナーの腕ぶん
+    factory:  0.020              // ファクトリーのレベルぶん
+  };
+  /* 改良（🔧 改良コマンド）で溜まる「熟成」。満ちるとレアリティが上がる */
+  const POLISH = {
+    step: 0.16,                  // 1回ぶんの基本
+    eng: 0.012,                  // エンジニアの腕ぶん
+    factory: 0.010,              // ファクトリーのレベルぶん
+    rarStep: r => 1 / (0.5 + r * 0.55)   // 格が上がるほど、次は遠い
+  };
 
   /* ---------- 車体（マシン本体）----------
      パーツとは別に、車体そのものを1年かけて熟成させる。
@@ -1212,6 +1242,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
-           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

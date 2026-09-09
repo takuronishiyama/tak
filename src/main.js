@@ -367,7 +367,7 @@ window.GP = window.GP || {};
 
   let useTicket = false;
 
-  function cmdDevelop() {
+  function cmdImprove() {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const fc = S.focusOf(g);
@@ -431,7 +431,8 @@ window.GP = window.GP || {};
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
-      '同じ金額なら、伸びしろの大きいところに入れたほうが効きます。</p><div class="pick">';
+      '手を入れ続けると<b>熟成</b>が溜まり、満ちたところで<b>格（レアリティ）が上がって上限そのものが伸びます</b>。' +
+      'タグ（追加効果）は「📐 開発」の担当です。</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -470,6 +471,12 @@ window.GP = window.GP || {};
           (upLine ? '　→　' + upLine : '') +
           '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
           (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
+        // 熟成。手を入れ続けると、このパーツの「格」そのものが上がる
+        (locked ? '' : (p.rarity >= D.RARITY.length
+          ? '<span class="devpol">✨ 【' + D.RARITY[p.rarity - 1].name + '】これ以上の格はありません</span>'
+          : '<span class="devpol">熟成 <span class="polbar"><i style="width:' +
+            Math.round((p.polish || 0) * 100) + '%"></i></span>' +
+            'あと ' + S.polishLeft(g, p) + '回で【' + D.RARITY[p.rarity].name + '】へ格上げ</span>')) +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
@@ -551,10 +558,82 @@ window.GP = window.GP || {};
     }
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
+    body += '</div>';
+    U.modal('🔧 改良', body, [
+      { label: '📐 開発へ', fn: () => { U.closeModal(); cmdDesign(); } },
+      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+    ]);
+    paintInterior();
+    const tg = $('tkToggle');
+    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdImprove(); };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
+      b.onclick = () => {
+        g.focus = b.dataset.focus;
+        GP.sound.play('tap');
+        const f = S.focusOf(g);
+        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
+        S.save(g); render(); cmdImprove();
+      };
+    });
+    bindPick(k => {
+      const [kind, key] = k.split(':');
+      if (kind === 'imp') doImprove(key);
+      else if (kind === 'bdy') doBody(key);
+    });
+  }
+
+  /* =======================================================
+     コマンド：開発
+     「新しいものを作る」側。ここでは技術（タグ）を積み上げ、
+     新しいパーツを設計する。格（レアリティ）は改良の担当。
+     ======================================================= */
+  function cmdDesign() {
+    const tk = g.tickets || 0;
+    if (!tk) useTicket = false;
+    let body = interiorHTML('factory');
+    if (tk) {
+      body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle2">' +
+        '<span class="tk-ic">🎫</span>' +
+        '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+        '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
+        '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
+    }
+
+    // ---- 技術開発 ----
+    body += '<div class="sub">技術の開発</div>' +
+      '<p class="desc">ここで積み上げるのは<b>チームの技術</b>です。' +
+      '一度ものにした技術は、パーツを作り替えても、載せ替えても失われません。' +
+      'レベルが上がるほど効きが強くなります。</p><div class="pick">';
+    S.techList(g).forEach(t => {
+      const c = S.techCost(g, t.key);
+      const maxed = t.lv >= t.max;
+      const ok = !maxed && (useTicket || (g.funds >= c.money && g.rp >= c.rp));
+      const step = S.techStep(g);
+      const left = maxed ? 0 : Math.max(1, Math.ceil((1 - t.p) / Math.max(0.001, step)));
+      const now = t.lv > 0 ? (t.per >= 1 ? '+' + (t.lv * t.per).toFixed(1)
+                                         : '+' + Math.round(t.lv * t.per * 100) + '%') : '—';
+      body += '<button class="pickbtn techrow" data-k="tec:' + t.key + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:' + t.color + '">' + t.icon + '</span>' +
+        '<span class="pb-body"><b>' + t.name +
+          '<em class="techlv">Lv.' + t.lv + ' / ' + t.max + '</em></b>' +
+        '<small>' + esc(t.desc) + '（' + t.eff + '）　いまの効き <b>' + now + '</b>' +
+        '<span class="techbar"><i style="width:' + Math.round((maxed ? 1 : t.p) * 100) + '%;background:' + t.color + '"></i></span>' +
+        (maxed ? '<span class="devup">これ以上は上がりません</span>'
+               : '<span class="devup">あと ' + left + '回でLv.' + (t.lv + 1) + '　' +
+                 '<em class="pnote">' + esc(t.note) + '</em></span>') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (maxed ? '—'
+          : useTicket ? '<b class="free">🎫 無料</b>'
+          : '💰' + money(c.money) + '<br>🔬' + c.rp) + '</span></button>';
+    });
+    body += '</div>';
+
+    // ---- パーツの設計 ----
     const dc = designCost();
-    body += '</div><div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
-      '<p class="desc">デザイナーの腕が良いほど高レアリティのパーツができます。' +
-      '完成したパーツは保管され、「マシン」から装着・合成できます。</p><div class="pick">';
+    body += '<div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
+      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
+      '格（レアリティ）は、<b>改良で煮詰めて上げるもの</b>です。ここで出るのは出発点です。</p>' +
+      '<div class="pick">';
     const desCut = S.perkCut(g, 'design');
     D.PART_CATS.forEach(c => {
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
@@ -568,25 +647,47 @@ window.GP = window.GP || {};
             '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
     });
     body += '</div>';
-    U.modal('🔧 マシン開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+
+    U.modal('📐 開発', body, [
+      { label: '🔧 改良へ', fn: () => { U.closeModal(); cmdImprove(); } },
+      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+    ]);
     paintInterior();
-    const tg = $('tkToggle');
-    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDevelop(); };
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
-      b.onclick = () => {
-        g.focus = b.dataset.focus;
-        GP.sound.play('tap');
-        const f = S.focusOf(g);
-        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
-        S.save(g); render(); cmdDevelop();
-      };
-    });
+    const tg2 = $('tkToggle2');
+    if (tg2) tg2.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDesign(); };
     bindPick(k => {
       const [kind, key] = k.split(':');
-      if (kind === 'imp') doImprove(key);
-      else if (kind === 'bdy') doBody(key);
-      else doDesign(key);
+      if (kind === 'tec') doTech(key);
+      else if (kind === 'des') doDesign(key);
     });
+  }
+
+  /* 技術をひとつ進める。1週かかる */
+  function doTech(key) {
+    const t = D.PART_TRAITS.filter(x => x.key === key)[0];
+    if (!t) return;
+    if (S.techLv(g, key) >= D.TECH.max) return;
+    const c = S.techCost(g, key);
+    const free = spendTicket();
+    if (!free) {
+      if (g.funds < c.money || g.rp < c.rp) return;
+      g.funds -= c.money; g.rp -= c.rp; capSpend(c.money);
+    }
+    const r = S.advanceTech(g, key);
+    staffExp('designer', 12); staffExp('engineer', 4);
+    U.closeModal();
+    if (r.up) {
+      const now = t.per >= 1 ? '+' + (r.lv * t.per).toFixed(1)
+                             : '+' + Math.round(r.lv * t.per * 100) + '%';
+      U.log(g, t.icon + ' 「' + t.name + '」が Lv.' + r.lv + ' になった（いまの効き ' + now + '）', 'good');
+      U.toast(t.icon + ' ' + t.name + ' Lv.' + r.lv + '！', 'good');
+      GP.sound.play('levelup');
+      U.pop('Lv.' + r.lv, 'crit');
+    } else {
+      U.log(g, t.icon + ' 「' + t.name + '」の開発を進めた（+' + Math.round(r.gain * 100) + '%）');
+      GP.sound.play('confirm');
+    }
+    endWeek();
   }
 
   const bodyCost = v => Math.round(380 + v * 34);
@@ -739,7 +840,7 @@ window.GP = window.GP || {};
     p.power = keep;
     const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
     return {
-      cur: S.partStats(p), gain: now, toNext: next, cap: cap,
+      cur: S.partStats(p, g), gain: now, toNext: next, cap: cap,
       ratio: Math.min(1, p.power / cap),
       dSpeed: after.speed - before.speed,
       dCorner: after.corner - before.corner,
@@ -772,15 +873,22 @@ window.GP = window.GP || {};
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
-       掘り当てるとパーツそのものの格が上がり、到達できる上限まで伸びる  */
+       掘り当てると、熟成が一気に進む                                */
     const brk = S.rollBreakthrough(g);
     let upTo = null;
+    let polGain = S.polishStep(g, p);
     if (brk) {
       gain *= D.INNOV.playerGain; crit = true;
-      // 格上げは上に行くほど難しい。すでに高いパーツはそう簡単には上がらない
-      if (p.rarity < D.RARITY.length && Math.random() < D.INNOV.rarStep(p.rarity)) {
-        upTo = p.rarity + 1;
-      }
+      polGain += 0.55;                 // 掘り当てたぶん、格に近づく
+    }
+    /* ---- 熟成 ----
+       手を入れるたびに、そのパーツは少しずつ「良いもの」になっていく。
+       満ちたところで格が上がり、到達できる上限そのものが伸びる      */
+    if (p.rarity < D.RARITY.length) {
+      p.polish = (p.polish || 0) + polGain;
+      if (p.polish >= 1) { p.polish = 0; upTo = p.rarity + 1; }
+    } else {
+      p.polish = 0;
     }
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     // 来季に回したぶんは今季に乗らない
@@ -789,7 +897,7 @@ window.GP = window.GP || {};
     g.nextCar = (g.nextCar || 0) + toNext;
 
     p.power = Math.round((p.power + gain) * 10) / 10;
-    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * (S.hasT(p, 'tough') ? 0.6 : 1), 10, 100);
+    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * Math.max(0.4, 1 - S.techLv(g, 'tough') * 0.08), 10, 100);
     if (brk) {
       // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
       g.concepts = (g.concepts || []).concat([{
@@ -800,8 +908,9 @@ window.GP = window.GP || {};
     if (upTo) {
       p.rarity = upTo;
       const rr = D.RARITY[upTo - 1];
-      U.log(g, '🔬 ' + brk + '！ ' + p.name + ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
-      U.toast('🔬 ' + brk + '！ ' + rr.name + ' へ格上げ！', 'good');
+      U.log(g, (brk ? '🔬 ' + brk + '！ ' : '✨ 熟成が実った！ ') + p.name +
+        ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
+      U.toast('✨ ' + rr.name + ' へ格上げ！', 'good');
       GP.sound.play('levelup');
     }
 
@@ -815,7 +924,7 @@ window.GP = window.GP || {};
     showDevResult({
       icon: U.partIcon(c.key, 44, p.rarity), color: c.color,
       title: p.name,
-      sub: upTo ? '🔬 ' + brk + ' — 【' + D.RARITY[upTo - 1].name + '】へ'
+      sub: upTo ? (brk ? '🔬 ' + brk + ' — ' : '✨ 熟成 — ') + '【' + D.RARITY[upTo - 1].name + '】へ'
          : brk ? '🔬 ' + brk : c.name,
       from: p.power - gain, to: p.power, cap: upTo ? S.partCap(g, p) : cap, gain: gain, crit: crit,
       next: toNext > 0.05 ? toNext : 0
@@ -898,7 +1007,7 @@ window.GP = window.GP || {};
 
     // 装着中より強ければすすめる
     const cur = g.equipped[key];
-    if (!cur || S.partScore(part) > S.partScore(cur)) {
+    if (!cur || S.partScore(part, g) > S.partScore(cur, g)) {
       U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
     }
     endWeek();
@@ -5117,7 +5226,7 @@ window.GP = window.GP || {};
   }
 
   const HUB_DOORS = {
-    factory: { icon: '🏭', label: 'ファクトリー', to: '開発',   fn: () => cmdDevelop() },
+    factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
@@ -5504,7 +5613,7 @@ window.GP = window.GP || {};
 
   function bindCommands() {
     const map = {
-      cDevelop: cmdDevelop, cResearch: cmdResearch, cMaintain: cmdMaintain,
+      cDevelop: cmdImprove, cDesign: cmdDesign, cResearch: cmdResearch, cMaintain: cmdMaintain,
       cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
       cLogi: cmdLogi, cLogiR: cmdLogi, cLogiO: cmdLogi,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,

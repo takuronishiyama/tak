@@ -1823,3 +1823,17 @@ body[data-skin="hd"]{
 .rvo.grip.mid { background:#3a4030; color:#d8e8c0; }
 .rvo.grip.warn{ background:#6a4a12; color:#ffe1a0; }
 .rvo.grip.bad { background:#7a2018; color:#ffd0c8; animation:blink 1s steps(2,end) infinite; }
+
+/* ---- 技術開発（タグ） ---- */
+.techrow .techlv{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
+                 border-radius:4px;padding:0 6px;margin-left:6px}
+.techbar{display:block;height:8px;background:var(--trough);border:2px solid var(--ink);
+         border-radius:5px;overflow:hidden;margin:3px 0}
+.techbar i{display:block;height:100%;transition:width .35s}
+/* ---- 熟成（改良でレアリティが上がる） ---- */
+.polbar{display:inline-block;width:64px;height:7px;background:var(--trough);border:1px solid var(--ink);
+        border-radius:4px;overflow:hidden;vertical-align:middle;margin:0 4px}
+.polbar i{display:block;height:100%;background:linear-gradient(#ffd76a,#e8a800)}
+.devpol{display:block;font-size:9px;opacity:.85;margin-top:2px}
+.ptr em{font-style:normal;font-size:8px;background:var(--ink);color:#ffeec4;border-radius:3px;
+        padding:0 3px;margin-left:3px}
