@@ -536,6 +536,9 @@ GP.ui = (function () {
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost - f.shipping) + '</b></div>' +
       '<div class="fin-row"><span>' + S.logiPlan(g).icon + ' 次戦への輸送費（' + S.logiPlan(g).name + '）</span><b class="bad">-' + money(f.shipping) + '</b></div>' +
+      ((g.repairPaid || 0) > 0
+        ? '<div class="fin-row"><span>🔧 今季ここまでの修理費</span><b class="bad">-' +
+          money(g.repairPaid) + '</b></div>' : '') +
       '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
       (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +
       '<p class="desc">※ここに賞金が加わります。賞金は順位しだいなので、' +

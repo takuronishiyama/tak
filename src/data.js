@@ -437,24 +437,30 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入ります。',
+            'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入り、' +
+            '壊した週末の修理費もスポンサーがほとんど飲み込んでくれます。',
       rivalPower: 0.78, rivalGrow: 1.05, dev: 1.15, funds: 1.45, prize: 1.15, sponsor: 1.15,
+      upkeep: 0.85, repair: 0.30,
       ticket: 3, oilSponsor: true
     },
     {
       key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
-            'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。',
-      rivalPower: 0.94, rivalGrow: 1.00, dev: 0.74, funds: 1.00, prize: 1.00, sponsor: 1.00,
+            'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。' +
+            '運営費は重く、壊せば修理費がそのまま効いてきます。',
+      rivalPower: 0.94, rivalGrow: 1.00, dev: 0.74, funds: 1.00, prize: 0.92, sponsor: 0.94,
+      upkeep: 1.14, repair: 1.00,
       ticket: 4, oilSponsor: false
     },
     {
       key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
-            '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。',
-      rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.88, sponsor: 0.88,
+            '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。' +
+            '運営費も修理費も高く、1回のクラッシュが開発1回ぶんを消し飛ばします。',
+      rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.80, sponsor: 0.82,
+      upkeep: 1.32, repair: 1.35,
       ticket: 5, oilSponsor: false
     }
   ];
@@ -1142,6 +1148,17 @@ GP.data = (function () {
      大雨（濡れ1.0）でドライのまま走ると 1周 +13% ほど。
      路面が濡れること自体でも全車が最大 +18% 遅くなるので、
      合計するとまともに走れない、という程度に収まる                  */
+  /* ---------- 修理費 ----------
+     壊した週末は、次の週末までに直さなければならない。
+     スピンの1回や、クラッシュでのリタイアが、そのまま開発の予算を削る。 */
+  const REPAIR = {
+    spin:   240,     // スピン1回あたり
+    crash: 2900,     // クラッシュ・接触でリタイアしたとき
+    off:   1500,     // コースアウトで止まったとき
+    dmg:    460,     // ダメージ 1.0 あたり
+    gen:    0.20     // マシン世代が1つ上がるごとに、部品がこれだけ高くなる
+  };
+
   const WET_MISMATCH = 0.16;
 
   /* ---------- 環境係数 ----------
@@ -1184,5 +1201,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

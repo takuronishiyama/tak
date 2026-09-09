@@ -2818,24 +2818,30 @@ GP.data = (function () {
       key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
-            'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入ります。',
+            'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入り、' +
+            '壊した週末の修理費もスポンサーがほとんど飲み込んでくれます。',
       rivalPower: 0.78, rivalGrow: 1.05, dev: 1.15, funds: 1.45, prize: 1.15, sponsor: 1.15,
+      upkeep: 0.85, repair: 0.30,
       ticket: 3, oilSponsor: true
     },
     {
       key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
-            'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。',
-      rivalPower: 0.94, rivalGrow: 1.00, dev: 0.74, funds: 1.00, prize: 1.00, sponsor: 1.00,
+            'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。' +
+            '運営費は重く、壊せば修理費がそのまま効いてきます。',
+      rivalPower: 0.94, rivalGrow: 1.00, dev: 0.74, funds: 1.00, prize: 0.92, sponsor: 0.94,
+      upkeep: 1.14, repair: 1.00,
       ticket: 4, oilSponsor: false
     },
     {
       key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
-            '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。',
-      rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.88, sponsor: 0.88,
+            '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。' +
+            '運営費も修理費も高く、1回のクラッシュが開発1回ぶんを消し飛ばします。',
+      rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.80, sponsor: 0.82,
+      upkeep: 1.32, repair: 1.35,
       ticket: 5, oilSponsor: false
     }
   ];
@@ -3523,6 +3529,17 @@ GP.data = (function () {
      大雨（濡れ1.0）でドライのまま走ると 1周 +13% ほど。
      路面が濡れること自体でも全車が最大 +18% 遅くなるので、
      合計するとまともに走れない、という程度に収まる                  */
+  /* ---------- 修理費 ----------
+     壊した週末は、次の週末までに直さなければならない。
+     スピンの1回や、クラッシュでのリタイアが、そのまま開発の予算を削る。 */
+  const REPAIR = {
+    spin:   240,     // スピン1回あたり
+    crash: 2900,     // クラッシュ・接触でリタイアしたとき
+    off:   1500,     // コースアウトで止まったとき
+    dmg:    460,     // ダメージ 1.0 あたり
+    gen:    0.20     // マシン世代が1つ上がるごとに、部品がこれだけ高くなる
+  };
+
   const WET_MISMATCH = 0.16;
 
   /* ---------- 環境係数 ----------
@@ -3565,7 +3582,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -4410,6 +4427,7 @@ GP.state = (function () {
   function settleCap(g2) {
     const over = Math.max(0, capSpent(g2) - costCap(g2));
     g2.capSpent = 0;
+    g2.repairPaid = 0;              // 修理費の集計も、季が変われば仕切り直す
     g2.capPenalty = over > 0;
     if (over <= 0) return null;
     const fine = Math.round(over * D.COST_CAP_FINE);
@@ -4986,6 +5004,30 @@ GP.state = (function () {
     return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
   }
 
+  /* ---------- 修理費 ----------
+     スピン、コースアウト、クラッシュ。壊したぶんは自分で払う。
+     世代の進んだマシンほど部品が高い。難易度でも変わる          */
+  function repairBill(g2, res) {
+    const R2 = D.REPAIR;
+    const genMul = 1 + (g2.carGen || 0) * R2.gen;
+    const diff = diffOf(g2).repair == null ? 1 : diffOf(g2).repair;
+    let sum = 0;
+    const lines = [];
+    (res.entries || []).filter(e => e.isPlayer).forEach(e => {
+      let n = 0;
+      if (e.spins) { n += R2.spin * e.spins; }
+      if (e.dnf && e.dnfReason === 'スピンからのコースアウト') n += R2.off;
+      else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
+      n += R2.dmg * (e.damage || 0);
+      if (n <= 0) return;
+      n = Math.round(n * genMul * diff);
+      sum += n;
+      lines.push({ name: e.driver.name, cost: n,
+                   what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
+    });
+    return { total: sum, lines: lines };
+  }
+
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
     // 整備性が高い車体は、同じ距離を走ってもパーツが傷まない
@@ -5168,7 +5210,8 @@ GP.state = (function () {
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
-    const weekly = Math.round(raw * (1 - cut));
+    // 難易度で、同じ陣容でも維持にかかる金が変わる
+    const weekly = Math.round(raw * (1 - cut) * (diffOf(g2).upkeep || 1));
 
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
@@ -5805,7 +5848,7 @@ GP.state = (function () {
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
-    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
+    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
@@ -7725,6 +7768,20 @@ GP.race = (function () {
         Math.round(S.puRelDrop(g)) + ' 落ちている（今季あと ' +
         Math.max(0, S.puLimit(g) - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
     }
+    // ---- 修理費 ----
+    // 壊した週末のツケは、次の週末までに払わなければならない
+    const rep = S.repairBill(g, res);
+    if (rep.total > 0) {
+      g.funds -= rep.total;
+      g.repairPaid = (g.repairPaid || 0) + rep.total;
+      rep.lines.forEach(l => {
+        notes.push('🔧 ' + l.name + ' のマシン修理（' + l.what + '） -' + l.cost + '万');
+      });
+      if (rep.total >= 2000) {
+        notes.push('💸 修理に ' + rep.total + '万。開発に回せたはずの金が、そのまま消えた。');
+      }
+    }
+
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);
     g.funds -= ship;
@@ -12188,6 +12245,9 @@ GP.ui = (function () {
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost - f.shipping) + '</b></div>' +
       '<div class="fin-row"><span>' + S.logiPlan(g).icon + ' 次戦への輸送費（' + S.logiPlan(g).name + '）</span><b class="bad">-' + money(f.shipping) + '</b></div>' +
+      ((g.repairPaid || 0) > 0
+        ? '<div class="fin-row"><span>🔧 今季ここまでの修理費</span><b class="bad">-' +
+          money(g.repairPaid) + '</b></div>' : '') +
       '<div class="fin-row total"><span>差し引き</span><b class="' + (f.net >= 0 ? 'good' : 'bad') + '">' +
       (f.net >= 0 ? '+' : '') + money(f.net) + '万</b></div>' +
       '<p class="desc">※ここに賞金が加わります。賞金は順位しだいなので、' +

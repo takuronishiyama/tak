@@ -1894,6 +1894,20 @@ GP.race = (function () {
         Math.round(S.puRelDrop(g)) + ' 落ちている（今季あと ' +
         Math.max(0, S.puLimit(g) - pu2.used) + '基／保管 ' + pu2.pool.length + '基）。');
     }
+    // ---- 修理費 ----
+    // 壊した週末のツケは、次の週末までに払わなければならない
+    const rep = S.repairBill(g, res);
+    if (rep.total > 0) {
+      g.funds -= rep.total;
+      g.repairPaid = (g.repairPaid || 0) + rep.total;
+      rep.lines.forEach(l => {
+        notes.push('🔧 ' + l.name + ' のマシン修理（' + l.what + '） -' + l.cost + '万');
+      });
+      if (rep.total >= 2000) {
+        notes.push('💸 修理に ' + rep.total + '万。開発に回せたはずの金が、そのまま消えた。');
+      }
+    }
+
     // 輸送費の支払いと、クルーの消耗
     const ship = S.logiCost(g, res.track);
     g.funds -= ship;

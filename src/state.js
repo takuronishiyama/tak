@@ -632,6 +632,7 @@ GP.state = (function () {
   function settleCap(g2) {
     const over = Math.max(0, capSpent(g2) - costCap(g2));
     g2.capSpent = 0;
+    g2.repairPaid = 0;              // 修理費の集計も、季が変われば仕切り直す
     g2.capPenalty = over > 0;
     if (over <= 0) return null;
     const fine = Math.round(over * D.COST_CAP_FINE);
@@ -1208,6 +1209,30 @@ GP.state = (function () {
     return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
   }
 
+  /* ---------- 修理費 ----------
+     スピン、コースアウト、クラッシュ。壊したぶんは自分で払う。
+     世代の進んだマシンほど部品が高い。難易度でも変わる          */
+  function repairBill(g2, res) {
+    const R2 = D.REPAIR;
+    const genMul = 1 + (g2.carGen || 0) * R2.gen;
+    const diff = diffOf(g2).repair == null ? 1 : diffOf(g2).repair;
+    let sum = 0;
+    const lines = [];
+    (res.entries || []).filter(e => e.isPlayer).forEach(e => {
+      let n = 0;
+      if (e.spins) { n += R2.spin * e.spins; }
+      if (e.dnf && e.dnfReason === 'スピンからのコースアウト') n += R2.off;
+      else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
+      n += R2.dmg * (e.damage || 0);
+      if (n <= 0) return;
+      n = Math.round(n * genMul * diff);
+      sum += n;
+      lines.push({ name: e.driver.name, cost: n,
+                   what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
+    });
+    return { total: sum, lines: lines };
+  }
+
   /* ---------- パーツの消耗（レース後）---------- */
   function wearParts(g, amount) {
     // 整備性が高い車体は、同じ距離を走ってもパーツが傷まない
@@ -1390,7 +1415,8 @@ GP.state = (function () {
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
-    const weekly = Math.round(raw * (1 - cut));
+    // 難易度で、同じ陣容でも維持にかかる金が変わる
+    const weekly = Math.round(raw * (1 - cut) * (diffOf(g2).upkeep || 1));
 
     // 1戦あたりのスポンサー収入（注目度・マーケ室・プリンシパル・難易度込み）
     const diff = diffOf(g2);
@@ -2027,7 +2053,7 @@ GP.state = (function () {
     promotableRoles, promoteStaff, PROMOTE_MIN,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
-    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate,
+    costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
