@@ -159,6 +159,18 @@ GP.race = (function () {
       '{A} が {C} でコースを外れかける！ {T} が限界だ！',
       '{A}、こらえきれずスピン！ グリップがまるでない！'
     ],
+    /* 溝のないタイヤで水に乗ってしまった */
+    aqua: [
+      '{A} が水に乗った！ {T} では止まれない！',
+      '{A}、ハイドロプレーニング！ ハンドルが効いていない！',
+      '{A} が真横を向いた！ {T} で雨の {C} は無理だ！',
+      '{A}、水しぶきの向こうで完全に姿勢を失った！ タイヤが合っていない！'
+    ],
+    aquaOut: [
+      '{A} が水に乗ったままバリアへ！ {T} のまま走り続けた代償だ…',
+      '{A}、ハイドロプレーニングでコースアウト。雨の {C} に溝のないタイヤでは…',
+      '{A} が {C} の外へ消えた。ピットに入れるべきだった…'
+    ],
     spinOut: [
       '{A} スピンからそのままバリアへ！ {T} では戦えなかった…',
       '{A}、{C} で回ってグラベルに沈む。ここでレース終了…',
@@ -338,6 +350,12 @@ GP.race = (function () {
              '「P{P} でフィニッシュ。悪くない一日だ」'],
     plain: ['「チェッカー、P{P}。今日はここまでだ。お疲れさま」',
             '「P{P}。持ち帰れたことをよしとしよう」'],
+    aqua: ['「そのタイヤでは水を掻き出せない。すぐ入れ、いますぐだ」',
+           '「ドライのままでは走れない。次の周、絶対にボックスだ」',
+           '「無理をするな。タイヤが合っていない、持ち帰ることを考えろ」'],
+    aquaBack: ['「まったく止まりません。真っ直ぐしか走れない」',
+               '「水に乗ります。これ以上は本当に危ないです」',
+               '「タイヤが仕事をしていません。早く入れてください」'],
     spin: ['「大丈夫か！ いまのは見えた。落ち着いていこう」',
            '「そのタイヤではもう戦えない。次の周、入るぞ」',
            '「無理をするな。いまはクルマを持ち帰ることが先だ」'],
@@ -503,6 +521,13 @@ GP.race = (function () {
         else if (e.order === 'save') { push(RADIO.save, 'pit', true); push(RADIO.rogerShort, 'drv', true); }
         else { push(RADIO.clear, 'pit', true); }
         e.radioCool = 3;
+        return;
+      }
+      // 溝のないタイヤで水の上に居る。何をおいてもこれを伝える
+      if ((e.dryWet || 0) > 0.05 && e.radioCool <= 0) {
+        push(RADIO.aqua, 'pit', true);
+        push(RADIO.aquaBack, 'drv', true);
+        e.radioCool = 4;
         return;
       }
       if (e.radioSpin === lap) {                        // スピンした
@@ -778,6 +803,13 @@ GP.race = (function () {
       return wetGap(ty, w, e) * D.WET_MISMATCH * (1 - (e ? e.wetSkill : 0) * 0.35);
     }
 
+    /* 溝のないタイヤが、掻き出せない水の上に取り残されている量。
+       ドライタイヤのときだけ 0 より大きくなる                     */
+    function dryOnWet(ty, w) {
+      if (ty.wet) return 0;
+      return Math.max(0, (w || 0) - D.ENV.dryWetFrom);
+    }
+
     /* ---------- 環境係数 ----------
        いま、このクルマがどれだけ唐突か。
        合わない銘柄・終わったタイヤ・濡れた路面・攻めろという指示、
@@ -785,10 +817,14 @@ GP.race = (function () {
     function envHarshOf(e, ty, w, ordKey) {
       const E2 = D.ENV;
       const over = Math.max(0, e.tyreAge - ty.life);
-      return wetGap(ty, w, e) * E2.mismatch
+      // ずれの効きかたは、銘柄で性格が違う。
+      // 溝のあるタイヤを乾いた路面で使うのは「溶ける」であって「滑る」ではない
+      return wetGap(ty, w, e) * E2.mismatch * (ty.wet ? E2.wetOnDry : 1)
            + over * E2.wear
            + (w || 0) * E2.wet * (1 - e.wetSkill * 0.45)
-           + (ordKey === 'push' ? E2.push : 0);
+           + (ordKey === 'push' ? E2.push : 0)
+           // 濡れた路面のドライタイヤ。ここだけは腕でもほとんど埋まらない
+           + dryOnWet(ty, w) * E2.dryWet * (1 - e.wetSkill * 0.20);
     }
     /* それをいなす力。腕（レーティングとメンタル）と、乗りやすさ */
     function envGripOf(e) {
@@ -1126,11 +1162,17 @@ GP.race = (function () {
         // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
         // 「合っている／合っていない」ではなく、ずれた量で効く
         t *= 1 + wetLoss(ty, wx.level, e);
+        // 溝のないタイヤで水の上に居ると、「遅い」ではなく「走れない」に変わる
+        const dow = dryOnWet(ty, wx.level);
+        e.dryWet = dow;                        // 無線と観戦画面の警告に使う
+        if (dow > 0) t *= 1 + dow * D.ENV.dryWetLoss * (1 - e.wetSkill * 0.25);
         // 雨に強い人は、濡れた路面そのものでも速い
         t *= 1 - e.wetSkill * wx.level * 0.012;
 
         // タイヤ摩耗。寿命を超えると急激にタレる
         e.tyreAge++;
+        // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
+        if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
         // 軽い車体はタイヤを痛めない（ライバル基準の 0.5 で ±0 になるように正規化する）
         const wearMul = (1 - e.bd.light * 0.22) / (1 - RIVAL_BODY_REF * 0.22);
         t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear * wearMul;
@@ -1229,15 +1271,18 @@ GP.race = (function () {
           const sp = Math.max(0, e.harsh - D.ENV.spinFrom) * D.ENV.spin;
           if (sp > 0 && Math.random() < sp) {
             spun = true;
-            const lost = S.rnd(D.ENV.spinLoss[0], D.ENV.spinLoss[1]);
+            const aqua = dryOnWet(ty, wx.level) > 0;      // 水に乗ってしまった
+            const lost = S.rnd(D.ENV.spinLoss[0], D.ENV.spinLoss[1]) * (aqua ? 1.4 : 1);
             t += lost;
             e.tyreAge += D.ENV.spinWear;
             e.spins++;
             e.damage = (e.damage || 0) + S.rnd(0.35, 1.10);
             if (e.isPlayer) e.radioSpin = lap;
-            const off = Math.random() < D.ENV.spinOff;
+            const off = Math.random() < (aqua ? D.ENV.dryWetOff : D.ENV.spinOff);
+            const pool = off ? (aqua ? SAY.aquaOut : SAY.spinOut)
+                             : (aqua ? SAY.aqua : SAY.spin);
             events.push({ lap: lap, type: 'spin', car: e,
-              text: say(off ? SAY.spinOut : SAY.spin,
+              text: say(pool,
                         { A: e.driver.name, C: lm(track), T: tyreOf(e.tyreKey).name }) +
                     (off ? '' : '（-' + lost.toFixed(1) + '秒）') });
             if (off) {

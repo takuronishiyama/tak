@@ -1599,6 +1599,12 @@ GP.raceview = (function () {
   /* ---------- タイミングモニター（全車）----------
      ピットウォールで見ている画面。全車のセクタータイム、いまの周、
      ベストラップ、前の車とのギャップを、そのまま並べる。          */
+  /* いまの路面の濡れ具合（3セクターの平均）。タイヤが合っているかの判定に使う */
+  function wetLevelAt(lap) {
+    const wl = (res.wetLog || [])[Math.max(0, Math.min((res.wetLog || []).length - 1, lap - 1))];
+    if (!wl) return 0;
+    return (wl[0] + wl[1] + wl[2]) / 3;
+  }
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
@@ -1622,8 +1628,12 @@ GP.raceview = (function () {
       if (ty) {
         const td = GP.data.TYRES.filter(x => x.key === ty.key)[0] || GP.data.TYRES[1];
         const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.7 ? ' old' : '';
-        tychip = '<span class="tb-ty"><b class="rv-ty' + worn + '" style="background:' + td.color +
-          ';color:' + td.text + '">' + td.short + '<em>' + ty.age + '</em></b></span>';
+        // 溝のないタイヤで濡れた路面に居る車は、ひと目で分かるようにする
+        const dry = !td.wet && wetLevelAt(li.lap) > (GP.data.ENV || {}).dryWetFrom;
+        tychip = '<span class="tb-ty"><b class="rv-ty' + worn + (dry ? ' aqua' : '') +
+          '" style="background:' + td.color + ';color:' + td.text + '"' +
+          (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
+          td.short + '<em>' + ty.age + '</em></b></span>';
       }
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
                  : '+' + (behind[i] - behind[i - 1]).toFixed(1);

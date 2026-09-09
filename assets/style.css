@@ -1967,3 +1967,7 @@ body[data-skin="hd"]{
   .rv-sectors.board{max-height:30vh}
   .rv-wrap.timing .rv-loglist{height:44px}
 }
+
+/* 溝のないタイヤで濡れた路面に居る車 */
+.rv-ty.aqua{box-shadow:inset 0 0 0 2px #4aa8ff, 0 0 6px rgba(74,168,255,.9);
+            animation:blink .7s steps(2,end) infinite}
