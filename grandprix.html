@@ -2225,6 +2225,130 @@ body[data-skin="hd"]{
 .gp-lg .late{position:absolute;right:-2px;top:-3px;font-size:8px}
 @media (max-width:520px){ .gp-lg{flex:0 0 20px;font-size:10px} }
 
+/* =========================================================
+   横向きのスマートフォン
+   iPhone を横にして遊ぶことを前提にした並べかた。
+   高さが 500px を切るぶん、縦に積むものを減らし、
+   横幅のほうへ逃がす。指で押せる大きさは保つ。
+   ========================================================= */
+@media (orientation:landscape) and (max-height:520px){
+  html,body{overflow:hidden}
+  #app{height:100%;gap:5px;max-width:none;
+       padding:calc(4px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right))
+               calc(4px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))}
+
+  /* ---- トップバー：1行に収める ---- */
+  .topbar{flex-wrap:nowrap;gap:6px;padding:3px 8px;border-width:2px;box-shadow:0 2px 0 var(--ink);
+          overflow-x:auto;scrollbar-width:none}
+  .topbar::-webkit-scrollbar{display:none}
+  .tb-team{font-size:13px;gap:5px;flex-shrink:0}
+  .tb-team .dot{width:12px;height:12px}
+  .tb-team .rank{font-size:9px;padding:0 5px}
+  /* 幅がいちばん要るのは数字。チーム名の脇の札は畳む */
+  .tb-team .rank:not(.diff){display:none}
+  .hrtab{font-size:10px;padding:3px 6px;white-space:nowrap}
+  .hrtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .hrtabs::-webkit-scrollbar{display:none}
+  .tab{font-size:10px;padding:3px 6px;white-space:nowrap}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tb-stats{gap:4px;flex-wrap:nowrap;flex-shrink:0}
+  .stat{padding:1px 6px;font-size:11px;border-width:2px;box-shadow:none;white-space:nowrap}
+  .stat .ic{font-size:12px} .stat b{font-size:12px} .stat small{font-size:9px}
+  .tb-next,#tNext{font-size:11px;padding:2px 8px;flex-shrink:0;white-space:nowrap}
+  .tb-next em,#tNext em{display:none}
+  .topbar > *{flex-shrink:0}
+  .countdown{font-size:11px;padding:3px 8px;margin-bottom:4px;border-width:2px;flex-wrap:nowrap;
+             overflow-x:auto;scrollbar-width:none}
+  .countdown::-webkit-scrollbar{display:none}
+
+  /* ---- 本体：横幅を使って2列 ---- */
+  .main{display:grid;grid-template-columns:1fr minmax(232px,282px);gap:6px;min-height:0;flex:1}
+  .col-left{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow-y:auto;min-height:0}
+  /* 幅の狭い端末では、左は1列のまま縦に送る */
+  @media (max-width:780px){
+    .main{grid-template-columns:1fr minmax(210px,246px)}
+    .col-left{grid-template-columns:1fr}
+    .col-left > .card{grid-column:auto}
+  }
+  .col-right{overflow-y:auto;min-height:0;gap:6px;padding:5px;border-width:2px}
+  .card{border-width:2px;box-shadow:0 2px 0 var(--ink)}
+  .card-h{font-size:12px;padding:3px 8px}
+  .card .pad{padding:6px}
+
+  /* ---- コマンド：横1列。はみ出すぶんは横に送る ---- */
+  .cmdbar{flex-shrink:0}
+  .cmdset{flex-wrap:nowrap;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .cmdset::-webkit-scrollbar{display:none}
+  .cmd{flex:0 0 auto;min-width:56px;min-height:44px;padding:3px 6px;font-size:10px;
+       border-width:2px;box-shadow:0 3px 0 var(--ink);gap:0}
+  .cmd span{font-size:16px}
+  .cmd.sub{min-width:52px;font-size:9px}
+  .cmd.sub span{font-size:14px}
+  .cmd.big{font-size:13px;padding:3px 12px;min-width:104px}
+  .cmd.big span{font-size:20px}
+  .cmd-sep{height:26px}
+
+  /* ---- モーダル：ほぼ全画面。中身だけが送られる ---- */
+  #modal{padding:calc(6px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
+                 calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
+  .modal-box{max-width:none;max-height:100%;height:100%;border-width:3px}
+  #modal.wide .modal-box{max-width:none}
+  .modal-h{padding:4px 10px;font-size:13px;border-bottom-width:2px}
+  .modal-x{width:30px;height:30px;font-size:13px}
+  .modal-body{padding:8px 10px}
+  .modal-btns{padding:6px 10px;gap:6px;flex-wrap:nowrap;border-top-width:2px}
+  .btn{padding:6px;font-size:12px;min-width:0;min-height:38px;border-width:2px}
+  /* 長いモーダルは、見出しの列を左に置いて横幅を使う */
+  .msecbar{position:sticky;top:0;z-index:6}
+
+  /* ---- レース画面 ---- */
+  .rv-wrap{max-height:100%;height:100%;gap:4px;padding:5px;border-width:3px}
+  .rv-head{padding:3px 8px;font-size:11px;gap:6px;flex-wrap:nowrap;overflow-x:auto;
+           scrollbar-width:none}
+  .rv-head::-webkit-scrollbar{display:none}
+  .rv-head b{font-size:12px;flex:0 0 auto}
+  .rv-head #rvLap{font-size:12px}
+  /* コース図は、縦に収まるところまで縮める（縦横比は保つ） */
+  /* 縦画面では縦に積んでいるものを、横画面では横に並べ直す */
+  .rv-body{flex:1;min-height:0;flex-direction:row;align-items:stretch}
+  .rv-canvaswrap{flex:0 1 auto;width:auto;min-width:0;min-height:0;
+                 display:flex;align-items:flex-start}
+  /* 高さは、上下の帯を除いた残りに合わせて縮める（縦横比は保つ） */
+  #raceCanvas{width:auto;height:auto;max-width:100%;max-height:100%}
+  /* 縦画面むけに幅100%へ広げているのを、横画面では列に戻す */
+  .rv-side{width:auto;min-width:120px;flex:1 1 120px;min-height:0;max-height:none}
+  .rv-ctrl{gap:4px}
+  .rv-ctrl .btn{min-height:36px;padding:3px 6px;font-size:10px}
+  .rv-ctrl .btn span{display:none}          /* 横向きでは絵文字だけ */
+  .rv-ctrl .btn i{font-style:normal;font-size:15px}
+  .rv-loglist{height:44px}
+  .rv-sectors.board{max-height:34vh}
+  .rv-wrap.timing .rv-loglist{height:34px}
+  .rv-cam button{font-size:9px;padding:2px 5px}
+
+  /* ---- 中身の詰めかた ---- */
+  .sub{font-size:12px;padding:3px 8px}
+  .desc,.note{font-size:11px}
+  .pickbtn{padding:5px 7px;min-height:44px}
+  .pick{gap:5px}
+  .basewrap{max-height:38vh}
+  .drvwrap{grid-template-columns:1fr 1fr}
+}
+
+/* ---- 縦向きのスマートフォンに、そっと知らせる ---- */
+.rotate-tip{display:none}
+@media (orientation:portrait) and (max-width:560px){
+  .rotate-tip{display:flex;align-items:center;gap:8px;
+    background:linear-gradient(#fff3c4,#ffe08a);border:3px solid var(--ink);border-radius:9px;
+    padding:6px 10px;font-size:12px;font-weight:bold;box-shadow:0 3px 0 rgba(74,47,26,.4);
+    margin-bottom:6px}
+  .rotate-tip i{font-style:normal;font-size:18px;animation:rotatehint 1.8s ease-in-out infinite}
+  .rotate-tip button{margin-left:auto;background:var(--ink);color:#ffeec4;border:0;
+    border-radius:5px;font-size:11px;padding:3px 8px}
+}
+@keyframes rotatehint{0%,60%,100%{transform:rotate(0)}30%{transform:rotate(90deg)}}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2265,6 +2389,10 @@ body[data-skin="hd"]{
 <div id="app">
 
   <!-- ================= トップバー ================= -->
+  <div class="rotate-tip" id="rotateTip">
+    <i>📱</i><span>横向きにすると、ぐっと見やすくなります</span>
+    <button id="rotateTipX">閉じる</button>
+  </div>
   <header class="topbar">
     <div class="tb-team"><span id="tTeamDot" class="dot"></span><span id="tTeam">-</span>
       <span id="tRank" class="rank">-</span><span id="tMode" class="mode">-</span></div>
@@ -3835,7 +3963,19 @@ GP.data = (function () {
       desc: '感覚に頼らず、どこを鍛えるべきかが分かる' },
     { a: 'data',    b: 'design',  icon: '🧮', gain: 0.14, half: 3.0,
       name: '当てずっぽうで描かない',
-      desc: '過去の当たり外れが蓄積され、図面の打率が上がる' }
+      desc: '過去の当たり外れが蓄積され、図面の打率が上がる' },
+    { a: 'research', b: 'develop', icon: '🧪', gain: 0.15, half: 2.8,
+      name: '試したいものが、その週のうちに形になる',
+      desc: '研究が出した案を、開発がすぐ実物にして返す。往復が速い' },
+    { a: 'research', b: 'data',    icon: '📚', gain: 0.17, half: 2.6,
+      name: '探す先を、数字が決めている',
+      desc: '解析が「どこに伸びしろがあるか」を示すので、研究が無駄撃ちしない' },
+    { a: 'logi',     b: 'pitwall', icon: '🗺️', gain: 0.15, half: 2.5,
+      name: '現地の段取りが、そのまま作戦になる',
+      desc: '何がいつ届くかを把握しているぶん、ピットウォールの手が読みやすい' },
+    { a: 'logi',     b: 'human',   icon: '🛏️', gain: 0.13, half: 2.8,
+      name: '着いた日から、体が動く',
+      desc: '移動と宿の段取りが良いと、ドライバーもクルーも消耗しない' }
   ];
   /* グループの中の、人の組み合わせ。良いことも、軋みも起きる */
   const FRICTION = {
@@ -5844,6 +5984,27 @@ GP.state = (function () {
     if (cur.age < early) return { t: cur.t, age: cur.age, tooEarly: true, need: early - cur.age };
     return cur;
   }
+  /* うちの解釈を、よそに写させる。写す側は近くを走っているチームから選ぶ */
+  function letRivalCopy(g2, ratio) {
+    const cur = trendOf(g2);
+    if (!cur || !cur.t.mine) return null;
+    const pool = (g2.rivals || []).filter(r => cur.t.copied.indexOf(r.name) < 0);
+    if (!pool.length) return null;
+    // 近い順位のチームほど、うちを見ている
+    const tbl = constructorTable(g2);
+    const myPos = tbl.findIndex(r => r.isPlayer);
+    const posOf = nm => { const i = tbl.findIndex(r => r.name === nm); return i < 0 ? 99 : i; };
+    pool.sort((a, b) => Math.abs(posOf(a.name) - myPos) - Math.abs(posOf(b.name) - myPos));
+    const r = pool[Math.min(pool.length - 1, rint(0, 2))];
+    const gain = (cur.t.mul - 1) * (ratio == null ? D.TREND.copyOf : ratio);
+    ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= 1 + gain; });
+    cur.t.copied.push(r.name);
+    g2.innovLog = (g2.innovLog || []).concat([{
+      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2), sec: 0, mine: false
+    }]);
+    return { team: r.name, what: cur.t.what, gain: gain };
+  }
+
   /* いま選手権を引っ張っているチーム（プレイヤー以外） */
   function topRival(g2) {
     const tbl = constructorTable(g2).filter(r => !r.isPlayer);
@@ -7697,7 +7858,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
-    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, topRival, leadCopy, doLeadCopy,
+    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
@@ -15210,6 +15371,18 @@ window.GP = window.GP || {};
   /* レース週かどうか。「ちょうどその週」ではなく「その週以降」で見る。
      何かの拍子に週を跨いでしまった保存データでも、決勝に行けるようにする
      （以前は === だったため、跨ぐと二度とレースに行けなくなっていた）  */
+  /* 縦向きのときだけ出る案内。一度閉じたら、その端末では出さない */
+  (function () {
+    const tip = document.getElementById('rotateTip');
+    const x = document.getElementById('rotateTipX');
+    if (!tip || !x) return;
+    try { if (localStorage.getItem('gp-rotate-ok')) tip.style.display = 'none'; } catch (e) {}
+    x.onclick = () => {
+      tip.style.display = 'none';
+      try { localStorage.setItem('gp-rotate-ok', '1'); } catch (e) {}
+    };
+  })();
+
   function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week >= S.raceWeek(g.nextRace); }
 
   function endWeek() {
@@ -20095,6 +20268,48 @@ window.GP = window.GP || {};
   function doGridGuest() {
     weekFlags();
     if ((g.talked || []).indexOf('grid:guest') >= 0) return;
+    /* ---- うちが流行の元になっているとき ----
+       速いチームの周りには、必ず人が寄ってくる。
+       見せれば貸しになるが、そのぶん写される               */
+    const cur = S.trendOf(g);
+    if (cur && cur.t.mine && cur.t.copied.length < 4) {
+      g.talked.push('grid:guest');
+      const rv = (g.rivals || [])[S.rint(0, Math.max(0, (g.rivals || []).length - 1))];
+      const who = rv ? rv.name : 'よそのチーム';
+      U.modal('👀 よそのエンジニアと話す',
+        '<p class="lead">「最近、調子いいですね。' + esc(cur.t.what) + '——あれ、うちでも話題ですよ」<br>' +
+        '<span class="desc">' + esc(who) + ' のエンジニアが、うちのマシンの後ろをじっと覗き込んでいる。</span></p>' +
+        '<p class="note">うちの解釈は、もう ' + cur.t.copied.length + 'チームに写されています。' +
+        '見せれば恩を売れますが、そのぶん向こうも速くなります。</p>',
+        [
+          { label: '😀 見せてやる', cls: 'primary', fn: () => {
+              const r = S.letRivalCopy(g, D.TREND.copyOf);
+              g.designEdge = (g.designEdge || 0) + 1;
+              S.addHype(g, 3.0);
+              U.closeModal();
+              U.log(g, '👀 ' + (r ? esc(r.team) : 'よそのチーム') + ' に「' + esc(cur.t.what) +
+                '」を見せた（注目度 +3.0／設計のヒント +1／向こうのマシン +' +
+                (r ? (r.gain * 100).toFixed(1) : '0') + '%）', 'warn');
+              U.toast('👀 見せてやった', 'warn');
+              S.save(g); refreshGrid();
+            } },
+          { label: '😐 はぐらかす', fn: () => {
+              // 隠しても、写真は撮られている。数戦のうちに、どうせ広まる
+              const late = Math.random() < 0.55 ? S.letRivalCopy(g, D.TREND.copyOf * 0.72) : null;
+              S.addHype(g, -0.5);
+              U.closeModal();
+              U.log(g, '👀 詳しくは答えなかった' +
+                (late ? '。それでも ' + esc(late.team) + ' は数日で似た形にしてきた（+' +
+                  (late.gain * 100).toFixed(1) + '%）' : '。今回はまだ写されていない'),
+                late ? 'warn' : 'good');
+              U.toast('😐 はぐらかした');
+              S.save(g); refreshGrid();
+            } }
+        ]);
+      GP.sound.play('light');
+      S.save(g); refreshGrid();
+      return;
+    }
     g.talked.push('grid:guest');
     const gu = gridGuest();
     const note = gu.run();

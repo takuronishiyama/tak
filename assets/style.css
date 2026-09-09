@@ -2209,3 +2209,127 @@ body[data-skin="hd"]{
 .gp-lg{flex:0 0 26px;text-align:center;font-size:11px;position:relative}
 .gp-lg .late{position:absolute;right:-2px;top:-3px;font-size:8px}
 @media (max-width:520px){ .gp-lg{flex:0 0 20px;font-size:10px} }
+
+/* =========================================================
+   横向きのスマートフォン
+   iPhone を横にして遊ぶことを前提にした並べかた。
+   高さが 500px を切るぶん、縦に積むものを減らし、
+   横幅のほうへ逃がす。指で押せる大きさは保つ。
+   ========================================================= */
+@media (orientation:landscape) and (max-height:520px){
+  html,body{overflow:hidden}
+  #app{height:100%;gap:5px;max-width:none;
+       padding:calc(4px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right))
+               calc(4px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))}
+
+  /* ---- トップバー：1行に収める ---- */
+  .topbar{flex-wrap:nowrap;gap:6px;padding:3px 8px;border-width:2px;box-shadow:0 2px 0 var(--ink);
+          overflow-x:auto;scrollbar-width:none}
+  .topbar::-webkit-scrollbar{display:none}
+  .tb-team{font-size:13px;gap:5px;flex-shrink:0}
+  .tb-team .dot{width:12px;height:12px}
+  .tb-team .rank{font-size:9px;padding:0 5px}
+  /* 幅がいちばん要るのは数字。チーム名の脇の札は畳む */
+  .tb-team .rank:not(.diff){display:none}
+  .hrtab{font-size:10px;padding:3px 6px;white-space:nowrap}
+  .hrtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .hrtabs::-webkit-scrollbar{display:none}
+  .tab{font-size:10px;padding:3px 6px;white-space:nowrap}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tb-stats{gap:4px;flex-wrap:nowrap;flex-shrink:0}
+  .stat{padding:1px 6px;font-size:11px;border-width:2px;box-shadow:none;white-space:nowrap}
+  .stat .ic{font-size:12px} .stat b{font-size:12px} .stat small{font-size:9px}
+  .tb-next,#tNext{font-size:11px;padding:2px 8px;flex-shrink:0;white-space:nowrap}
+  .tb-next em,#tNext em{display:none}
+  .topbar > *{flex-shrink:0}
+  .countdown{font-size:11px;padding:3px 8px;margin-bottom:4px;border-width:2px;flex-wrap:nowrap;
+             overflow-x:auto;scrollbar-width:none}
+  .countdown::-webkit-scrollbar{display:none}
+
+  /* ---- 本体：横幅を使って2列 ---- */
+  .main{display:grid;grid-template-columns:1fr minmax(232px,282px);gap:6px;min-height:0;flex:1}
+  .col-left{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow-y:auto;min-height:0}
+  /* 幅の狭い端末では、左は1列のまま縦に送る */
+  @media (max-width:780px){
+    .main{grid-template-columns:1fr minmax(210px,246px)}
+    .col-left{grid-template-columns:1fr}
+    .col-left > .card{grid-column:auto}
+  }
+  .col-right{overflow-y:auto;min-height:0;gap:6px;padding:5px;border-width:2px}
+  .card{border-width:2px;box-shadow:0 2px 0 var(--ink)}
+  .card-h{font-size:12px;padding:3px 8px}
+  .card .pad{padding:6px}
+
+  /* ---- コマンド：横1列。はみ出すぶんは横に送る ---- */
+  .cmdbar{flex-shrink:0}
+  .cmdset{flex-wrap:nowrap;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .cmdset::-webkit-scrollbar{display:none}
+  .cmd{flex:0 0 auto;min-width:56px;min-height:44px;padding:3px 6px;font-size:10px;
+       border-width:2px;box-shadow:0 3px 0 var(--ink);gap:0}
+  .cmd span{font-size:16px}
+  .cmd.sub{min-width:52px;font-size:9px}
+  .cmd.sub span{font-size:14px}
+  .cmd.big{font-size:13px;padding:3px 12px;min-width:104px}
+  .cmd.big span{font-size:20px}
+  .cmd-sep{height:26px}
+
+  /* ---- モーダル：ほぼ全画面。中身だけが送られる ---- */
+  #modal{padding:calc(6px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
+                 calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
+  .modal-box{max-width:none;max-height:100%;height:100%;border-width:3px}
+  #modal.wide .modal-box{max-width:none}
+  .modal-h{padding:4px 10px;font-size:13px;border-bottom-width:2px}
+  .modal-x{width:30px;height:30px;font-size:13px}
+  .modal-body{padding:8px 10px}
+  .modal-btns{padding:6px 10px;gap:6px;flex-wrap:nowrap;border-top-width:2px}
+  .btn{padding:6px;font-size:12px;min-width:0;min-height:38px;border-width:2px}
+  /* 長いモーダルは、見出しの列を左に置いて横幅を使う */
+  .msecbar{position:sticky;top:0;z-index:6}
+
+  /* ---- レース画面 ---- */
+  .rv-wrap{max-height:100%;height:100%;gap:4px;padding:5px;border-width:3px}
+  .rv-head{padding:3px 8px;font-size:11px;gap:6px;flex-wrap:nowrap;overflow-x:auto;
+           scrollbar-width:none}
+  .rv-head::-webkit-scrollbar{display:none}
+  .rv-head b{font-size:12px;flex:0 0 auto}
+  .rv-head #rvLap{font-size:12px}
+  /* コース図は、縦に収まるところまで縮める（縦横比は保つ） */
+  /* 縦画面では縦に積んでいるものを、横画面では横に並べ直す */
+  .rv-body{flex:1;min-height:0;flex-direction:row;align-items:stretch}
+  .rv-canvaswrap{flex:0 1 auto;width:auto;min-width:0;min-height:0;
+                 display:flex;align-items:flex-start}
+  /* 高さは、上下の帯を除いた残りに合わせて縮める（縦横比は保つ） */
+  #raceCanvas{width:auto;height:auto;max-width:100%;max-height:100%}
+  /* 縦画面むけに幅100%へ広げているのを、横画面では列に戻す */
+  .rv-side{width:auto;min-width:120px;flex:1 1 120px;min-height:0;max-height:none}
+  .rv-ctrl{gap:4px}
+  .rv-ctrl .btn{min-height:36px;padding:3px 6px;font-size:10px}
+  .rv-ctrl .btn span{display:none}          /* 横向きでは絵文字だけ */
+  .rv-ctrl .btn i{font-style:normal;font-size:15px}
+  .rv-loglist{height:44px}
+  .rv-sectors.board{max-height:34vh}
+  .rv-wrap.timing .rv-loglist{height:34px}
+  .rv-cam button{font-size:9px;padding:2px 5px}
+
+  /* ---- 中身の詰めかた ---- */
+  .sub{font-size:12px;padding:3px 8px}
+  .desc,.note{font-size:11px}
+  .pickbtn{padding:5px 7px;min-height:44px}
+  .pick{gap:5px}
+  .basewrap{max-height:38vh}
+  .drvwrap{grid-template-columns:1fr 1fr}
+}
+
+/* ---- 縦向きのスマートフォンに、そっと知らせる ---- */
+.rotate-tip{display:none}
+@media (orientation:portrait) and (max-width:560px){
+  .rotate-tip{display:flex;align-items:center;gap:8px;
+    background:linear-gradient(#fff3c4,#ffe08a);border:3px solid var(--ink);border-radius:9px;
+    padding:6px 10px;font-size:12px;font-weight:bold;box-shadow:0 3px 0 rgba(74,47,26,.4);
+    margin-bottom:6px}
+  .rotate-tip i{font-style:normal;font-size:18px;animation:rotatehint 1.8s ease-in-out infinite}
+  .rotate-tip button{margin-left:auto;background:var(--ink);color:#ffeec4;border:0;
+    border-radius:5px;font-size:11px;padding:3px 8px}
+}
+@keyframes rotatehint{0%,60%,100%{transform:rotate(0)}30%{transform:rotate(90deg)}}

@@ -945,6 +945,27 @@ GP.state = (function () {
     if (cur.age < early) return { t: cur.t, age: cur.age, tooEarly: true, need: early - cur.age };
     return cur;
   }
+  /* うちの解釈を、よそに写させる。写す側は近くを走っているチームから選ぶ */
+  function letRivalCopy(g2, ratio) {
+    const cur = trendOf(g2);
+    if (!cur || !cur.t.mine) return null;
+    const pool = (g2.rivals || []).filter(r => cur.t.copied.indexOf(r.name) < 0);
+    if (!pool.length) return null;
+    // 近い順位のチームほど、うちを見ている
+    const tbl = constructorTable(g2);
+    const myPos = tbl.findIndex(r => r.isPlayer);
+    const posOf = nm => { const i = tbl.findIndex(r => r.name === nm); return i < 0 ? 99 : i; };
+    pool.sort((a, b) => Math.abs(posOf(a.name) - myPos) - Math.abs(posOf(b.name) - myPos));
+    const r = pool[Math.min(pool.length - 1, rint(0, 2))];
+    const gain = (cur.t.mul - 1) * (ratio == null ? D.TREND.copyOf : ratio);
+    ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= 1 + gain; });
+    cur.t.copied.push(r.name);
+    g2.innovLog = (g2.innovLog || []).concat([{
+      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2), sec: 0, mine: false
+    }]);
+    return { team: r.name, what: cur.t.what, gain: gain };
+  }
+
   /* いま選手権を引っ張っているチーム（プレイヤー以外） */
   function topRival(g2) {
     const tbl = constructorTable(g2).filter(r => !r.isPlayer);
@@ -2798,7 +2819,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
-    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, topRival, leadCopy, doLeadCopy,
+    setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,

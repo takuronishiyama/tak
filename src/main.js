@@ -16,6 +16,18 @@ window.GP = window.GP || {};
   /* レース週かどうか。「ちょうどその週」ではなく「その週以降」で見る。
      何かの拍子に週を跨いでしまった保存データでも、決勝に行けるようにする
      （以前は === だったため、跨ぐと二度とレースに行けなくなっていた）  */
+  /* 縦向きのときだけ出る案内。一度閉じたら、その端末では出さない */
+  (function () {
+    const tip = document.getElementById('rotateTip');
+    const x = document.getElementById('rotateTipX');
+    if (!tip || !x) return;
+    try { if (localStorage.getItem('gp-rotate-ok')) tip.style.display = 'none'; } catch (e) {}
+    x.onclick = () => {
+      tip.style.display = 'none';
+      try { localStorage.setItem('gp-rotate-ok', '1'); } catch (e) {}
+    };
+  })();
+
   function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week >= S.raceWeek(g.nextRace); }
 
   function endWeek() {
@@ -4901,6 +4913,48 @@ window.GP = window.GP || {};
   function doGridGuest() {
     weekFlags();
     if ((g.talked || []).indexOf('grid:guest') >= 0) return;
+    /* ---- うちが流行の元になっているとき ----
+       速いチームの周りには、必ず人が寄ってくる。
+       見せれば貸しになるが、そのぶん写される               */
+    const cur = S.trendOf(g);
+    if (cur && cur.t.mine && cur.t.copied.length < 4) {
+      g.talked.push('grid:guest');
+      const rv = (g.rivals || [])[S.rint(0, Math.max(0, (g.rivals || []).length - 1))];
+      const who = rv ? rv.name : 'よそのチーム';
+      U.modal('👀 よそのエンジニアと話す',
+        '<p class="lead">「最近、調子いいですね。' + esc(cur.t.what) + '——あれ、うちでも話題ですよ」<br>' +
+        '<span class="desc">' + esc(who) + ' のエンジニアが、うちのマシンの後ろをじっと覗き込んでいる。</span></p>' +
+        '<p class="note">うちの解釈は、もう ' + cur.t.copied.length + 'チームに写されています。' +
+        '見せれば恩を売れますが、そのぶん向こうも速くなります。</p>',
+        [
+          { label: '😀 見せてやる', cls: 'primary', fn: () => {
+              const r = S.letRivalCopy(g, D.TREND.copyOf);
+              g.designEdge = (g.designEdge || 0) + 1;
+              S.addHype(g, 3.0);
+              U.closeModal();
+              U.log(g, '👀 ' + (r ? esc(r.team) : 'よそのチーム') + ' に「' + esc(cur.t.what) +
+                '」を見せた（注目度 +3.0／設計のヒント +1／向こうのマシン +' +
+                (r ? (r.gain * 100).toFixed(1) : '0') + '%）', 'warn');
+              U.toast('👀 見せてやった', 'warn');
+              S.save(g); refreshGrid();
+            } },
+          { label: '😐 はぐらかす', fn: () => {
+              // 隠しても、写真は撮られている。数戦のうちに、どうせ広まる
+              const late = Math.random() < 0.55 ? S.letRivalCopy(g, D.TREND.copyOf * 0.72) : null;
+              S.addHype(g, -0.5);
+              U.closeModal();
+              U.log(g, '👀 詳しくは答えなかった' +
+                (late ? '。それでも ' + esc(late.team) + ' は数日で似た形にしてきた（+' +
+                  (late.gain * 100).toFixed(1) + '%）' : '。今回はまだ写されていない'),
+                late ? 'warn' : 'good');
+              U.toast('😐 はぐらかした');
+              S.save(g); refreshGrid();
+            } }
+        ]);
+      GP.sound.play('light');
+      S.save(g); refreshGrid();
+      return;
+    }
     g.talked.push('grid:guest');
     const gu = gridGuest();
     const note = gu.run();
