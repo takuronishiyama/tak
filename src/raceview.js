@@ -1647,13 +1647,51 @@ GP.raceview = (function () {
     if (!wl) return 0;
     return (wl[0] + wl[1] + wl[2]) / 3;
   }
+  /* モニターの一番上に、いまのコンディションを1行だけ置いておく。
+     画面が低いと上のヘッダが送られて見えなくなるので、
+     周回・天候・路面・ラバーだけはここでも読めるようにする      */
+  function condStripHTML(lap) {
+    const wx = res.weather || {};
+    const wl = (res.wetLog || [])[Math.max(0, lap - 1)];
+    const lv = v => (GP.data.WET_LEVELS || []).filter(x => v < x.at)[0] ||
+                    (GP.data.WET_LEVELS || [])[0];
+    let wet = '';
+    if (wl && Math.max(wl[0], wl[1], wl[2]) >= 0.08) {
+      wet = wl.map((v, k) => {
+        const l = lv(v);
+        return '<i class="tbw" style="background:' + l.color + '" title="セクター' + (k + 1) +
+               '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+      }).join('');
+    } else {
+      wet = '<i class="tbw dry">路面ドライ</i>';
+    }
+    let rub = '';
+    const rv = (res.rubberLog || [])[Math.max(0, lap - 1)];
+    if (rv != null) {
+      const R = GP.data.RUBBER;
+      const rl = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+      rub = '<span class="tbrub" title="路面に乗ったゴム" style="border-color:' + rl.color + '">' +
+            '<u style="width:' + Math.round(rv * 100) + '%;background:' + rl.color + '"></u></span>' +
+            '<i class="tbh">' + rl.name + '</i>';
+    }
+    const sc = res.safetyCar;
+    const scOn = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
+    return '<div class="tb-cond">' +
+      '<b class="tbl">LAP ' + lap + ' / ' + res.laps + '</b>' +
+      '<i class="tbh">' + (wx.icon || '') + ' ' + rvEsc(wx.name || '') + '</i>' +
+      wet + rub +
+      (scOn ? '<i class="tbsc">' + (sc.virtual ? '🟡 VSC' : '🚨 SC') + '</i>' : '') +
+      '</div>';
+  }
+
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
     // 先頭との差を先に出しておく。前の車との差は、その引き算で出す
     const behind = ord.map((o, i) => o.out ? null
       : (i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p))));
-    let h = '<div class="tb-row tb-head">' +
+    let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
+      '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +

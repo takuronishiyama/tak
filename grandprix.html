@@ -1972,6 +1972,9 @@ body[data-skin="hd"]{
    コース図は縮めずに（縮めると縦横比が崩れる）、モニター側の
    高さを抑えて収める。入りきらないぶんはモニターの中で送る。 */
 .rv-wrap{min-height:0;overflow-y:auto}
+/* 画面が低いと中身が送られる。コース名・天候・周回のヘッダだけは
+   いつでも読めるよう、枠の内側に貼りつけておく（padding のぶん -8px） */
+.rv-head{position:sticky;top:-8px;z-index:8;box-shadow:0 5px 8px rgba(0,0,0,.38)}
 .rv-body{align-items:flex-start;flex-shrink:0}
 .rv-sectors,.rv-loglist,.rv-ctrl{flex-shrink:0}
 .rv-wrap.timing .rv-side{display:none}
@@ -2096,6 +2099,24 @@ body[data-skin="hd"]{
 .tband .tb-scale { display: flex; margin-top: 3px; }
 .tband .tb-scale span { flex: 1; font-size: 10px; color: #7a6a52; text-align: center; }
 .tband .note { margin-top: 4px; }
+
+
+/* ---- タイミングモニターの上のコンディション行 ---- */
+.tb-cond{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:5px;
+  flex-wrap:wrap;background:#1b130d;margin:-2px -4px 2px;padding:3px 5px;
+  border-bottom:1px solid rgba(255,238,196,.22);font-size:10px;color:#e8dcc0}
+.tb-cond .tbl{background:var(--red);color:#fff;border-radius:4px;padding:0 6px;font-size:11px}
+.tb-cond .tbh{opacity:.85;font-style:normal}
+.tb-cond .tbw{font-style:normal;color:#12242e;border-radius:3px;padding:0 4px;
+  font-size:9px;font-weight:700}
+.tb-cond .tbw.dry{background:#c8a86a}
+.tb-cond .tbsc{font-style:normal;background:#ffd400;color:#3a2413;border-radius:3px;
+  padding:0 5px;font-weight:700}
+.tb-cond .tbrub{width:44px;height:7px;border:1px solid;border-radius:4px;overflow:hidden;
+  display:inline-block;background:rgba(255,255,255,.08)}
+.tb-cond .tbrub u{display:block;height:100%;text-decoration:none}
+.rv-sectors.board .tb-row.tb-head{top:19px}
+@media (max-width:520px){ .rv-sectors.board .tb-row.tb-head{top:32px} }
 
 </style>
 <!--
@@ -10568,13 +10589,51 @@ GP.raceview = (function () {
     if (!wl) return 0;
     return (wl[0] + wl[1] + wl[2]) / 3;
   }
+  /* モニターの一番上に、いまのコンディションを1行だけ置いておく。
+     画面が低いと上のヘッダが送られて見えなくなるので、
+     周回・天候・路面・ラバーだけはここでも読めるようにする      */
+  function condStripHTML(lap) {
+    const wx = res.weather || {};
+    const wl = (res.wetLog || [])[Math.max(0, lap - 1)];
+    const lv = v => (GP.data.WET_LEVELS || []).filter(x => v < x.at)[0] ||
+                    (GP.data.WET_LEVELS || [])[0];
+    let wet = '';
+    if (wl && Math.max(wl[0], wl[1], wl[2]) >= 0.08) {
+      wet = wl.map((v, k) => {
+        const l = lv(v);
+        return '<i class="tbw" style="background:' + l.color + '" title="セクター' + (k + 1) +
+               '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+      }).join('');
+    } else {
+      wet = '<i class="tbw dry">路面ドライ</i>';
+    }
+    let rub = '';
+    const rv = (res.rubberLog || [])[Math.max(0, lap - 1)];
+    if (rv != null) {
+      const R = GP.data.RUBBER;
+      const rl = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+      rub = '<span class="tbrub" title="路面に乗ったゴム" style="border-color:' + rl.color + '">' +
+            '<u style="width:' + Math.round(rv * 100) + '%;background:' + rl.color + '"></u></span>' +
+            '<i class="tbh">' + rl.name + '</i>';
+    }
+    const sc = res.safetyCar;
+    const scOn = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
+    return '<div class="tb-cond">' +
+      '<b class="tbl">LAP ' + lap + ' / ' + res.laps + '</b>' +
+      '<i class="tbh">' + (wx.icon || '') + ' ' + rvEsc(wx.name || '') + '</i>' +
+      wet + rub +
+      (scOn ? '<i class="tbsc">' + (sc.virtual ? '🟡 VSC' : '🚨 SC') + '</i>' : '') +
+      '</div>';
+  }
+
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
     // 先頭との差を先に出しておく。前の車との差は、その引き算で出す
     const behind = ord.map((o, i) => o.out ? null
       : (i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p))));
-    let h = '<div class="tb-row tb-head">' +
+    let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
+      '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
