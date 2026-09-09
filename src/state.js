@@ -1235,9 +1235,76 @@ GP.state = (function () {
                 （回す先が無ければ、やはり何も増えない）
        ready …… 現場の余力。クルーが疲れきっていると、読めていても動けない
      どこかを厚くするより、噛み合わせるほうが伸びる                     */
+  /* ---------- グループ ----------
+     職種ごとの一覧ではなく、実際に仕事をしている単位で見る。
+     人の組み合わせで、中が噛み合ったり軋んだりする。               */
+  function groupOf(g2, key) {
+    const G = D.GROUPS.filter(x => x.key === key)[0];
+    if (!G) return null;
+    const mem = (g2.staff || []).filter(s => s.type === G.of);
+    const raw = staffBonus(g2, G.of);
+    const F = D.FRICTION;
+    const notes = [];
+    let mul = 1;
+    // ⭐が2人以上。主役が2人いると、どちらも本気を出せない
+    const stars = mem.filter(s => stTrait(s, 'star')).length;
+    if (stars >= 2) { mul += F.starClash; notes.push({ bad: true, icon: '⚡',
+      text: '主役が' + stars + '人。ぶつかって、どちらも本気を出せていない' }); }
+    // まとめる人がいない
+    const chiefs = mem.filter(s => staffRank(s).key === 'chief').length;
+    if (mem.length >= 4 && !chiefs) { mul += F.noChief; notes.push({ bad: true, icon: '🧭',
+      text: '' + mem.length + '人いるのに、まとめる人がいない' }); }
+    // 指導者がいる
+    if (mem.some(s => stTrait(s, 'mentor'))) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
+      text: '指導者がいる。下が育ち、判断も速い' }); }
+    // ベテランと若手が混ざっている
+    if (mem.length >= 2) {
+      const sk = mem.map(s => s.skill);
+      if (Math.max.apply(null, sk) - Math.min.apply(null, sk) >= F.mixGap) {
+        mul += F.mixLift;
+        notes.push({ bad: false, icon: '🤲', text: '教える相手がいる。手が回り、経験も渡っている' });
+      }
+    }
+    // 1人に寄りかかっている
+    if (mem.length === 1 && mem[0].skill >= 45) { mul += F.soloRisk; notes.push({ bad: true, icon: '🪑',
+      text: 'この人ひとりに寄りかかっている。抜けたら止まる' }); }
+    return { key: key, def: G, members: mem, raw: raw, mul: Math.max(0.5, mul),
+             score: raw * Math.max(0.5, mul), chiefs: chiefs, notes: notes };
+  }
+  /* 相補作用。両方が育っているグループの組み合わせだけ効く */
+  function synergyList(g2, scores) {
+    return D.SYNERGY.map(sy => {
+      const lo = Math.min(scores[sy.a] || 0, scores[sy.b] || 0);
+      const v = sy.gain * (lo / (lo + sy.half));
+      return { def: sy, a: sy.a, b: sy.b, low: lo, gain: v,
+               on: v >= sy.gain * 0.18 };
+    });
+  }
+  /* 全グループぶんの一覧（画面と org() の両方で使う） */
+  function groupTable(g2) {
+    const list = D.GROUPS.map(G => groupOf(g2, G.key));
+    const scores = {};
+    list.forEach(x => { scores[x.key] = x.score; });
+    const syn = synergyList(g2, scores);
+    // 相補作用は、関わっている両方のグループに乗る
+    const lift = {};
+    D.GROUPS.forEach(G => { lift[G.key] = 0; });
+    syn.forEach(x => { lift[x.a] += x.gain; lift[x.b] += x.gain; });
+    list.forEach(x => { x.lift = lift[x.key]; x.total = x.score * (1 + lift[x.key]); });
+    return { list: list, byKey: (k) => list.filter(x => x.key === k)[0],
+             syn: syn, scores: scores };
+  }
+
   function org(g2) {
     const raw = {}, dept = {}, lead = {};
-    D.STAFF_TYPES.forEach(t => { raw[t.key] = staffBonus(g2, t.key); });
+    // グループの中の噛み合いと、グループ同士の相補作用を通した値を使う
+    const gt = groupTable(g2);
+    const byType = {};
+    gt.list.forEach(x => { byType[x.def.of] = x; });
+    D.STAFF_TYPES.forEach(t => {
+      const gx = byType[t.key];
+      raw[t.key] = gx ? gx.total : staffBonus(g2, t.key);
+    });
     D.MANAGERS.forEach(m => { lead[m.key] = 1 + mgr(g2, m.key) * D.ORG.lead; });
     D.STAFF_TYPES.forEach(t => {
       const boss = D.ORG.DEPT[t.key] || 'principal';
@@ -1245,7 +1312,7 @@ GP.state = (function () {
     });
     const data = dept.analyst / (dept.analyst + D.ORG.dataHalf);
     return {
-      raw: raw, dept: dept, lead: lead,
+      raw: raw, dept: dept, lead: lead, groups: gt,
       data: data,
       dataMul: 1 + data * D.ORG.dataGain,
       ready: 1 - (1 - D.ORG.readyFloor) * (crew(g2) / 100)
@@ -2325,7 +2392,7 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,

@@ -887,6 +887,58 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] }
   ];
 
+  /* ---------- グループ ----------
+     スタッフは職種の一覧ではなく、実際にはグループで仕事をしている。
+     ファクトリーに3つ、トラックサイドに3つ。
+     グループごとに力があり、グループ同士が噛み合うと互いに伸び、
+     人の組み合わせが悪いと、中で軋む。                              */
+  const GROUP_PLACES = [
+    { key: 'factory', name: 'ファクトリー',   icon: '🏭', desc: '本拠地で図面を引き、物を作り、数字を回す' },
+    { key: 'track',   name: 'トラックサイド', icon: '🏁', desc: '週末に現地で戦う' }
+  ];
+  const GROUPS = [
+    { key: 'design',  name: '設計グループ',   icon: '🎨', place: 'factory', of: 'designer',
+      desc: '図面を引く。作るパーツの格が決まる' },
+    { key: 'develop', name: '開発グループ',   icon: '👷', place: 'factory', of: 'engineer',
+      desc: '風洞と工作機械を回す。改良の伸びが決まる' },
+    { key: 'data',    name: '解析グループ',   icon: '📊', place: 'factory', of: 'analyst',
+      desc: '数字を回す。ここが厚いと、ほかの全部が底上げされる' },
+    { key: 'crew',    name: 'ピットクルー',   icon: '🔩', place: 'track',   of: 'mechanic',
+      desc: '週末を走らせる。静止時間と信頼性' },
+    { key: 'pitwall', name: 'ピットウォール', icon: '🧠', place: 'track',   of: 'strategist',
+      desc: 'いつ入るかを決める。路面の読み' },
+    { key: 'human',   name: 'ヒューマンパフォーマンス', icon: '💪', place: 'track', of: 'trainer',
+      desc: 'ドライバーを鍛える' }
+  ];
+  /* グループ同士の相補作用。両方が育っているときだけ効く。
+     min(片方) が半減値に達したところで、gain の半分がのる          */
+  const SYNERGY = [
+    { a: 'design',  b: 'develop', icon: '🤝', gain: 0.18, half: 3.0,
+      name: '図面と現場が同じ言葉で話す',
+      desc: '設計が「作れる形」で描いてくるので、開発の手戻りが減る' },
+    { a: 'data',    b: 'pitwall', icon: '📡', gain: 0.20, half: 2.5,
+      name: '数字が作戦に降りてくる',
+      desc: '解析の結果がそのままピットウォールの判断材料になる' },
+    { a: 'crew',    b: 'develop', icon: '🔧', gain: 0.14, half: 3.0,
+      name: '現場の声が設計に返る',
+      desc: '組みにくい所を先に潰せるので、同じ図面でも良いものが出来る' },
+    { a: 'data',    b: 'human',   icon: '🩺', gain: 0.16, half: 2.5,
+      name: 'ドライバーの体も数字で見る',
+      desc: '感覚に頼らず、どこを鍛えるべきかが分かる' },
+    { a: 'data',    b: 'design',  icon: '🧮', gain: 0.14, half: 3.0,
+      name: '当てずっぽうで描かない',
+      desc: '過去の当たり外れが蓄積され、図面の打率が上がる' }
+  ];
+  /* グループの中の、人の組み合わせ。良いことも、軋みも起きる */
+  const FRICTION = {
+    starClash:  -0.12,   // ⭐が2人以上
+    noChief:    -0.10,   // 4人以上いるのに、まとめる人がいない
+    mentorLift:  0.08,   // 🎓指導者がいる
+    mixLift:     0.09,   // ベテランと若手が混ざっている
+    soloRisk:   -0.06,   // 1人しかいないのに、その人に寄りかかっている
+    mixGap:      12      // 技能差がこれ以上あれば「混ざっている」
+  };
+
   /* ---------- 組織のかみ合い ----------
      部門はそれぞれ独立した足し算ではない。
        ・首脳陣は「自分の部門の人」を伸ばす乗数。部下がいなければ空回りする
@@ -1367,5 +1419,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

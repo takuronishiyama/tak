@@ -11,7 +11,24 @@ GP.ui = (function () {
   const money = n => Math.round(n).toLocaleString('ja-JP');
 
   /* ---------- トップバー ---------- */
+  let curG = null;          // 直近に描いたゲーム状態（モーダルの見出しで使う）
+
+  /* モーダルの見出しに、いまの手持ちを出す。
+     モーダルは画面を覆うので、上のバーの数字が見えなくなる。
+     買い物をする画面で、残りが分からないのは怖い                  */
+  function paintModalFunds(g) {
+    const el = $('modalFunds');
+    if (!el) return;
+    const g2 = g || curG;
+    if (!g2) { el.textContent = ''; return; }
+    el.innerHTML = '<b>💰' + money(g2.funds) + '万</b><i>🔬' + Math.round(g2.rp) + '</i>' +
+      (g2.tickets ? '<i>🎫' + g2.tickets + '</i>' : '');
+    el.className = 'mfunds' + (g2.funds < 0 ? ' bad' : g2.funds < 3000 ? ' low' : '');
+  }
+
   function renderTop(g) {
+    curG = g;
+    paintModalFunds(g);
     const nextIdx = g.nextRace % D.TRACKS.length;
     const rw = S.raceWeek(g.nextRace);
     const left = Math.max(0, rw - g.week);
@@ -710,6 +727,7 @@ GP.ui = (function () {
     const m = $('modal');
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('modalTitle').innerHTML = title;
+    paintModalFunds(null);
     $('modalBody').innerHTML = body;
     const bar = $('modalBtns');
     bar.innerHTML = '';
@@ -773,5 +791,5 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
+           money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

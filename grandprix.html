@@ -2007,6 +2007,59 @@ body[data-skin="hd"]{
   .msec-h{min-height:36px;top:44px}
 }
 
+/* ---- モーダルの見出しに出す手持ち ---- */
+.mfunds{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;
+        background:rgba(0,0,0,.28);border-radius:6px;padding:2px 9px;margin-right:8px}
+.mfunds b{font-size:13px;color:#ffe9b0}
+.mfunds i{font-style:normal;font-size:11px;opacity:.85}
+.mfunds.low b{color:#ffd23a}
+.mfunds.bad b{color:#ff9a8a;animation:blink .9s steps(2,end) infinite}
+@media (max-width:520px), (hover:none) and (pointer:coarse){
+  .mfunds{font-size:11px;padding:2px 7px;margin-right:6px}
+  .mfunds b{font-size:12px}
+  .mfunds i{display:none}
+}
+
+/* ---- グループ（人事） ---- */
+.sub .gsum{font-style:normal;font-size:10px;background:var(--paper3);color:var(--ink);
+           border-radius:4px;padding:0 7px;margin-left:8px}
+[data-skin="hd"] .sub .gsum{background:rgba(0,0,0,.3);color:#f2dfae}
+.grpbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
+        padding:6px 8px;margin-bottom:8px}
+.grp-h{display:flex;align-items:center;gap:8px;font-size:13px}
+.grp-h b{white-space:nowrap}
+.grp-n{font-size:10px;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 6px}
+.grp-bar{flex:1;min-width:40px;height:10px;background:var(--trough);border:2px solid var(--ink);
+         border-radius:5px;overflow:hidden;display:block}
+.grp-bar b{display:block;height:100%;background:linear-gradient(var(--yellow),#e8a800);transition:width .35s}
+.grp-v{font-style:normal;font-weight:bold;width:44px;text-align:right}
+.grp-d{display:block;font-size:11px;opacity:.75;margin:2px 0 4px}
+.grp-mul{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;margin-bottom:4px}
+.grp-mul span{background:var(--paper2);border:1px solid var(--ink);border-radius:5px;padding:1px 7px}
+.grp-mul .up b{color:#2e8b30}
+.grp-mul .down b{color:#d02020}
+[data-skin="hd"] .grp-mul .up b{color:#8ef08e}
+[data-skin="hd"] .grp-mul .down b{color:#ff9a8a}
+.grp-note{font-size:11px;background:#f0fbe8;border-left:4px solid var(--green);
+          border-radius:0 5px 5px 0;padding:2px 7px;margin:2px 0}
+.grp-note.bad{background:#ffeeee;border-left-color:var(--red)}
+[data-skin="hd"] .grp-note{background:rgba(78,166,63,.16)}
+[data-skin="hd"] .grp-note.bad{background:rgba(224,74,63,.18)}
+.grp-mem{margin-top:5px;gap:4px}
+.synlist{display:flex;flex-direction:column;gap:5px}
+.syn{border:2px dashed var(--ink2);border-radius:8px;padding:5px 8px;background:var(--paper3);opacity:.6}
+.syn.on{border-style:solid;opacity:1;background:#f0fbe8}
+[data-skin="hd"] .syn.on{background:rgba(78,166,63,.14)}
+.syn b{font-size:12px}
+.syn-p{font-size:11px;margin-left:8px;opacity:.85}
+.syn-p i{font-style:normal;opacity:.6;margin:0 3px}
+.syn-v{float:right;font-style:normal;font-weight:bold;font-size:13px}
+.syn.on .syn-v{color:#2e8b30}
+[data-skin="hd"] .syn.on .syn-v{color:#8ef08e}
+.syn small{display:block;font-size:10px;opacity:.8;margin-top:2px}
+.ychip{font-style:normal;font-size:10px;background:var(--sky);color:var(--ink);
+       border:1px solid var(--ink);border-radius:4px;padding:0 5px;margin-left:6px}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2156,7 +2209,7 @@ body[data-skin="hd"]{
 <!-- ================= モーダル ================= -->
 <div id="modal">
   <div class="modal-box">
-    <div class="modal-h"><span id="modalTitle"></span><button id="modalClose" class="modal-x">✕</button></div>
+    <div class="modal-h"><span id="modalTitle"></span><span id="modalFunds" class="mfunds"></span><button id="modalClose" class="modal-x">✕</button></div>
     <div id="modalBody" class="modal-body"></div>
     <div id="modalBtns" class="modal-btns"></div>
   </div>
@@ -3453,6 +3506,58 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] }
   ];
 
+  /* ---------- グループ ----------
+     スタッフは職種の一覧ではなく、実際にはグループで仕事をしている。
+     ファクトリーに3つ、トラックサイドに3つ。
+     グループごとに力があり、グループ同士が噛み合うと互いに伸び、
+     人の組み合わせが悪いと、中で軋む。                              */
+  const GROUP_PLACES = [
+    { key: 'factory', name: 'ファクトリー',   icon: '🏭', desc: '本拠地で図面を引き、物を作り、数字を回す' },
+    { key: 'track',   name: 'トラックサイド', icon: '🏁', desc: '週末に現地で戦う' }
+  ];
+  const GROUPS = [
+    { key: 'design',  name: '設計グループ',   icon: '🎨', place: 'factory', of: 'designer',
+      desc: '図面を引く。作るパーツの格が決まる' },
+    { key: 'develop', name: '開発グループ',   icon: '👷', place: 'factory', of: 'engineer',
+      desc: '風洞と工作機械を回す。改良の伸びが決まる' },
+    { key: 'data',    name: '解析グループ',   icon: '📊', place: 'factory', of: 'analyst',
+      desc: '数字を回す。ここが厚いと、ほかの全部が底上げされる' },
+    { key: 'crew',    name: 'ピットクルー',   icon: '🔩', place: 'track',   of: 'mechanic',
+      desc: '週末を走らせる。静止時間と信頼性' },
+    { key: 'pitwall', name: 'ピットウォール', icon: '🧠', place: 'track',   of: 'strategist',
+      desc: 'いつ入るかを決める。路面の読み' },
+    { key: 'human',   name: 'ヒューマンパフォーマンス', icon: '💪', place: 'track', of: 'trainer',
+      desc: 'ドライバーを鍛える' }
+  ];
+  /* グループ同士の相補作用。両方が育っているときだけ効く。
+     min(片方) が半減値に達したところで、gain の半分がのる          */
+  const SYNERGY = [
+    { a: 'design',  b: 'develop', icon: '🤝', gain: 0.18, half: 3.0,
+      name: '図面と現場が同じ言葉で話す',
+      desc: '設計が「作れる形」で描いてくるので、開発の手戻りが減る' },
+    { a: 'data',    b: 'pitwall', icon: '📡', gain: 0.20, half: 2.5,
+      name: '数字が作戦に降りてくる',
+      desc: '解析の結果がそのままピットウォールの判断材料になる' },
+    { a: 'crew',    b: 'develop', icon: '🔧', gain: 0.14, half: 3.0,
+      name: '現場の声が設計に返る',
+      desc: '組みにくい所を先に潰せるので、同じ図面でも良いものが出来る' },
+    { a: 'data',    b: 'human',   icon: '🩺', gain: 0.16, half: 2.5,
+      name: 'ドライバーの体も数字で見る',
+      desc: '感覚に頼らず、どこを鍛えるべきかが分かる' },
+    { a: 'data',    b: 'design',  icon: '🧮', gain: 0.14, half: 3.0,
+      name: '当てずっぽうで描かない',
+      desc: '過去の当たり外れが蓄積され、図面の打率が上がる' }
+  ];
+  /* グループの中の、人の組み合わせ。良いことも、軋みも起きる */
+  const FRICTION = {
+    starClash:  -0.12,   // ⭐が2人以上
+    noChief:    -0.10,   // 4人以上いるのに、まとめる人がいない
+    mentorLift:  0.08,   // 🎓指導者がいる
+    mixLift:     0.09,   // ベテランと若手が混ざっている
+    soloRisk:   -0.06,   // 1人しかいないのに、その人に寄りかかっている
+    mixGap:      12      // 技能差がこれ以上あれば「混ざっている」
+  };
+
   /* ---------- 組織のかみ合い ----------
      部門はそれぞれ独立した足し算ではない。
        ・首脳陣は「自分の部門の人」を伸ばす乗数。部下がいなければ空回りする
@@ -3933,7 +4038,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -5381,9 +5486,76 @@ GP.state = (function () {
                 （回す先が無ければ、やはり何も増えない）
        ready …… 現場の余力。クルーが疲れきっていると、読めていても動けない
      どこかを厚くするより、噛み合わせるほうが伸びる                     */
+  /* ---------- グループ ----------
+     職種ごとの一覧ではなく、実際に仕事をしている単位で見る。
+     人の組み合わせで、中が噛み合ったり軋んだりする。               */
+  function groupOf(g2, key) {
+    const G = D.GROUPS.filter(x => x.key === key)[0];
+    if (!G) return null;
+    const mem = (g2.staff || []).filter(s => s.type === G.of);
+    const raw = staffBonus(g2, G.of);
+    const F = D.FRICTION;
+    const notes = [];
+    let mul = 1;
+    // ⭐が2人以上。主役が2人いると、どちらも本気を出せない
+    const stars = mem.filter(s => stTrait(s, 'star')).length;
+    if (stars >= 2) { mul += F.starClash; notes.push({ bad: true, icon: '⚡',
+      text: '主役が' + stars + '人。ぶつかって、どちらも本気を出せていない' }); }
+    // まとめる人がいない
+    const chiefs = mem.filter(s => staffRank(s).key === 'chief').length;
+    if (mem.length >= 4 && !chiefs) { mul += F.noChief; notes.push({ bad: true, icon: '🧭',
+      text: '' + mem.length + '人いるのに、まとめる人がいない' }); }
+    // 指導者がいる
+    if (mem.some(s => stTrait(s, 'mentor'))) { mul += F.mentorLift; notes.push({ bad: false, icon: '🎓',
+      text: '指導者がいる。下が育ち、判断も速い' }); }
+    // ベテランと若手が混ざっている
+    if (mem.length >= 2) {
+      const sk = mem.map(s => s.skill);
+      if (Math.max.apply(null, sk) - Math.min.apply(null, sk) >= F.mixGap) {
+        mul += F.mixLift;
+        notes.push({ bad: false, icon: '🤲', text: '教える相手がいる。手が回り、経験も渡っている' });
+      }
+    }
+    // 1人に寄りかかっている
+    if (mem.length === 1 && mem[0].skill >= 45) { mul += F.soloRisk; notes.push({ bad: true, icon: '🪑',
+      text: 'この人ひとりに寄りかかっている。抜けたら止まる' }); }
+    return { key: key, def: G, members: mem, raw: raw, mul: Math.max(0.5, mul),
+             score: raw * Math.max(0.5, mul), chiefs: chiefs, notes: notes };
+  }
+  /* 相補作用。両方が育っているグループの組み合わせだけ効く */
+  function synergyList(g2, scores) {
+    return D.SYNERGY.map(sy => {
+      const lo = Math.min(scores[sy.a] || 0, scores[sy.b] || 0);
+      const v = sy.gain * (lo / (lo + sy.half));
+      return { def: sy, a: sy.a, b: sy.b, low: lo, gain: v,
+               on: v >= sy.gain * 0.18 };
+    });
+  }
+  /* 全グループぶんの一覧（画面と org() の両方で使う） */
+  function groupTable(g2) {
+    const list = D.GROUPS.map(G => groupOf(g2, G.key));
+    const scores = {};
+    list.forEach(x => { scores[x.key] = x.score; });
+    const syn = synergyList(g2, scores);
+    // 相補作用は、関わっている両方のグループに乗る
+    const lift = {};
+    D.GROUPS.forEach(G => { lift[G.key] = 0; });
+    syn.forEach(x => { lift[x.a] += x.gain; lift[x.b] += x.gain; });
+    list.forEach(x => { x.lift = lift[x.key]; x.total = x.score * (1 + lift[x.key]); });
+    return { list: list, byKey: (k) => list.filter(x => x.key === k)[0],
+             syn: syn, scores: scores };
+  }
+
   function org(g2) {
     const raw = {}, dept = {}, lead = {};
-    D.STAFF_TYPES.forEach(t => { raw[t.key] = staffBonus(g2, t.key); });
+    // グループの中の噛み合いと、グループ同士の相補作用を通した値を使う
+    const gt = groupTable(g2);
+    const byType = {};
+    gt.list.forEach(x => { byType[x.def.of] = x; });
+    D.STAFF_TYPES.forEach(t => {
+      const gx = byType[t.key];
+      raw[t.key] = gx ? gx.total : staffBonus(g2, t.key);
+    });
     D.MANAGERS.forEach(m => { lead[m.key] = 1 + mgr(g2, m.key) * D.ORG.lead; });
     D.STAFF_TYPES.forEach(t => {
       const boss = D.ORG.DEPT[t.key] || 'principal';
@@ -5391,7 +5563,7 @@ GP.state = (function () {
     });
     const data = dept.analyst / (dept.analyst + D.ORG.dataHalf);
     return {
-      raw: raw, dept: dept, lead: lead,
+      raw: raw, dept: dept, lead: lead, groups: gt,
       data: data,
       dataMul: 1 + data * D.ORG.dataGain,
       ready: 1 - (1 - D.ORG.readyFloor) * (crew(g2) / 100)
@@ -6471,7 +6643,7 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset,
     puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
-    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
+    logiPlan, logiLoad, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
@@ -12489,7 +12661,24 @@ GP.ui = (function () {
   const money = n => Math.round(n).toLocaleString('ja-JP');
 
   /* ---------- トップバー ---------- */
+  let curG = null;          // 直近に描いたゲーム状態（モーダルの見出しで使う）
+
+  /* モーダルの見出しに、いまの手持ちを出す。
+     モーダルは画面を覆うので、上のバーの数字が見えなくなる。
+     買い物をする画面で、残りが分からないのは怖い                  */
+  function paintModalFunds(g) {
+    const el = $('modalFunds');
+    if (!el) return;
+    const g2 = g || curG;
+    if (!g2) { el.textContent = ''; return; }
+    el.innerHTML = '<b>💰' + money(g2.funds) + '万</b><i>🔬' + Math.round(g2.rp) + '</i>' +
+      (g2.tickets ? '<i>🎫' + g2.tickets + '</i>' : '');
+    el.className = 'mfunds' + (g2.funds < 0 ? ' bad' : g2.funds < 3000 ? ' low' : '');
+  }
+
   function renderTop(g) {
+    curG = g;
+    paintModalFunds(g);
     const nextIdx = g.nextRace % D.TRACKS.length;
     const rw = S.raceWeek(g.nextRace);
     const left = Math.max(0, rw - g.week);
@@ -13188,6 +13377,7 @@ GP.ui = (function () {
     const m = $('modal');
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('modalTitle').innerHTML = title;
+    paintModalFunds(null);
     $('modalBody').innerHTML = body;
     const bar = $('modalBtns');
     bar.innerHTML = '';
@@ -13251,7 +13441,7 @@ GP.ui = (function () {
   function closeModal() { $('modal').className = ''; }
 
   return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
-           money, esc, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
+           money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
 
 </script>
@@ -15442,7 +15632,7 @@ window.GP = window.GP || {};
   function cmdStaff() {
     refreshMarkets(false);
     const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
-                  ['staff', '👥 スタッフ'], ['mgmt', '👔 首脳陣']];
+                  ['staff', '👥 グループ'], ['mgmt', '👔 首脳陣']];
     let body = '<div class="hrtabs">' +
       tabs.map(t => '<button class="hrtab' + (hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
       '</div>';
@@ -15516,6 +15706,28 @@ window.GP = window.GP || {};
     }
     body += '</div>';
 
+    // ---- 育成の若手 ----
+    // フルタイムと育成は地続き。同じ画面で、いま誰が控えているかが見える
+    const ys = g.youth || [];
+    body += '<div class="sub">🎓 育成の若手（' + ys.length + '/' + S.youthSlots(g) + '）</div>';
+    if (!ys.length) {
+      body += '<p class="desc">下部組織に誰もいません。「🎓 育成」から探せます。' +
+        'ここで育てた子が、上のフルタイムの席を埋めます。</p>';
+    } else {
+      body += '<p class="desc">上の席が空いたとき、ここから昇格させられます。' +
+        '手を入れるのは「🎓 育成」から。</p><div class="pick">';
+      ys.slice().sort((a, b) => S.driverRating(b) - S.driverRating(a)).forEach(d => {
+        const p2 = S.potOf(d);
+        body += '<div class="pickbtn done"><span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + '<em class="ychip">' + d.age + '歳</em></b>' +
+          '<small>総合 <b>' + Math.round(S.driverRating(d)) + '</b>' +
+          '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
+          '／体力 ' + Math.round(d.stamina) + '／精神 ' + Math.round(d.mental) +
+          '　<em style="color:' + p2.color + '">' + U.stars(d.pot || 2) + ' ' + p2.name + '</em>' +
+          '</small></span><span class="pb-cost">週' + money(d.salary) + '万</span></div>';
+      });
+      body += '</div>';
+    }
     body += '<div class="sub">ドライバー市場</div><div class="pick">';
     driverMarket.forEach((d, i) => {
       const fee = Math.round(d.salary * 12);
@@ -15560,37 +15772,86 @@ window.GP = window.GP || {};
   }
 
   /* ---- 現場スタッフ ---- */
+  /* ---- グループ ----
+     職種の一覧ではなく、実際に仕事をしている単位で見せる。
+     グループの中の噛み合いと、グループ同士の相補作用を、
+     そのまま数字と言葉で出す                                      */
+  function groupsHTML() {
+    const gt = S.groupTable(g);
+    let h = '';
+    D.GROUP_PLACES.forEach(pl => {
+      const mine = gt.list.filter(x => x.def.place === pl.key);
+      const tot = mine.reduce((a, x) => a + x.total, 0);
+      const n = mine.reduce((a, x) => a + x.members.length, 0);
+      h += '<div class="sub">' + pl.icon + ' ' + pl.name +
+        '<em class="gsum">' + n + '人／力 ' + tot.toFixed(1) + '</em></div>' +
+        '<p class="desc">' + esc(pl.desc) + '</p>';
+      mine.forEach(x => {
+        const d = x.def;
+        const bar = Math.min(100, x.total / 16 * 100);
+        h += '<div class="grpbox">' +
+          '<div class="grp-h"><b>' + d.icon + ' ' + d.name + '</b>' +
+          '<span class="grp-n">' + x.members.length + '人</span>' +
+          '<i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
+          '<em class="grp-v">' + x.total.toFixed(1) + '</em></div>' +
+          '<small class="grp-d">' + esc(d.desc) + '</small>' +
+          '<div class="grp-mul">' +
+            '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
+            '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
+              x.mul.toFixed(2) + '</b></span>' +
+            '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
+              Math.round(x.lift * 100) + '%</b></span>' +
+          '</div>';
+        x.notes.forEach(nt => {
+          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' + esc(nt.text) + '</div>';
+        });
+        if (!x.members.length) {
+          h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
+        }
+        h += '<div class="pick grp-mem">';
+        x.members.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
+          const roles = S.promotableRoles(g, st);
+          const up = roles.map(r => {
+            const m = D.MANAGERS.find(y => y.key === r);
+            return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
+              m.icon + ' ' + m.name + 'へ</button>';
+          }).join('');
+          h += staffRow(st,
+            up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
+            st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
+        });
+        h += '</div></div>';
+      });
+    });
+    // 相補作用
+    h += '<div class="sub">🤝 グループ同士の相補作用</div>' +
+      '<p class="desc">両方のグループが育っているときだけ効きます。' +
+      '片方が空だと、いくらもう片方を厚くしても何も起きません。</p><div class="synlist">';
+    gt.syn.forEach(x => {
+      const A = gt.byKey(x.a), B = gt.byKey(x.b);
+      h += '<div class="syn' + (x.on ? ' on' : '') + '">' +
+        '<b>' + x.def.icon + ' ' + esc(x.def.name) + '</b>' +
+        '<span class="syn-p">' + A.def.icon + A.def.name.replace('グループ', '') +
+          ' <i>↔</i> ' + B.def.icon + B.def.name.replace('グループ', '') + '</span>' +
+        '<em class="syn-v">' + (x.on ? '+' + (x.gain * 100).toFixed(1) + '%' : '—') + '</em>' +
+        '<small>' + esc(x.def.desc) +
+          (x.on ? '' : '　<b class="warn">' +
+            (A.total < 0.3 ? A.def.name : B.def.name) + ' が薄い</b>') + '</small></div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
   function hrStaff() {
     const q = teamQuality();
     let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
       '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>' + orgBoxHTML();
-    body += '<div class="sub">在籍スタッフ（' + g.staff.length + '人）</div><div class="pick">';
-    if (!g.staff.length) body += '<p class="desc">スタッフがいません。</p>';
-    // 職種ごとの合計効果も見えるようにする
-    const byType = {};
-    g.staff.forEach(st => { byType[st.type] = (byType[st.type] || 0) + st.skill; });
-    g.staff.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
-      const roles = S.promotableRoles(g, st);
-      const up = roles.map(r => {
-        const m = D.MANAGERS.find(x => x.key === r);
-        return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
-          m.icon + ' ' + m.name + 'へ</button>';
-      }).join('');
-      body += staffRow(st,
-        up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
-        st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
-    });
-    body += '</div>';
+    body += groupsHTML();
     body += '<p class="desc">技能が上がると肩書きが変わります：' +
       D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
       '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
       '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
-    body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
-    D.STAFF_TYPES.forEach(t => {
-      const v = byType[t.key] || 0;
-      body += '<div class="dept"><span>' + t.icon + ' ' + t.name + '</span>' +
-        '<i><b style="width:' + Math.min(100, v / 120 * 100) + '%"></b></i><em>' + v + '</em></div>';
-    });
+    body += '<div class="deptgrid" style="display:none">';
     body += '</div>';
     body += '<div class="sub">スタッフ市場</div><div class="pick">';
     staffMarket.forEach((st, i) => {

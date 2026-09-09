@@ -2183,7 +2183,7 @@ window.GP = window.GP || {};
   function cmdStaff() {
     refreshMarkets(false);
     const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
-                  ['staff', '👥 スタッフ'], ['mgmt', '👔 首脳陣']];
+                  ['staff', '👥 グループ'], ['mgmt', '👔 首脳陣']];
     let body = '<div class="hrtabs">' +
       tabs.map(t => '<button class="hrtab' + (hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
       '</div>';
@@ -2257,6 +2257,28 @@ window.GP = window.GP || {};
     }
     body += '</div>';
 
+    // ---- 育成の若手 ----
+    // フルタイムと育成は地続き。同じ画面で、いま誰が控えているかが見える
+    const ys = g.youth || [];
+    body += '<div class="sub">🎓 育成の若手（' + ys.length + '/' + S.youthSlots(g) + '）</div>';
+    if (!ys.length) {
+      body += '<p class="desc">下部組織に誰もいません。「🎓 育成」から探せます。' +
+        'ここで育てた子が、上のフルタイムの席を埋めます。</p>';
+    } else {
+      body += '<p class="desc">上の席が空いたとき、ここから昇格させられます。' +
+        '手を入れるのは「🎓 育成」から。</p><div class="pick">';
+      ys.slice().sort((a, b) => S.driverRating(b) - S.driverRating(a)).forEach(d => {
+        const p2 = S.potOf(d);
+        body += '<div class="pickbtn done"><span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + '<em class="ychip">' + d.age + '歳</em></b>' +
+          '<small>総合 <b>' + Math.round(S.driverRating(d)) + '</b>' +
+          '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
+          '／体力 ' + Math.round(d.stamina) + '／精神 ' + Math.round(d.mental) +
+          '　<em style="color:' + p2.color + '">' + U.stars(d.pot || 2) + ' ' + p2.name + '</em>' +
+          '</small></span><span class="pb-cost">週' + money(d.salary) + '万</span></div>';
+      });
+      body += '</div>';
+    }
     body += '<div class="sub">ドライバー市場</div><div class="pick">';
     driverMarket.forEach((d, i) => {
       const fee = Math.round(d.salary * 12);
@@ -2301,37 +2323,86 @@ window.GP = window.GP || {};
   }
 
   /* ---- 現場スタッフ ---- */
+  /* ---- グループ ----
+     職種の一覧ではなく、実際に仕事をしている単位で見せる。
+     グループの中の噛み合いと、グループ同士の相補作用を、
+     そのまま数字と言葉で出す                                      */
+  function groupsHTML() {
+    const gt = S.groupTable(g);
+    let h = '';
+    D.GROUP_PLACES.forEach(pl => {
+      const mine = gt.list.filter(x => x.def.place === pl.key);
+      const tot = mine.reduce((a, x) => a + x.total, 0);
+      const n = mine.reduce((a, x) => a + x.members.length, 0);
+      h += '<div class="sub">' + pl.icon + ' ' + pl.name +
+        '<em class="gsum">' + n + '人／力 ' + tot.toFixed(1) + '</em></div>' +
+        '<p class="desc">' + esc(pl.desc) + '</p>';
+      mine.forEach(x => {
+        const d = x.def;
+        const bar = Math.min(100, x.total / 16 * 100);
+        h += '<div class="grpbox">' +
+          '<div class="grp-h"><b>' + d.icon + ' ' + d.name + '</b>' +
+          '<span class="grp-n">' + x.members.length + '人</span>' +
+          '<i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
+          '<em class="grp-v">' + x.total.toFixed(1) + '</em></div>' +
+          '<small class="grp-d">' + esc(d.desc) + '</small>' +
+          '<div class="grp-mul">' +
+            '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
+            '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
+              x.mul.toFixed(2) + '</b></span>' +
+            '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
+              Math.round(x.lift * 100) + '%</b></span>' +
+          '</div>';
+        x.notes.forEach(nt => {
+          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' + esc(nt.text) + '</div>';
+        });
+        if (!x.members.length) {
+          h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
+        }
+        h += '<div class="pick grp-mem">';
+        x.members.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
+          const roles = S.promotableRoles(g, st);
+          const up = roles.map(r => {
+            const m = D.MANAGERS.find(y => y.key === r);
+            return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
+              m.icon + ' ' + m.name + 'へ</button>';
+          }).join('');
+          h += staffRow(st,
+            up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
+            st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
+        });
+        h += '</div></div>';
+      });
+    });
+    // 相補作用
+    h += '<div class="sub">🤝 グループ同士の相補作用</div>' +
+      '<p class="desc">両方のグループが育っているときだけ効きます。' +
+      '片方が空だと、いくらもう片方を厚くしても何も起きません。</p><div class="synlist">';
+    gt.syn.forEach(x => {
+      const A = gt.byKey(x.a), B = gt.byKey(x.b);
+      h += '<div class="syn' + (x.on ? ' on' : '') + '">' +
+        '<b>' + x.def.icon + ' ' + esc(x.def.name) + '</b>' +
+        '<span class="syn-p">' + A.def.icon + A.def.name.replace('グループ', '') +
+          ' <i>↔</i> ' + B.def.icon + B.def.name.replace('グループ', '') + '</span>' +
+        '<em class="syn-v">' + (x.on ? '+' + (x.gain * 100).toFixed(1) + '%' : '—') + '</em>' +
+        '<small>' + esc(x.def.desc) +
+          (x.on ? '' : '　<b class="warn">' +
+            (A.total < 0.3 ? A.def.name : B.def.name) + ' が薄い</b>') + '</small></div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
   function hrStaff() {
     const q = teamQuality();
     let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
       '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>' + orgBoxHTML();
-    body += '<div class="sub">在籍スタッフ（' + g.staff.length + '人）</div><div class="pick">';
-    if (!g.staff.length) body += '<p class="desc">スタッフがいません。</p>';
-    // 職種ごとの合計効果も見えるようにする
-    const byType = {};
-    g.staff.forEach(st => { byType[st.type] = (byType[st.type] || 0) + st.skill; });
-    g.staff.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
-      const roles = S.promotableRoles(g, st);
-      const up = roles.map(r => {
-        const m = D.MANAGERS.find(x => x.key === r);
-        return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
-          m.icon + ' ' + m.name + 'へ</button>';
-      }).join('');
-      body += staffRow(st,
-        up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
-        st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
-    });
-    body += '</div>';
+    body += groupsHTML();
     body += '<p class="desc">技能が上がると肩書きが変わります：' +
       D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
       '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
       '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
-    body += '<div class="sub">職種ごとの厚み</div><div class="deptgrid">';
-    D.STAFF_TYPES.forEach(t => {
-      const v = byType[t.key] || 0;
-      body += '<div class="dept"><span>' + t.icon + ' ' + t.name + '</span>' +
-        '<i><b style="width:' + Math.min(100, v / 120 * 100) + '%"></b></i><em>' + v + '</em></div>';
-    });
+    body += '<div class="deptgrid" style="display:none">';
     body += '</div>';
     body += '<div class="sub">スタッフ市場</div><div class="pick">';
     staffMarket.forEach((st, i) => {
