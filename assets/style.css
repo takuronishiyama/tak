@@ -1809,3 +1809,12 @@ body[data-skin="hd"]{
 .hlbtn.allbtn { background-color: #33608f; border-color: #1e3f68; color: #fff; }
 .hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
 .hlbtn.allbtn em { opacity: .85; }
+
+/* ---- パワーユニット供給の比較 ---- */
+.engcmp{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 8px;margin:6px 0}
+.ec-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
+        border-bottom:1px dashed #d8c8a4}
+.ec-row:last-child{border-bottom:none}
+.ec-row b{font-size:14px}
+.ec-row.dim{opacity:.65}
+.ec-row.up b{color:#2e8b30}

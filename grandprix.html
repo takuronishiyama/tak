@@ -1825,6 +1825,15 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
 .hlbtn.allbtn em { opacity: .85; }
 
+/* ---- パワーユニット供給の比較 ---- */
+.engcmp{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 8px;margin:6px 0}
+.ec-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
+        border-bottom:1px dashed #d8c8a4}
+.ec-row:last-child{border-bottom:none}
+.ec-row b{font-size:14px}
+.ec-row.dim{opacity:.65}
+.ec-row.up b{color:#2e8b30}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -3540,6 +3549,18 @@ GP.data = (function () {
     gen:    0.20     // マシン世代が1つ上がるごとに、部品がこれだけ高くなる
   };
 
+  /* ---------- パワーユニットの供給 ----------
+     自前で育てるか、強いチームから買うか。
+     買えば、供給元が開発したぶんだけ黙って速くなっていくが、
+     ワークスより一段落とされ、毎戦の供給料がかかる。
+     そのかわり、自分たちはパワーユニットに人を割かなくてよくなる。   */
+  const ENGINE = {
+    customer: 0.94,   // ワークス比。客には最新の一段落としたものが来る
+    catch:    0.35,   // 供給元が伸びたぶんの、1週で届く割合
+    freeDev:  1.14,   // PUを任せているあいだ、ほかの開発にかかる倍率
+    relBonus: 3       // 出来合いを積むぶん、信頼性が少し上がる
+  };
+
   const WET_MISMATCH = 0.16;
 
   /* ---------- 環境係数 ----------
@@ -3582,7 +3603,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -4480,7 +4501,9 @@ GP.state = (function () {
   function devRate(g2) {
     const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
     return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99)
-         * (1 + osk(g2, 'eye') * 0.07);
+         * (1 + osk(g2, 'eye') * 0.07)
+         // パワーユニットを他人に任せているぶん、ほかへ人を回せる
+         * (g2.engine ? D.ENGINE.freeDev : 1);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
@@ -4756,7 +4779,8 @@ GP.state = (function () {
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
-               + g.facilities.pit * 2.5 + pitPower(g) * 1.4, 5, 99);
+               + g.facilities.pit * 2.5 + pitPower(g) * 1.4
+               + (g.engine ? D.ENGINE.relBonus : 0), 5, 99);
   }
 
   /* =======================================================
@@ -5002,6 +5026,35 @@ GP.state = (function () {
     if (!track) return 0.5;
     const spd = (track.weight && track.weight.speed) || 0.33;
     return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
+  }
+
+  /* ---------- パワーユニットの供給 ----------
+     供給元がどれだけのものを持っているか。速いチームほど強い。
+     客に回ってくるのは、ワークスより一段落としたもの            */
+  function supplierPower(g2, teamName) {
+    const rivals = g2.rivals || [];
+    if (!rivals.length) return 0;
+    const track = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const scores = rivals.map(r => carScoreOf(r.stats, track));
+    const lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    const t = rivals.filter(r => r.name === teamName)[0];
+    if (!t) return 0;
+    const rank01 = hi > lo ? (carScoreOf(t.stats, track) - lo) / (hi - lo) : 0.5;
+    const cap = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen || 0)].cap;
+    return Math.round(cap * (0.55 + rank01 * 0.62) * D.ENGINE.customer);
+  }
+  /* 供給元が開発したぶんが、少しずつこちらへ降りてくる（毎週）。
+     自分では一切手を入れられないのに、放っておいても強くなっていく   */
+  function tickEngine(g2) {
+    if (!g2.engine || !g2.equipped || !g2.equipped.pu) return 0;
+    const want = supplierPower(g2, g2.engine.team);
+    const now = g2.equipped.pu.power;
+    if (want <= now + 0.05) return 0;
+    const step = Math.min(want - now, Math.max(0.3, (want - now) * D.ENGINE.catch));
+    g2.equipped.pu.power = now + step;
+    g2.engine.power = Math.round(g2.equipped.pu.power);
+    g2.engine.grown = Math.round(((g2.engine.grown || 0) + step) * 10) / 10;
+    return Math.round(step * 10) / 10;
   }
 
   /* ---------- 修理費 ----------
@@ -5849,6 +5902,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
+    supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
@@ -12469,6 +12523,12 @@ window.GP = window.GP || {};
     g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
+    // 供給を受けているなら、供給元が伸ばしたぶんが降りてくる
+    const eng = S.tickEngine(g);
+    if (eng > 0) {
+      U.log(g, '🔌 ' + g.engine.team + ' が持ち込んだ最新仕様が回ってきた（性能 +' +
+        eng.toFixed(1) + ' → ' + Math.round(g.equipped.pu.power) + '）', 'good');
+    }
     // どこかのチームが何かを掘り当てていたら、そのぶんの報せを出す
     (g.innovLog || []).forEach(n => {
       U.log(g, '🔬 ' + n.team + ' が「' + n.what + '」を投入！ 1周あたり約 ' +
@@ -13380,11 +13440,26 @@ window.GP = window.GP || {};
     body += '<div class="sub">パワーユニットの供給</div>';
     if (g.engine) {
       const mine = g.equipped.pu;
+      const stash = g.engineStash;
+      const target = S.supplierPower(g, g.engine.team);
       body += '<div class="bigbox">🔌 <b>' + esc(g.engine.team) + '</b> から供給を受けています' +
         '<small>性能 ' + (mine ? Math.round(mine.power) : '-') +
         '／供給料 💰' + money(g.engine.fee) + '万 毎戦</small></div>' +
+        '<div class="engcmp">' +
+          '<div class="ec-row"><span>🔌 いま積んでいる供給品</span><b>' +
+            (mine ? Math.round(mine.power) : '-') + '</b></div>' +
+          '<div class="ec-row"><span>🏭 供給元がいま持っている水準</span><b>' + target + '</b></div>' +
+          '<div class="ec-row dim"><span>🔧 預けてある自前のもの</span><b>' +
+            (stash ? Math.round(stash.power) : '-') + '</b></div>' +
+          (g.engine.grown ? '<div class="ec-row up"><span>📈 契約してから届いたぶん</span><b>+' +
+            g.engine.grown.toFixed(1) + '</b></div>' : '') +
+        '</div>' +
         '<p class="desc">供給中は、自分でパワーユニットを開発・交換できません。' +
-        '契約を切ると、自前のパワーユニットに戻ります。</p>' +
+        'そのかわり <b>供給元が開発したぶんが毎週こちらへ降りてきます</b>（ワークスより一段落とした仕様）。' +
+        'パワーユニットに人を割かなくてよくなるので、<b>ほかの開発が ' +
+        Math.round((D.ENGINE.freeDev - 1) * 100) + '% 速く</b>、出来合いを積むぶん <b>信頼性 +' +
+        D.ENGINE.relBonus + '</b>。' +
+        '契約を切ると、預けてある自前のパワーユニットに戻ります。</p>' +
         '<div class="pick"><button class="pickbtn" data-k="__engoff">' +
         '<span class="pb-ic engic">✂️</span>' +
         '<span class="pb-body"><b>供給契約を切る</b>' +
@@ -13399,7 +13474,13 @@ window.GP = window.GP || {};
           '分けてくれるチームがありません。</p>';
       } else {
         body += '<p class="desc">強いチームからパワーユニットを買えます。' +
-          'すぐに速くなりますが、供給中は自分で開発できず、毎戦の供給料がかかります。</p>' +
+          'すぐに速くなるうえ、<b>供給元が開発したぶんが毎週降りてくる</b>ので、' +
+          '自分で手を入れなくても離されません。' +
+          'パワーユニットから人を外せるぶん <b>ほかの開発が ' +
+          Math.round((D.ENGINE.freeDev - 1) * 100) + '% 速く</b>なり、<b>信頼性 +' +
+          D.ENGINE.relBonus + '</b>。' +
+          'そのかわり毎戦の供給料がかかり、自分ではパワーユニットを育てられません' +
+          '（ブレイクスルーも工作機械の精度も乗りません）。</p>' +
           '<div class="pick">';
         offers.forEach(o => {
           const ok = g.funds >= o.upfront;
@@ -13440,7 +13521,7 @@ window.GP = window.GP || {};
     const mine = g.equipped.pu ? Math.round(g.equipped.pu.power) : 0;
     return teams.map(t => {
       const rank01 = hi > lo ? (t.car - lo) / (hi - lo) : 0.5;
-      const power = Math.round(cap * (0.55 + rank01 * 0.62));
+      const power = S.supplierPower(g, t.name) || Math.round(cap * (0.55 + rank01 * 0.62));
       return {
         team: t.name, color: t.color, power: power, mine: mine, rank01: rank01,
         upfront: Math.round(1200 + power * 78 + rank01 * 2600),

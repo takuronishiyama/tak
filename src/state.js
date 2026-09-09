@@ -685,7 +685,9 @@ GP.state = (function () {
   function devRate(g2) {
     const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
     return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99)
-         * (1 + osk(g2, 'eye') * 0.07);
+         * (1 + osk(g2, 'eye') * 0.07)
+         // パワーユニットを他人に任せているぶん、ほかへ人を回せる
+         * (g2.engine ? D.ENGINE.freeDev : 1);
   }
   function atrLabel(g2) {
     const v = atrOf(g2);
@@ -961,7 +963,8 @@ GP.state = (function () {
     const avg = sum / Math.max(1, n);
     const bodyRel = bodyRatio(g, 'rigidity') * 9 + bodyRatio(g, 'cooling') * 7;
     return clamp(avg + bonus + bodyRel - crewPenalty(g).rel - puRelDrop(g)
-               + g.facilities.pit * 2.5 + pitPower(g) * 1.4, 5, 99);
+               + g.facilities.pit * 2.5 + pitPower(g) * 1.4
+               + (g.engine ? D.ENGINE.relBonus : 0), 5, 99);
   }
 
   /* =======================================================
@@ -1207,6 +1210,35 @@ GP.state = (function () {
     if (!track) return 0.5;
     const spd = (track.weight && track.weight.speed) || 0.33;
     return clamp(spd * 2.0 + (track.base - 92) * 0.006 - (track.risk - 1) * 0.85, 0.05, 0.95);
+  }
+
+  /* ---------- パワーユニットの供給 ----------
+     供給元がどれだけのものを持っているか。速いチームほど強い。
+     客に回ってくるのは、ワークスより一段落としたもの            */
+  function supplierPower(g2, teamName) {
+    const rivals = g2.rivals || [];
+    if (!rivals.length) return 0;
+    const track = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const scores = rivals.map(r => carScoreOf(r.stats, track));
+    const lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
+    const t = rivals.filter(r => r.name === teamName)[0];
+    if (!t) return 0;
+    const rank01 = hi > lo ? (carScoreOf(t.stats, track) - lo) / (hi - lo) : 0.5;
+    const cap = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen || 0)].cap;
+    return Math.round(cap * (0.55 + rank01 * 0.62) * D.ENGINE.customer);
+  }
+  /* 供給元が開発したぶんが、少しずつこちらへ降りてくる（毎週）。
+     自分では一切手を入れられないのに、放っておいても強くなっていく   */
+  function tickEngine(g2) {
+    if (!g2.engine || !g2.equipped || !g2.equipped.pu) return 0;
+    const want = supplierPower(g2, g2.engine.team);
+    const now = g2.equipped.pu.power;
+    if (want <= now + 0.05) return 0;
+    const step = Math.min(want - now, Math.max(0.3, (want - now) * D.ENGINE.catch));
+    g2.equipped.pu.power = now + step;
+    g2.engine.power = Math.round(g2.equipped.pu.power);
+    g2.engine.grown = Math.round(((g2.engine.grown || 0) + step) * 10) / 10;
+    return Math.round(step * 10) / 10;
   }
 
   /* ---------- 修理費 ----------
@@ -2054,6 +2086,7 @@ GP.state = (function () {
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
+    supplierPower, tickEngine,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough, tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,

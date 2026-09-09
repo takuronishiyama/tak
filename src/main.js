@@ -32,6 +32,12 @@ window.GP = window.GP || {};
     g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
+    // 供給を受けているなら、供給元が伸ばしたぶんが降りてくる
+    const eng = S.tickEngine(g);
+    if (eng > 0) {
+      U.log(g, '🔌 ' + g.engine.team + ' が持ち込んだ最新仕様が回ってきた（性能 +' +
+        eng.toFixed(1) + ' → ' + Math.round(g.equipped.pu.power) + '）', 'good');
+    }
     // どこかのチームが何かを掘り当てていたら、そのぶんの報せを出す
     (g.innovLog || []).forEach(n => {
       U.log(g, '🔬 ' + n.team + ' が「' + n.what + '」を投入！ 1周あたり約 ' +
@@ -943,11 +949,26 @@ window.GP = window.GP || {};
     body += '<div class="sub">パワーユニットの供給</div>';
     if (g.engine) {
       const mine = g.equipped.pu;
+      const stash = g.engineStash;
+      const target = S.supplierPower(g, g.engine.team);
       body += '<div class="bigbox">🔌 <b>' + esc(g.engine.team) + '</b> から供給を受けています' +
         '<small>性能 ' + (mine ? Math.round(mine.power) : '-') +
         '／供給料 💰' + money(g.engine.fee) + '万 毎戦</small></div>' +
+        '<div class="engcmp">' +
+          '<div class="ec-row"><span>🔌 いま積んでいる供給品</span><b>' +
+            (mine ? Math.round(mine.power) : '-') + '</b></div>' +
+          '<div class="ec-row"><span>🏭 供給元がいま持っている水準</span><b>' + target + '</b></div>' +
+          '<div class="ec-row dim"><span>🔧 預けてある自前のもの</span><b>' +
+            (stash ? Math.round(stash.power) : '-') + '</b></div>' +
+          (g.engine.grown ? '<div class="ec-row up"><span>📈 契約してから届いたぶん</span><b>+' +
+            g.engine.grown.toFixed(1) + '</b></div>' : '') +
+        '</div>' +
         '<p class="desc">供給中は、自分でパワーユニットを開発・交換できません。' +
-        '契約を切ると、自前のパワーユニットに戻ります。</p>' +
+        'そのかわり <b>供給元が開発したぶんが毎週こちらへ降りてきます</b>（ワークスより一段落とした仕様）。' +
+        'パワーユニットに人を割かなくてよくなるので、<b>ほかの開発が ' +
+        Math.round((D.ENGINE.freeDev - 1) * 100) + '% 速く</b>、出来合いを積むぶん <b>信頼性 +' +
+        D.ENGINE.relBonus + '</b>。' +
+        '契約を切ると、預けてある自前のパワーユニットに戻ります。</p>' +
         '<div class="pick"><button class="pickbtn" data-k="__engoff">' +
         '<span class="pb-ic engic">✂️</span>' +
         '<span class="pb-body"><b>供給契約を切る</b>' +
@@ -962,7 +983,13 @@ window.GP = window.GP || {};
           '分けてくれるチームがありません。</p>';
       } else {
         body += '<p class="desc">強いチームからパワーユニットを買えます。' +
-          'すぐに速くなりますが、供給中は自分で開発できず、毎戦の供給料がかかります。</p>' +
+          'すぐに速くなるうえ、<b>供給元が開発したぶんが毎週降りてくる</b>ので、' +
+          '自分で手を入れなくても離されません。' +
+          'パワーユニットから人を外せるぶん <b>ほかの開発が ' +
+          Math.round((D.ENGINE.freeDev - 1) * 100) + '% 速く</b>なり、<b>信頼性 +' +
+          D.ENGINE.relBonus + '</b>。' +
+          'そのかわり毎戦の供給料がかかり、自分ではパワーユニットを育てられません' +
+          '（ブレイクスルーも工作機械の精度も乗りません）。</p>' +
           '<div class="pick">';
         offers.forEach(o => {
           const ok = g.funds >= o.upfront;
@@ -1003,7 +1030,7 @@ window.GP = window.GP || {};
     const mine = g.equipped.pu ? Math.round(g.equipped.pu.power) : 0;
     return teams.map(t => {
       const rank01 = hi > lo ? (t.car - lo) / (hi - lo) : 0.5;
-      const power = Math.round(cap * (0.55 + rank01 * 0.62));
+      const power = S.supplierPower(g, t.name) || Math.round(cap * (0.55 + rank01 * 0.62));
       return {
         team: t.name, color: t.color, power: power, mine: mine, rank01: rank01,
         upfront: Math.round(1200 + power * 78 + rank01 * 2600),
