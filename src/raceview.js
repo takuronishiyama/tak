@@ -1667,6 +1667,9 @@ GP.raceview = (function () {
   /* タイミングモニターの表示切り替え。止まっていても、すぐ描き直す */
   function setTiming(on) {
     timingAll = !!on;
+    // 出しているあいだは順位パネルを畳む（モニターに順位も入っている）
+    const wrap = document.querySelector('.rv-wrap');
+    if (wrap) wrap.classList.toggle('timing', timingAll);
     advanceSectors(vt);
     renderSectors();
     return timingAll;
