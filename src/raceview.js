@@ -1298,6 +1298,22 @@ GP.raceview = (function () {
       badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
     }
 
+    // 路面に乗ったゴム。走るほど乗り、雨で流れる
+    const rb = document.getElementById('rvRubber');
+    if (rb) {
+      const rv = (res.rubberLog || [])[Math.max(0, lap - 1)];
+      if (rv == null) { rb.innerHTML = ''; }
+      else {
+        const R = GP.data.RUBBER;
+        const lv = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+        rb.innerHTML = '<i class="rvw-h">ラバー</i>' +
+          '<span class="rvrub" title="走るほどゴムが乗ってグリップが上がる。雨が降ると流れる" ' +
+          'style="border-color:' + lv.color + '"><u style="width:' + Math.round(rv * 100) +
+          '%;background:' + lv.color + '"></u></span>' +
+          '<i class="rvw-h">' + lv.name + '</i>';
+      }
+    }
+
     // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
     const wb = document.getElementById('rvWet');
     if (wb) {

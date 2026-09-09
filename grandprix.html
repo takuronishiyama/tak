@@ -2060,6 +2060,16 @@ body[data-skin="hd"]{
 .ychip{font-style:normal;font-size:10px;background:var(--sky);color:var(--ink);
        border:1px solid var(--ink);border-radius:4px;padding:0 5px;margin-left:6px}
 
+/* ---- 路面に乗ったゴム ---- */
+.rvrub{display:inline-block;width:56px;height:8px;background:rgba(0,0,0,.45);
+       border:2px solid #7aa06a;border-radius:5px;overflow:hidden;vertical-align:middle}
+.rvrub u{display:block;height:100%;text-decoration:none;transition:width .4s}
+@media (max-width:520px), (hover:none) and (pointer:coarse){ .rvrub{width:44px} }
+.supnote{display:block;width:100%;font-size:11px;background:#eef4ff;border-left:4px solid var(--blue);
+         border-radius:0 5px 5px 0;padding:3px 8px;margin-top:3px;line-height:1.5}
+.supnote em{font-style:normal;opacity:.75;font-size:10px}
+[data-skin="hd"] .supnote{background:rgba(58,122,217,.18)}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -2172,6 +2182,7 @@ body[data-skin="hd"]{
       <b id="rvTrack">-</b>
       <span id="rvWeather">-</span>
       <span id="rvLap">LAP 1 / 1</span>
+      <span id="rvRubber" class="rv-wet"></span>
       <span id="rvWet" class="rv-wet"></span>
       <span id="rvOrders" class="rv-orders"></span>
     </div>
@@ -4019,6 +4030,24 @@ GP.data = (function () {
     wetOnDry:   0.35, // ずれがスピンに効く度合い（ドライタイヤの35%）
     wetMelt:    1.60  // ずれ 1.0 あたり、1周で何周ぶん余計に減るか
   };
+  /* ---------- 路面の熟成（ラバー）----------
+     走れば走るほどタイヤのゴムが路面に乗り、グリップが上がっていく。
+     雨が降れば、それは一度に流れてしまう。                        */
+  const RUBBER = {
+    start: 0.25,   // 決勝が始まる時点。予選と練習でこれくらいは乗っている
+    gain:  0.11,   // 1周で乗る量（残りぶんに対する割合）
+    wash:  0.55,   // 濡れ具合1.0のとき、1周でどれだけ流れるか
+    washFrom: 0.22,// これ以上濡れると流れはじめる
+    pace:  0.014,  // 乗りきったときのラップタイム短縮（-1.4%）
+    calm:  0.25,   // 乗っているほどミスが減る割合
+    LEVELS: [
+      { at: 0.25, name: 'グリーン', short: 'G', color: '#7aa06a' },
+      { at: 0.55, name: '乗ってきた', short: '◐', color: '#b8a05a' },
+      { at: 0.85, name: '良い',     short: '◕', color: '#d09a3a' },
+      { at: 1.01, name: '完成',     short: '●', color: '#e0642a' }
+    ]
+  };
+
   /* 路面の濡れ具合の見え方。セクターごとにこれで色分けする */
   const WET_LEVELS = [
     { at: 0.10, name: 'ドライ',   short: 'D', color: '#c8a86a' },
@@ -4038,7 +4067,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, ENV, REPAIR, ENGINE, RUBBER, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, WORKSHOP, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_TIRED_REL, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -7429,6 +7458,8 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
+    let rubber = D.RUBBER.start, rubberWashed = false;   // 路面に乗ったゴム
+    const rubberLog = [];
     let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
     const scInfo = { from: 0, laps: 0, virtual: false };
@@ -7728,6 +7759,24 @@ GP.race = (function () {
         wetSec[k] += (wetTarget - wetSec[k]) * rate;
         if (Math.abs(wetTarget - wetSec[k]) < 0.01) wetSec[k] = wetTarget;
       }
+      /* ---- 路面の熟成（ラバー）----
+         走るほどゴムが乗ってグリップが上がる。雨が降れば流れる  */
+      {
+        const wn = wetAvg();
+        if (wn > D.RUBBER.washFrom) {
+          const before = rubber;
+          rubber = Math.max(0, rubber - wn * D.RUBBER.wash);
+          if (before >= 0.35 && rubber < 0.15 && !rubberWashed) {
+            rubberWashed = true;
+            events.push({ lap: lap, type: 'weather',
+              text: '🌧️ 乗っていたラバーが雨で流れた。路面は一度まっさらに戻る' });
+          }
+        } else {
+          rubber = Math.min(1, rubber + D.RUBBER.gain * (1 - rubber));
+          if (rubber > 0.35) rubberWashed = false;
+        }
+        rubberLog[lap - 1] = Math.round(rubber * 100) / 100;
+      }
       wetLog[lap - 1] = [Math.round(wetSec[0] * 100) / 100,
                          Math.round(wetSec[1] * 100) / 100,
                          Math.round(wetSec[2] * 100) / 100];
@@ -7818,6 +7867,9 @@ GP.race = (function () {
         // タイヤの銘柄によるペース差
         const ty = tyreOf(e.tyreKey);
         t *= ty.pace;
+
+        // 路面に乗ったゴムのぶんだけ、みんなが速くなる
+        t *= 1 - rubber * D.RUBBER.pace;
 
         // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
         // 「合っている／合っていない」ではなく、ずれた量で効く
@@ -7965,6 +8017,7 @@ GP.race = (function () {
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
+                 * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
                  * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
@@ -8398,6 +8451,7 @@ GP.race = (function () {
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
       weatherChange: wxInfo.at ? wxInfo : null,
+      rubberLog: rubberLog,
       totalTime: laps * track.base * 1.05
     };
   }
@@ -10005,6 +10059,22 @@ GP.raceview = (function () {
       const on = !!sc && lap >= sc.from && lap < sc.from + sc.laps;
       badge.textContent = sc && sc.virtual ? '🟡 VIRTUAL SC' : '🚨 SAFETY CAR';
       badge.className = 'rv-badge' + (on ? ' show' : '') + (sc && sc.virtual ? ' vsc' : '');
+    }
+
+    // 路面に乗ったゴム。走るほど乗り、雨で流れる
+    const rb = document.getElementById('rvRubber');
+    if (rb) {
+      const rv = (res.rubberLog || [])[Math.max(0, lap - 1)];
+      if (rv == null) { rb.innerHTML = ''; }
+      else {
+        const R = GP.data.RUBBER;
+        const lv = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+        rb.innerHTML = '<i class="rvw-h">ラバー</i>' +
+          '<span class="rvrub" title="走るほどゴムが乗ってグリップが上がる。雨が降ると流れる" ' +
+          'style="border-color:' + lv.color + '"><u style="width:' + Math.round(rv * 100) +
+          '%;background:' + lv.color + '"></u></span>' +
+          '<i class="rvw-h">' + lv.name + '</i>';
+      }
     }
 
     // 路面の濡れ具合。セクターごとに違うので、そのまま3つ並べる
@@ -12811,6 +12881,15 @@ GP.ui = (function () {
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
       (partTraitChips(p, g) ? '<span class="p-trs">' + partTraitChips(p, g) + '</span>' : '') +
+      // 供給を受けているパワーユニットは、何を買っているのかをその場に出す
+      (p.supplied && g.engine
+        ? '<span class="supnote">🔌 <b>' + esc(g.engine.team) + '</b> から供給中' +
+          '　供給元が開発したぶんが毎週降りてくる（今季ここまで <b>+' +
+          (g.engine.grown || 0).toFixed(1) + '</b>）' +
+          '／ほかの開発 <b>+' + Math.round((D.ENGINE.freeDev - 1) * 100) + '%</b>' +
+          '／信頼性 <b>+' + D.ENGINE.relBonus + '</b>' +
+          '　<em>供給料 ' + money(g.engine.fee) + '万/戦・自分では開発できません</em></span>'
+        : '') +
       // その世代で何が変わったのか。読み飛ばせるが、読むと分かる
       (S.partNote ? '<span class="p-note">' + esc(S.partNote(p.cat, p.gen)) + '</span>' : '') +
       '</div>';

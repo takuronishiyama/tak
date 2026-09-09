@@ -769,6 +769,8 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
+    let rubber = D.RUBBER.start, rubberWashed = false;   // 路面に乗ったゴム
+    const rubberLog = [];
     let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
     const scInfo = { from: 0, laps: 0, virtual: false };
@@ -1068,6 +1070,24 @@ GP.race = (function () {
         wetSec[k] += (wetTarget - wetSec[k]) * rate;
         if (Math.abs(wetTarget - wetSec[k]) < 0.01) wetSec[k] = wetTarget;
       }
+      /* ---- 路面の熟成（ラバー）----
+         走るほどゴムが乗ってグリップが上がる。雨が降れば流れる  */
+      {
+        const wn = wetAvg();
+        if (wn > D.RUBBER.washFrom) {
+          const before = rubber;
+          rubber = Math.max(0, rubber - wn * D.RUBBER.wash);
+          if (before >= 0.35 && rubber < 0.15 && !rubberWashed) {
+            rubberWashed = true;
+            events.push({ lap: lap, type: 'weather',
+              text: '🌧️ 乗っていたラバーが雨で流れた。路面は一度まっさらに戻る' });
+          }
+        } else {
+          rubber = Math.min(1, rubber + D.RUBBER.gain * (1 - rubber));
+          if (rubber > 0.35) rubberWashed = false;
+        }
+        rubberLog[lap - 1] = Math.round(rubber * 100) / 100;
+      }
       wetLog[lap - 1] = [Math.round(wetSec[0] * 100) / 100,
                          Math.round(wetSec[1] * 100) / 100,
                          Math.round(wetSec[2] * 100) / 100];
@@ -1158,6 +1178,9 @@ GP.race = (function () {
         // タイヤの銘柄によるペース差
         const ty = tyreOf(e.tyreKey);
         t *= ty.pace;
+
+        // 路面に乗ったゴムのぶんだけ、みんなが速くなる
+        t *= 1 - rubber * D.RUBBER.pace;
 
         // 路面と銘柄が噛み合っていないぶんだけ遅くなる。
         // 「合っている／合っていない」ではなく、ずれた量で効く
@@ -1305,6 +1328,7 @@ GP.race = (function () {
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.sk('precise') ? 0.58 : 1)
                  * (e.driver.hurt ? 1.35 : 1)
+                 * (1 - rubber * D.RUBBER.calm)      // 乗った路面ほど落ち着いて踏める
                  * (1 + (e.defending || 0) * 0.45)      // 守っているときほど乱れやすい
                  * orderOf(e.order).miss;               // 攻めろと言われた周ほど乱れやすい
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) mp = 0;   // 隊列を流している間は起きない
@@ -1738,6 +1762,7 @@ GP.race = (function () {
       safetyCar: scInfo.laps ? scInfo : null,
       hotTeam: entries.hotTeam || '',
       weatherChange: wxInfo.at ? wxInfo : null,
+      rubberLog: rubberLog,
       totalTime: laps * track.base * 1.05
     };
   }

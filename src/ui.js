@@ -161,6 +161,15 @@ GP.ui = (function () {
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '">' + Math.round(p.cond) + '%</span>' +
       (opts.trailing || '') +
       (partTraitChips(p, g) ? '<span class="p-trs">' + partTraitChips(p, g) + '</span>' : '') +
+      // 供給を受けているパワーユニットは、何を買っているのかをその場に出す
+      (p.supplied && g.engine
+        ? '<span class="supnote">🔌 <b>' + esc(g.engine.team) + '</b> から供給中' +
+          '　供給元が開発したぶんが毎週降りてくる（今季ここまで <b>+' +
+          (g.engine.grown || 0).toFixed(1) + '</b>）' +
+          '／ほかの開発 <b>+' + Math.round((D.ENGINE.freeDev - 1) * 100) + '%</b>' +
+          '／信頼性 <b>+' + D.ENGINE.relBonus + '</b>' +
+          '　<em>供給料 ' + money(g.engine.fee) + '万/戦・自分では開発できません</em></span>'
+        : '') +
       // その世代で何が変わったのか。読み飛ばせるが、読むと分かる
       (S.partNote ? '<span class="p-note">' + esc(S.partNote(p.cat, p.gen)) + '</span>' : '') +
       '</div>';
