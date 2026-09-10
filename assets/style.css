@@ -1833,6 +1833,11 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* 難易度の付け替え（調整用） */
+.diffpick .pickbtn.on{background:linear-gradient(#ffd76a,var(--yellow));opacity:1}
+[data-skin="hd"] .diffpick .pickbtn.on{background:linear-gradient(#6a5220,#3d2e12);border-color:var(--gold)}
+.diffpick .pb-ic{color:#fff;font-size:16px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+
 /* ---- 安定感（危うい〜完璧主義）の見かた ---- */
 .carelegend{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
 .cl-row{display:flex;align-items:center;gap:6px;font-size:10.5px;

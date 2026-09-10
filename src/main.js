@@ -113,6 +113,83 @@ window.GP = window.GP || {};
   }
 
   /* =======================================================
+     🏎️ 車体
+     「改良」「開発」「研究」は、どれもマシンを速くする手だが、
+     何が違うのか、いまどれを叩くべきなのかが分かりにくかった。
+     噛み合いの図と見立てを先に見せて、そこから選ばせる。
+     ここを開くだけでは週は進まない。
+     ======================================================= */
+  function cmdCar() {
+    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const sc = Math.round(S.carScore(g, t));
+    let body =
+      '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
+      '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
+      mechMapSVG(g) + mechReadHTML(g) +
+      '<div class="sub">何をしますか</div>' +
+      '<p class="desc">どれも1週ぶんのコマンドです。' +
+      '<b>改良</b>は積んでいるものを煮詰め、<b>開発</b>は新しいパーツと技術を作り、' +
+      '<b>研究</b>はその一段手前で「何が効くか」を探します。</p>' +
+      '<div class="pick">' +
+      carPickHTML('🔧', '改良', 'いま積んでいるパーツを煮詰める',
+        '性能が伸び、熟成が溜まると格（レアリティ）が上がって上限そのものが伸びる', 'imp') +
+      carPickHTML('📐', '開発', '新しいパーツを作り、技術を伸ばす',
+        'チームの技術（タグ）はどのパーツにも乗る。新型を設計して載せ替える', 'des') +
+      carPickHTML('🔬', '研究', 'まだ図面になっていないものを探す',
+        '知見が溜まり、改良1回ぶんの伸びが大きくなる。開発の一段手前', 'res') +
+      '</div>';
+    U.modal('🏎️ 車体', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    const go = { imp: cmdImprove, des: cmdDesign, res: cmdResearch };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
+    });
+  }
+  function carPickHTML(icon, name, sub, note, key) {
+    return '<button class="pickbtn" data-car="' + key + '">' +
+      '<span class="pb-ic" style="font-size:19px">' + icon + '</span>' +
+      '<span class="pb-body"><b>' + name + '</b><small>' + esc(sub) +
+      '<br><em>' + esc(note) + '</em></small></span>' +
+      '<span class="pb-cost">1週</span></button>';
+  }
+
+  /* =======================================================
+     🧑‍✈️ ドライバー
+     走らせる人まわりを1つにまとめる。練習と、下部組織の育成。
+     ======================================================= */
+  function cmdDriverMenu() {
+    let body = '<div class="sub">いまのドライバー</div><div class="pick">';
+    (g.drivers || []).forEach(d => {
+      const fit = S.driverFit(g, d);
+      const ct = S.careTier(d), p2 = S.persOf(d);
+      body += '<div class="pickbtn done">' +
+        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
+        '総合 ' + Math.round(S.driverRating(d)) + '／調子 ' + Math.round(d.form) +
+        '／' + p2.icon + p2.name + '／' + ct.icon + ct.name +
+        '<br><em>いまの車で <b>' + Math.round(fit.out * 100) + '%</b> 引き出せています' +
+        '（乗りやすさ ' + (fit.drive >= 1 ? '+' : '') + Math.round((fit.drive - 1) * 100) + '%）</em>' +
+        '</small></span></div>';
+    });
+    if (!(g.drivers || []).length) body += '<p class="desc">シートが空いています。</p>';
+    body += '</div>' +
+      '<div class="sub">何をしますか</div>' +
+      '<p class="desc">乗りやすいマシンほど、ドライバーは持っているものをそのまま出せます。' +
+      '車体の<b>ドライバビリティ</b>を上げるのも、腕を上げるのと同じだけ効きます。</p>' +
+      '<div class="pick">' +
+      carPickHTML('💪', '練習', '2人を鍛える', '走り込みで能力そのものが伸びる。1週ぶん', 'train') +
+      carPickHTML('🎓', '育成', '下部組織の若手を見る', '若手の伸びと、スカウト。人事の育成タブへ', 'youth') +
+      carPickHTML('👥', '人事', 'ドライバーの入れ替えと契約', '市場から獲る／リザーブを置く／解雇する', 'hr') +
+      '</div>';
+    U.modal('🧑‍✈️ ドライバー', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    const go = { train: cmdTrain,
+                 youth: () => { hrTab = 'youth'; cmdStaff(); },
+                 hr: () => { hrTab = 'drivers'; cmdStaff(); } };
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
+    });
+  }
+
+  /* =======================================================
      サマーブレイク
      シーズンの折り返しに、工場ごと閉める2週間。
      実際のF1と同じで、ここは走ることも作ることもできない。
@@ -7291,8 +7368,8 @@ window.GP = window.GP || {};
 
   function bindCommands() {
     const map = {
-      cDevelop: cmdImprove, cDesign: cmdDesign, cResearch: cmdResearch, cMaintain: cmdMaintain,
-      cTrain: cmdTrain, cSponsor: cmdSponsor, cRest: cmdRest,
+      cCar: cmdCar, cDriver: cmdDriverMenu, cMaintain: cmdMaintain,
+      cSponsor: cmdSponsor, cRest: cmdRest,
       cLogi: cmdLogi, cLogiR: cmdLogi, cLogiO: cmdLogi,
       cGarage: cmdGarage, cFacility: cmdFacility, cStaff: cmdStaff, cInfo: cmdInfo,
       cRaceGo: cmdRace, cGarageR: cmdGarage, cStaffR: cmdStaff,
@@ -7910,6 +7987,30 @@ window.GP = window.GP || {};
     S.save(g); render(); cmdSponsor();
   }
 
+  /* ---- 難易度の付け替え（調整用）----
+     いまは中身を見ながら手で試せるように出してある。
+     効き目は「いまこの瞬間から」変わるだけで、
+     これまでに積み上げたものはそのまま残る。               */
+  function diffSwitchHTML() {
+    const cur = S.diffOf(g);
+    return '<div class="sub">⚙️ 難易度</div>' +
+      '<p class="desc">いまは <b>' + cur.icon + cur.name + '</b>。' +
+      '切り替えると、この先の<b>ライバルの強さ・開発の伸び・賞金・維持費・修理費</b>が変わります。' +
+      'ここまでの資金や成績はそのままです。<em>（調整用の機能です）</em></p>' +
+      '<div class="pick diffpick">' +
+      D.DIFFICULTIES.map(d =>
+        '<button class="pickbtn' + (d.key === cur.key ? ' on' : '') + '" data-diff="' + d.key + '"' +
+        (d.key === cur.key ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="background:' + d.color + '">' + d.icon + '</span>' +
+        '<span class="pb-body"><b>' + d.name + '</b><small>' + esc(d.short) +
+        '<br><em>ライバルの土台 ×' + d.rivalPower.toFixed(2) +
+        '／開発 ×' + d.dev.toFixed(2) +
+        '／賞金 ×' + d.prize.toFixed(2) +
+        '／維持費 ×' + (d.upkeep || 1).toFixed(2) + '</em></small></span>' +
+        '<span class="pb-cost">' + (d.key === cur.key ? 'いま' : '切替') + '</span></button>').join('') +
+      '</div>';
+  }
+
   function cmdInfo() {
     let body = stakeBlock(false);
     body += mgmtReportHTML();
@@ -7924,6 +8025,7 @@ window.GP = window.GP || {};
       body += '<div class="hist"><b>第' + r.round + '戦 ' + esc(r.track) + '</b> <small>' + r.weather + '</small><br>' +
         mine.map(m => (m.dnf ? 'DNF' : m.pos + '位') + ' ' + esc(m.name) + (m.pts ? '（+' + m.pts + 'pt）' : '')).join(' ／ ') + '</div>';
     });
+    body += diffSwitchHTML();
     body += '<div class="sub">チームの歩み</div>';
     if (!g.history.length) body += '<p class="desc">まだ1シーズンも終えていません。</p>';
     g.history.forEach(h => { body += '<div class="hist">シーズン' + h.season + '：コンストラクターズ ' + h.rank + '位（' + h.points + 'pt）</div>'; });
@@ -7937,6 +8039,19 @@ window.GP = window.GP || {};
             { label: 'いいえ', fn: U.closeModal }]);
         } }
     ], { wide: true });
+    // 難易度の付け替え（調整用）
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-diff]'), b => {
+      b.onclick = () => {
+        const d = D.DIFFICULTIES.find(x => x.key === b.dataset.diff);
+        if (!d) return;
+        g.mode = d.key;
+        S.save(g);
+        GP.sound.play('confirm');
+        U.toast(d.icon + ' 難易度を「' + d.name + '」にしました', 'good');
+        U.log(g, '⚙️ 難易度を ' + d.name + ' に変更した', 'warn');
+        render(); cmdInfo();
+      };
+    });
   }
 
   /* ---------- タイトル画面 ---------- */
