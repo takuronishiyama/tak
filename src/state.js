@@ -818,7 +818,7 @@ GP.state = (function () {
     g2.owner.fame = Math.max(0, Math.round((g2.owner.fame || 0) + n));
     const after = ownerRank(g2);
     if (after > before) {
-      g2.owner.sp += (after - before) * 2;      // 1段につき2ポイント
+      g2.owner.sp += (after - before) * D.FAME.spPerRank;
       g2.owner.rank = after;
       return after - before;
     }

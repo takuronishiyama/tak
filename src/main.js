@@ -2502,6 +2502,7 @@ window.GP = window.GP || {};
       const fa = D.FACILITIES.find(x => x.key === baseSel);
       GP.sound.play('build');
       U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
+      grantFame(D.fameOf('facility'), '施設を広げた');
       U.toast('🏗️ ' + fa.name + ' Lv.' + g.facilities[baseSel] + '！', 'good');
       S.save(g); render(); drawBase();
       const sc2 = GP.base.scale(g);
@@ -2792,6 +2793,29 @@ window.GP = window.GP || {};
   }
 
   /* ---- ドライバー ---- */
+  /* ---- 安定感（危うい〜完璧主義）の見かた ----
+     ドライバーカードに出ている札が何を意味するのか、
+     数字の効きまで含めて一箇所で説明しておく               */
+  function careLegendHTML() {
+    return '<div class="sub small">🎚️ 安定感の見かた</div>' +
+      '<p class="desc">同じ速さでも、限界の手前で止められる人と、' +
+      '踏み越えてしまう人がいます。速さと引き換えの性質なので、' +
+      '<b>危うい人ほど素の速さは高い</b>ことが多いです。' +
+      'レアリティの高いドライバーだけが、速さと安定感を両方持ちます。</p>' +
+      '<div class="carelegend">' +
+      D.CARE_TIERS.map((t, i) => {
+        const lo = i === 0 ? 0 : D.CARE_TIERS[i - 1].max;
+        return '<div class="cl-row"><i style="background:' + t.color + '">' + t.icon + '</i>' +
+          '<b>' + t.name + '</b>' +
+          '<em>' + lo + (t.max >= 999 ? '〜' : '〜' + t.max) + '</em>' +
+          '<span>' + esc(t.note) + '</span></div>';
+      }).join('') + '</div>' +
+      '<p class="desc">安定感が高いほど<b>クラッシュとミスが減り</b>、' +
+      '周回遅れを譲るのも上手くなります。' +
+      '「マシンを持って帰る」ことが点になる終盤ほど効いてきます。' +
+      '性格と、車体の<b>ドライバビリティ</b>でも上下します。</p>';
+  }
+
   function hrDrivers() {
     let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
     g.drivers.forEach(d => {
@@ -2803,6 +2827,7 @@ window.GP = window.GP || {};
         '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div>';
+    body += careLegendHTML();
 
     // ---- リザーブドライバー ----
     body += '<div class="sub">🪑 リザーブドライバー</div>' +
@@ -2884,7 +2909,8 @@ window.GP = window.GP || {};
   /* ---- 下部組織 ---- */
   function hrYouth() {
     const slots = S.youthSlots(g);
-    let body = '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
+    let body = careLegendHTML() +
+      '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
       '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
@@ -4438,7 +4464,12 @@ window.GP = window.GP || {};
 
   function showResult() {
     const res = currentRes;
+    const htBefore = S.hypeTier(g).name;
     const reward = R.applyResult(g, res);
+    // 注目度の段が上がったら、それもオーナーの名になる
+    if (S.hypeTier(g).name !== htBefore && (res.hypeDelta || 0) > 0) {
+      grantFame(D.fameOf('hype'), '注目度の段が上がった');
+    }
     setTimeout(() => {
       $('raceScreen').className = '';
       let body = '<div class="racehead"><b>' +
@@ -4544,15 +4575,22 @@ window.GP = window.GP || {};
       }
     }
 
-    // 名声：上位でゴールするほどオーナーの名が売れる
+    /* 名声：週末でやったことがそのまま名になる。
+       数字は D.FAME.SRC の表と同じものを使っているので、
+       オーナー画面に出ている説明と食い違わない                */
     if (currentRes) {
+      const F = D.fameOf;
       let f = 0;
       currentRes.entries.filter(e => e.isPlayer && !e.dnf).forEach(e => {
-        f += Math.max(0, 22 - e.pos) * 1.6;          // 順位ぶん
-        if (e.pos === 1) f += 40;
-        else if (e.pos <= 3) f += 18;
+        f += Math.max(0, 22 - e.pos) * F('pos') + F('finish');
+        if (e.pos === 1) f += F('win');
+        else if (e.pos <= 3) f += F('podium');
+        if (e.pos <= D.POINTS.length) f += F('points');
+        if (e.grid === 1) f += F('pole');
       });
-      if (f > 0) grantFame(Math.round(f), 'レースの結果');
+      const fl = currentRes.fastestLap;
+      if (fl && fl.isPlayer) f += F('fastest');
+      if (f > 0) grantFame(Math.round(f), 'レースの週末');
     }
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
@@ -4718,13 +4756,25 @@ window.GP = window.GP || {};
         '<em>' + money(o.fame) + '</em></div>' +
       '<p class="desc">' +
         (pr.next ? '次のランク「' + pr.next.icon + pr.next.name + '」まで あと ' +
-                   money(pr.need) + '。上がるごとにスキルポイントが2つ手に入ります。'
+                   money(pr.need) + '。上がるごとにスキルポイントが' + D.FAME.spPerRank + 'つ手に入ります。'
                  : '最高ランクに到達しています。') +
       '</p>' +
-      '<p class="desc">名声は、レースで上位に入るほど、そしてシーズンの結果で貯まります。</p>' +
+      '<div class="sub small">名声が貯まること</div>' +
+      '<p class="desc">下の一覧が、そのまま計算に使っている数字です。' +
+        '1段上がるごとにスキルポイントが <b>' + D.FAME.spPerRank + '</b> つ手に入ります。</p>' +
+      '<div class="famelist">' +
+      D.FAME.SRC.map(x =>
+        '<div class="fame-row"><i>' + x.icon + '</i><span>' + esc(x.name) +
+        (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</span>' +
+        '<em>+' + x.v + '</em></div>').join('') +
+      '</div>' +
+      '<p class="desc">レースの名声は<b>2台ぶん</b>入ります。' +
+        '完走してポイントを持ち帰るだけでも積み上がるので、' +
+        '毎戦きちんと帰ってくることがそのまま名になります。</p>' +
       '<div class="sub">スキル</div>' +
       '<p class="desc">段位は現在のランク＋1まで伸ばせます（いまは最大 ' +
         Math.min(D.OWNER_SKILL_MAX, pr.i + 1) + ' 段）。</p>' +
+      ownerNowHTML(o) +
       '<div class="oskills">';
 
     D.OWNER_SKILLS.forEach(sk => {
@@ -4741,6 +4791,10 @@ window.GP = window.GP || {};
             (capped ? 'MAX' : locked ? 'ランク不足' : '+1') + '</button></div>' +
         '<small>' + esc(sk.desc) + '</small>' +
         '<div class="osk-eff">' + sk.eff.map(e => '<span>' + esc(e) + '</span>').join('') + '</div>' +
+        (lv > 0 && sk.now
+          ? '<div class="osk-eff now">いま：' +
+            sk.now(lv).map(e => '<span>' + esc(e) + '</span>').join('') + '</div>'
+          : '') +
         '</div>';
     });
     body += '</div>';
@@ -4758,15 +4812,36 @@ window.GP = window.GP || {};
     });
   }
 
+  /* いま実際に効いているぶんだけを、まとめて出す。
+     「取ったはいいが何が変わったのか分からない」を無くすため   */
+  function ownerNowHTML(o) {
+    const rows = [];
+    D.OWNER_SKILLS.forEach(sk => {
+      const lv = (o.skills || {})[sk.key] || 0;
+      if (lv > 0 && sk.now) {
+        rows.push('<div class="on-row"><i style="background:' + sk.color + '">' + sk.icon + '</i>' +
+          '<b>' + sk.name + ' ' + lv + '段</b><span>' +
+          sk.now(lv).map(esc).join(' ／ ') + '</span></div>');
+      }
+    });
+    if (!rows.length) {
+      return '<p class="note">まだスキルを取っていません。' +
+        'スキルポイントを振ると、ここに「いま効いていること」が並びます。</p>';
+    }
+    return '<div class="sub small">いま効いていること</div>' +
+      '<div class="ownernow">' + rows.join('') + '</div>';
+  }
+
   /* 名声を足し、ランクが上がったら知らせる */
   function grantFame(n, why) {
     if (!n) return;
     const up = S.addFame(g, n);
     if (up > 0) {
       const pr = S.ownerProgress(g);
-      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + (up * 2), 'good');
+      const sp = up * D.FAME.spPerRank;
+      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + sp, 'good');
       U.log(g, pr.cur.icon + ' オーナーランクが上がった：' + pr.cur.name +
-               '（スキルポイント +' + (up * 2) + '）', 'good');
+               '（スキルポイント +' + sp + '）', 'good');
       GP.sound.play('win');
     } else if (why) {
       U.log(g, '⭐ 名声 +' + n + '（' + why + '）');
@@ -4788,8 +4863,9 @@ window.GP = window.GP || {};
 
     g.funds += prize;
     // シーズンの結果は大きな名声になる
-    grantFame(Math.round(Math.max(0, 12 - rank) * 26 + (rank === 1 ? 400 : 0)), 'シーズンの結果');
-    if (myChampPre) grantFame(300, 'ドライバーズタイトル');
+    grantFame(Math.round(Math.max(0, 12 - rank) * D.fameOf('season') +
+                         (rank === 1 ? D.fameOf('champion') : 0)), 'シーズンの結果');
+    if (myChampPre) grantFame(D.fameOf('drvTitle'), 'ドライバーズタイトル');
     GP.sound.play(rank <= 3 ? 'win' : 'podium');
     if (rank === 1) { g.titles.teams++; g.fans += Math.round(g.fans * 0.3) + 2000; }
     if (myChamp) { g.titles.drivers++; g.fans += Math.round(g.fans * 0.2) + 1500; }
@@ -5868,6 +5944,7 @@ window.GP = window.GP || {};
       g.drivers.push(d);
       U.closeModal();
       U.log(g, '🤝 ' + d.name + ' の獲得に成功した！（移籍金 ' + money(fee) + '万）', 'good');
+      grantFame(D.fameOf('poach'), '他チームから引き抜いた');
       U.toast('🤝 ' + d.name + ' が加入！', 'good');
       GP.sound.play('good');
       GP.paddock.invalidate();

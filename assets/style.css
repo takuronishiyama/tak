@@ -1833,6 +1833,37 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 安定感（危うい〜完璧主義）の見かた ---- */
+.carelegend{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
+.cl-row{display:flex;align-items:center;gap:6px;font-size:10.5px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.cl-row i{font-style:normal;width:20px;height:20px;border:2px solid var(--ink);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+.cl-row b{flex:0 0 56px;font-size:11px}
+.cl-row em{font-style:normal;flex:0 0 46px;font-size:9px;opacity:.7;text-align:right}
+.cl-row span{flex:1;min-width:0;opacity:.9}
+
+/* ---- オーナー：名声の入りかたと、いま効いていること ---- */
+.famelist{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:3px;margin-bottom:6px}
+.fame-row{display:flex;align-items:center;gap:5px;font-size:10px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.fame-row i{font-style:normal;font-size:12px;flex:none}
+.fame-row span{flex:1;display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.fame-row span small{font-size:8.5px;opacity:.7}
+.fame-row em{font-style:normal;font-weight:bold;font-size:11px;color:#8a5a1a}
+[data-skin="hd"] .fame-row em{color:#ffd76a}
+.ownernow{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.on-row{display:flex;align-items:center;gap:6px;font-size:10.5px;
+  background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.on-row i{font-style:normal;width:19px;height:19px;border:2px solid var(--ink);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+.on-row b{flex:0 0 auto;font-size:10.5px}
+.on-row span{flex:1;opacity:.85;min-width:0}
+[data-skin="hd"] .on-row{background:#28402c}
+.osk-eff.now{margin-top:2px}
+.osk-eff.now span{background:#cdeccd;color:#1f5a1f}
+[data-skin="hd"] .osk-eff.now span{background:#28502c;color:#c8ecc8}
+
 /* ---- 機構の噛み合い図 ---- */
 .mechmap{background:var(--paper3);border:3px solid var(--ink);border-radius:10px;
   padding:4px;margin-bottom:6px;box-shadow:0 3px 0 rgba(74,47,26,.35)}

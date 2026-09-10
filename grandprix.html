@@ -1848,6 +1848,37 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 安定感（危うい〜完璧主義）の見かた ---- */
+.carelegend{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
+.cl-row{display:flex;align-items:center;gap:6px;font-size:10.5px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.cl-row i{font-style:normal;width:20px;height:20px;border:2px solid var(--ink);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+.cl-row b{flex:0 0 56px;font-size:11px}
+.cl-row em{font-style:normal;flex:0 0 46px;font-size:9px;opacity:.7;text-align:right}
+.cl-row span{flex:1;min-width:0;opacity:.9}
+
+/* ---- オーナー：名声の入りかたと、いま効いていること ---- */
+.famelist{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:3px;margin-bottom:6px}
+.fame-row{display:flex;align-items:center;gap:5px;font-size:10px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:2px 6px}
+.fame-row i{font-style:normal;font-size:12px;flex:none}
+.fame-row span{flex:1;display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.fame-row span small{font-size:8.5px;opacity:.7}
+.fame-row em{font-style:normal;font-weight:bold;font-size:11px;color:#8a5a1a}
+[data-skin="hd"] .fame-row em{color:#ffd76a}
+.ownernow{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.on-row{display:flex;align-items:center;gap:6px;font-size:10.5px;
+  background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.on-row i{font-style:normal;width:19px;height:19px;border:2px solid var(--ink);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+.on-row b{flex:0 0 auto;font-size:10.5px}
+.on-row span{flex:1;opacity:.85;min-width:0}
+[data-skin="hd"] .on-row{background:#28402c}
+.osk-eff.now{margin-top:2px}
+.osk-eff.now span{background:#cdeccd;color:#1f5a1f}
+[data-skin="hd"] .osk-eff.now span{background:#28502c;color:#c8ecc8}
+
 /* ---- 機構の噛み合い図 ---- */
 .mechmap{background:var(--paper3);border:3px solid var(--ink);border-radius:10px;
   padding:4px;margin-bottom:6px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
@@ -3290,31 +3321,66 @@ GP.data = (function () {
      実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
   const OWNER_RANKS = [
     { need: 0,     name: '無名のオーナー',   icon: '🥚' },
-    { need: 120,   name: '駆け出しのオーナー', icon: '🐣' },
-    { need: 400,   name: '一人前のオーナー',  icon: '🧑‍💼' },
-    { need: 1000,  name: '名の知れたオーナー', icon: '🎩' },
-    { need: 2200,  name: '辣腕オーナー',     icon: '💼' },
-    { need: 4200,  name: '名門の主',        icon: '🏛️' },
-    { need: 7500,  name: '伝説のオーナー',   icon: '👑' }
+    { need: 250,   name: '駆け出しのオーナー', icon: '🐣' },
+    { need: 800,   name: '一人前のオーナー',  icon: '🧑‍💼' },
+    { need: 1800,  name: '名の知れたオーナー', icon: '🎩' },
+    { need: 3600,  name: '辣腕オーナー',     icon: '💼' },
+    { need: 6500,  name: '名門の主',        icon: '🏛️' },
+    { need: 11000, name: '伝説のオーナー',   icon: '👑' }
   ];
+
+  /* ---------- 名声の入りかた ----------
+     何をすると名が売れるのかを、一箇所にまとめて置く。
+     画面にもこの表をそのまま出すので、数字と説明がずれない       */
+  const FAME = {
+    spPerRank: 3,                    // 1段上がるごとのスキルポイント
+    SRC: [
+      { key: 'win',      icon: '🏆', name: '優勝',           v: 55 },
+      { key: 'podium',   icon: '🥉', name: '表彰台',         v: 24 },
+      { key: 'points',   icon: '🎯', name: '入賞（10位以内）', v: 9 },
+      { key: 'finish',   icon: '🏁', name: '完走',           v: 2 },
+      { key: 'pos',      icon: '📈', name: '順位ぶん',        v: 1.6,
+        note: '（22 − 順位）× 1.6' },
+      { key: 'pole',     icon: '⏱️', name: 'ポールポジション', v: 18 },
+      { key: 'fastest',  icon: '⚡', name: 'ファステストラップ', v: 10 },
+      { key: 'hype',     icon: '📣', name: '注目度の段が上がる', v: 40 },
+      { key: 'facility', icon: '🏗️', name: '施設を広げる',     v: 12 },
+      { key: 'poach',    icon: '🤝', name: '他チームから引き抜く', v: 30 },
+      { key: 'season',   icon: '📅', name: 'シーズンの結果',   v: 30,
+        note: '（12 − 順位）× 30' },
+      { key: 'champion', icon: '👑', name: 'コンストラクターズ優勝', v: 420 },
+      { key: 'drvTitle', icon: '🏅', name: 'ドライバーズ優勝', v: 320 }
+    ]
+  };
+  const fameOf = k => (FAME.SRC.filter(x => x.key === k)[0] || { v: 0 }).v;
 
   /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
   const OWNER_SKILLS = [
     { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
       desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
-      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'] },
+      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'],
+      now: lv => ['心証の伸び +' + lv * 12 + '%', '移籍金 -' + lv * 6 + '%',
+                  '契約更改の要求 -' + lv * 4 + '%'] },
     { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
       desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
-      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'] },
+      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'],
+      now: lv => ['スポンサー収入 +' + lv * 6 + '%', '賞金 +' + lv * 5 + '%',
+                  '運営費 -' + lv * 3 + '%'] },
     { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
       desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
-      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'] },
+      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'],
+      now: lv => ['開発の伸び +' + lv * 7 + '%', '偵察の研究P +' + lv * 25 + '%',
+                  '週の研究P +' + lv] },
     { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
       desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
-      eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
+      eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'],
+      now: lv => ['ピット作業 -' + (lv * 0.12).toFixed(2) + '秒', '仕掛ける成功率 +' + lv * 8 + '%',
+                  'レース週の調子 +' + lv * 2] },
     { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
       desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
-      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'] }
+      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'],
+      now: lv => ['注目度の増え +' + lv * 20 + '%', '取材の効果 +' + lv * 25 + '%',
+                  'ファンの増え +' + lv * 8 + '%'] }
   ];
   const OWNER_SKILL_MAX = 5;
 
@@ -5192,7 +5258,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -6295,7 +6361,7 @@ GP.state = (function () {
     g2.owner.fame = Math.max(0, Math.round((g2.owner.fame || 0) + n));
     const after = ownerRank(g2);
     if (after > before) {
-      g2.owner.sp += (after - before) * 2;      // 1段につき2ポイント
+      g2.owner.sp += (after - before) * D.FAME.spPerRank;
       g2.owner.rank = after;
       return after - before;
     }
@@ -18873,6 +18939,7 @@ window.GP = window.GP || {};
       const fa = D.FACILITIES.find(x => x.key === baseSel);
       GP.sound.play('build');
       U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
+      grantFame(D.fameOf('facility'), '施設を広げた');
       U.toast('🏗️ ' + fa.name + ' Lv.' + g.facilities[baseSel] + '！', 'good');
       S.save(g); render(); drawBase();
       const sc2 = GP.base.scale(g);
@@ -19163,6 +19230,29 @@ window.GP = window.GP || {};
   }
 
   /* ---- ドライバー ---- */
+  /* ---- 安定感（危うい〜完璧主義）の見かた ----
+     ドライバーカードに出ている札が何を意味するのか、
+     数字の効きまで含めて一箇所で説明しておく               */
+  function careLegendHTML() {
+    return '<div class="sub small">🎚️ 安定感の見かた</div>' +
+      '<p class="desc">同じ速さでも、限界の手前で止められる人と、' +
+      '踏み越えてしまう人がいます。速さと引き換えの性質なので、' +
+      '<b>危うい人ほど素の速さは高い</b>ことが多いです。' +
+      'レアリティの高いドライバーだけが、速さと安定感を両方持ちます。</p>' +
+      '<div class="carelegend">' +
+      D.CARE_TIERS.map((t, i) => {
+        const lo = i === 0 ? 0 : D.CARE_TIERS[i - 1].max;
+        return '<div class="cl-row"><i style="background:' + t.color + '">' + t.icon + '</i>' +
+          '<b>' + t.name + '</b>' +
+          '<em>' + lo + (t.max >= 999 ? '〜' : '〜' + t.max) + '</em>' +
+          '<span>' + esc(t.note) + '</span></div>';
+      }).join('') + '</div>' +
+      '<p class="desc">安定感が高いほど<b>クラッシュとミスが減り</b>、' +
+      '周回遅れを譲るのも上手くなります。' +
+      '「マシンを持って帰る」ことが点になる終盤ほど効いてきます。' +
+      '性格と、車体の<b>ドライバビリティ</b>でも上下します。</p>';
+  }
+
   function hrDrivers() {
     let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
     g.drivers.forEach(d => {
@@ -19174,6 +19264,7 @@ window.GP = window.GP || {};
         '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div>';
+    body += careLegendHTML();
 
     // ---- リザーブドライバー ----
     body += '<div class="sub">🪑 リザーブドライバー</div>' +
@@ -19255,7 +19346,8 @@ window.GP = window.GP || {};
   /* ---- 下部組織 ---- */
   function hrYouth() {
     const slots = S.youthSlots(g);
-    let body = '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
+    let body = careLegendHTML() +
+      '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
       '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
@@ -20809,7 +20901,12 @@ window.GP = window.GP || {};
 
   function showResult() {
     const res = currentRes;
+    const htBefore = S.hypeTier(g).name;
     const reward = R.applyResult(g, res);
+    // 注目度の段が上がったら、それもオーナーの名になる
+    if (S.hypeTier(g).name !== htBefore && (res.hypeDelta || 0) > 0) {
+      grantFame(D.fameOf('hype'), '注目度の段が上がった');
+    }
     setTimeout(() => {
       $('raceScreen').className = '';
       let body = '<div class="racehead"><b>' +
@@ -20915,15 +21012,22 @@ window.GP = window.GP || {};
       }
     }
 
-    // 名声：上位でゴールするほどオーナーの名が売れる
+    /* 名声：週末でやったことがそのまま名になる。
+       数字は D.FAME.SRC の表と同じものを使っているので、
+       オーナー画面に出ている説明と食い違わない                */
     if (currentRes) {
+      const F = D.fameOf;
       let f = 0;
       currentRes.entries.filter(e => e.isPlayer && !e.dnf).forEach(e => {
-        f += Math.max(0, 22 - e.pos) * 1.6;          // 順位ぶん
-        if (e.pos === 1) f += 40;
-        else if (e.pos <= 3) f += 18;
+        f += Math.max(0, 22 - e.pos) * F('pos') + F('finish');
+        if (e.pos === 1) f += F('win');
+        else if (e.pos <= 3) f += F('podium');
+        if (e.pos <= D.POINTS.length) f += F('points');
+        if (e.grid === 1) f += F('pole');
       });
-      if (f > 0) grantFame(Math.round(f), 'レースの結果');
+      const fl = currentRes.fastestLap;
+      if (fl && fl.isPlayer) f += F('fastest');
+      if (f > 0) grantFame(Math.round(f), 'レースの週末');
     }
     if (!raceCtx.special) g.nextRace++;
     g.special = null;
@@ -21089,13 +21193,25 @@ window.GP = window.GP || {};
         '<em>' + money(o.fame) + '</em></div>' +
       '<p class="desc">' +
         (pr.next ? '次のランク「' + pr.next.icon + pr.next.name + '」まで あと ' +
-                   money(pr.need) + '。上がるごとにスキルポイントが2つ手に入ります。'
+                   money(pr.need) + '。上がるごとにスキルポイントが' + D.FAME.spPerRank + 'つ手に入ります。'
                  : '最高ランクに到達しています。') +
       '</p>' +
-      '<p class="desc">名声は、レースで上位に入るほど、そしてシーズンの結果で貯まります。</p>' +
+      '<div class="sub small">名声が貯まること</div>' +
+      '<p class="desc">下の一覧が、そのまま計算に使っている数字です。' +
+        '1段上がるごとにスキルポイントが <b>' + D.FAME.spPerRank + '</b> つ手に入ります。</p>' +
+      '<div class="famelist">' +
+      D.FAME.SRC.map(x =>
+        '<div class="fame-row"><i>' + x.icon + '</i><span>' + esc(x.name) +
+        (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</span>' +
+        '<em>+' + x.v + '</em></div>').join('') +
+      '</div>' +
+      '<p class="desc">レースの名声は<b>2台ぶん</b>入ります。' +
+        '完走してポイントを持ち帰るだけでも積み上がるので、' +
+        '毎戦きちんと帰ってくることがそのまま名になります。</p>' +
       '<div class="sub">スキル</div>' +
       '<p class="desc">段位は現在のランク＋1まで伸ばせます（いまは最大 ' +
         Math.min(D.OWNER_SKILL_MAX, pr.i + 1) + ' 段）。</p>' +
+      ownerNowHTML(o) +
       '<div class="oskills">';
 
     D.OWNER_SKILLS.forEach(sk => {
@@ -21112,6 +21228,10 @@ window.GP = window.GP || {};
             (capped ? 'MAX' : locked ? 'ランク不足' : '+1') + '</button></div>' +
         '<small>' + esc(sk.desc) + '</small>' +
         '<div class="osk-eff">' + sk.eff.map(e => '<span>' + esc(e) + '</span>').join('') + '</div>' +
+        (lv > 0 && sk.now
+          ? '<div class="osk-eff now">いま：' +
+            sk.now(lv).map(e => '<span>' + esc(e) + '</span>').join('') + '</div>'
+          : '') +
         '</div>';
     });
     body += '</div>';
@@ -21129,15 +21249,36 @@ window.GP = window.GP || {};
     });
   }
 
+  /* いま実際に効いているぶんだけを、まとめて出す。
+     「取ったはいいが何が変わったのか分からない」を無くすため   */
+  function ownerNowHTML(o) {
+    const rows = [];
+    D.OWNER_SKILLS.forEach(sk => {
+      const lv = (o.skills || {})[sk.key] || 0;
+      if (lv > 0 && sk.now) {
+        rows.push('<div class="on-row"><i style="background:' + sk.color + '">' + sk.icon + '</i>' +
+          '<b>' + sk.name + ' ' + lv + '段</b><span>' +
+          sk.now(lv).map(esc).join(' ／ ') + '</span></div>');
+      }
+    });
+    if (!rows.length) {
+      return '<p class="note">まだスキルを取っていません。' +
+        'スキルポイントを振ると、ここに「いま効いていること」が並びます。</p>';
+    }
+    return '<div class="sub small">いま効いていること</div>' +
+      '<div class="ownernow">' + rows.join('') + '</div>';
+  }
+
   /* 名声を足し、ランクが上がったら知らせる */
   function grantFame(n, why) {
     if (!n) return;
     const up = S.addFame(g, n);
     if (up > 0) {
       const pr = S.ownerProgress(g);
-      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + (up * 2), 'good');
+      const sp = up * D.FAME.spPerRank;
+      U.toast(pr.cur.icon + ' ' + pr.cur.name + ' に昇格！ スキルP +' + sp, 'good');
       U.log(g, pr.cur.icon + ' オーナーランクが上がった：' + pr.cur.name +
-               '（スキルポイント +' + (up * 2) + '）', 'good');
+               '（スキルポイント +' + sp + '）', 'good');
       GP.sound.play('win');
     } else if (why) {
       U.log(g, '⭐ 名声 +' + n + '（' + why + '）');
@@ -21159,8 +21300,9 @@ window.GP = window.GP || {};
 
     g.funds += prize;
     // シーズンの結果は大きな名声になる
-    grantFame(Math.round(Math.max(0, 12 - rank) * 26 + (rank === 1 ? 400 : 0)), 'シーズンの結果');
-    if (myChampPre) grantFame(300, 'ドライバーズタイトル');
+    grantFame(Math.round(Math.max(0, 12 - rank) * D.fameOf('season') +
+                         (rank === 1 ? D.fameOf('champion') : 0)), 'シーズンの結果');
+    if (myChampPre) grantFame(D.fameOf('drvTitle'), 'ドライバーズタイトル');
     GP.sound.play(rank <= 3 ? 'win' : 'podium');
     if (rank === 1) { g.titles.teams++; g.fans += Math.round(g.fans * 0.3) + 2000; }
     if (myChamp) { g.titles.drivers++; g.fans += Math.round(g.fans * 0.2) + 1500; }
@@ -22239,6 +22381,7 @@ window.GP = window.GP || {};
       g.drivers.push(d);
       U.closeModal();
       U.log(g, '🤝 ' + d.name + ' の獲得に成功した！（移籍金 ' + money(fee) + '万）', 'good');
+      grantFame(D.fameOf('poach'), '他チームから引き抜いた');
       U.toast('🤝 ' + d.name + ' が加入！', 'good');
       GP.sound.play('good');
       GP.paddock.invalidate();

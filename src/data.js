@@ -185,31 +185,66 @@ GP.data = (function () {
      実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
   const OWNER_RANKS = [
     { need: 0,     name: '無名のオーナー',   icon: '🥚' },
-    { need: 120,   name: '駆け出しのオーナー', icon: '🐣' },
-    { need: 400,   name: '一人前のオーナー',  icon: '🧑‍💼' },
-    { need: 1000,  name: '名の知れたオーナー', icon: '🎩' },
-    { need: 2200,  name: '辣腕オーナー',     icon: '💼' },
-    { need: 4200,  name: '名門の主',        icon: '🏛️' },
-    { need: 7500,  name: '伝説のオーナー',   icon: '👑' }
+    { need: 250,   name: '駆け出しのオーナー', icon: '🐣' },
+    { need: 800,   name: '一人前のオーナー',  icon: '🧑‍💼' },
+    { need: 1800,  name: '名の知れたオーナー', icon: '🎩' },
+    { need: 3600,  name: '辣腕オーナー',     icon: '💼' },
+    { need: 6500,  name: '名門の主',        icon: '🏛️' },
+    { need: 11000, name: '伝説のオーナー',   icon: '👑' }
   ];
+
+  /* ---------- 名声の入りかた ----------
+     何をすると名が売れるのかを、一箇所にまとめて置く。
+     画面にもこの表をそのまま出すので、数字と説明がずれない       */
+  const FAME = {
+    spPerRank: 3,                    // 1段上がるごとのスキルポイント
+    SRC: [
+      { key: 'win',      icon: '🏆', name: '優勝',           v: 55 },
+      { key: 'podium',   icon: '🥉', name: '表彰台',         v: 24 },
+      { key: 'points',   icon: '🎯', name: '入賞（10位以内）', v: 9 },
+      { key: 'finish',   icon: '🏁', name: '完走',           v: 2 },
+      { key: 'pos',      icon: '📈', name: '順位ぶん',        v: 1.6,
+        note: '（22 − 順位）× 1.6' },
+      { key: 'pole',     icon: '⏱️', name: 'ポールポジション', v: 18 },
+      { key: 'fastest',  icon: '⚡', name: 'ファステストラップ', v: 10 },
+      { key: 'hype',     icon: '📣', name: '注目度の段が上がる', v: 40 },
+      { key: 'facility', icon: '🏗️', name: '施設を広げる',     v: 12 },
+      { key: 'poach',    icon: '🤝', name: '他チームから引き抜く', v: 30 },
+      { key: 'season',   icon: '📅', name: 'シーズンの結果',   v: 30,
+        note: '（12 − 順位）× 30' },
+      { key: 'champion', icon: '👑', name: 'コンストラクターズ優勝', v: 420 },
+      { key: 'drvTitle', icon: '🏅', name: 'ドライバーズ優勝', v: 320 }
+    ]
+  };
+  const fameOf = k => (FAME.SRC.filter(x => x.key === k)[0] || { v: 0 }).v;
 
   /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
   const OWNER_SKILLS = [
     { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
       desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
-      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'] },
+      eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'],
+      now: lv => ['心証の伸び +' + lv * 12 + '%', '移籍金 -' + lv * 6 + '%',
+                  '契約更改の要求 -' + lv * 4 + '%'] },
     { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
       desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
-      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'] },
+      eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'],
+      now: lv => ['スポンサー収入 +' + lv * 6 + '%', '賞金 +' + lv * 5 + '%',
+                  '運営費 -' + lv * 3 + '%'] },
     { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
       desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
-      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'] },
+      eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'],
+      now: lv => ['開発の伸び +' + lv * 7 + '%', '偵察の研究P +' + lv * 25 + '%',
+                  '週の研究P +' + lv] },
     { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
       desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
-      eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'] },
+      eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'],
+      now: lv => ['ピット作業 -' + (lv * 0.12).toFixed(2) + '秒', '仕掛ける成功率 +' + lv * 8 + '%',
+                  'レース週の調子 +' + lv * 2] },
     { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
       desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
-      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'] }
+      eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'],
+      now: lv => ['注目度の増え +' + lv * 20 + '%', '取材の効果 +' + lv * 25 + '%',
+                  'ファンの増え +' + lv * 8 + '%'] }
   ];
   const OWNER_SKILL_MAX = 5;
 
@@ -2087,7 +2122,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
