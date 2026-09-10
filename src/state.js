@@ -683,13 +683,49 @@ GP.state = (function () {
     return out;
   }
 
+  /* ---------- マシン本体（シャシー）の素の能力 ----------
+     パーツを1つも載せ替えなくても、車そのものが持っている速さ。
+     世代の器に比例するので、新車を出すとここが跳ね上がる。
+     速さ・コーナー・加速へ均等に配る（偏りはパーツと作り込みが作る） */
+  function chassisStats(g2) {
+    const gen = D.CAR_GENS[clamp(g2.carGen || 0, 0, D.CAR_GENS.length - 1)];
+    const v = gen.cap * D.CHASSIS.k / 3;
+    return { speed: v, corner: v, accel: v };
+  }
+
+  /* 部位どうしの噛み合いが、満点に対してどこまで来ているか（0..1） */
+  function meshScore(g2) {
+    const list = mechSynergy(g2);
+    if (!list.length) return 0;
+    return clamp(list.reduce((a, x) => a + x.ratio, 0) / list.length, 0, 1);
+  }
+
+  /* ---------- インテグレート率 ----------
+     ばらばらの部品と本体を、1台の車としてどれだけ引き出せているか。
+     掛け算なので、ここが薄いと何を積んでも出てこない          */
+  function integrateRate(g2) {
+    const I = D.INTEG;
+    const inner = D.PART_GROUPS.reduce((a, gr) => a + integrateOf(g2, gr.key), 0)
+                / Math.max(1, D.PART_GROUPS.length);
+    const bridge = packScore(g2);
+    const mesh = meshScore(g2);
+    const w = I.inner + I.bridge + I.mesh;
+    const r = (inner * I.inner + bridge * I.bridge + mesh * I.mesh) / w;
+    return { rate: I.floor + (1 - I.floor) * clamp(r, 0, 1),
+             inner: inner, bridge: bridge, mesh: mesh, raw: clamp(r, 0, 1) };
+  }
+
+  /* ---------- 車の速さ ----------
+       （マシン本体の素の能力 ＋ パーツの合計） × インテグレート率
+     足し算でも掛け算でもなく、この順番であることに意味がある。
+     良い部品を集めるだけでは速くならず、
+     まとめ上げてはじめて、持っているものが出てくる            */
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
       const ps = partStats(p, g);
-      // コンディションが落ちたパーツは本来の性能を出しきれない
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
       const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
@@ -697,14 +733,16 @@ GP.state = (function () {
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
     });
-    // 車体そのものが生む性能
+    // マシン本体の素の能力
+    const ch = chassisStats(g);
+    s.speed += ch.speed; s.corner += ch.corner; s.accel += ch.accel;
+    /* 作り込みが向きを作る。剛性はコーナーへ、軽量化は直線と加速へ。
+       ここは配分の話なので、掛け算の前に足しておく             */
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
-    // 部位どうしの噛み合いぶん
-    const lift = mechLift(g);
-    s.speed *= 1 + lift.speed;
-    s.corner *= 1 + lift.corner;
-    s.accel *= 1 + lift.accel;
+    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
+    const it = integrateRate(g).rate;
+    s.speed *= it; s.corner *= it; s.accel *= it;
     return s;
   }
 
@@ -3846,6 +3884,7 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    chassisStats, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,

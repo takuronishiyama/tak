@@ -45,6 +45,7 @@ GP.screens.dev = function (A) {
     let body =
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
+      carMixHTML() +
       mechMapHTML(g) + mechReadHTML(g) +
       '<div class="sub">何をしますか</div>' +
       '<p class="desc">どれも1週ぶんのコマンドです。' +
@@ -118,6 +119,50 @@ GP.screens.dev = function (A) {
         cmdDesign();
       };
     });
+  }
+
+  /* ---- 速さの成り立ち ----
+       （マシン本体 ＋ パーツ ＋ 作り込みの向き） × インテグレート率
+     足し算と掛け算の順番が、そのままこのゲームの考え方になっている。
+     良い部品を集めるだけでは速くならず、
+     まとめ上げてはじめて、持っているものが出てくる            */
+  function carMixHTML() {
+    const sum = s => s.speed + s.corner + s.accel;
+    let parts = 0;
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (!p) return;
+      const ps = S.partStats(p, g);
+      const f = (c.key === 'pu' ? S.puForm(g) : (0.82 + p.cond / 100 * 0.18));
+      parts += (ps.speed + ps.corner + ps.accel) * f;
+    });
+    const ch = sum(S.chassisStats(g));
+    const bd = sum(S.bodyStats(g));
+    const raw = ch + parts + bd;
+    const it = S.integrateRate(g);
+    const lost = raw * (1 - it.rate);
+    const bar = (label, v, color) =>
+      '<i class="cm-seg" style="width:' + (v / Math.max(1, raw) * 100).toFixed(1) +
+      '%;background:' + color + '" title="' + label + ' ' + Math.round(v) + '"></i>';
+    return '<div class="carmix">' +
+      '<b class="cm-h">速さの成り立ち</b>' +
+      '<span class="cm-bar">' +
+        bar('マシン本体', ch, '#c98b4a') +
+        bar('パーツ', parts, '#3a7ad9') +
+        bar('作り込みの向き', bd, '#4ea63f') +
+      '</span>' +
+      '<span class="cm-legend">' +
+        '<i style="color:#c98b4a">■</i>本体 ' + Math.round(ch) +
+        '　<i style="color:#3a7ad9">■</i>パーツ ' + Math.round(parts) +
+        '　<i style="color:#4ea63f">■</i>向き ' + Math.round(bd) +
+        '　＝ 持っているもの <b>' + Math.round(raw) + '</b></span>' +
+      '<span class="cm-int' + (it.rate < 0.75 ? ' warn' : '') + '">' +
+        '× インテグレート <b>' + Math.round(it.rate * 100) + '%</b>' +
+        '（扇の中 ' + Math.round(it.inner * 100) + '％／継ぎ目 ' + Math.round(it.bridge * 100) +
+        '％／噛み合い ' + Math.round(it.mesh * 100) + '％）' +
+        '　＝ 実際に出ている <b>' + Math.round(raw * it.rate) + '</b>' +
+        (lost > 1 ? '<em>まとめきれずに眠っているぶん ' + Math.round(lost) + '</em>' : '') +
+      '</span></div>';
   }
 
   /* パーツの出来を、ひと目の札にする */

@@ -3283,6 +3283,22 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .intwrap #intCv{width:auto;height:auto;max-width:100%;max-height:104px}
 }
 
+/* ---- 速さの成り立ち ----
+   （本体 ＋ パーツ ＋ 向き）× インテグレート率。
+   帯で「持っているもの」の内訳を、下の行で「どれだけ出せているか」を出す */
+.carmix{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
+        padding:6px 9px;margin-bottom:8px}
+.cm-h{display:block;font-size:11.5px;margin-bottom:4px;color:var(--faceTx)}
+.cm-bar{display:flex;height:12px;border:2px solid var(--ink);border-radius:4px;
+        overflow:hidden;background:var(--trough)}
+.cm-seg{display:block;height:100%}
+.cm-legend{display:block;font-size:10.5px;margin-top:4px;color:var(--faceTx)}
+.cm-legend i{font-style:normal;margin-right:2px}
+.cm-int{display:block;font-size:11px;margin-top:3px;color:var(--faceTx)}
+.cm-int em{font-style:normal;margin-left:8px;opacity:.85}
+.cm-int.warn{color:#b8291a}
+[data-skin="hd"] .cm-int.warn{color:#ff9b8a}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -4565,6 +4581,25 @@ GP.data = (function () {
     { name: 'MK-V',   cap: 140, rp: 1100, cost: 52000, base: 22 },
     { name: 'MK-VI',  cap: 180, rp: 1800, cost: 90000, base: 30 }
   ];
+
+  /* ---------- マシン本体（シャシー） ----------
+     パーツを載せる土台そのものが持つ速さ。
+     その世代の器（cap）に比例し、パーツを1つも載せ替えなくても
+     新車を出せばここが上がる。
+     k はパーツ側との釣り合い。1.4 だと、序盤で全体の3〜4割、
+     煮詰まった終盤で2割弱を、本体が担う                        */
+  const CHASSIS = { k: 1.4 };
+
+  /* ---------- インテグレート率 ----------
+     ばらばらの部品と本体を、1台の車としてどれだけ引き出せているか。
+     足し算ではなく掛け算なので、ここが薄いと何を積んでも出てこない。
+
+       inner  … 扇の中（剛性・軽量化・冷却…の作り込み）
+       bridge … 扇と扇の継ぎ目
+       mesh   … 部位どうしの噛み合い（12組）
+     floor は、何もまとめていない車が出せる割合。
+     ここを 0 にすると新車が走らなくなるので、6割弱を下限にしてある */
+  const INTEG = { floor: 0.58, inner: 0.45, bridge: 0.30, mesh: 0.25 };
 
   /* ---------- ドライバースキル ----------
      効果はすべて race.js のシミュレーションに実際に接続されている  */
@@ -6711,7 +6746,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -7678,13 +7713,49 @@ GP.state = (function () {
     return out;
   }
 
+  /* ---------- マシン本体（シャシー）の素の能力 ----------
+     パーツを1つも載せ替えなくても、車そのものが持っている速さ。
+     世代の器に比例するので、新車を出すとここが跳ね上がる。
+     速さ・コーナー・加速へ均等に配る（偏りはパーツと作り込みが作る） */
+  function chassisStats(g2) {
+    const gen = D.CAR_GENS[clamp(g2.carGen || 0, 0, D.CAR_GENS.length - 1)];
+    const v = gen.cap * D.CHASSIS.k / 3;
+    return { speed: v, corner: v, accel: v };
+  }
+
+  /* 部位どうしの噛み合いが、満点に対してどこまで来ているか（0..1） */
+  function meshScore(g2) {
+    const list = mechSynergy(g2);
+    if (!list.length) return 0;
+    return clamp(list.reduce((a, x) => a + x.ratio, 0) / list.length, 0, 1);
+  }
+
+  /* ---------- インテグレート率 ----------
+     ばらばらの部品と本体を、1台の車としてどれだけ引き出せているか。
+     掛け算なので、ここが薄いと何を積んでも出てこない          */
+  function integrateRate(g2) {
+    const I = D.INTEG;
+    const inner = D.PART_GROUPS.reduce((a, gr) => a + integrateOf(g2, gr.key), 0)
+                / Math.max(1, D.PART_GROUPS.length);
+    const bridge = packScore(g2);
+    const mesh = meshScore(g2);
+    const w = I.inner + I.bridge + I.mesh;
+    const r = (inner * I.inner + bridge * I.bridge + mesh * I.mesh) / w;
+    return { rate: I.floor + (1 - I.floor) * clamp(r, 0, 1),
+             inner: inner, bridge: bridge, mesh: mesh, raw: clamp(r, 0, 1) };
+  }
+
+  /* ---------- 車の速さ ----------
+       （マシン本体の素の能力 ＋ パーツの合計） × インテグレート率
+     足し算でも掛け算でもなく、この順番であることに意味がある。
+     良い部品を集めるだけでは速くならず、
+     まとめ上げてはじめて、持っているものが出てくる            */
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
       const ps = partStats(p, g);
-      // コンディションが落ちたパーツは本来の性能を出しきれない
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
       const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
@@ -7692,14 +7763,16 @@ GP.state = (function () {
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
     });
-    // 車体そのものが生む性能
+    // マシン本体の素の能力
+    const ch = chassisStats(g);
+    s.speed += ch.speed; s.corner += ch.corner; s.accel += ch.accel;
+    /* 作り込みが向きを作る。剛性はコーナーへ、軽量化は直線と加速へ。
+       ここは配分の話なので、掛け算の前に足しておく             */
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
-    // 部位どうしの噛み合いぶん
-    const lift = mechLift(g);
-    s.speed *= 1 + lift.speed;
-    s.corner *= 1 + lift.corner;
-    s.accel *= 1 + lift.accel;
+    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
+    const it = integrateRate(g).rate;
+    s.speed *= it; s.corner *= it; s.accel *= it;
     return s;
   }
 
@@ -10841,6 +10914,7 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    chassisStats, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
@@ -19065,6 +19139,7 @@ GP.screens.dev = function (A) {
     let body =
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
+      carMixHTML() +
       mechMapHTML(g) + mechReadHTML(g) +
       '<div class="sub">何をしますか</div>' +
       '<p class="desc">どれも1週ぶんのコマンドです。' +
@@ -19138,6 +19213,50 @@ GP.screens.dev = function (A) {
         cmdDesign();
       };
     });
+  }
+
+  /* ---- 速さの成り立ち ----
+       （マシン本体 ＋ パーツ ＋ 作り込みの向き） × インテグレート率
+     足し算と掛け算の順番が、そのままこのゲームの考え方になっている。
+     良い部品を集めるだけでは速くならず、
+     まとめ上げてはじめて、持っているものが出てくる            */
+  function carMixHTML() {
+    const sum = s => s.speed + s.corner + s.accel;
+    let parts = 0;
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (!p) return;
+      const ps = S.partStats(p, g);
+      const f = (c.key === 'pu' ? S.puForm(g) : (0.82 + p.cond / 100 * 0.18));
+      parts += (ps.speed + ps.corner + ps.accel) * f;
+    });
+    const ch = sum(S.chassisStats(g));
+    const bd = sum(S.bodyStats(g));
+    const raw = ch + parts + bd;
+    const it = S.integrateRate(g);
+    const lost = raw * (1 - it.rate);
+    const bar = (label, v, color) =>
+      '<i class="cm-seg" style="width:' + (v / Math.max(1, raw) * 100).toFixed(1) +
+      '%;background:' + color + '" title="' + label + ' ' + Math.round(v) + '"></i>';
+    return '<div class="carmix">' +
+      '<b class="cm-h">速さの成り立ち</b>' +
+      '<span class="cm-bar">' +
+        bar('マシン本体', ch, '#c98b4a') +
+        bar('パーツ', parts, '#3a7ad9') +
+        bar('作り込みの向き', bd, '#4ea63f') +
+      '</span>' +
+      '<span class="cm-legend">' +
+        '<i style="color:#c98b4a">■</i>本体 ' + Math.round(ch) +
+        '　<i style="color:#3a7ad9">■</i>パーツ ' + Math.round(parts) +
+        '　<i style="color:#4ea63f">■</i>向き ' + Math.round(bd) +
+        '　＝ 持っているもの <b>' + Math.round(raw) + '</b></span>' +
+      '<span class="cm-int' + (it.rate < 0.75 ? ' warn' : '') + '">' +
+        '× インテグレート <b>' + Math.round(it.rate * 100) + '%</b>' +
+        '（扇の中 ' + Math.round(it.inner * 100) + '％／継ぎ目 ' + Math.round(it.bridge * 100) +
+        '％／噛み合い ' + Math.round(it.mesh * 100) + '％）' +
+        '　＝ 実際に出ている <b>' + Math.round(raw * it.rate) + '</b>' +
+        (lost > 1 ? '<em>まとめきれずに眠っているぶん ' + Math.round(lost) + '</em>' : '') +
+      '</span></div>';
   }
 
   /* パーツの出来を、ひと目の札にする */
@@ -26672,11 +26791,16 @@ GP.screens.help = function (A) {
     },
     {
       key: 'car', icon: '🏎️', name: 'マシンを速くする',
-      lead: '部品 → インテグレート → コンセプト。内から外へ三重になっています。',
+      lead: '（マシン本体 ＋ パーツ）× インテグレート。良い部品を集めるだけでは速くなりません。',
       secs: [
+        { h: '速さの成り立ち', p: [
+          'マシンの速さは「（マシン本体の素の能力 ＋ パーツの合計）× インテグレート率」で決まります。足し算と掛け算の順番が、このゲームの考え方そのものです。',
+          'マシン本体は、パーツを1つも載せ替えなくても車そのものが持っている速さです。世代が上がる（新車を出す）と、ここが跳ね上がります。序盤は全体の3〜4割を本体が担い、パーツを煮詰めた終盤でも2割弱を支えています。',
+          'インテグレート率は、持っているものをどれだけ引き出せているかです。何もまとめていない車は6割弱しか出せません。「速さの成り立ち」の帯で、眠っているぶんが見えます。'
+        ] },
         { h: '三つの輪', p: [
           '内側がパーツです。空力・足まわり・シャシー・ブレーキ・パワーユニット・ギヤ・電装の7つ。数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」の目安です。',
-          'その外側がインテグレートです。ばらばらの部品を1台の車にまとめる仕事で、扇の中（剛性・軽量化・冷却…）と、扇と扇の継ぎ目の2つがあります。部品をいくら良くしても、まとめる側が追いついていなければ効きません。',
+          'その外側がインテグレートです。ばらばらの部品と本体を1台の車にまとめる仕事で、扇の中（剛性・軽量化・冷却…）、扇と扇の継ぎ目、部位どうしの噛み合いの3つからできています。部品をいくら良くしても、まとめる側が追いついていなければ出てきません。',
           'いちばん外がコンセプトです。ストレート重視・コーナー重視・加速重視・ドライバビリティ重視の4つから、シーズンごとに選びます。'
         ] },
         { h: '改良と開発のちがい', p: [

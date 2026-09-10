@@ -3267,3 +3267,19 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
            width:fit-content;max-width:100%;margin-left:auto;margin-right:auto}
   .intwrap #intCv{width:auto;height:auto;max-width:100%;max-height:104px}
 }
+
+/* ---- 速さの成り立ち ----
+   （本体 ＋ パーツ ＋ 向き）× インテグレート率。
+   帯で「持っているもの」の内訳を、下の行で「どれだけ出せているか」を出す */
+.carmix{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
+        padding:6px 9px;margin-bottom:8px}
+.cm-h{display:block;font-size:11.5px;margin-bottom:4px;color:var(--faceTx)}
+.cm-bar{display:flex;height:12px;border:2px solid var(--ink);border-radius:4px;
+        overflow:hidden;background:var(--trough)}
+.cm-seg{display:block;height:100%}
+.cm-legend{display:block;font-size:10.5px;margin-top:4px;color:var(--faceTx)}
+.cm-legend i{font-style:normal;margin-right:2px}
+.cm-int{display:block;font-size:11px;margin-top:3px;color:var(--faceTx)}
+.cm-int em{font-style:normal;margin-left:8px;opacity:.85}
+.cm-int.warn{color:#b8291a}
+[data-skin="hd"] .cm-int.warn{color:#ff9b8a}
