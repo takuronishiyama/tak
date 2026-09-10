@@ -169,7 +169,8 @@ GP.screens.weekend = function (A) {
     // 予選が終わってグリッドに立っているときは、下のボタンからも決勝へ行ける。
     // ここで週末を頭からやり直すと、走り終えた予選が消えてしまう
     if (g.onGrid && A.prePack) return confirmStart();
-    beginRace(g.nextRace, null);
+    // 第n戦が、コース一覧のどれか。年によって顔ぶれが変わる
+    beginRace(S.trackIdx(g, g.nextRace), null);
   }
 
   /* グリッドの用事を残したまま決勝へ行こうとしたときの確認 */
@@ -298,7 +299,7 @@ GP.screens.weekend = function (A) {
       // このコースのピットロードは、全戦のなかでどのくらいか
       const lanes = D.TRACKS.map(x => x.pitLane || 18).sort((a, b) => a - b);
       const rank = lanes.indexOf(lane) + 1;
-      const heavy = rank > D.TRACKS.length * 0.6;
+      const heavy = rank > D.RACES * 0.6;
       body += '<div class="stratbox pitbox">' +
         '<b>🔧 1回のピットで失う時間 <em>' + one.toFixed(1) + '秒</em></b>' +
         '<div class="pitsplit">' +
@@ -308,9 +309,9 @@ GP.screens.weekend = function (A) {
         '</div>' +
         '<small>🛣️ <b>ピットロード</b> ' + lane.toFixed(1) + '秒 — 速度制限のなかを走り抜けるぶん。' +
         'コースが決めていて、設備をいくら建てても<b>1秒も縮みません</b>' +
-        '（' + (heavy ? '全' + D.TRACKS.length + '戦で' + (D.TRACKS.length - rank + 1) +
+        '（' + (heavy ? '全' + D.RACES + '戦で' + (D.RACES - rank + 1) +
                         '番目に長い＝入るのが重いコース'
-                      : '全' + D.TRACKS.length + '戦で' + rank +
+                      : '全' + D.RACES + '戦で' + rank +
                         '番目に短い＝入りやすいコース') + '）。<br>' +
         '🔧 <b>静止時間</b> ' + stand.toFixed(1) + '秒 — ジャッキが上がって下りるまで。' +
         'ここだけがピット設備とメカニックで縮みます（しくじる確率 ' +
@@ -727,7 +728,7 @@ GP.screens.weekend = function (A) {
     const behind = pre.grid[me.grid] || null;
     const pu = S.puOf(g);
     const left = Math.max(0, S.puLimit(g) - pu.used);
-    const racesLeft = Math.max(1, D.TRACKS.length - (g.nextRace || 0));
+    const racesLeft = Math.max(1, D.RACES - (g.nextRace || 0));
     const fp = pendingStrategy.fp;
     const deep = fp === 'long' || fp === 'tyre';   // データを取った週は読みが細かい
 
@@ -1942,7 +1943,7 @@ GP.screens.weekend = function (A) {
 
     // 出席者のひとこと
     const said = [];
-    const lineup = S.allTeams(g, D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)])
+    const lineup = S.allTeams(g, S.trackAt(g, g.nextRace))
       .find(x => x.isPlayer).drivers;
     // ドライバーの言い分は二人で重ならないようにする
     const POOL = {

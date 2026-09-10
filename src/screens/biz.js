@@ -335,12 +335,12 @@ GP.screens.biz = function (A) {
   }
 
   function techVerdict() {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const mineCar = S.carScoreOf(S.carStats(g), track);
     const rivals = (g.rivals || []).map(r => S.carScoreOf(r.stats, track));
     const carRank = rivals.filter(v => v > mineCar).length + 1;
     const n = rivals.length + 1;
-    const left = Math.max(0, D.TRACKS.length - (g.nextRace || 0));
+    const left = Math.max(0, D.RACES - (g.nextRace || 0));
     const st = S.championshipStake(g);
     const prog = S.nextCarProgress(g);
     const fc = S.focusOf(g);
@@ -442,7 +442,7 @@ GP.screens.biz = function (A) {
   }
 
   function mgmtReport() {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const fin = S.finances(g);
     const out = [];
     const push = (sev, role, head, text, ask) =>
@@ -593,7 +593,7 @@ GP.screens.biz = function (A) {
 
   /* ---- チーム診断：いま何が足を引っぱっているのか ---- */
   function teamDiag() {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const mineCar = S.carScoreOf(S.carStats(g), track);
     const mineDrv = g.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, g.drivers.length);
     const mineRel = S.reliability(g);

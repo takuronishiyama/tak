@@ -9,90 +9,134 @@ GP.data = (function () {
   /* ---------- サーキット ----------
      weight: そのコースで効くマシン性能の配分（合計1.0）
      path  : 0..1 正規化されたコース形状（描画・走行用の閉ループ）      */
+  /* 1シーズンに走る数。コースの数そのものではなく、
+     毎年ここから 12 大会が選ばれる（毎年やる7つ＋隔年の5つ）  */
+  const RACES = 12;
+
   const TRACKS = [
     {
-      name: 'ベイサイド・ストリート', country: '🇦🇪', far: 1.30, laps: 24, base: 92, pitLane: 20.8,
+      name: 'ベイサイド・ストリート', every: 2, slot: 0, country: '🇦🇪', far: 1.30, laps: 24, base: 92, pitLane: 20.8,
       weight: { speed: 0.30, corner: 0.34, accel: 0.36 }, tyre: 1.15, risk: 1.20,
       desc: '低速コーナーの続く市街地。壁が近い。',
       landmarks: ['ハーバーヘアピン', 'マリーナ・シケイン', 'ブリッジコーナー'],
       path: [[.14,.75],[.09,.63],[.13,.53],[.08,.44],[.15,.37],[.10,.29],[.13,.2],[.62,.2],[.71,.24],[.77,.31],[.70,.37],[.75,.44],[.86,.42],[.92,.50],[.88,.59],[.78,.63],[.68,.58],[.60,.63],[.53,.69],[.45,.77],[.34,.82],[.22,.80]]
     },
     {
-      name: 'シルバーウッド・パーク', country: '🇬🇧', far: 0.70, laps: 26, base: 88, pitLane: 17.4,
+      name: 'シルバーウッド・パーク', every: 1, country: '🇬🇧', far: 0.70, laps: 26, base: 88, pitLane: 17.4,
       weight: { speed: 0.32, corner: 0.46, accel: 0.22 }, tyre: 1.25, risk: 0.95,
       desc: '高速コーナーの連続。エアロが物を言う。',
       landmarks: ['ウッドランド', 'ハイスピードS', 'オークカーブ'],
       path: [[.26,.18],[.40,.14],[.52,.19],[.60,.27],[.57,.37],[.67,.33],[.78,.27],[.88,.33],[.92,.44],[.86,.53],[.76,.57],[.66,.53],[.58,.57],[.53,.65],[.60,.73],[.70,.79],[.63,.87],[.49,.89],[.37,.85],[.29,.78],[.32,.68],[.21,.62],[.11,.50],[.14,.31]]
     },
     {
-      name: 'モンテローザ市街地', country: '🇲🇨', far: 0.65, laps: 30, base: 78, pitLane: 13.8,
+      name: 'モンテローザ市街地', every: 1, country: '🇲🇨', far: 0.65, laps: 30, base: 78, pitLane: 13.8,
       weight: { speed: 0.14, corner: 0.44, accel: 0.42 }, tyre: 0.85, risk: 1.45,
       desc: '抜けない。予選が全て。ミスは即クラッシュ。',
       landmarks: ['カジノヘアピン', 'トンネル出口', 'ポートシケイン'],
       path: [[.50,.14],[.62,.18],[.69,.26],[.60,.32],[.66,.39],[.77,.42],[.84,.50],[.87,.60],[.77,.68],[.66,.64],[.56,.60],[.48,.66],[.52,.77],[.45,.85],[.33,.88],[.23,.83],[.19,.72],[.28,.65],[.18,.55],[.24,.44],[.16,.30]]
     },
     {
-      name: 'グランデ・ロッソ', country: '🇮🇹', far: 0.70, laps: 25, base: 84, pitLane: 19.2,
+      name: 'グランデ・ロッソ', every: 1, country: '🇮🇹', far: 0.70, laps: 25, base: 84, pitLane: 19.2,
       weight: { speed: 0.56, corner: 0.20, accel: 0.24 }, tyre: 0.95, risk: 1.05,
       desc: '超高速。パワーユニットの馬力勝負。',
       landmarks: ['グランデ・カーブ', '第1シケイン', 'パラボリカ'],
       path: [[.55,.24],[.80,.23],[.88,.27],[.93,.35],[.84,.38],[.79,.44],[.87,.47],[.93,.56],[.87,.65],[.75,.68],[.61,.69],[.47,.69],[.35,.67],[.27,.62],[.32,.55],[.22,.51],[.13,.46],[.07,.36],[.07,.26],[.30,.25]]
     },
     {
-      name: 'アルペン・リンク', country: '🇦🇹', far: 0.68, laps: 28, base: 76, pitLane: 12.9,
+      name: 'アルペン・リンク', every: 2, slot: 0, country: '🇦🇹', far: 0.68, laps: 28, base: 76, pitLane: 12.9,
       weight: { speed: 0.44, corner: 0.26, accel: 0.30 }, tyre: 1.05, risk: 1.00,
       desc: '短いラップに登り坂。ブレーキ勝負の一発勝負。',
       landmarks: ['マウンテンターン', 'ダウンヒル', 'サミット'],
       path: [[.20,.34],[.30,.25],[.44,.24],[.56,.28],[.61,.37],[.58,.45],[.68,.43],[.79,.42],[.87,.50],[.89,.60],[.81,.70],[.68,.74],[.55,.75],[.44,.70],[.38,.62],[.28,.72],[.16,.66]]
     },
     {
-      name: 'サクラ・エイト', country: '🇯🇵', far: 1.55, laps: 27, base: 95, pitLane: 18.6,
+      name: 'サクラ・エイト', every: 1, country: '🇯🇵', far: 1.55, laps: 27, base: 95, pitLane: 18.6,
       weight: { speed: 0.30, corner: 0.42, accel: 0.28 }, tyre: 1.30, risk: 1.10,
       desc: '立体交差の8の字。総合力が問われる名コース。',
       landmarks: ['スプーンカーブ', '逆バンク', 'デグナー'],
       path: [[.62,.18],[.50,.13],[.38,.13],[.26,.16],[.17,.24],[.12,.36],[.20,.26],[.32,.22],[.40,.28],[.34,.36],[.42,.42],[.36,.50],[.44,.56],[.58,.54],[.70,.46],[.80,.48],[.85,.58],[.77,.67],[.65,.65],[.56,.70],[.60,.80],[.74,.85],[.86,.79],[.90,.66],[.86,.50],[.80,.34]]
     },
     {
-      name: 'デザート・ドーム', country: '🇧🇭', far: 1.30, laps: 26, base: 90, pitLane: 20.0,
+      name: 'デザート・ドーム', every: 2, slot: 0, country: '🇧🇭', far: 1.30, laps: 26, base: 90, pitLane: 20.0,
       weight: { speed: 0.38, corner: 0.24, accel: 0.38 }, tyre: 1.35, risk: 0.90,
       desc: '路面が荒くタイヤに厳しい。ナイトレース。',
       landmarks: ['ドーム・ターン', 'サンドトラップ', 'オアシスベンド'],
       path: [[.30,.84],[.20,.76],[.15,.66],[.24,.56],[.18,.48],[.13,.40],[.17,.30],[.28,.24],[.40,.22],[.50,.24],[.57,.32],[.54,.40],[.65,.36],[.75,.32],[.85,.40],[.89,.50],[.83,.61],[.68,.66],[.50,.78]]
     },
     {
-      name: 'メイプル・アイランド', country: '🇨🇦', far: 1.25, laps: 29, base: 82, pitLane: 15.4,
+      name: 'メイプル・アイランド', every: 2, slot: 0, country: '🇨🇦', far: 1.25, laps: 29, base: 82, pitLane: 15.4,
       weight: { speed: 0.42, corner: 0.22, accel: 0.36 }, tyre: 1.10, risk: 1.25,
       desc: '低速シケイン＋長い直線。壁が待っている。',
       landmarks: ['ウォール・オブ・メイプル', 'アイランド・シケイン', 'ラストヘアピン'],
       path: [[.40,.32],[.68,.30],[.79,.33],[.83,.39],[.74,.42],[.80,.47],[.90,.53],[.88,.64],[.80,.71],[.68,.73],[.55,.75],[.43,.76],[.33,.74],[.25,.69],[.30,.61],[.21,.58],[.12,.52],[.07,.44],[.09,.36],[.22,.32]]
     },
     {
-      name: 'グリーンヒル・フォレスト', country: '🇧🇪', far: 0.62, laps: 24, base: 106, pitLane: 17.0,
+      name: 'グリーンヒル・フォレスト', every: 1, country: '🇧🇪', far: 0.62, laps: 24, base: 106, pitLane: 17.0,
       weight: { speed: 0.40, corner: 0.40, accel: 0.20 }, tyre: 1.20, risk: 1.15,
       desc: '長大な1周と天候の急変。ドライバーの腕が出る。',
       landmarks: ['オー・ルージュ', 'フォレストバンク', 'ラ・コンブ'],
       path: [[.34,.32],[.46,.27],[.58,.28],[.68,.32],[.76,.36],[.83,.42],[.89,.50],[.86,.59],[.77,.62],[.68,.60],[.60,.55],[.53,.58],[.49,.66],[.56,.73],[.60,.81],[.53,.88],[.41,.90],[.29,.87],[.19,.84],[.11,.78],[.09,.68],[.13,.58],[.11,.48],[.17,.40],[.25,.34]]
     },
     {
-      name: 'リオ・エストレラ', country: '🇧🇷', far: 1.60, laps: 30, base: 74, pitLane: 15.8,
+      name: 'リオ・エストレラ', every: 1, country: '🇧🇷', far: 1.60, laps: 30, base: 74, pitLane: 15.8,
       weight: { speed: 0.34, corner: 0.32, accel: 0.34 }, tyre: 1.15, risk: 1.20,
       desc: '反時計回りの短いラップ。雨が多い。',
       landmarks: ['エストレラ・カーブ', 'スタジアム区間', 'セニーニャ'],
       path: [[.16,.70],[.14,.58],[.19,.47],[.16,.36],[.21,.25],[.32,.21],[.44,.20],[.55,.20],[.66,.24],[.76,.30],[.83,.40],[.82,.50],[.72,.57],[.60,.56],[.49,.56],[.41,.64],[.47,.75],[.38,.84],[.25,.85]]
     },
     {
-      name: 'ラスベガス・ネオン', country: '🇺🇸', far: 1.35, laps: 28, base: 96, pitLane: 19.6,
+      name: 'ラスベガス・ネオン', every: 2, slot: 0, country: '🇺🇸', far: 1.35, laps: 28, base: 96, pitLane: 19.6,
       weight: { speed: 0.52, corner: 0.24, accel: 0.24 }, tyre: 0.90, risk: 1.30,
       desc: 'ネオン輝く超高速ストリート。低温がタイヤを苦しめる。',
       landmarks: ['ネオンベンド', 'ストリップ・ターン', 'ダウンタウン'],
       path: [[.55,.79],[.36,.79],[.20,.78],[.10,.70],[.09,.61],[.22,.56],[.36,.52],[.20,.45],[.08,.39],[.06,.29],[.09,.21],[.26,.205],[.46,.203],[.66,.202],[.90,.20],[.95,.32],[.78,.37],[.62,.40],[.78,.45],[.91,.50],[.90,.62],[.88,.72]]
     },
     {
-      name: 'ファイナル・オアシス', country: '🇦🇪', far: 1.30, laps: 27, base: 88, pitLane: 21.8,
+      name: 'ファイナル・オアシス', every: 1, country: '🇦🇪', far: 1.30, laps: 27, base: 88, pitLane: 21.8,
       weight: { speed: 0.34, corner: 0.34, accel: 0.32 }, tyre: 1.05, risk: 0.85,
       desc: '最終戦。ここまでの全てが試される。',
       landmarks: ['ファイナルターン', 'パームコーナー', 'サンセットベンド'],
       path: [[.52,.24],[.64,.26],[.74,.31],[.82,.38],[.86,.47],[.80,.55],[.68,.57],[.57,.57],[.50,.63],[.48,.72],[.57,.79],[.50,.87],[.36,.88],[.24,.83],[.18,.74],[.23,.64],[.25,.55],[.14,.48],[.11,.38],[.16,.30]]
+    },
+    {
+      name: 'カルー・ハイランド', country: '🇿🇦', every: 2, slot: 1,
+      far: 1.45, laps: 25, base: 94, pitLane: 18.2,
+      weight: { speed: 0.42, corner: 0.34, accel: 0.24 }, tyre: 1.10, risk: 1.00,
+      desc: '標高が高く、空気が薄い。押しつける力が減り、直線だけが伸びる。',
+      landmarks: ['ハイベルトの丘', 'スプリングボック', '風の抜ける右'],
+      path: [[0.996,0.5],[0.937,0.614],[0.895,0.726],[0.801,0.809],[0.658,0.808],[0.544,0.77],[0.451,0.806],[0.392,0.711],[0.35,0.655],[0.218,0.661],[0.16,0.589],[0.087,0.5],[0.024,0.376],[0.129,0.288],[0.222,0.215],[0.358,0.223],[0.46,0.254],[0.538,0.267],[0.638,0.231],[0.679,0.316],[0.769,0.346],[0.831,0.413]]
+    },
+    {
+      name: 'ハンリバー・ストリート', country: '🇰🇷', every: 2, slot: 1,
+      far: 1.50, laps: 31, base: 80, pitLane: 16.4,
+      weight: { speed: 0.24, corner: 0.44, accel: 0.32 }, tyre: 1.22, risk: 1.25,
+      desc: '川沿いの市街地。90度の角が続き、壁が近い。',
+      landmarks: ['river bend', '橋の下', '市庁舎前'],
+      path: [[0.923,0.5],[0.927,0.602],[0.906,0.709],[0.85,0.812],[0.698,0.804],[0.595,0.816],[0.5,0.81],[0.445,0.684],[0.403,0.65],[0.292,0.685],[0.272,0.617],[0.188,0.574],[0.082,0.5],[0.041,0.391],[0.119,0.304],[0.172,0.208],[0.295,0.184],[0.413,0.21],[0.5,0.223],[0.579,0.238],[0.62,0.316],[0.681,0.339],[0.783,0.355],[0.784,0.432]]
+    },
+    {
+      name: 'サザンクロス・パーク', country: '🇦🇺', every: 2, slot: 1,
+      far: 1.70, laps: 27, base: 86, pitLane: 15.0,
+      weight: { speed: 0.36, corner: 0.42, accel: 0.22 }, tyre: 1.18, risk: 0.90,
+      desc: '公園の中を通る高速コース。縁石が高い。',
+      landmarks: ['湖畔の左', 'ユーカリ', 'グランドスタンド'],
+      path: [[0.996,0.5],[0.885,0.606],[0.773,0.666],[0.664,0.683],[0.59,0.705],[0.524,0.787],[0.439,0.737],[0.31,0.793],[0.181,0.763],[0.08,0.68],[0.01,0.566],[0.064,0.441],[0.18,0.363],[0.283,0.321],[0.38,0.316],[0.433,0.239],[0.521,0.247],[0.616,0.237],[0.747,0.225],[0.889,0.264],[0.974,0.37]]
+    },
+    {
+      name: 'アステカ・スタジアム', country: '🇲🇽', every: 2, slot: 1,
+      far: 1.40, laps: 28, base: 84, pitLane: 17.8,
+      weight: { speed: 0.40, corner: 0.28, accel: 0.32 }, tyre: 1.05, risk: 1.05,
+      desc: '長い直線のあと、観客席に囲まれた低速区間へ入る。',
+      landmarks: ['ロングストレート', 'スタジアム区間', '最終の左'],
+      path: [[0.837,0.5],[0.755,0.564],[0.708,0.613],[0.703,0.693],[0.635,0.732],[0.574,0.819],[0.471,0.883],[0.334,0.916],[0.214,0.86],[0.167,0.741],[0.134,0.641],[0.247,0.531],[0.217,0.465],[0.25,0.403],[0.305,0.359],[0.326,0.281],[0.388,0.22],[0.471,0.126],[0.59,0.116],[0.709,0.141],[0.798,0.216],[0.835,0.319],[0.82,0.42]]
+    },
+    {
+      name: 'ミッドナイト・レイク', country: '🇫🇮', every: 2, slot: 1,
+      far: 1.05, laps: 26, base: 90, pitLane: 16.8,
+      weight: { speed: 0.28, corner: 0.40, accel: 0.32 }, tyre: 0.92, risk: 1.10,
+      desc: '北の湖畔。路面が冷たく、タイヤがなかなか温まらない。',
+      landmarks: ['白夜の直線', '湖岸の連続', '森の出口'],
+      path: [[0.791,0.5],[0.854,0.592],[0.865,0.708],[0.788,0.795],[0.702,0.894],[0.564,0.896],[0.433,0.914],[0.36,0.773],[0.319,0.686],[0.301,0.614],[0.302,0.552],[0.199,0.5],[0.12,0.401],[0.165,0.309],[0.2,0.192],[0.314,0.138],[0.436,0.101],[0.554,0.166],[0.673,0.162],[0.679,0.316],[0.709,0.381],[0.705,0.446]]
     }
   ];
 
@@ -296,7 +340,10 @@ GP.data = (function () {
     'アルペン・リンク': 'alpine',     'サクラ・エイト': 'grass',
     'デザート・ドーム': 'desert',     'メイプル・アイランド': 'grass',
     'グリーンヒル・フォレスト': 'forest', 'リオ・エストレラ': 'grass',
-    'ラスベガス・ネオン': 'neon',     'ファイナル・オアシス': 'desert'
+    'ラスベガス・ネオン': 'neon',   'ファイナル・オアシス': 'desert',
+    'カルー・ハイランド': 'desert',  'ハンリバー・ストリート': 'street',
+    'サザンクロス・パーク': 'grass', 'アステカ・スタジアム': 'street',
+    'ミッドナイト・レイク': 'forest'
   };
 
   /* ---------- パーツのレアリティ ----------
@@ -2664,5 +2711,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

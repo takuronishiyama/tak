@@ -67,7 +67,7 @@ window.GP = window.GP || {};
     };
   })();
 
-  function isRaceWeek() { return g.nextRace < D.TRACKS.length && g.week >= S.raceWeek(g.nextRace); }
+  function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
 
   function endWeek() {
     A.crunchConsume(true);
@@ -527,12 +527,13 @@ window.GP = window.GP || {};
 
   /* ---------- 特別戦の誘い ---------- */
   function offerSpecial() {
-    if (isRaceWeek() || g.nextRace >= D.TRACKS.length) return;
+    if (isRaceWeek() || g.nextRace >= D.RACES) return;
     if (g.week >= S.SEASON_WEEKS - 1) return;          // 最終盤には来ない
     if (Math.random() > 0.24) return;
     const pool = D.SPECIALS.filter(x => g.season >= x.minSeason);
     if (!pool.length) return;
     const sp = S.pick(pool);
+    // 特別戦は、今年やらないコースも含めて一覧から選ぶ
     g.special = { key: sp.key, trackIndex: S.rint(0, D.TRACKS.length - 1) };
     U.log(g, sp.icon + ' 「' + sp.name + '」への招待が届いた！', 'good');
     U.toast(sp.icon + ' ' + sp.name + ' への招待が届いた！', 'good');
@@ -556,7 +557,7 @@ window.GP = window.GP || {};
      ライバルが毎週マシンを煮詰めているのを、見えるようにする。
      ======================================================= */
   function rivalTrends() {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const table = S.constructorTable(g);
     const rows = [];
     const mineStats = S.carStats(g);
@@ -666,6 +667,17 @@ window.GP = window.GP || {};
     GP.base.invalidate();
     g.history.push({ season: g.season, points: g.points, rank: S.constructorTable(g).findIndex(r => r.isPlayer) + 1 });
     g.season++;
+    /* 今年の顔ぶれを組み直す。走る数は変わらず、大会が入れ替わる。
+       抜けた大会と入った大会は、開幕前に知らせる               */
+    g.calendar = S.buildCalendar(g);
+    {
+      const cd = S.calendarDiff(g);
+      if (cd.added.length || cd.gone.length) {
+        U.log(g, '📅 今季のカレンダーが出た。' +
+          (cd.added.length ? '新しく ' + cd.added.map(t => t.country + t.name).join('・') + ' が入り、' : '') +
+          (cd.gone.length ? cd.gone.map(t => t.country + t.name).join('・') + ' は今季お休み。' : ''));
+      }
+    }
     g.week = 1;
     g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける

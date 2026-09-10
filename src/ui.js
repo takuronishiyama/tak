@@ -29,7 +29,7 @@ GP.ui = (function () {
   function renderTop(g) {
     curG = g;
     paintModalFunds(g);
-    const nextIdx = g.nextRace % D.TRACKS.length;
+    const nextIdx = g.nextRace % D.RACES;
     const rw = S.raceWeek(g.nextRace);
     const left = Math.max(0, rw - g.week);
     $('tTeam').textContent = S.teamLabel(g);
@@ -48,7 +48,7 @@ GP.ui = (function () {
     $('tRp').textContent = money(g.rp);
     $('tSeason').textContent = g.season;
     $('tWeek').textContent = g.week;
-    if (g.nextRace >= D.TRACKS.length) {
+    if (g.nextRace >= D.RACES) {
       $('tNext').innerHTML = 'シーズン終了';
       $('tNext').className = '';
     } else if (left === 0) {
@@ -91,11 +91,11 @@ GP.ui = (function () {
 
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
-    if (g.nextRace >= D.TRACKS.length) {
+    if (g.nextRace >= D.RACES) {
       return '<div class="card"><div class="card-h">🏁 シーズン最終節</div>' +
-        '<div class="pad">全' + D.TRACKS.length + '戦が終了しました。「次の週へ」でシーズンを締めましょう。</div></div>';
+        '<div class="pad">全' + D.RACES + '戦が終了しました。「次の週へ」でシーズンを締めましょう。</div></div>';
     }
-    const t = D.TRACKS[g.nextRace];
+    const t = S.trackAt(g, g.nextRace);
     const sc = S.carScore(g, t);
     const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
@@ -731,7 +731,7 @@ GP.ui = (function () {
   function renderAll(g, special) {
     renderTop(g);
     $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
-    if (g.nextRace < D.TRACKS.length) drawMini(D.TRACKS[g.nextRace]);
+    if (g.nextRace < D.RACES) drawMini(S.trackAt(g, g.nextRace));
     renderSide(g);
   }
 
@@ -740,8 +740,8 @@ GP.ui = (function () {
   function hubCard(g) {
     const sc = GP.base.scale(g);
     // レースウィークは、本拠地ではなくサーキットのパドックにいる
-    const race = g.nextRace < D.TRACKS.length && g.week === GP.state.raceWeek(g.nextRace);
-    const track = g.nextRace < D.TRACKS.length ? D.TRACKS[g.nextRace] : null;
+    const race = g.nextRace < D.RACES && g.week === GP.state.raceWeek(g.nextRace);
+    const track = g.nextRace < D.RACES ? S.trackAt(g, g.nextRace) : null;
     const head =
       g.onGrid ? '<div class="card-h">🏁 スターティンググリッド <b class="hubrank">' +
                    esc(track ? track.name : '') + '</b></div>'

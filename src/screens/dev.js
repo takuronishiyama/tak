@@ -40,7 +40,7 @@ GP.screens.dev = function (A) {
      ここを開くだけでは週は進まない。
      ======================================================= */
   function cmdCar() {
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
     let body =
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
@@ -538,7 +538,7 @@ GP.screens.dev = function (A) {
       /* 掘り当てたものは隠しておけない。写真に撮られ、風洞で再現され、
          数戦のうちにグリッドの半分が同じ形になる                    */
       {
-        const t2 = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+        const t2 = S.trackAt(g, g.nextRace);
         const sec = S.rnd(D.INNOV.secMin, D.INNOV.secMax);
         const mul = 1 + S.secToScore(g, sec) / Math.max(1, S.carScore(g, t2));
         S.setTrend(g, g.team, brk, mul, true, sec);
@@ -994,7 +994,7 @@ GP.screens.dev = function (A) {
 
     // この先3戦。何が要るコースが続くのか
     const ahead = [];
-    for (let i = g2.nextRace; i < Math.min(D.TRACKS.length, g2.nextRace + 3); i++) ahead.push(D.TRACKS[i]);
+    for (let i = g2.nextRace; i < Math.min(D.RACES, g2.nextRace + 3); i++) ahead.push(S.trackAt(g2, i));
     const aw = { speed: 0, corner: 0, accel: 0 };
     ahead.forEach(t => { aw.speed += t.weight.speed; aw.corner += t.weight.corner; aw.accel += t.weight.accel; });
     const an = Math.max(1, ahead.length);
@@ -1105,7 +1105,7 @@ GP.screens.dev = function (A) {
     if (p.power >= cap) gain *= 0.30;
     const now = gain * fc.cur, next = gain * fc.next;
     // 伸びたぶんが、車の速さにどう出るか
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const before = S.carStats(g);
     const keep = p.power;
     p.power = keep + now;
@@ -1612,7 +1612,7 @@ GP.screens.dev = function (A) {
   /* こちらより強いパワーユニットを持つチームの一覧。
      速いチームほど高く売る。                                        */
   function engineOffers() {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const teams = S.allTeams(g, track).filter(t => !t.isPlayer);
     if (!teams.length) return [];
     const scores = teams.map(t => t.car);
@@ -1690,7 +1690,7 @@ GP.screens.dev = function (A) {
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
-    const t = D.TRACKS[Math.min(g.nextRace || 0, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const now = S.reliability(g);
     // 整備するとどこまで戻るかを、実際の式で先に出しておく
     const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)

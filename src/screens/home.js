@@ -146,7 +146,7 @@ GP.screens.home = function (A) {
     h += '<div class="pumode"><b>出力モード</b>';
     // いまのコース（マシン画面なら平均的なコース）で1戦あたり何%減るか。
     // モードごとの見込みは、いま選んでいるモードの消耗から比例で出す
-    const refT = t || D.TRACKS[Math.min(g.nextRace || 0, D.TRACKS.length - 1)];
+    const refT = t || S.trackAt(g, g.nextRace);
     const wearOne = S.puWear(g, refT, 1) / Math.max(0.01, mode.wear);
     D.PU_MODES.forEach(m => {
       const per = wearOne * m.wear;
@@ -750,7 +750,7 @@ GP.screens.home = function (A) {
   const GRID_GUESTS = [
     { key: 'tyre', icon: '🛞', who: 'タイヤ供給の技術者',
       line: g2 => {
-        const t = D.TRACKS[Math.min(g2.nextRace, D.TRACKS.length - 1)];
+        const t = S.trackAt(g2, g2.nextRace);
         return t.tyre >= 1.2
           ? '「今日は路面が厳しい。想定より1周ぶんは早くタレると思ってください」'
           : t.tyre <= 0.95
@@ -860,7 +860,7 @@ GP.screens.home = function (A) {
 
   function doCheer(i) {
     weekFlags();
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const lineup = A.prePack
       ? A.prePack.entries.filter(e => e.isPlayer).map(e => e.driver)
       : S.allTeams(g, t).find(x => x.isPlayer).drivers;
@@ -890,7 +890,7 @@ GP.screens.home = function (A) {
     weekFlags();
     if ((g.talked || []).indexOf('grid:look') >= 0) return;
     g.talked.push('grid:look');
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const mine = S.carScoreOf(S.carStats(g), t);
     const ahead = (g.rivals || []).filter(r => S.carScoreOf(r.stats, t) > mine);
     const analyst = S.analystPower(g);
@@ -1491,7 +1491,7 @@ GP.screens.home = function (A) {
         '<p class="lead">今週の取材はもう終えた。</p>', [{ label: '戻る', fn: U.closeModal }]);
     }
     const rank = S.constructorTable(g).findIndex(t => t.isPlayer) + 1;
-    const teams = S.allTeams(g, D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)]).length;
+    const teams = S.allTeams(g, S.trackAt(g, g.nextRace)).length;
     const strong = rank > 0 && rank <= Math.ceil(teams / 2);
     const answer = (label, hype, fan, note) => ({
       label: label, cls: hype > 6 ? 'primary' : '',
@@ -1643,7 +1643,7 @@ GP.screens.home = function (A) {
     const up = S.rnd(4, 9) * S.persOf(d).rest;
     d.form = S.clamp(d.form + up, 62, 122);
     const p = S.persOf(d);
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const w = t.weight;
     const best = w.speed >= w.corner && w.speed >= w.accel ? '最高速'
                : w.corner >= w.accel ? 'コーナー' : '加速';
@@ -1700,7 +1700,7 @@ GP.screens.home = function (A) {
     const puUp = S.nursePU(g, S.rnd(3, 7) * skill);
     if (puUp > 0) lines.push('パワーユニットの残り +' + puUp + '%（いま ' + Math.round(pu.life) + '%）');
     staffExp('mechanic', 8);
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const talk = pu.life < 30
       ? '「このユニット、次でだいたい限界です。載せ替えの週を作ってください」'
       : t.risk >= 1.1
@@ -1718,7 +1718,7 @@ GP.screens.home = function (A) {
       .sort((a, b) => b.skill - a.skill)[0];
     if (!st) return;
     yardMark('yd:strat');
-    const t = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const t = S.trackAt(g, g.nextRace);
     const laps = t.laps;
     const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
     const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
@@ -2074,7 +2074,7 @@ GP.screens.home = function (A) {
   function cmdLogi() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
-    const nextTrack = D.TRACKS[g.nextRace] || D.TRACKS[0];
+    const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
     const lvl = Math.round(cw.level);
     const state = lvl < 20 ? { t: '万全', c: 'good' } : lvl < 45 ? { t: 'ふつう', c: '' }
                 : lvl < 70 ? { t: '疲れが見える', c: 'warn' } : { t: '限界', c: 'bad' };
@@ -2196,8 +2196,7 @@ GP.screens.home = function (A) {
     // ---- この先のコースと、かかる費用の見通し ----
     body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
     for (let k = 0; k < 4; k++) {
-      const idx = (g.nextRace + k) % D.TRACKS.length;
-      const tk = D.TRACKS[idx];
+      const tk = S.trackAt(g, (g.nextRace + k) % D.RACES);
       const c = S.logiCost(g, tk);
       body += '<span class="lc' + (k === 0 ? ' on' : '') + (tk.far >= 1.35 ? ' far' : '') + '">' +
         tk.country + '<b>' + esc(tk.name.slice(0, 7)) + '</b>' +

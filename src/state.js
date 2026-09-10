@@ -1089,7 +1089,7 @@ GP.state = (function () {
   }
   /* 1周あたり何秒ぶんの発見か → マシン性能で何点ぶんか に直す */
   function secToScore(g2, sec) {
-    const t = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
+    const t = trackAt(g2, g2.nextRace);
     return sec / (t.base * 0.00092 * 0.60);
   }
   function innovName() { return pick(D.INNOV.NAMES); }
@@ -1195,7 +1195,7 @@ GP.state = (function () {
     const L = D.TREND.lead;
     const top = topRival(g2);
     if (!top) return null;
-    const t = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const t = trackAt(g2, g2.nextRace);
     const mine = carScore(g2, t);
     const theirs = carScoreOf((g2.rivals || []).filter(r => r.name === top.name)[0]
       ? (g2.rivals || []).filter(r => r.name === top.name)[0].stats : { speed: 0, corner: 0, accel: 0 }, t);
@@ -1341,7 +1341,7 @@ GP.state = (function () {
     const rank = i < 0 ? table.length : i + 1;
     const prize = k => Math.round(D.PRIZE[Math.min(D.PRIZE.length - 1, k - 1)]
                                   * (1 + osk(g2, 'money') * 0.05));
-    const left = Math.max(0, D.TRACKS.length - (g2.nextRace || 0));
+    const left = Math.max(0, D.RACES - (g2.nextRace || 0));
     const maxGain = left * (D.POINTS[0] + D.POINTS[1] + D.FASTEST_LAP_POINT);
     const me = table[i] || { points: 0 };
     const ahead = i > 0 ? table[i - 1] : null;
@@ -1402,7 +1402,7 @@ GP.state = (function () {
       if (Math.random() < ch) {
         const sec = rnd(D.INNOV.secMin, D.INNOV.secMax);
         const pts = secToScore(g2, sec);
-        const ref = D.TRACKS[(g2.nextRace || 0) % D.TRACKS.length];
+        const ref = trackAt(g2, g2.nextRace);
         const mul = 1 + pts / Math.max(1, carScoreOf(r.stats, ref));
         ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= mul; });
         const what = innovName();
@@ -2151,7 +2151,7 @@ GP.state = (function () {
   function supplierPower(g2, teamName) {
     const rivals = g2.rivals || [];
     if (!rivals.length) return 0;
-    const track = D.TRACKS[Math.min(g2.nextRace || 0, D.TRACKS.length - 1)];
+    const track = trackAt(g2, g2.nextRace);
     const scores = rivals.map(r => carScoreOf(r.stats, track));
     const lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores);
     const t = rivals.filter(r => r.name === teamName)[0];
@@ -2858,12 +2858,68 @@ GP.state = (function () {
      シーズンの折り返しで、工場ごと閉める2週間。
      実際のF1と同じで、ここは走ることも作ることもできない。
      そのぶん人が休まり、後半戦へ向けて仕切り直せる。          */
-  const SUMMER_AT = Math.round(D.TRACKS.length / 2);   // この戦の「前」に入る（0-index）
+  const SUMMER_AT = Math.round(D.RACES / 2);   // この戦の「前」に入る（0-index）
   const SUMMER_WEEKS = 2;
+  /* =======================================================
+     開催カレンダー
+
+     コースの数と、1シーズンに走る数は別のもの。
+     毎年やる大会（伝統的な7つ）は必ず入り、
+     残りは隔年でまわる組から、その年の組が入る。
+     走る数はいつも D.RACES で変わらないので、
+     「レースが増える」のではなく「顔ぶれが変わる」。
+     ======================================================= */
+  function buildCalendar(g2) {
+    const season = (g2 && g2.season) || 1;
+    const fixed = [], rota = [];
+    D.TRACKS.forEach((t, i) => { ((t.every || 1) === 1 ? fixed : rota).push(i); });
+    /* まわる組からは、窓をずらしながら取る。
+       毎年ぜんぶ入れ替えると落ち着かないので、2つずつずらす。
+       こうすると毎年 2つ抜けて 2つ入り、残りは続けて開催される  */
+    const need = Math.max(0, D.RACES - fixed.length);
+    const start = rota.length ? ((season - 1) * 2) % rota.length : 0;
+    const pick = [];
+    for (let k = 0; k < need && k < rota.length; k++) {
+      pick.push(rota[(start + k) % rota.length]);
+    }
+    const idx = fixed.concat(pick);
+    // 足りなければ、残っているものから順に埋める
+    if (idx.length < D.RACES) {
+      D.TRACKS.forEach((t, i) => {
+        if (idx.length >= D.RACES || idx.indexOf(i) >= 0) return;
+        idx.push(i);
+      });
+    }
+    // 並びは一覧の順に戻す（遠征がかたよらないよう、もとの順が組んである）
+    idx.sort((a, b) => a - b);
+    return idx.slice(0, D.RACES);
+  }
+  /* いまのカレンダー。無ければその場で作る（古いセーブ用） */
+  function calendarOf(g2) {
+    if (!g2) return buildCalendar(null);
+    if (!g2.calendar || g2.calendar.length !== D.RACES) g2.calendar = buildCalendar(g2);
+    return g2.calendar;
+  }
+  function raceCount() { return D.RACES; }
+  /* 第n戦が、コース一覧のどれか */
+  function trackIdx(g2, round) {
+    const cal = calendarOf(g2);
+    return cal[clamp(Math.round(round || 0), 0, cal.length - 1)];
+  }
+  /* 第n戦のコースそのもの */
+  function trackAt(g2, round) { return D.TRACKS[trackIdx(g2, round)]; }
+  /* 去年やって今年やらない大会／今年から入る大会（画面で言うために使う） */
+  function calendarDiff(g2) {
+    const now = calendarOf(g2);
+    const prev = buildCalendar({ season: ((g2 && g2.season) || 1) - 1 });
+    return { added: now.filter(i => prev.indexOf(i) < 0).map(i => D.TRACKS[i]),
+             gone: prev.filter(i => now.indexOf(i) < 0).map(i => D.TRACKS[i]) };
+  }
+
   function raceWeek(i) {
     return (i + 1) * (PREP_WEEKS + 1) + (i >= SUMMER_AT ? SUMMER_WEEKS : 0);
   }
-  const SEASON_WEEKS = D.TRACKS.length * (PREP_WEEKS + 1) + SUMMER_WEEKS;
+  const SEASON_WEEKS = D.RACES * (PREP_WEEKS + 1) + SUMMER_WEEKS;
   const summerFrom = () => raceWeek(SUMMER_AT - 1) + 1;
   const summerTo   = () => summerFrom() + SUMMER_WEEKS - 1;
   function inSummer(week) { return week >= summerFrom() && week <= summerTo(); }
@@ -2896,7 +2952,8 @@ GP.state = (function () {
       managers: {},         // 役職（空席から始まる）
       fans: 500,
       rp: 20,                       // 研究ポイント
-      nextRace: 0,                  // 次のレースのindex
+      nextRace: 0,                  // 次のレースのindex（第何戦か）
+      calendar: null,               // 今年やる大会の並び（あとで組む）
       points: 0,                    // 今季コンストラクターズポイント
       titles: { drivers: 0, teams: 0 },
       // オーナー（プレイヤー自身）。元ドライバーの経歴で初期スキルが変わる
@@ -2918,6 +2975,7 @@ GP.state = (function () {
       flags: { firstWin: false, tutorial: true },
       trainedThisWeek: false
     };
+    g.calendar = buildCalendar(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1, { power: 10, cond: 92, traits: [] }); });
     g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
     g.body = makeBody(g, null);
@@ -3718,6 +3776,7 @@ GP.state = (function () {
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
+    buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset, condLabel,

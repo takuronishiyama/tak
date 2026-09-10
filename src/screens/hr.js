@@ -1218,7 +1218,7 @@ GP.screens.hr = function (A) {
      一度で決まる話ではない。レースウィークごとに接触して心証を積み上げ、
      十分に傾いたところで移籍金を積んで引き抜く。                     */
   function poachInterest(d, team) {
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const table = S.constructorTable(g);
     const myRank = table.findIndex(t => t.isPlayer) + 1;
     const theirRank = table.findIndex(t => t.name === team.name) + 1;
@@ -1349,7 +1349,7 @@ GP.screens.hr = function (A) {
      同じレースウィークでは1チームにつき1回まで。                       */
   function doScout(r) {
     weekFlags();
-    const track = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
+    const track = S.trackAt(g, g.nextRace);
     const mine = S.carScoreOf(S.carStats(g), track);
     const theirs = S.carScoreOf(r.stats, track);
     if ((g.scouted || []).indexOf(r.name) >= 0) {
