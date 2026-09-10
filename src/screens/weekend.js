@@ -1006,7 +1006,8 @@ GP.screens.weekend = function (A) {
     let ok = true, msg = '';
     if (r.key === 'fix') {
       ok = Math.random() < S.fixOdds(g);
-      const f = st.c.fix;
+      // 設定で触りようのない言い分（つなぎ目の話など）は、ここへ来ても何もしない
+      const f = st.c.fix || {};
       const tune = {};
       Object.keys(f).forEach(k => {
         // 外したときは、狙ったぶんは半分しか出ず、捨てたぶんはそのまま出る

@@ -1973,6 +1973,18 @@ body[data-skin="hd"]{
 .rg-wall{fill:none;stroke:var(--ngTx);stroke-width:2.5;stroke-linejoin:round;
   stroke-dasharray:7 4;opacity:.85}
 .rg-ring{fill:none;stroke:var(--faceEdge);stroke-width:1.5;opacity:.7}
+/* 扇形と扇形をつなぐ橋（パッケージング） */
+/* 橋が架かるはずのところ。0%でも、ここに何かあると分かるように */
+.rg-brslot{fill:none;stroke:var(--faceEdge);stroke-width:9;stroke-linecap:round;opacity:.55}
+.rg-br{fill:none;stroke:var(--faceSub);stroke-width:9;stroke-linecap:round;opacity:.7}
+.rg-br.good{stroke:var(--okTx);opacity:1}
+.rg-br.thin{stroke:var(--ngTx);opacity:.95}
+.rg-brfoot{fill:none;stroke:var(--faceEdge);stroke-width:3;stroke-linecap:round}
+.rg-brfoot.good{stroke:var(--okTx)}
+.rg-brlb{font-size:10px;fill:var(--faceTx);font-weight:700}
+.rg-brlb.thin{fill:var(--ngTx)}
+.rg-brv{font-size:9.5px;fill:var(--faceSub)}
+.rg-brv.thin{fill:var(--ngTx);font-weight:700}
 /* まだ伸ばせるぶん（節から境目まで） */
 .rg-room{stroke:var(--faceSub);stroke-width:2;stroke-linecap:round;
   stroke-dasharray:2 3;opacity:.5}

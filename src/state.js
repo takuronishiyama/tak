@@ -582,6 +582,34 @@ GP.state = (function () {
                weak: a <= b ? sy.a : sy.b };
     });
   }
+  /* ---------- パッケージング ----------
+     固まりと固まりのつなぎ目。
+     その橋になっている噛み合いが、そのまま「まとまり」になる。
+     細い橋は、ドライバーがいちばん先に気づくところ            */
+  function packaging(g2) {
+    const syn = mechSynergy(g2);
+    const kk = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
+    return D.PACKAGING.map(p => {
+      const want = [kk(p.via.a), kk(p.via.b)].sort().join('|');
+      const x = syn.filter(y => [kk(y.def.a), kk(y.def.b)].sort().join('|') === want)[0];
+      const r = x ? x.ratio : 0;
+      return { def: p, syn: x, ratio: r,
+               thin: r < D.PACK.thin, good: r >= D.PACK.good,
+               weak: x ? x.weak : null };
+    });
+  }
+  /* いちばん細い橋。ドライバーの言い分は、まずここから出る */
+  function packWorst(g2) {
+    const list = packaging(g2).slice().sort((a, b) => a.ratio - b.ratio);
+    return list[0] || null;
+  }
+  /* 車全体のまとまり（0..1）。橋の平均 */
+  function packScore(g2) {
+    const list = packaging(g2);
+    if (!list.length) return 0;
+    return list.reduce((a, x) => a + x.ratio, 0) / list.length;
+  }
+
   /* 噛み合いの合計。carStats などが見る */
   function mechLift(g2) {
     const out = { speed: 0, corner: 0, accel: 0, wear: 0, rel: 0 };
@@ -3192,6 +3220,21 @@ GP.state = (function () {
     const drive = bodyRatio(g2, 'drive');
     gaps.push({ key: 'drive', v: (RIVAL_BODY_REF - drive) * 0.85 });
     gaps.sort((a, b) => b.v - a.v);
+    /* ---- まとまりの話 ----
+       速さの数字がどれだけ揃っていても、つなぎ目が合っていなければ
+       ドライバーはそこを言う。「エンジンとギヤ比が合っていない」は
+       速さの多寡ではなく、噛み合わせの話                        */
+    const pk = packWorst(g2);
+    if (pk && pk.thin) {
+      const pv = (D.PACK.thin - pk.ratio) * 1.6;
+      if (pv > gaps[0].v) {
+        return { def: { key: 'pack:' + pk.def.key, icon: pk.def.icon,
+                        name: pk.def.name + 'が噛み合っていない',
+                        say: pk.def.say, eng: pk.def.eng,
+                        fix: pk.def.fix || null, pack: pk },
+                 gap: Math.round(pv * 1000) / 1000, all: gaps, pack: pk };
+      }
+    }
     const top = gaps[0];
     const c = D.COMPLAINTS.filter(x => x.key === top.key)[0] || D.COMPLAINTS[0];
     return { def: c, gap: Math.round(top.v * 1000) / 1000, all: gaps };
@@ -3691,7 +3734,7 @@ GP.state = (function () {
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
     newTyreBank, drawSet, returnSet, runSet, scrubBank, bankRows, bankFresh, usedLoss,
     fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
-    mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    mechSynergy, mechLift, mechScore, mechName, packaging, packWorst, packScore, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe

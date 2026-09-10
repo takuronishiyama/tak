@@ -463,10 +463,14 @@ GP.screens.home = function (A) {
       '街の子のなかに光るものがいたら、声をかけられます。</p>' +
       '<div class="sub small">🎮 自分でハンドルを握る</div>' +
       '<p class="desc">誰かの車に乗って、実際に走らせられます。' +
-      '<b>左右で曲がり、⚡で加速、🛑で減速</b>（キーボードなら矢印キー）。<br>' +
-      '曲がりどころでは<b>速度の二乗ぶんだけ外へ押し出される</b>ので、' +
-      '手前で緩めて、内側から立ち上がるのが速い。コースの外に出ると急に遅くなります。<br>' +
-      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ速さで踏ん張る）。</p>' +
+      '<b>使うのは左右だけ</b>（キーボードなら ← →）。' +
+      'ラジコンと同じで、前に進むのは勝手にやります。<br>' +
+      'アクセルとブレーキは、<b>いま走っている線で曲がりきれる速さ</b>に自動で当たります。' +
+      'だから<b>どこを走るかが、そのままタイムになります</b>。' +
+      '内へ詰めれば小回りになって遅く、外へふくらませれば大きな弧になって速い。<br>' +
+      'コーナーの<b>外から入って、ふくらませて抜ける</b>のが速い、ということです。' +
+      'ただしコースの外へ出ると急に遅くなります。<br>' +
+      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ線でも速く抜けられる）。</p>' +
       '<div class="pick">' + ys.slice(0, 4).map(d =>
         '<button class="pickbtn" data-k="kdrive:' + d.id + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
@@ -574,8 +578,8 @@ GP.screens.home = function (A) {
     };
     hold('kvL', () => set('steer', 1), () => { if (GP.kart.state && GP.kart.state.inp.steer > 0) set('steer', 0); });
     hold('kvR', () => set('steer', -1), () => { if (GP.kart.state && GP.kart.state.inp.steer < 0) set('steer', 0); });
-    hold('kvA', () => set('throttle', 1), () => set('throttle', 0));
-    hold('kvB', () => set('brake', 1), () => set('brake', 0));
+    /* アクセルとブレーキのボタンは無くした。
+       前に進むのは自動で、人が決めるのは向きだけ            */
     $('kvQuit').onclick = () => { if (kartRun) kartRun.quit = true; };
     const key = (e, down) => {
       const k = e.key;

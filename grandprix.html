@@ -1988,6 +1988,18 @@ body[data-skin="hd"]{
 .rg-wall{fill:none;stroke:var(--ngTx);stroke-width:2.5;stroke-linejoin:round;
   stroke-dasharray:7 4;opacity:.85}
 .rg-ring{fill:none;stroke:var(--faceEdge);stroke-width:1.5;opacity:.7}
+/* 扇形と扇形をつなぐ橋（パッケージング） */
+/* 橋が架かるはずのところ。0%でも、ここに何かあると分かるように */
+.rg-brslot{fill:none;stroke:var(--faceEdge);stroke-width:9;stroke-linecap:round;opacity:.55}
+.rg-br{fill:none;stroke:var(--faceSub);stroke-width:9;stroke-linecap:round;opacity:.7}
+.rg-br.good{stroke:var(--okTx);opacity:1}
+.rg-br.thin{stroke:var(--ngTx);opacity:.95}
+.rg-brfoot{fill:none;stroke:var(--faceEdge);stroke-width:3;stroke-linecap:round}
+.rg-brfoot.good{stroke:var(--okTx)}
+.rg-brlb{font-size:10px;fill:var(--faceTx);font-weight:700}
+.rg-brlb.thin{fill:var(--ngTx)}
+.rg-brv{font-size:9.5px;fill:var(--faceSub)}
+.rg-brv.thin{fill:var(--ngTx);font-weight:700}
 /* まだ伸ばせるぶん（節から境目まで） */
 .rg-room{stroke:var(--faceSub);stroke-width:2;stroke-linecap:round;
   stroke-dasharray:2 3;opacity:.5}
@@ -3112,8 +3124,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       </div>
       <div class="kv-hint" id="kvHint">左右で曲がる／⚡で加速／🛑で減速</div>
       <div class="kv-side right">
-        <button id="kvB" class="kvbtn brk">🛑</button>
-        <button id="kvA" class="kvbtn acc">⚡</button>
+
       </div>
     </div>
   </div>
@@ -3978,6 +3989,46 @@ GP.data = (function () {
       parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
   ];
 
+  /* ---------- パッケージング ----------
+     部品ひとつひとつが良くても、車は速くならない。
+     固まりと固まりのつなぎ目が合っていないと、
+     どこかで必ず辻褄が合わなくなる。
+
+     F1でいう「パッケージング」がこれで、
+     扇形と扇形をつなぐ橋が、そのまま車のまとまりになる。
+     橋が細いところは、ドライバーがいちばん先に気づく。      */
+  const PACKAGING = [
+    { key: 'air-frame',   a: 'air',   b: 'frame',
+      icon: '🔗', name: '足と骨',
+      via: { a: { p: 'susp' }, b: { p: 'chas' } },
+      /* ここが薄いと、ドライバーはこう言う */
+      say: ['「土台が動いてます。足が仕事をする前に、車体がよじれる」',
+            '「縁石に乗せると、姿勢が戻ってこない。狙ったところに置けません」',
+            '「入力が抜けてる感じがします。舵を足しても、その先がない」'],
+      eng: 'シャシーとサスペンションの剛性が釣り合っていない。片方だけ硬くしても逃げる',
+      /* 設定でやれるのは、ごまかしまで。
+         つなぎ目そのものは、開発でしか直らない          */
+      fix: { corner: 0.009, speed: -0.004 } },
+    { key: 'frame-power', a: 'frame', b: 'power',
+      icon: '🔗', name: '骨と動力',
+      via: { a: { p: 'brake' }, b: { b: 'cooling' } },
+      say: ['「終盤、ブレーキが奥まで入らなくなります。1回目と同じ場所で踏めない」',
+            '「熱が抜けてないです。踏むたびにペダルが深くなる」',
+            '「最後の数周、止まるほうが怖くなります」'],
+      eng: 'ブレーキと冷却の取り合いができていない。導風を作らないと熱が抜けない',
+      fix: { corner: 0.008, accel: -0.003 } },
+    { key: 'power-air',   a: 'power', b: 'air',
+      icon: '🔗', name: '動力と足',
+      via: { a: { p: 'pu' }, b: { b: 'drive' } },
+      say: ['「エンジンとギヤ比が合ってないですね。谷で待たされます」',
+            '「出かたが唐突です。開けた瞬間に来るので、じわっと踏めない」',
+            '「これだとタイヤを使いきれないです。手前で終わってしまう」'],
+      eng: '出力の出かたと、それを路面に置く側が噛み合っていない。段の切りかたから見直す必要がある',
+      fix: { accel: 0.010, speed: -0.004 } }
+  ];
+  /* まとまりの良し悪しの目安。満点に対する割合で見る */
+  const PACK = { thin: 0.42, good: 0.78 };
+
   /* ---------- マシンコンセプト ----------
      1年を通しての「この車は何で戦うのか」。
      方針に沿う方向はよく伸び、逆らう方向は<b>上限そのもの</b>が下がる。
@@ -4084,6 +4135,12 @@ GP.data = (function () {
       name: '床が地面を離さない',
       desc: '車高の変化を足が抑えるので、床下の効きが一定に保たれる',
       eff: { corner: 0.9 } },
+    /* 動力 ↔ 空気と足。出力の出かたが、そのまま乗りやすさになる。
+       これで3つの固まりが輪になってつながる                       */
+    { a: { p: 'pu' }, b: { b: 'drive' }, icon: '🪶', gain: 0.038, half: 0.45,
+      name: '出力が、そのまま前に出る',
+      desc: '出かたが素直だと、踏んだぶんだけ進む。唐突だと、踏めるところで踏めない',
+      eff: { accel: 0.8, wear: 0.6 } },
     { a: { p: 'gear' }, b: { b: 'service' }, icon: '🧰', gain: 0.035, half: 0.45,
       name: '開けて、直して、また出せる',
       desc: '降ろさずに中を見られる造りなので、傷んだまま走らせずに済む',
@@ -4482,17 +4539,19 @@ GP.data = (function () {
      クラッシュとミスの起きやすさに直に効く。練習では上がらない、
      その人の性質。素質の高い者ほど、この取引をしないで済む
      （速くて壊さない、が成立する）                              */
+  /* 現場で人を評するときの言い方に寄せてある。
+     「荒い」「手堅い」では、速さの話なのか性格の話なのか分からない */
   const CARE_TIERS = [
-    { max:  45, name: '危うい',   icon: '💥', color: '#b8291a',
-      note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
-    { max:  75, name: '荒い',     icon: '⚡', color: '#96610a',
-      note: '仕掛けはするが、そのぶん傷も作る' },
-    { max: 105, name: 'ふつう',   icon: '🙂', color: '#6a5c3f',
-      note: '無理はしない。無茶もしない' },
-    { max: 135, name: '手堅い',   icon: '🛡️', color: '#2f7a2a',
-      note: '車を持って帰ってくる。指示どおりに走れる' },
-    { max: 999, name: '完璧主義', icon: '💎', color: '#2a5fb5',
-      note: '限界の手前で毎周ぴたりと止める。壊さない' }
+    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b8291a',
+      note: '車の限界より先まで踏む。速い日と、壊す日がある' },
+    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#96610a',
+      note: '仕掛けはするが、そのぶん路面とタイヤに傷を作る' },
+    { max: 105, name: 'ニュートラル',     icon: '🙂', color: '#6a5c3f',
+      note: '車のとおりに走る。足しも引きもしない' },
+    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2f7a2a',
+      note: '車を持って帰ってくる。指示どおりのペースを刻める' },
+    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2a5fb5',
+      note: '毎周おなじところで、限界の手前にぴたりと置く' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
   const CARE_CRASH = 0.85;    // 安定感0で ×(1+0.85)、190で ×(1-0.75) ほど
@@ -6188,7 +6247,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, PART_GROUPS, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -7054,6 +7113,34 @@ GP.state = (function () {
                weak: a <= b ? sy.a : sy.b };
     });
   }
+  /* ---------- パッケージング ----------
+     固まりと固まりのつなぎ目。
+     その橋になっている噛み合いが、そのまま「まとまり」になる。
+     細い橋は、ドライバーがいちばん先に気づくところ            */
+  function packaging(g2) {
+    const syn = mechSynergy(g2);
+    const kk = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
+    return D.PACKAGING.map(p => {
+      const want = [kk(p.via.a), kk(p.via.b)].sort().join('|');
+      const x = syn.filter(y => [kk(y.def.a), kk(y.def.b)].sort().join('|') === want)[0];
+      const r = x ? x.ratio : 0;
+      return { def: p, syn: x, ratio: r,
+               thin: r < D.PACK.thin, good: r >= D.PACK.good,
+               weak: x ? x.weak : null };
+    });
+  }
+  /* いちばん細い橋。ドライバーの言い分は、まずここから出る */
+  function packWorst(g2) {
+    const list = packaging(g2).slice().sort((a, b) => a.ratio - b.ratio);
+    return list[0] || null;
+  }
+  /* 車全体のまとまり（0..1）。橋の平均 */
+  function packScore(g2) {
+    const list = packaging(g2);
+    if (!list.length) return 0;
+    return list.reduce((a, x) => a + x.ratio, 0) / list.length;
+  }
+
   /* 噛み合いの合計。carStats などが見る */
   function mechLift(g2) {
     const out = { speed: 0, corner: 0, accel: 0, wear: 0, rel: 0 };
@@ -9664,6 +9751,21 @@ GP.state = (function () {
     const drive = bodyRatio(g2, 'drive');
     gaps.push({ key: 'drive', v: (RIVAL_BODY_REF - drive) * 0.85 });
     gaps.sort((a, b) => b.v - a.v);
+    /* ---- まとまりの話 ----
+       速さの数字がどれだけ揃っていても、つなぎ目が合っていなければ
+       ドライバーはそこを言う。「エンジンとギヤ比が合っていない」は
+       速さの多寡ではなく、噛み合わせの話                        */
+    const pk = packWorst(g2);
+    if (pk && pk.thin) {
+      const pv = (D.PACK.thin - pk.ratio) * 1.6;
+      if (pv > gaps[0].v) {
+        return { def: { key: 'pack:' + pk.def.key, icon: pk.def.icon,
+                        name: pk.def.name + 'が噛み合っていない',
+                        say: pk.def.say, eng: pk.def.eng,
+                        fix: pk.def.fix || null, pack: pk },
+                 gap: Math.round(pv * 1000) / 1000, all: gaps, pack: pk };
+      }
+    }
     const top = gaps[0];
     const c = D.COMPLAINTS.filter(x => x.key === top.key)[0] || D.COMPLAINTS[0];
     return { def: c, gap: Math.round(top.v * 1000) / 1000, all: gaps };
@@ -10163,7 +10265,7 @@ GP.state = (function () {
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
     newTyreBank, drawSet, returnSet, runSet, scrubBank, bankRows, bankFresh, usedLoss,
     fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
-    mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    mechSynergy, mechLift, mechScore, mechName, packaging, packWorst, packScore, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
@@ -16449,6 +16551,19 @@ GP.kart = (function () {
   function safeV(k, skill) {
     return Math.sqrt(P.grip * skill / Math.max(1e-7, LOADK * Math.abs(k)));
   }
+  /* 走っている線を織り込んだ曲がりのきつさ。
+     内へ詰めるほど小回りになってきつく、外へふくらませるほどゆるい。
+
+     係数は 0.42 / 0.85 / 1.30 / 1.90 を走らせて決めた。
+     小さいと「内いっぱいがいちばん速い」になって迷いがなくなり、
+     大きすぎると外へ出たときの罰が重すぎる。
+     1.30 のとき、いちばん速いのは「やや外」で、
+     詰めすぎても、ふくらませすぎても遅くなる                   */
+  function effK(k0, off) {
+    if (Math.abs(k0) < 1e-6) return k0;
+    const inside = (off * Math.sign(k0)) / HALF;   // +1 内いっぱい / -1 外いっぱい
+    return k0 * (1 + inside * 1.30);
+  }
 
   /* ---- カート場のかたち ----
      小さくて、切り返しが多く、ストレートは短い。
@@ -16566,7 +16681,8 @@ GP.kart = (function () {
     // 先を見て、いちばんきつい曲がりに合わせて速さを作る。
     // 速く走っている子ほど遠くまで見る（＝手前から緩める）
     const ahead = lookAhead(k.s, 45 + k.v * 0.55);
-    const want = Math.min(P.vmax * k.skill, safeV(ahead, k.skill) * (0.84 + k.dash * 0.13));
+    const want = Math.min(P.vmax * k.skill,
+                          safeV(effK(ahead, k.off), k.skill) * (0.84 + k.dash * 0.13));
     const th = k.v < want ? 1 : 0;
     const br = k.v > want * 1.06 ? Math.min(1, (k.v - want) / 24) : 0;
     // 曲がりの内側へ寄る。腕のある子ほど、きれいに縁石まで使う
@@ -16575,6 +16691,28 @@ GP.kart = (function () {
     const st = Math.max(-1, Math.min(1, (target - k.off) * 0.085 + k.nudge));
     k.nudge *= 0.86;
     return { steer: st, throttle: th, brake: br };
+  }
+
+  /* ---- 自分のカートのアクセル ----
+     ボタンが4つあると、どれをいつ押せばいいのか分からない、
+     という声があった。ラジコンと同じで、
+     前に進むのは勝手にやるものとして、
+     こちらは向きだけを決める。
+
+     アクセルとブレーキは、いま走っている線で
+     曲がりきれる速さを狙って自動で当たる。
+     内へ詰めれば自動で遅くなり、外へふくらませれば速くなる。
+     つまり「どこを走るか」がそのままタイムになる。            */
+  function autoPedal(k) {
+    const here = atS(k.s);
+    // 先を見て、いちばんきつい曲がりに合わせる。速いほど遠くを見る
+    const ahead = lookAhead(k.s, 45 + k.v * 0.55);
+    // その曲がりを、いまの線で通ったらどうなるか
+    const want = Math.min(P.vmax * k.skill, safeV(effK(ahead, k.off), k.skill) * 0.94);
+    return {
+      throttle: k.v < want ? 1 : 0,
+      brake: k.v > want * 1.05 ? Math.min(1, (k.v - want) / 22) : 0
+    };
   }
 
   /* 前の車に追いついたら、そのままでは抜けない。
@@ -16606,6 +16744,8 @@ GP.kart = (function () {
   /* 1台を1フレーム進める */
   function step(k, inp, dt) {
     const here = atS(k.s);
+    // いま曲がっている向きと強さ。画面の表示にも、確かめにも使う
+    k.curK = here.k;
     // ---- 速さ ----
     k.v += (P.acc * inp.throttle - P.brk * inp.brake - P.drag * k.v) * dt;
     if (k.slip > 0) k.v -= P.slipDrag * k.v * dt;
@@ -16620,8 +16760,13 @@ GP.kart = (function () {
     // 曲がりどころでは、速度の二乗に比例して外へ押し出される
     const push = -here.k * k.v * k.v * P.out * 0.0016;
     let move = push + inp.steer * k.v * P.steer * 0.012;
+    /* 実際に描く弧は、走っている線で変わる。
+       内へ詰めれば小回りになって曲がりがきつくなり、
+       外へふくらませればゆるい弧になって速く抜けられる。
+       ここがあるから、ハンドルだけでも走りに上手い下手が出る   */
+    const kEff = effK(here.k, k.off);
     // タイヤの許容を超えたら滑る
-    const load = Math.abs(here.k) * k.v * k.v * LOADK;
+    const load = Math.abs(kEff) * k.v * k.v * LOADK;
     if (load > P.grip * k.skill) {
       k.slip = 0.25;
       move += push * P.slip;
@@ -16677,7 +16822,11 @@ GP.kart = (function () {
     traffic(st.karts, dt);
     st.karts.forEach(k => {
       if (k.done) return;
-      const inp = k.you ? st.inp : driveAI(k, dt);
+      /* 自分の車は、向きだけ人が決める。前に進むのは自動。
+         アクセルとブレーキは、いま走っている線に合わせて当たる  */
+      const inp = k.you
+        ? Object.assign({ steer: st.inp.steer }, autoPedal(k))
+        : driveAI(k, dt);
       step(k, inp, dt);
       if (k.lap >= st.laps) { k.done = true; k.finish = st.t; }
     });
@@ -17550,9 +17699,9 @@ GP.screens.hr = function (A) {
         }) +
         '<div class="ml-side"><small>' + esc(x.def.desc) + '</small>' +
         '<div class="ml-weak">' + (x.on && x.gain >= x.def.gain * 0.9
-          ? '<span class="ok">✔ ほぼ出きっています</span>'
+          ? '<span class="ok">✔ ここは回りきっています</span>'
           : '<span class="ng">' + W.def.icon + ' <b>' + esc(nm(W)) +
-            '</b> が薄い。ここに人を足すと効きます</span>') +
+            '</b> の手が足りていません。ここに人を入れると回りはじめます</span>') +
         '</div></div></div></div>';
     });
     h += '</div>';
@@ -18908,7 +19057,7 @@ GP.screens.dev = function (A) {
      置いてあるので、境目に貼りついていれば「もう限界」と分かる。
      ======================================================= */
   const RING = {
-    CX: 280, CY: 276, VW: 560, VH: 548,
+    CX: 296, CY: 292, VW: 592, VH: 580,
     rCore: 30,          // まん中のコンセプト
     /* 部品の輪を広げると、隣どうしの間隔（弧の長さ）も広がる。
        名札を置く場所は、そこで稼ぐ                              */
@@ -19002,6 +19151,57 @@ GP.screens.dev = function (A) {
     h += '<circle cx="' + RING.CX + '" cy="' + RING.CY + '" r="' + RING.rPart +
       '" class="rg-ring"></circle>';
 
+    /* ---- 扇形と扇形をつなぐ橋（パッケージング）----
+       すき間をまたぐ弧として架ける。外へ伸びる棒だと
+       「その方向に何かある」に見えてしまい、
+       二つの扇形をつないでいることが伝わらない。
+       弧なら、両側の扇に足がかかっているのが見える。
+       受け（空の弧）をいつも敷いておくので、
+       0%でも「ここに橋が架かるはずだ」と分かる                */
+    const packs = S.packaging(g2);
+    const byKey = {};
+    slots.forEach(sl => { byKey[sl.grp.key] = sl; });
+    const rBr = RING.bMax + 12;
+    packs.forEach(pk => {
+      const A = byKey[pk.def.a], B = byKey[pk.def.b];
+      if (!A || !B) return;
+      // 二つの扇形のあいだ（すき間）を探す
+      let a1 = A.to, a2 = B.from;
+      if (a2 < a1) a2 += Math.PI * 2;
+      if (a2 - a1 > Math.PI) { a1 = B.to; a2 = A.from; if (a2 < a1) a2 += Math.PI * 2; }
+      const mid = (a1 + a2) / 2;
+      // すき間より少し広く取って、両側の扇形に足をかける
+      const half = (a2 - a1) / 2 + 0.20;
+      const arc = (from, to) => {
+        const p0 = pol(rBr, from), p1 = pol(rBr, to);
+        return 'M' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) +
+          ' A' + rBr + ' ' + rBr + ' 0 0 1 ' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1);
+      };
+      // 受け：橋が架かるはずのところ
+      h += '<path class="rg-brslot" d="' + arc(mid - half, mid + half) + '"></path>';
+      // 実際に架かっているぶん。真ん中から左右へ伸びる
+      const g2h = half * Math.max(0.03, pk.ratio);
+      h += '<path class="rg-br' + (pk.thin ? ' thin' : pk.good ? ' good' : '') +
+        '" d="' + arc(mid - g2h, mid + g2h) + '"></path>';
+      // 両側の扇形へ下ろす足
+      [mid - half, mid + half].forEach(ang => {
+        const p0 = pol(rBr, ang), p1 = pol(rBr - 13, ang);
+        h += '<path class="rg-brfoot' + (pk.good ? ' good' : '') + '" d="M' +
+          p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) + ' L' +
+          p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + '"></path>';
+      });
+      // つなぎ目の名札と、噛み合いぐあい
+      const [lx, ly] = pol(rBr + 16, mid);
+      const anc = Math.abs(Math.cos(mid)) < 0.30 ? 'middle'
+                : (Math.cos(mid) > 0 ? 'start' : 'end');
+      h += '<text x="' + lx.toFixed(1) + '" y="' + (ly - 1).toFixed(1) +
+        '" class="rg-brlb' + (pk.thin ? ' thin' : '') + '" text-anchor="' + anc + '">' +
+        esc(pk.def.name) + '</text>' +
+        '<text x="' + lx.toFixed(1) + '" y="' + (ly + 11).toFixed(1) +
+        '" class="rg-brv' + (pk.thin ? ' thin' : '') + '" text-anchor="' + anc + '">' +
+        Math.round(pk.ratio * 100) + '%</text>';
+    });
+
     // ---- 噛み合いの線 ----
     syn.forEach(x => {
       const A = at[x.def.a.p ? 'p:' + x.def.a.p : 'b:' + x.def.a.b];
@@ -19082,15 +19282,18 @@ GP.screens.dev = function (A) {
     // ---- 読みかた ----
     const gl = D.PART_GROUPS.map(x =>
       '<span><i style="background:' + x.color + '"></i>' + x.icon + x.name + '</span>').join('');
+    const pkAll = Math.round(S.packScore(g2) * 100);
     return '<div class="ringmap">' + h +
       '<div class="rg-leg">' + gl +
-      '<span class="rg-sum">噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</span>' +
+      '<span class="rg-sum">パッケージング <b>' + pkAll + '%</b>' +
+      '　噛み合っている組 <b>' + live + '</b>/' + syn.length + '</span>' +
       '</div>' +
-      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>です。' +
-      '作り込みの節は<b>いまの値の位置</b>にあり、いちばん外の線が' +
-      '<b>コンセプトの引いた境目</b>。方針に逆らう向きでは境目が内側へ食い込んでいて、' +
-      'そこから先へはどれだけ手をかけても行けません。' +
-      '節が境目に貼りついていたら、その項目はもう限界です。</p>' +
+      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>。' +
+      'いちばん外の線が<b>コンセプトの引いた境目</b>で、方針に逆らう向きでは' +
+      '内側へ食い込んでいます。節が境目に貼りついていたら、その項目はもう限界です。<br>' +
+      '扇形と扇形のあいだに架かっているのが <b>パッケージング</b>。' +
+      '部品ひとつひとつが良くても、<b>ここが細ければ車はまとまりません</b>。' +
+      '細い橋は、ドライバーがいちばん先に気づくところです。</p>' +
       '</div>';
   }
 
@@ -19144,9 +19347,9 @@ GP.screens.dev = function (A) {
         '<small>' + esc(x.def.desc) + '</small>' +
         '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
         '<div class="ml-weak">' + (x.ratio >= 0.97
-          ? '<span class="ok">✔ もう伸びしろはありません</span>'
-          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が細い。'
-            + 'ここを厚くすると効きます</span>') + '</div>' +
+          ? '<span class="ok">✔ ここは出しきっています</span>'
+          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。'
+            + 'ここを詰めると効きはじめます</span>') + '</div>' +
         '</div></div></div>';
     });
     return h + '</div>';
@@ -21253,7 +21456,8 @@ GP.screens.weekend = function (A) {
     let ok = true, msg = '';
     if (r.key === 'fix') {
       ok = Math.random() < S.fixOdds(g);
-      const f = st.c.fix;
+      // 設定で触りようのない言い分（つなぎ目の話など）は、ここへ来ても何もしない
+      const f = st.c.fix || {};
       const tune = {};
       Object.keys(f).forEach(k => {
         // 外したときは、狙ったぶんは半分しか出ず、捨てたぶんはそのまま出る
@@ -23759,10 +23963,14 @@ GP.screens.home = function (A) {
       '街の子のなかに光るものがいたら、声をかけられます。</p>' +
       '<div class="sub small">🎮 自分でハンドルを握る</div>' +
       '<p class="desc">誰かの車に乗って、実際に走らせられます。' +
-      '<b>左右で曲がり、⚡で加速、🛑で減速</b>（キーボードなら矢印キー）。<br>' +
-      '曲がりどころでは<b>速度の二乗ぶんだけ外へ押し出される</b>ので、' +
-      '手前で緩めて、内側から立ち上がるのが速い。コースの外に出ると急に遅くなります。<br>' +
-      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ速さで踏ん張る）。</p>' +
+      '<b>使うのは左右だけ</b>（キーボードなら ← →）。' +
+      'ラジコンと同じで、前に進むのは勝手にやります。<br>' +
+      'アクセルとブレーキは、<b>いま走っている線で曲がりきれる速さ</b>に自動で当たります。' +
+      'だから<b>どこを走るかが、そのままタイムになります</b>。' +
+      '内へ詰めれば小回りになって遅く、外へふくらませれば大きな弧になって速い。<br>' +
+      'コーナーの<b>外から入って、ふくらませて抜ける</b>のが速い、ということです。' +
+      'ただしコースの外へ出ると急に遅くなります。<br>' +
+      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ線でも速く抜けられる）。</p>' +
       '<div class="pick">' + ys.slice(0, 4).map(d =>
         '<button class="pickbtn" data-k="kdrive:' + d.id + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
@@ -23870,8 +24078,8 @@ GP.screens.home = function (A) {
     };
     hold('kvL', () => set('steer', 1), () => { if (GP.kart.state && GP.kart.state.inp.steer > 0) set('steer', 0); });
     hold('kvR', () => set('steer', -1), () => { if (GP.kart.state && GP.kart.state.inp.steer < 0) set('steer', 0); });
-    hold('kvA', () => set('throttle', 1), () => set('throttle', 0));
-    hold('kvB', () => set('brake', 1), () => set('brake', 0));
+    /* アクセルとブレーキのボタンは無くした。
+       前に進むのは自動で、人が決めるのは向きだけ            */
     $('kvQuit').onclick = () => { if (kartRun) kartRun.quit = true; };
     const key = (e, down) => {
       const k = e.key;

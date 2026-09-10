@@ -734,9 +734,9 @@ GP.screens.hr = function (A) {
         }) +
         '<div class="ml-side"><small>' + esc(x.def.desc) + '</small>' +
         '<div class="ml-weak">' + (x.on && x.gain >= x.def.gain * 0.9
-          ? '<span class="ok">✔ ほぼ出きっています</span>'
+          ? '<span class="ok">✔ ここは回りきっています</span>'
           : '<span class="ng">' + W.def.icon + ' <b>' + esc(nm(W)) +
-            '</b> が薄い。ここに人を足すと効きます</span>') +
+            '</b> の手が足りていません。ここに人を入れると回りはじめます</span>') +
         '</div></div></div></div>';
     });
     h += '</div>';

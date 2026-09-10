@@ -683,7 +683,7 @@ GP.screens.dev = function (A) {
      置いてあるので、境目に貼りついていれば「もう限界」と分かる。
      ======================================================= */
   const RING = {
-    CX: 280, CY: 276, VW: 560, VH: 548,
+    CX: 296, CY: 292, VW: 592, VH: 580,
     rCore: 30,          // まん中のコンセプト
     /* 部品の輪を広げると、隣どうしの間隔（弧の長さ）も広がる。
        名札を置く場所は、そこで稼ぐ                              */
@@ -777,6 +777,57 @@ GP.screens.dev = function (A) {
     h += '<circle cx="' + RING.CX + '" cy="' + RING.CY + '" r="' + RING.rPart +
       '" class="rg-ring"></circle>';
 
+    /* ---- 扇形と扇形をつなぐ橋（パッケージング）----
+       すき間をまたぐ弧として架ける。外へ伸びる棒だと
+       「その方向に何かある」に見えてしまい、
+       二つの扇形をつないでいることが伝わらない。
+       弧なら、両側の扇に足がかかっているのが見える。
+       受け（空の弧）をいつも敷いておくので、
+       0%でも「ここに橋が架かるはずだ」と分かる                */
+    const packs = S.packaging(g2);
+    const byKey = {};
+    slots.forEach(sl => { byKey[sl.grp.key] = sl; });
+    const rBr = RING.bMax + 12;
+    packs.forEach(pk => {
+      const A = byKey[pk.def.a], B = byKey[pk.def.b];
+      if (!A || !B) return;
+      // 二つの扇形のあいだ（すき間）を探す
+      let a1 = A.to, a2 = B.from;
+      if (a2 < a1) a2 += Math.PI * 2;
+      if (a2 - a1 > Math.PI) { a1 = B.to; a2 = A.from; if (a2 < a1) a2 += Math.PI * 2; }
+      const mid = (a1 + a2) / 2;
+      // すき間より少し広く取って、両側の扇形に足をかける
+      const half = (a2 - a1) / 2 + 0.20;
+      const arc = (from, to) => {
+        const p0 = pol(rBr, from), p1 = pol(rBr, to);
+        return 'M' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) +
+          ' A' + rBr + ' ' + rBr + ' 0 0 1 ' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1);
+      };
+      // 受け：橋が架かるはずのところ
+      h += '<path class="rg-brslot" d="' + arc(mid - half, mid + half) + '"></path>';
+      // 実際に架かっているぶん。真ん中から左右へ伸びる
+      const g2h = half * Math.max(0.03, pk.ratio);
+      h += '<path class="rg-br' + (pk.thin ? ' thin' : pk.good ? ' good' : '') +
+        '" d="' + arc(mid - g2h, mid + g2h) + '"></path>';
+      // 両側の扇形へ下ろす足
+      [mid - half, mid + half].forEach(ang => {
+        const p0 = pol(rBr, ang), p1 = pol(rBr - 13, ang);
+        h += '<path class="rg-brfoot' + (pk.good ? ' good' : '') + '" d="M' +
+          p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) + ' L' +
+          p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + '"></path>';
+      });
+      // つなぎ目の名札と、噛み合いぐあい
+      const [lx, ly] = pol(rBr + 16, mid);
+      const anc = Math.abs(Math.cos(mid)) < 0.30 ? 'middle'
+                : (Math.cos(mid) > 0 ? 'start' : 'end');
+      h += '<text x="' + lx.toFixed(1) + '" y="' + (ly - 1).toFixed(1) +
+        '" class="rg-brlb' + (pk.thin ? ' thin' : '') + '" text-anchor="' + anc + '">' +
+        esc(pk.def.name) + '</text>' +
+        '<text x="' + lx.toFixed(1) + '" y="' + (ly + 11).toFixed(1) +
+        '" class="rg-brv' + (pk.thin ? ' thin' : '') + '" text-anchor="' + anc + '">' +
+        Math.round(pk.ratio * 100) + '%</text>';
+    });
+
     // ---- 噛み合いの線 ----
     syn.forEach(x => {
       const A = at[x.def.a.p ? 'p:' + x.def.a.p : 'b:' + x.def.a.b];
@@ -857,15 +908,18 @@ GP.screens.dev = function (A) {
     // ---- 読みかた ----
     const gl = D.PART_GROUPS.map(x =>
       '<span><i style="background:' + x.color + '"></i>' + x.icon + x.name + '</span>').join('');
+    const pkAll = Math.round(S.packScore(g2) * 100);
     return '<div class="ringmap">' + h +
       '<div class="rg-leg">' + gl +
-      '<span class="rg-sum">噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</span>' +
+      '<span class="rg-sum">パッケージング <b>' + pkAll + '%</b>' +
+      '　噛み合っている組 <b>' + live + '</b>/' + syn.length + '</span>' +
       '</div>' +
-      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>です。' +
-      '作り込みの節は<b>いまの値の位置</b>にあり、いちばん外の線が' +
-      '<b>コンセプトの引いた境目</b>。方針に逆らう向きでは境目が内側へ食い込んでいて、' +
-      'そこから先へはどれだけ手をかけても行けません。' +
-      '節が境目に貼りついていたら、その項目はもう限界です。</p>' +
+      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>。' +
+      'いちばん外の線が<b>コンセプトの引いた境目</b>で、方針に逆らう向きでは' +
+      '内側へ食い込んでいます。節が境目に貼りついていたら、その項目はもう限界です。<br>' +
+      '扇形と扇形のあいだに架かっているのが <b>パッケージング</b>。' +
+      '部品ひとつひとつが良くても、<b>ここが細ければ車はまとまりません</b>。' +
+      '細い橋は、ドライバーがいちばん先に気づくところです。</p>' +
       '</div>';
   }
 
@@ -919,9 +973,9 @@ GP.screens.dev = function (A) {
         '<small>' + esc(x.def.desc) + '</small>' +
         '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
         '<div class="ml-weak">' + (x.ratio >= 0.97
-          ? '<span class="ok">✔ もう伸びしろはありません</span>'
-          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が細い。'
-            + 'ここを厚くすると効きます</span>') + '</div>' +
+          ? '<span class="ok">✔ ここは出しきっています</span>'
+          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。'
+            + 'ここを詰めると効きはじめます</span>') + '</div>' +
         '</div></div></div>';
     });
     return h + '</div>';

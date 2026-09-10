@@ -405,6 +405,46 @@ GP.data = (function () {
       parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
   ];
 
+  /* ---------- パッケージング ----------
+     部品ひとつひとつが良くても、車は速くならない。
+     固まりと固まりのつなぎ目が合っていないと、
+     どこかで必ず辻褄が合わなくなる。
+
+     F1でいう「パッケージング」がこれで、
+     扇形と扇形をつなぐ橋が、そのまま車のまとまりになる。
+     橋が細いところは、ドライバーがいちばん先に気づく。      */
+  const PACKAGING = [
+    { key: 'air-frame',   a: 'air',   b: 'frame',
+      icon: '🔗', name: '足と骨',
+      via: { a: { p: 'susp' }, b: { p: 'chas' } },
+      /* ここが薄いと、ドライバーはこう言う */
+      say: ['「土台が動いてます。足が仕事をする前に、車体がよじれる」',
+            '「縁石に乗せると、姿勢が戻ってこない。狙ったところに置けません」',
+            '「入力が抜けてる感じがします。舵を足しても、その先がない」'],
+      eng: 'シャシーとサスペンションの剛性が釣り合っていない。片方だけ硬くしても逃げる',
+      /* 設定でやれるのは、ごまかしまで。
+         つなぎ目そのものは、開発でしか直らない          */
+      fix: { corner: 0.009, speed: -0.004 } },
+    { key: 'frame-power', a: 'frame', b: 'power',
+      icon: '🔗', name: '骨と動力',
+      via: { a: { p: 'brake' }, b: { b: 'cooling' } },
+      say: ['「終盤、ブレーキが奥まで入らなくなります。1回目と同じ場所で踏めない」',
+            '「熱が抜けてないです。踏むたびにペダルが深くなる」',
+            '「最後の数周、止まるほうが怖くなります」'],
+      eng: 'ブレーキと冷却の取り合いができていない。導風を作らないと熱が抜けない',
+      fix: { corner: 0.008, accel: -0.003 } },
+    { key: 'power-air',   a: 'power', b: 'air',
+      icon: '🔗', name: '動力と足',
+      via: { a: { p: 'pu' }, b: { b: 'drive' } },
+      say: ['「エンジンとギヤ比が合ってないですね。谷で待たされます」',
+            '「出かたが唐突です。開けた瞬間に来るので、じわっと踏めない」',
+            '「これだとタイヤを使いきれないです。手前で終わってしまう」'],
+      eng: '出力の出かたと、それを路面に置く側が噛み合っていない。段の切りかたから見直す必要がある',
+      fix: { accel: 0.010, speed: -0.004 } }
+  ];
+  /* まとまりの良し悪しの目安。満点に対する割合で見る */
+  const PACK = { thin: 0.42, good: 0.78 };
+
   /* ---------- マシンコンセプト ----------
      1年を通しての「この車は何で戦うのか」。
      方針に沿う方向はよく伸び、逆らう方向は<b>上限そのもの</b>が下がる。
@@ -511,6 +551,12 @@ GP.data = (function () {
       name: '床が地面を離さない',
       desc: '車高の変化を足が抑えるので、床下の効きが一定に保たれる',
       eff: { corner: 0.9 } },
+    /* 動力 ↔ 空気と足。出力の出かたが、そのまま乗りやすさになる。
+       これで3つの固まりが輪になってつながる                       */
+    { a: { p: 'pu' }, b: { b: 'drive' }, icon: '🪶', gain: 0.038, half: 0.45,
+      name: '出力が、そのまま前に出る',
+      desc: '出かたが素直だと、踏んだぶんだけ進む。唐突だと、踏めるところで踏めない',
+      eff: { accel: 0.8, wear: 0.6 } },
     { a: { p: 'gear' }, b: { b: 'service' }, icon: '🧰', gain: 0.035, half: 0.45,
       name: '開けて、直して、また出せる',
       desc: '降ろさずに中を見られる造りなので、傷んだまま走らせずに済む',
@@ -909,17 +955,19 @@ GP.data = (function () {
      クラッシュとミスの起きやすさに直に効く。練習では上がらない、
      その人の性質。素質の高い者ほど、この取引をしないで済む
      （速くて壊さない、が成立する）                              */
+  /* 現場で人を評するときの言い方に寄せてある。
+     「荒い」「手堅い」では、速さの話なのか性格の話なのか分からない */
   const CARE_TIERS = [
-    { max:  45, name: '危うい',   icon: '💥', color: '#b8291a',
-      note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
-    { max:  75, name: '荒い',     icon: '⚡', color: '#96610a',
-      note: '仕掛けはするが、そのぶん傷も作る' },
-    { max: 105, name: 'ふつう',   icon: '🙂', color: '#6a5c3f',
-      note: '無理はしない。無茶もしない' },
-    { max: 135, name: '手堅い',   icon: '🛡️', color: '#2f7a2a',
-      note: '車を持って帰ってくる。指示どおりに走れる' },
-    { max: 999, name: '完璧主義', icon: '💎', color: '#2a5fb5',
-      note: '限界の手前で毎周ぴたりと止める。壊さない' }
+    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b8291a',
+      note: '車の限界より先まで踏む。速い日と、壊す日がある' },
+    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#96610a',
+      note: '仕掛けはするが、そのぶん路面とタイヤに傷を作る' },
+    { max: 105, name: 'ニュートラル',     icon: '🙂', color: '#6a5c3f',
+      note: '車のとおりに走る。足しも引きもしない' },
+    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2f7a2a',
+      note: '車を持って帰ってくる。指示どおりのペースを刻める' },
+    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2a5fb5',
+      note: '毎周おなじところで、限界の手前にぴたりと置く' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
   const CARE_CRASH = 0.85;    // 安定感0で ×(1+0.85)、190で ×(1-0.75) ほど
@@ -2615,6 +2663,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, PART_GROUPS, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

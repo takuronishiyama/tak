@@ -40,6 +40,19 @@ GP.kart = (function () {
   function safeV(k, skill) {
     return Math.sqrt(P.grip * skill / Math.max(1e-7, LOADK * Math.abs(k)));
   }
+  /* 走っている線を織り込んだ曲がりのきつさ。
+     内へ詰めるほど小回りになってきつく、外へふくらませるほどゆるい。
+
+     係数は 0.42 / 0.85 / 1.30 / 1.90 を走らせて決めた。
+     小さいと「内いっぱいがいちばん速い」になって迷いがなくなり、
+     大きすぎると外へ出たときの罰が重すぎる。
+     1.30 のとき、いちばん速いのは「やや外」で、
+     詰めすぎても、ふくらませすぎても遅くなる                   */
+  function effK(k0, off) {
+    if (Math.abs(k0) < 1e-6) return k0;
+    const inside = (off * Math.sign(k0)) / HALF;   // +1 内いっぱい / -1 外いっぱい
+    return k0 * (1 + inside * 1.30);
+  }
 
   /* ---- カート場のかたち ----
      小さくて、切り返しが多く、ストレートは短い。
@@ -157,7 +170,8 @@ GP.kart = (function () {
     // 先を見て、いちばんきつい曲がりに合わせて速さを作る。
     // 速く走っている子ほど遠くまで見る（＝手前から緩める）
     const ahead = lookAhead(k.s, 45 + k.v * 0.55);
-    const want = Math.min(P.vmax * k.skill, safeV(ahead, k.skill) * (0.84 + k.dash * 0.13));
+    const want = Math.min(P.vmax * k.skill,
+                          safeV(effK(ahead, k.off), k.skill) * (0.84 + k.dash * 0.13));
     const th = k.v < want ? 1 : 0;
     const br = k.v > want * 1.06 ? Math.min(1, (k.v - want) / 24) : 0;
     // 曲がりの内側へ寄る。腕のある子ほど、きれいに縁石まで使う
@@ -166,6 +180,28 @@ GP.kart = (function () {
     const st = Math.max(-1, Math.min(1, (target - k.off) * 0.085 + k.nudge));
     k.nudge *= 0.86;
     return { steer: st, throttle: th, brake: br };
+  }
+
+  /* ---- 自分のカートのアクセル ----
+     ボタンが4つあると、どれをいつ押せばいいのか分からない、
+     という声があった。ラジコンと同じで、
+     前に進むのは勝手にやるものとして、
+     こちらは向きだけを決める。
+
+     アクセルとブレーキは、いま走っている線で
+     曲がりきれる速さを狙って自動で当たる。
+     内へ詰めれば自動で遅くなり、外へふくらませれば速くなる。
+     つまり「どこを走るか」がそのままタイムになる。            */
+  function autoPedal(k) {
+    const here = atS(k.s);
+    // 先を見て、いちばんきつい曲がりに合わせる。速いほど遠くを見る
+    const ahead = lookAhead(k.s, 45 + k.v * 0.55);
+    // その曲がりを、いまの線で通ったらどうなるか
+    const want = Math.min(P.vmax * k.skill, safeV(effK(ahead, k.off), k.skill) * 0.94);
+    return {
+      throttle: k.v < want ? 1 : 0,
+      brake: k.v > want * 1.05 ? Math.min(1, (k.v - want) / 22) : 0
+    };
   }
 
   /* 前の車に追いついたら、そのままでは抜けない。
@@ -197,6 +233,8 @@ GP.kart = (function () {
   /* 1台を1フレーム進める */
   function step(k, inp, dt) {
     const here = atS(k.s);
+    // いま曲がっている向きと強さ。画面の表示にも、確かめにも使う
+    k.curK = here.k;
     // ---- 速さ ----
     k.v += (P.acc * inp.throttle - P.brk * inp.brake - P.drag * k.v) * dt;
     if (k.slip > 0) k.v -= P.slipDrag * k.v * dt;
@@ -211,8 +249,13 @@ GP.kart = (function () {
     // 曲がりどころでは、速度の二乗に比例して外へ押し出される
     const push = -here.k * k.v * k.v * P.out * 0.0016;
     let move = push + inp.steer * k.v * P.steer * 0.012;
+    /* 実際に描く弧は、走っている線で変わる。
+       内へ詰めれば小回りになって曲がりがきつくなり、
+       外へふくらませればゆるい弧になって速く抜けられる。
+       ここがあるから、ハンドルだけでも走りに上手い下手が出る   */
+    const kEff = effK(here.k, k.off);
     // タイヤの許容を超えたら滑る
-    const load = Math.abs(here.k) * k.v * k.v * LOADK;
+    const load = Math.abs(kEff) * k.v * k.v * LOADK;
     if (load > P.grip * k.skill) {
       k.slip = 0.25;
       move += push * P.slip;
@@ -268,7 +311,11 @@ GP.kart = (function () {
     traffic(st.karts, dt);
     st.karts.forEach(k => {
       if (k.done) return;
-      const inp = k.you ? st.inp : driveAI(k, dt);
+      /* 自分の車は、向きだけ人が決める。前に進むのは自動。
+         アクセルとブレーキは、いま走っている線に合わせて当たる  */
+      const inp = k.you
+        ? Object.assign({ steer: st.inp.steer }, autoPedal(k))
+        : driveAI(k, dt);
       step(k, inp, dt);
       if (k.lap >= st.laps) { k.done = true; k.finish = st.t; }
     });
