@@ -1833,6 +1833,46 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 予選（Q1/Q2/Q3） ---- */
+/* 予選の表は、モーダルごと送って読む。中でもう一段スクロールさせない */
+.gridlist.qlist{max-height:none;overflow:visible}
+.tabs.qtabs{border-bottom:none;background:transparent;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.tabs.qtabs .tab{flex:1;min-width:64px;border:3px solid var(--ink);border-radius:8px;
+  background:#e8dcc0;color:var(--ink);font-size:12px;font-weight:bold;padding:4px 6px;
+  box-shadow:0 3px 0 rgba(74,47,26,.45)}
+.tabs.qtabs .tab.on{background:linear-gradient(#ffd76a,var(--yellow));
+  transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+[data-skin="hd"] .tabs.qtabs .tab{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .tabs.qtabs .tab.on{background:linear-gradient(#6a5220,#3d2e12);
+  border-color:var(--gold);color:#ffeec0}
+/* 敗退の区切り。ここから下は「そこで終わった組」 */
+.qcut{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:bold;
+  color:#8a2f2f;margin:4px 0 2px}
+.qcut::before,.qcut::after{content:"";flex:1;height:3px;border-radius:2px;
+  background:repeating-linear-gradient(90deg,#c8503f 0 6px,transparent 6px 12px)}
+.qcut.out1{color:#a01a10}
+[data-skin="hd"] .qcut{color:#ff9a8a}
+/* どのセッションまで残ったか */
+.qsess{font-size:9px;font-weight:bold;border:2px solid var(--ink);border-radius:4px;
+  padding:0 5px;flex:none;background:#e8dcc0;color:#3a2611}
+.qsess.q3{background:linear-gradient(#ffd76a,var(--yellow))}
+.qsess.q2{background:#cfe0f8}
+.qsess.q1{background:#e8d0cc}
+[data-skin="hd"] .qsess{border-color:#5b4a74}
+/* そのセッションで起きたこと */
+.qev{display:flex;gap:3px;flex:none;flex-wrap:nowrap}
+.qev i{font-style:normal;font-size:9px;font-weight:bold;border-radius:4px;padding:0 4px;
+  white-space:nowrap;border:1px solid rgba(0,0,0,.35)}
+.qev i.down{background:#ffd8d0;color:#8a2f2f}
+.qev i.up{background:#d5f0d5;color:#1f6a2c}
+[data-skin="hd"] .qev i.down{background:#5a2a26;color:#ffcfc4}
+[data-skin="hd"] .qev i.up{background:#245231;color:#c8ecc8}
+/* ドライバーの声 */
+.quote.qsay{align-items:center}
+.quote.qsay em{font-style:normal;display:block;font-size:9px;opacity:.72;margin-bottom:2px}
+.quote.qsay.mine{border-width:3px;background:#fff6da}
+[data-skin="hd"] .quote.qsay.mine{background:#3a2f4e;border-color:var(--gold)}
+
 /* ---- パワーユニット供給の比較 ---- */
 .engcmp{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 8px;margin:6px 0}
 .ec-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
@@ -1939,6 +1979,11 @@ body[data-skin="hd"]{
   .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
   .sc-row,.tb-row{font-size:11px}
   .tb-row.tb-head{font-size:10px}
+
+  /* 予選の表。狭い画面ではチーム名を詰めて、時計と印を残す */
+  .gridrow .qsess{font-size:10px}
+  .qev i{font-size:10px}
+  .qcut{font-size:11px}
 
   /* 個別に小さいまま残っていたもの */
   .hlbtn em{font-size:10px}

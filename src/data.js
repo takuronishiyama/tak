@@ -1344,6 +1344,78 @@ GP.data = (function () {
      そこに、信頼性の低さぶんが乗る（rel）                       */
   const TROUBLE_RATE = { base: 0.0016, rel: 0.020 };
 
+  /* ---------- 予選（ノックアウト） ----------
+     一本勝負ではなく Q1・Q2・Q3 の三段で並びを決める。
+     ・cut1 / cut2 …… 次のセッションへ進める台数（全体に対する割合）
+     ・evo   …… 路面が仕上がっていく割合。走るほどタイムは伸びる
+     ・spread …… その一本の出来のばらつき。落とされる側ほど攻めるので、
+                  後のセッションほど小さく（＝実力どおりに）なる     */
+  const QUALI = {
+    // 実際の予選と同じで、各セッションで一定の台数が落ちる
+    cut: 0.23, cutMin: 2, cutMax: 6, minQ2: 6, minQ3: 4,
+    evo: [1.000, 0.9974, 0.9952],
+    /* その一本の出来のばらつき。ここを大きくすると実力が消えてしまうので、
+       速さの差より小さく抑え、番狂わせは下の Q_EVENTS に任せる */
+    spread: [0.018, 0.015, 0.013],
+    nerve: [0.30, 0.55, 0.85],          // 精神力がものを言う度合い
+    base: 0.020                          // 予選アタックぶんの上乗せ
+  };
+
+  /* 予選のあいだに起きること。sec は1周あたりの増減（マイナスは得） */
+  const Q_EVENTS = [
+    { key: 'traffic', icon: '🚧', name: '前が詰まった', p: 0.085, lo: 0.14, hi: 0.62,
+      bySess: [1.55, 1.00, 0.42] },                 // Q1ほど混む
+    { key: 'yellow',  icon: '🟨', name: '黄旗',        p: 0.030, lo: 0.35, hi: 1.20,
+      bySess: [1.30, 1.00, 0.70] },
+    { key: 'mistake', icon: '💢', name: 'ミス',        p: 0.065, lo: 0.16, hi: 0.72,
+      bySess: [0.85, 1.00, 1.25] },                 // 後ほど攻めるので出やすい
+    { key: 'balance', icon: '🔧', name: 'バランスが変わった', p: 0.060, lo: 0.12, hi: 0.48,
+      bySess: [1.00, 1.15, 0.95] },
+    { key: 'tow',     icon: '💨', name: 'スリップに乗れた', p: 0.075, lo: -0.32, hi: -0.07,
+      bySess: [1.25, 1.00, 0.75] },
+    { key: 'grip',    icon: '✨', name: '路面が上がった',  p: 0.085, lo: -0.24, hi: -0.05,
+      bySess: [0.70, 1.05, 1.30] }
+  ];
+
+  /* 予選のあとにドライバーが言うこと。
+     何が起きたかで口が変わる。うまく行った日と、そうでない日がある */
+  const Q_TALK = {
+    traffic: ['最終コーナーで前に詰まった！ 完全に邪魔された！',
+              'クリアラップが取れなかった。あれではタイムなんて出ない',
+              'あの車、ミラーを見ていないのか？ アタック中だったんだぞ',
+              '前が開かなかった。もう一本あれば違った'],
+    yellow:  ['黄旗だ。アタックを捨てるしかなかった',
+              '目の前で誰かが飛び出した。あの一本は無駄になった',
+              '旗が出た。あそこで踏めていれば……'],
+    mistake: ['ロックアップした。自分のミスだ、すまない',
+              '最終シケインで飛び出した。抑えきれなかった',
+              '一つ目で欲張りすぎた。全部そこで失った'],
+    balance: ['車が変わってしまった。朝とは別物だ',
+              'リアが落ち着かない。さっきまでの車じゃない',
+              'フロントが入らない。どうなっているんだ',
+              '同じセットのはずなのに、まるで感触が違う'],
+    tow:     ['前の車のスリップに乗れた！ ストレートが伸びた',
+              'いいところに出られた。あれは大きい'],
+    grip:    ['路面が上がってきている。まだ行ける',
+              'グリップが良くなった。もう一本行かせてくれ'],
+    pole:    ['ポールだ！ 完璧な一本だった',
+              'やった！ 最高の週末の入りだ',
+              'この車なら明日も戦える。ありがとう'],
+    front:   ['悪くない位置だ。ここからなら仕掛けられる',
+              '前が見える。明日はやれる'],
+    q3in:    ['Q3に残った。ここからが本番だ',
+              '上出来だ。決勝でも戦えるはずだ'],
+    q2out:   ['あと少しだった……Q3に入りたかった',
+              'もう少し詰められたはずだ。悔しい',
+              '一つのコーナーだった。それだけだ'],
+    q1out:   ['Q1敗退か。今日の車では乗れなかった',
+              '何もできなかった。申し訳ない',
+              'ここまで来て、まだ何も見せられていない'],
+    wet:     ['雨が強い。どこまで攻めていいか分からない',
+              '路面が滑る。これ以上は無理だ',
+              'こういう日は好きだ。誰にでも目がある']
+  };
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -1913,5 +1985,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

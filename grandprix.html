@@ -1848,6 +1848,46 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 予選（Q1/Q2/Q3） ---- */
+/* 予選の表は、モーダルごと送って読む。中でもう一段スクロールさせない */
+.gridlist.qlist{max-height:none;overflow:visible}
+.tabs.qtabs{border-bottom:none;background:transparent;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.tabs.qtabs .tab{flex:1;min-width:64px;border:3px solid var(--ink);border-radius:8px;
+  background:#e8dcc0;color:var(--ink);font-size:12px;font-weight:bold;padding:4px 6px;
+  box-shadow:0 3px 0 rgba(74,47,26,.45)}
+.tabs.qtabs .tab.on{background:linear-gradient(#ffd76a,var(--yellow));
+  transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+[data-skin="hd"] .tabs.qtabs .tab{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .tabs.qtabs .tab.on{background:linear-gradient(#6a5220,#3d2e12);
+  border-color:var(--gold);color:#ffeec0}
+/* 敗退の区切り。ここから下は「そこで終わった組」 */
+.qcut{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:bold;
+  color:#8a2f2f;margin:4px 0 2px}
+.qcut::before,.qcut::after{content:"";flex:1;height:3px;border-radius:2px;
+  background:repeating-linear-gradient(90deg,#c8503f 0 6px,transparent 6px 12px)}
+.qcut.out1{color:#a01a10}
+[data-skin="hd"] .qcut{color:#ff9a8a}
+/* どのセッションまで残ったか */
+.qsess{font-size:9px;font-weight:bold;border:2px solid var(--ink);border-radius:4px;
+  padding:0 5px;flex:none;background:#e8dcc0;color:#3a2611}
+.qsess.q3{background:linear-gradient(#ffd76a,var(--yellow))}
+.qsess.q2{background:#cfe0f8}
+.qsess.q1{background:#e8d0cc}
+[data-skin="hd"] .qsess{border-color:#5b4a74}
+/* そのセッションで起きたこと */
+.qev{display:flex;gap:3px;flex:none;flex-wrap:nowrap}
+.qev i{font-style:normal;font-size:9px;font-weight:bold;border-radius:4px;padding:0 4px;
+  white-space:nowrap;border:1px solid rgba(0,0,0,.35)}
+.qev i.down{background:#ffd8d0;color:#8a2f2f}
+.qev i.up{background:#d5f0d5;color:#1f6a2c}
+[data-skin="hd"] .qev i.down{background:#5a2a26;color:#ffcfc4}
+[data-skin="hd"] .qev i.up{background:#245231;color:#c8ecc8}
+/* ドライバーの声 */
+.quote.qsay{align-items:center}
+.quote.qsay em{font-style:normal;display:block;font-size:9px;opacity:.72;margin-bottom:2px}
+.quote.qsay.mine{border-width:3px;background:#fff6da}
+[data-skin="hd"] .quote.qsay.mine{background:#3a2f4e;border-color:var(--gold)}
+
 /* ---- パワーユニット供給の比較 ---- */
 .engcmp{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 8px;margin:6px 0}
 .ec-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
@@ -1954,6 +1994,11 @@ body[data-skin="hd"]{
   .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
   .sc-row,.tb-row{font-size:11px}
   .tb-row.tb-head{font-size:10px}
+
+  /* 予選の表。狭い画面ではチーム名を詰めて、時計と印を残す */
+  .gridrow .qsess{font-size:10px}
+  .qev i{font-size:10px}
+  .qcut{font-size:11px}
 
   /* 個別に小さいまま残っていたもの */
   .hlbtn em{font-size:10px}
@@ -4330,6 +4375,78 @@ GP.data = (function () {
      そこに、信頼性の低さぶんが乗る（rel）                       */
   const TROUBLE_RATE = { base: 0.0016, rel: 0.020 };
 
+  /* ---------- 予選（ノックアウト） ----------
+     一本勝負ではなく Q1・Q2・Q3 の三段で並びを決める。
+     ・cut1 / cut2 …… 次のセッションへ進める台数（全体に対する割合）
+     ・evo   …… 路面が仕上がっていく割合。走るほどタイムは伸びる
+     ・spread …… その一本の出来のばらつき。落とされる側ほど攻めるので、
+                  後のセッションほど小さく（＝実力どおりに）なる     */
+  const QUALI = {
+    // 実際の予選と同じで、各セッションで一定の台数が落ちる
+    cut: 0.23, cutMin: 2, cutMax: 6, minQ2: 6, minQ3: 4,
+    evo: [1.000, 0.9974, 0.9952],
+    /* その一本の出来のばらつき。ここを大きくすると実力が消えてしまうので、
+       速さの差より小さく抑え、番狂わせは下の Q_EVENTS に任せる */
+    spread: [0.018, 0.015, 0.013],
+    nerve: [0.30, 0.55, 0.85],          // 精神力がものを言う度合い
+    base: 0.020                          // 予選アタックぶんの上乗せ
+  };
+
+  /* 予選のあいだに起きること。sec は1周あたりの増減（マイナスは得） */
+  const Q_EVENTS = [
+    { key: 'traffic', icon: '🚧', name: '前が詰まった', p: 0.085, lo: 0.14, hi: 0.62,
+      bySess: [1.55, 1.00, 0.42] },                 // Q1ほど混む
+    { key: 'yellow',  icon: '🟨', name: '黄旗',        p: 0.030, lo: 0.35, hi: 1.20,
+      bySess: [1.30, 1.00, 0.70] },
+    { key: 'mistake', icon: '💢', name: 'ミス',        p: 0.065, lo: 0.16, hi: 0.72,
+      bySess: [0.85, 1.00, 1.25] },                 // 後ほど攻めるので出やすい
+    { key: 'balance', icon: '🔧', name: 'バランスが変わった', p: 0.060, lo: 0.12, hi: 0.48,
+      bySess: [1.00, 1.15, 0.95] },
+    { key: 'tow',     icon: '💨', name: 'スリップに乗れた', p: 0.075, lo: -0.32, hi: -0.07,
+      bySess: [1.25, 1.00, 0.75] },
+    { key: 'grip',    icon: '✨', name: '路面が上がった',  p: 0.085, lo: -0.24, hi: -0.05,
+      bySess: [0.70, 1.05, 1.30] }
+  ];
+
+  /* 予選のあとにドライバーが言うこと。
+     何が起きたかで口が変わる。うまく行った日と、そうでない日がある */
+  const Q_TALK = {
+    traffic: ['最終コーナーで前に詰まった！ 完全に邪魔された！',
+              'クリアラップが取れなかった。あれではタイムなんて出ない',
+              'あの車、ミラーを見ていないのか？ アタック中だったんだぞ',
+              '前が開かなかった。もう一本あれば違った'],
+    yellow:  ['黄旗だ。アタックを捨てるしかなかった',
+              '目の前で誰かが飛び出した。あの一本は無駄になった',
+              '旗が出た。あそこで踏めていれば……'],
+    mistake: ['ロックアップした。自分のミスだ、すまない',
+              '最終シケインで飛び出した。抑えきれなかった',
+              '一つ目で欲張りすぎた。全部そこで失った'],
+    balance: ['車が変わってしまった。朝とは別物だ',
+              'リアが落ち着かない。さっきまでの車じゃない',
+              'フロントが入らない。どうなっているんだ',
+              '同じセットのはずなのに、まるで感触が違う'],
+    tow:     ['前の車のスリップに乗れた！ ストレートが伸びた',
+              'いいところに出られた。あれは大きい'],
+    grip:    ['路面が上がってきている。まだ行ける',
+              'グリップが良くなった。もう一本行かせてくれ'],
+    pole:    ['ポールだ！ 完璧な一本だった',
+              'やった！ 最高の週末の入りだ',
+              'この車なら明日も戦える。ありがとう'],
+    front:   ['悪くない位置だ。ここからなら仕掛けられる',
+              '前が見える。明日はやれる'],
+    q3in:    ['Q3に残った。ここからが本番だ',
+              '上出来だ。決勝でも戦えるはずだ'],
+    q2out:   ['あと少しだった……Q3に入りたかった',
+              'もう少し詰められたはずだ。悔しい',
+              '一つのコーナーだった。それだけだ'],
+    q1out:   ['Q1敗退か。今日の車では乗れなかった',
+              '何もできなかった。申し訳ない',
+              'ここまで来て、まだ何も見せられていない'],
+    wet:     ['雨が強い。どこまで攻めていいか分からない',
+              '路面が滑る。これ以上は無理だ',
+              'こういう日は好きだ。誰にでも目がある']
+  };
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -4899,7 +5016,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -8885,18 +9002,120 @@ GP.race = (function () {
   }
 
   /* ---------- 予選 ---------- */
-  function qualify(entries, track, weather) {
-    entries.forEach(e => {
-      let q = e.perf;
-      if (e.sk('qualify')) q *= 1.07;
-      q *= (0.94 + Math.random() * 0.12) * weather.grip;
-      q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08);
-      e.qScore = q;
-      e.qTime = track.base * (1 + (0.02 + (140 - q) * 0.0009));
+  /* ---------- 予選（ノックアウト） ----------
+     Q1 で下位が落ち、Q2 でさらに落ち、残った10台前後が Q3 でポールを争う。
+     セッションごとに一本ずつ引き直すので、速い車が Q1 で沈むこともある。
+     路面は走るほど仕上がり、落とされる側ほど攻める。
+     そして混雑・黄旗・ミス・セットアップのずれが、そこに乗ってくる。   */
+  function qEventFor(e, si, track, weather, eng) {
+    const out = [];
+    D.Q_EVENTS.forEach(ev => {
+      let p = ev.p * (ev.bySess[si] || 1);
+      // 抜きにくい（狭い）コースほど前が詰まる。逆にスリップは効かない
+      if (ev.key === 'traffic') p *= 1.25 - (track.weight.speed || 0.33);
+      if (ev.key === 'tow')     p *= 0.45 + (track.weight.speed || 0.33) * 1.7;
+      // ミスは、丁寧なドライバーほど出さない
+      if (ev.key === 'mistake') p *= S.careMissMul(e.driver) * (weather.chaos || 1);
+      // 黄旗は荒れる日ほど出る
+      if (ev.key === 'yellow')  p *= (weather.chaos || 1);
+      // セットアップのずれは、エンジニアが厚いほど起きない
+      // セットアップのずれは、技術陣が厚いほど起きない
+      if (ev.key === 'balance') p *= e.isPlayer ? 1 - Math.min(0.55, (eng || 0) * 0.014) : 0.92;
+      // 予選巧者は、出るところにきちんと出て、無駄なくまとめる
+      if (e.sk('qualify') && ev.lo > 0) p *= 0.72;
+      if (Math.random() < p) out.push({ key: ev.key, icon: ev.icon, name: ev.name,
+                                        sec: S.rnd(ev.lo, ev.hi) });
     });
-    entries.sort((a, b) => b.qScore - a.qScore);
-    entries.forEach((e, i) => { e.grid = i + 1; });
-    return entries.slice();
+    return out;
+  }
+
+  function qualify(entries, track, weather, eng) {
+    const Q = D.QUALI;
+    const n = entries.length;
+    const cut = S.clamp(Math.round(n * Q.cut), Q.cutMin, Q.cutMax);
+    const q2n = Math.max(Q.minQ2, Math.min(n - 1, n - cut));
+    const q3n = Math.max(Q.minQ3, Math.min(q2n - 1, n - cut * 2));
+    const sizes = [n, q2n, q3n];
+    entries.forEach(e => { e.qLap = [null, null, null]; e.qEv = [[], [], []]; e.qOut = null; });
+
+    let field = entries.slice();
+    const sessions = [];
+    for (let si = 0; si < 3; si++) {
+      field.forEach(e => {
+        let q = e.perf;
+        if (e.sk('qualify')) q *= 1.07;
+        const sp = Q.spread[si];
+        q *= (1 - sp + Math.random() * sp * 2) * weather.grip;
+        // 落とすか落とされるかの場面ほど、気持ちの強さがタイムに出る
+        q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08 * (1 + Q.nerve[si]));
+        let t = track.base * (1 + (Q.base + (140 - q) * 0.0009)) * Q.evo[si];
+        const evs = qEventFor(e, si, track, weather, eng);
+        evs.forEach(v => { t += v.sec; });
+        e.qLap[si] = Math.max(track.base * 0.80, t);
+        e.qEv[si] = evs;
+        e.qScore = q;
+      });
+      const order = field.slice().sort((a, b) => a.qLap[si] - b.qLap[si]);
+      const keep = si < 2 ? order.slice(0, sizes[si + 1]) : order;
+      const drop = si < 2 ? order.slice(sizes[si + 1]) : [];
+      drop.forEach(e => { e.qOut = si; });
+      sessions.push({ key: 'Q' + (si + 1), si: si, order: order,
+                      cut: si < 2 ? sizes[si + 1] : null, dropped: drop });
+      field = keep;
+    }
+
+    /* 並び：Q3組 → Q2で落ちた組 → Q1で落ちた組。
+       それぞれ、最後に走ったセッションのタイム順に並べる */
+    const bySess = si => entries.filter(e => (e.qOut == null ? 2 : e.qOut) === si)
+                                .sort((a, b) => a.qLap[si] - b.qLap[si]);
+    const grid = bySess(2).concat(bySess(1)).concat(bySess(0));
+    grid.forEach((e, i) => {
+      e.grid = i + 1;
+      // 表に出すのは「その順位を決めた一本」。
+      // 最速の一本を出すと、並びと時計が食い違って見えてしまう
+      e.qTime = e.qLap[e.qOut == null ? 2 : e.qOut];
+      e.qBest = Math.min.apply(null, e.qLap.filter(v => v != null));
+    });
+    entries.sort((a, b) => a.grid - b.grid);
+    grid.quali = { sessions: sessions, q2n: q2n, q3n: q3n, n: n };
+    return grid;
+  }
+
+  /* ---------- 予選のあとの、ドライバーのひとこと ----------
+     その日いちばん大きかった出来事について口を開く。
+     何も起きなかった日は、順位そのものについて話す。          */
+  function qTalks(grid, weather) {
+    const out = [];
+    const lastSi = e => (e.qOut == null ? 2 : e.qOut);
+    const keyFor = e => {
+      const evs = (e.qEv[lastSi(e)] || []).slice()
+        .sort((a, b) => Math.abs(b.sec) - Math.abs(a.sec));
+      // 0.16秒以上動いたことは、本人がいちばん覚えている
+      const big = evs.filter(v => Math.abs(v.sec) >= 0.16)[0];
+      if (big) return big.key;
+      if (weather.wetTyres && Math.random() < 0.45) return 'wet';
+      if (e.grid === 1) return 'pole';
+      if (e.qOut === 0) return 'q1out';
+      if (e.qOut === 1) return 'q2out';
+      if (e.grid <= 5) return 'front';
+      return 'q3in';
+    };
+    const say = e => {
+      const key = keyFor(e);
+      const pool = D.Q_TALK[key];
+      if (!pool || !pool.length) return;
+      out.push({ driver: e.driver, name: e.driver.name, team: e.team.name,
+                 color: e.color, isPlayer: !!e.isPlayer, grid: e.grid,
+                 key: key, text: S.pick(pool) });
+    };
+    grid.filter(e => e.isPlayer).forEach(say);
+    /* 番狂わせがあれば、よそのドライバーの声も拾う。
+       速いはずの車が Q1 で沈んだ日は、それが週末いちばんの話題になる */
+    grid.filter(e => !e.isPlayer && e.qOut === 0)
+        .sort((a, b) => b.carScore - a.carScore)
+        .slice(0, 2)
+        .forEach(say);
+    return out;
   }
 
   /* ---------- フリー走行 ----------
@@ -8992,11 +9211,12 @@ GP.race = (function () {
       : rollWeather(track));
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
-    const grid = qualify(entries, track, weather);
+    const grid = qualify(entries, track, weather, S.org(g).dept.engineer);
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const wxChange = rollWxChange(weather, laps, special);
     return { trackIndex: trackIndex, track: track, weather: weather,
              entries: entries, grid: grid, special: special,
+             quali: grid.quali, qTalks: qTalks(grid, weather),
              laps: laps, wxChange: wxChange,
              // 決勝が始まる前に見える予報（0周目から見た先ゆき）
              forecast: forecastAt(wxChange, 0, laps, S.foresightOf(g), trackIndex + '|' + g.season) };
@@ -9028,7 +9248,7 @@ GP.race = (function () {
       : rollWeather(track));
     if (!pre) weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = pre ? pre.entries : buildEntries(g, track, weather, strategy);
-    const grid = pre ? pre.grid : qualify(entries, track, weather);
+    const grid = pre ? pre.grid : qualify(entries, track, weather, S.org(g).dept.engineer);
     // パワーユニットの基数超過による降格。予選のあとに順位を下げる
     const gridPen = (g.pu && g.pu.grid) || 0;
     if (gridPen > 0) {
@@ -19451,6 +19671,7 @@ window.GP = window.GP || {};
 
   function runQualifying() {
     fpPack = null;
+    qTab = 'grid';
     prePack = R.prequalify(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
     showQualifying();
   }
@@ -19652,23 +19873,92 @@ window.GP = window.GP || {};
     bindPuDecide(res, showPractice);
   }
 
+  /* ---- 予選の表 ----
+     結果（決勝の並び）と、Q1・Q2・Q3 それぞれの走りを切り替えて見る。
+     セッションの表では、そこで何が起きたのかも並べる            */
+  let qTab = 'grid';
+
+  function qRowHTML(e, pos, time, extra) {
+    const cls = pos === 1 ? ' gold' : pos === 2 ? ' silver' : pos === 3 ? ' bronze' : '';
+    return '<div class="gridrow' + (e.isPlayer ? ' me' : '') + '">' +
+      '<span class="gp-pos' + cls + '">' + pos + '</span>' +
+      '<span class="rk-chip" style="background:' + e.color + '"></span>' +
+      '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
+      '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+      (extra || '') +
+      '<span class="gp-t">' + (time == null ? '—' : fmtTime(time)) + '</span></div>';
+  }
+
+  /* そのセッションでその車に起きたこと。押し出された秒数もそのまま出す */
+  function qEvHTML(list) {
+    if (!list || !list.length) return '';
+    return '<span class="qev">' + list.map(v =>
+      '<i class="' + (v.sec < 0 ? 'up' : 'down') + '" title="' + esc(v.name) + '">' +
+      v.icon + (v.sec < 0 ? '' : '+') + v.sec.toFixed(2) + '</i>').join('') + '</span>';
+  }
+
+  function qBadge(e) {
+    const k = e.qOut === 0 ? 'Q1' : e.qOut === 1 ? 'Q2' : 'Q3';
+    return '<span class="qsess q' + (e.qOut == null ? 3 : e.qOut + 1) + '">' + k + '</span>';
+  }
+
+  function qualiTableHTML(res) {
+    const Q = res.quali;
+    if (!Q) {
+      return '<div class="gridlist qlist">' +
+        res.grid.slice(0, 24).map(e => qRowHTML(e, e.grid, e.qTime, logiChip(e))).join('') +
+        '</div>';
+    }
+    const tabs = [['grid', '🏁 結果'], ['Q1', 'Q1'], ['Q2', 'Q2'], ['Q3', 'Q3']];
+    let h = '<div class="tabs qtabs">' + tabs.map(t =>
+      '<button class="tab' + (qTab === t[0] ? ' on' : '') + '" data-qtab="' + t[0] + '">' +
+      t[1] + '</button>').join('') + '</div>';
+    if (qTab === 'grid') {
+      h += '<div class="gridlist qlist">';
+      res.grid.forEach(e => {
+        if (e.grid === Q.q3n + 1) h += '<div class="qcut">ここから Q2 敗退</div>';
+        if (e.grid === Q.q2n + 1) h += '<div class="qcut out1">ここから Q1 敗退</div>';
+        h += qRowHTML(e, e.grid, e.qTime, qBadge(e) + logiChip(e));
+      });
+      h += '</div>';
+      h += '<p class="desc">Q1で下位' + (Q.n - Q.q2n) + '台、Q2でさらに' +
+           (Q.q2n - Q.q3n) + '台が落ち、残った' + Q.q3n + '台がポールを争います。</p>';
+    } else {
+      const si = +qTab.slice(1) - 1;
+      const ss = Q.sessions[si];
+      h += '<div class="gridlist qlist">';
+      ss.order.forEach((e, i) => {
+        if (ss.cut != null && i === ss.cut) h += '<div class="qcut out1">ここから敗退</div>';
+        h += qRowHTML(e, i + 1, e.qLap[si], qEvHTML(e.qEv[si]));
+      });
+      h += '</div>';
+    }
+    return h;
+  }
+
+  /* ---- 予選のあとの、ドライバーの声 ---- */
+  function qTalkHTML(res) {
+    if (!res.qTalks || !res.qTalks.length) return '';
+    return '<b class="sub small">🎙️ ドライバーの声</b>' +
+      res.qTalks.map(t =>
+        '<div class="quote qsay' + (t.isPlayer ? ' mine' : '') + '">' +
+        U.face(t.driver, 32) +
+        '<span><em>' + esc(t.name) + ' ／ ' + esc(t.team) + ' ／ ' + t.grid + '番手</em>' +
+        esc(t.text) + '</span></div>').join('');
+  }
+
   function showQualifying() {
     const res = prePack;
-    let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name + '</b><span>予選結果</span></div>';
-    body += '<div class="gridlist">';
-    res.grid.slice(0, 22).forEach(e => {
-      body += '<div class="gridrow' + (e.isPlayer ? ' me' : '') + '">' +
-        '<span class="gp-pos">' + e.grid + '</span>' +
-        '<span class="rk-chip" style="background:' + e.color + '"></span>' +
-        '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
-        '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
-        logiChip(e) +
-        '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
-    });
-    body += '</div>';
+    let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name +
+               '</b><span>予選 — Q1 / Q2 / Q3</span></div>';
+    body += qualiTableHTML(res);
+    body += qTalkHTML(res);
     body += forecastHTML(res);
     body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-qtab]'), b => {
+      b.onclick = () => { qTab = b.getAttribute('data-qtab'); GP.sound.play('tap'); showQualifying(); };
+    });
     // 選び直したら、決勝ぶんの数字だけ入れ替えて出し直す（並びは動かさない）
     bindPuDecide(prePack, showQualifying);
   }

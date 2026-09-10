@@ -3732,6 +3732,7 @@ window.GP = window.GP || {};
 
   function runQualifying() {
     fpPack = null;
+    qTab = 'grid';
     prePack = R.prequalify(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special);
     showQualifying();
   }
@@ -3933,23 +3934,92 @@ window.GP = window.GP || {};
     bindPuDecide(res, showPractice);
   }
 
+  /* ---- 予選の表 ----
+     結果（決勝の並び）と、Q1・Q2・Q3 それぞれの走りを切り替えて見る。
+     セッションの表では、そこで何が起きたのかも並べる            */
+  let qTab = 'grid';
+
+  function qRowHTML(e, pos, time, extra) {
+    const cls = pos === 1 ? ' gold' : pos === 2 ? ' silver' : pos === 3 ? ' bronze' : '';
+    return '<div class="gridrow' + (e.isPlayer ? ' me' : '') + '">' +
+      '<span class="gp-pos' + cls + '">' + pos + '</span>' +
+      '<span class="rk-chip" style="background:' + e.color + '"></span>' +
+      '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
+      '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
+      (extra || '') +
+      '<span class="gp-t">' + (time == null ? '—' : fmtTime(time)) + '</span></div>';
+  }
+
+  /* そのセッションでその車に起きたこと。押し出された秒数もそのまま出す */
+  function qEvHTML(list) {
+    if (!list || !list.length) return '';
+    return '<span class="qev">' + list.map(v =>
+      '<i class="' + (v.sec < 0 ? 'up' : 'down') + '" title="' + esc(v.name) + '">' +
+      v.icon + (v.sec < 0 ? '' : '+') + v.sec.toFixed(2) + '</i>').join('') + '</span>';
+  }
+
+  function qBadge(e) {
+    const k = e.qOut === 0 ? 'Q1' : e.qOut === 1 ? 'Q2' : 'Q3';
+    return '<span class="qsess q' + (e.qOut == null ? 3 : e.qOut + 1) + '">' + k + '</span>';
+  }
+
+  function qualiTableHTML(res) {
+    const Q = res.quali;
+    if (!Q) {
+      return '<div class="gridlist qlist">' +
+        res.grid.slice(0, 24).map(e => qRowHTML(e, e.grid, e.qTime, logiChip(e))).join('') +
+        '</div>';
+    }
+    const tabs = [['grid', '🏁 結果'], ['Q1', 'Q1'], ['Q2', 'Q2'], ['Q3', 'Q3']];
+    let h = '<div class="tabs qtabs">' + tabs.map(t =>
+      '<button class="tab' + (qTab === t[0] ? ' on' : '') + '" data-qtab="' + t[0] + '">' +
+      t[1] + '</button>').join('') + '</div>';
+    if (qTab === 'grid') {
+      h += '<div class="gridlist qlist">';
+      res.grid.forEach(e => {
+        if (e.grid === Q.q3n + 1) h += '<div class="qcut">ここから Q2 敗退</div>';
+        if (e.grid === Q.q2n + 1) h += '<div class="qcut out1">ここから Q1 敗退</div>';
+        h += qRowHTML(e, e.grid, e.qTime, qBadge(e) + logiChip(e));
+      });
+      h += '</div>';
+      h += '<p class="desc">Q1で下位' + (Q.n - Q.q2n) + '台、Q2でさらに' +
+           (Q.q2n - Q.q3n) + '台が落ち、残った' + Q.q3n + '台がポールを争います。</p>';
+    } else {
+      const si = +qTab.slice(1) - 1;
+      const ss = Q.sessions[si];
+      h += '<div class="gridlist qlist">';
+      ss.order.forEach((e, i) => {
+        if (ss.cut != null && i === ss.cut) h += '<div class="qcut out1">ここから敗退</div>';
+        h += qRowHTML(e, i + 1, e.qLap[si], qEvHTML(e.qEv[si]));
+      });
+      h += '</div>';
+    }
+    return h;
+  }
+
+  /* ---- 予選のあとの、ドライバーの声 ---- */
+  function qTalkHTML(res) {
+    if (!res.qTalks || !res.qTalks.length) return '';
+    return '<b class="sub small">🎙️ ドライバーの声</b>' +
+      res.qTalks.map(t =>
+        '<div class="quote qsay' + (t.isPlayer ? ' mine' : '') + '">' +
+        U.face(t.driver, 32) +
+        '<span><em>' + esc(t.name) + ' ／ ' + esc(t.team) + ' ／ ' + t.grid + '番手</em>' +
+        esc(t.text) + '</span></div>').join('');
+  }
+
   function showQualifying() {
     const res = prePack;
-    let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name + '</b><span>予選結果</span></div>';
-    body += '<div class="gridlist">';
-    res.grid.slice(0, 22).forEach(e => {
-      body += '<div class="gridrow' + (e.isPlayer ? ' me' : '') + '">' +
-        '<span class="gp-pos">' + e.grid + '</span>' +
-        '<span class="rk-chip" style="background:' + e.color + '"></span>' +
-        '<span class="gp-nm">' + esc(e.driver.name) + '</span>' +
-        '<span class="gp-tm">' + esc(e.team.name) + '</span>' +
-        logiChip(e) +
-        '<span class="gp-t">' + fmtTime(e.qTime) + '</span></div>';
-    });
-    body += '</div>';
+    let body = '<div class="racehead"><b>' + res.weather.icon + ' ' + res.weather.name +
+               '</b><span>予選 — Q1 / Q2 / Q3</span></div>';
+    body += qualiTableHTML(res);
+    body += qTalkHTML(res);
     body += forecastHTML(res);
     body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-qtab]'), b => {
+      b.onclick = () => { qTab = b.getAttribute('data-qtab'); GP.sound.play('tap'); showQualifying(); };
+    });
     // 選び直したら、決勝ぶんの数字だけ入れ替えて出し直す（並びは動かさない）
     bindPuDecide(prePack, showQualifying);
   }
