@@ -1054,45 +1054,77 @@ GP.screens.home = function (A) {
 
   /* ---- 来季のマシン方針 ----
      どの性能を軸に作るかを決める。決めた方向は来季の開発で伸びやすくなる。 */
+  /* コンセプトを小さな札で見せる。得意・苦手の説明で使う */
+  function cnptChip(key) {
+    const c = D.CONCEPTS.find(x => x.key === key);
+    if (!c) return '—';
+    return '<i class="cchip" style="background:' + c.color + '">' + c.icon + c.name + '</i>';
+  }
+
   function doOffPlan() {
-    const DIRS = [
-      { k: 'speed',  name: '最高速に振る', icon: '🚀', color: '#e04a3f',
-        desc: 'ストレートの長いコースで戦える。抜きやすくもなる' },
-      { k: 'corner', name: 'コーナーに振る', icon: '🌀', color: '#3a7ad9',
-        desc: '低速コーナーの多いコースで効く。市街地に強い' },
-      { k: 'accel',  name: '加速に振る',   icon: '⚡', color: '#4ea63f',
-        desc: 'ストップ＆ゴーのコースと、スタートで効く' },
-      { k: 'balance', name: 'バランス',    icon: '⚖️', color: '#8a8578',
-        desc: 'どこでも戦えるが、飛び抜けはしない' }
-    ];
+    /* ---- マシンコンセプト ----
+       決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
+       いくら時間をかけてもコンセプトの外までは行けないので、
+       ここは1年ぶんの覚悟を決める場面になる                     */
     const cur = g.plan || null;
     const stock = g.nextCar || 0;
-    let body = '<p class="lead">来季のマシンをどの方向で作るか決めます。</p>' +
-      '<p class="desc">決めた方向の開発は来季ずっと <b>+22%</b> 伸びやすくなり、' +
-      '他の方向は少しだけ伸びが鈍ります。オフのうちにしか決められません。</p>';
+    const db = S.designBase(g);
+    const tech = (g.managers || {}).technical;
+
+    let body = '<p class="lead">この車は、<b>何で戦うのか</b>を決めます。</p>' +
+      '<p class="desc">決めた向きの開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
+      '逆らう向きは遅くなるうえに、<b>上限そのものが ' +
+      Math.round(D.CONCEPT.offCap * 100) + '% で止まります</b>。' +
+      'いくら時間をかけても、決めたコンセプトの外までは行けません。<br>' +
+      '<b>変えられるのは、オフのあいだと、車を作り直した直後だけ</b>です。' +
+      '途中でどうしても方向を変えたくなったら、世代を上げて作り直すことになります。</p>';
+
+    // ---- 図面を引く人との相性 ----
+    body += '<div class="cnpt-boss' + (tech ? '' : ' empty') + '">' +
+      '<b>📐 基本設計能力 <em>' + db.value.toFixed(1) + '</em></b>' +
+      '<small>コンセプトを図面に落とし込む力です。' +
+      'もとになるのは<b>人事の噛み合わせ</b>（設計グループと開発グループ）で、' +
+      'そこに<b>開発責任者の相性</b>が掛かります。' +
+      (tech
+        ? '<br>いまの開発責任者は <b>' + esc(tech.name) + '</b>。' +
+          '得意は ' + cnptChip(tech.good) + '、苦手は ' + cnptChip(tech.bad) + '。'
+        : '<br><em class="warn">開発責任者が空席です。図面の質はスタッフの力そのままになります。</em>') +
+      '</small></div>';
+
     if (stock > 0) {
-      body += '<div class="stockbox"><b>🌱 積んである来季ぶりの開発：' +
+      body += '<div class="stockbox"><b>🌱 積んである来季ぶんの開発：' +
         Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
         '<small>方針を決めると、この仕込みが<b>いまここでマシンに落とし込まれます</b>。' +
         '決めた方向のパーツと車体に厚く配られます。<br>' +
         '<em class="warn">オフのうちに決めないと、来季へ持ち越すあいだに2割が失われます。</em></small></div>';
     }
     body += '<div class="pick">';
-    DIRS.forEach(d => {
-      body += '<button class="pickbtn' + (cur === d.k ? ' on' : '') + '" data-k="plan:' + d.k + '">' +
+    D.CONCEPTS.forEach(d => {
+      const f = tech ? (tech.good === d.key ? 1 : tech.bad === d.key ? -1 : 0) : 0;
+      const mul = 1 + (f > 0 ? D.CONCEPT.fitUp : 0) - (f < 0 ? D.CONCEPT.fitDown : 0);
+      const upNm = d.up.map(k => (D.BODY_ATTRS.find(x => x.key === k) || {}).name).join('・');
+      const dnNm = d.down.map(k => (D.BODY_ATTRS.find(x => x.key === k) || {}).name).join('・');
+      body += '<button class="pickbtn' + (cur === d.key ? ' on' : '') +
+        '" data-k="plan:' + d.key + '">' +
         '<span class="pb-ic" style="background:' + d.color + '">' + d.icon + '</span>' +
-        '<span class="pb-body"><b>' + d.name + '</b><small>' + d.desc + '</small></span>' +
-        (cur === d.k ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
+        '<span class="pb-body"><b>' + d.name + '</b>' +
+        (f ? '<i class="fitm ' + (f > 0 ? 'good' : 'bad') + '">' +
+             (f > 0 ? '開発責任者の得意 ×' + mul.toFixed(2) : '開発責任者の苦手 ×' + mul.toFixed(2)) +
+             '</i>' : '') +
+        '<small>' + esc(d.desc) +
+        '<br><b class="up">伸びる：' + upNm + '</b>' +
+        '　<b class="dn">頭打ち：' + dnNm + '</b></small></span>' +
+        (cur === d.key ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
     });
     body += '</div>';
     U.modal('📋 来季のマシン方針', body, [{ label: '閉じる', fn: U.closeModal }]);
     bindPick(k => {
       if (k.indexOf('plan:') !== 0) return;
-      g.plan = k.slice(5);
+      S.setConcept(g, k.slice(5));
       offMark('plan');
-      const d = DIRS.find(x => x.k === g.plan);
+      const d = D.CONCEPTS.find(x => x.key === g.plan);
       // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む
-      const got = S.applyStock(g, g.plan === 'balance' ? null : g.plan);
+      const got = S.applyStock(g, g.plan);
       S.save(g);
       U.closeModal();
       U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');

@@ -1940,6 +1940,11 @@ body[data-skin="hd"]{
 .ch-boss.on{opacity:1}
 .ch-boss i{font-style:normal;font-size:9.5px;color:var(--faceSub)}
 .ch-boss.on i{color:var(--okTx);font-weight:700}
+/* 開発責任者とコンセプトの相性。設計の出来に直に効くところ */
+.fitdot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  text-decoration:none;background:var(--faceEdge);margin-left:1px}
+.fitdot.good{background:var(--okTx)}
+.fitdot.bad{background:var(--ngTx)}
 .ch-nm{white-space:nowrap;font-weight:700}
 .ch-bar{display:block;height:9px;border-radius:5px;background:var(--face2);
   border:1px solid var(--faceEdge);overflow:hidden}
@@ -1955,46 +1960,61 @@ body[data-skin="hd"]{
   .ch-to{grid-column:1 / -1;padding-left:2px}
 }
 
-/* ---- 1台ぜんぶの噛み合い ----
-   車の形の上に、全部の組を載せた図。
-   面の色に合わせるので、皮を変えても浮かない            */
-.carmap{background:var(--face2);border:1px solid var(--faceEdge);border-radius:10px;
+/* ---- マシンコンセプトを決める場面 ---- */
+.cnpt-boss{background:var(--face2);border:1px solid var(--faceEdge);border-radius:9px;
+  padding:7px 10px;margin:6px 0 8px}
+.cnpt-boss.empty{border-style:dashed}
+.cnpt-boss>b{font-size:12px;color:var(--faceTx)}
+.cnpt-boss>b em{font-style:normal;font-size:17px;color:var(--okTx);margin-left:6px}
+.cnpt-boss small{display:block;margin-top:3px;font-size:10.5px;line-height:1.65;
+  color:var(--faceSub)}
+.cchip{display:inline-block;font-style:normal;font-size:9.5px;font-weight:700;
+  color:#fff;border-radius:8px;padding:1px 7px;vertical-align:1px}
+/* 縦並びの中に置くので、放っておくと横いっぱいに伸びる */
+.fitm{display:inline-block;align-self:flex-start;margin:2px 0 0;
+  font-style:normal;font-size:9px;font-weight:700;border-radius:8px;padding:1px 7px}
+.fitm.good{background:var(--okTx);color:#fff}
+.fitm.bad{background:var(--ngTx);color:#fff}
+.pb-body small b.up{color:var(--okTx)}
+.pb-body small b.dn{color:var(--ngTx)}
+
+/* ---- 三重の輪（部品 → 作り込み → コンセプト）---- */
+.ringmap{background:var(--face2);border:1px solid var(--faceEdge);border-radius:10px;
   padding:6px 8px 4px;margin:4px 0 8px}
-.carmap svg{display:block;width:100%;height:auto}
-/* 車体。主役は線と節なので、車そのものは静かに置く */
-/* 車体は面の色を借りず、専用の色を当てる。
-   借りると地に溶けて、車の上に載っていることが伝わらない */
-.carmap{--carBody:#e6ddc9; --carEdge:#9a8b70; --carTyre:#4a4134}
-.cm-car{opacity:1}
-.cm-hull{fill:var(--carBody);stroke:var(--carEdge);stroke-width:2}
-.cm-wing{fill:var(--carEdge)}
-.cm-pit{fill:var(--carTyre);opacity:.55}
-.cm-duct{fill:var(--carEdge)}
-.cm-tyre{fill:var(--carTyre);opacity:.8}
-.cm-arm{fill:none;stroke:var(--carEdge);stroke-width:3;stroke-linecap:round;opacity:.85}
+.ringmap svg{display:block;width:100%;max-width:460px;margin:0 auto;height:auto}
+/* 固まりの扇形。まとまりが分かればよいので、ごく薄く */
+.rg-sec{opacity:.09}
+/* コンセプトの境目。ここから先へは行けない */
+.rg-wall{fill:none;stroke:var(--ngTx);stroke-width:2.5;stroke-linejoin:round;
+  stroke-dasharray:7 4;opacity:.85}
+.rg-ring{fill:none;stroke:var(--faceEdge);stroke-width:1.5;opacity:.7}
+/* まだ伸ばせるぶん（節から境目まで） */
+.rg-room{stroke:var(--faceSub);stroke-width:2;stroke-linecap:round;
+  stroke-dasharray:2 3;opacity:.5}
 /* 噛み合いの線 */
-.cm-l{fill:none;stroke:var(--faceSub);stroke-linecap:round;opacity:.34}
-.cm-l.on{stroke:var(--okTx);opacity:.95}
+.rg-l{fill:none;stroke:var(--faceSub);stroke-linecap:round;opacity:.3}
+.rg-l.on{stroke:var(--okTx);opacity:.9}
 /* 節 */
-.cm-n circle{stroke:var(--faceEdge);stroke-width:2}
-.cm-n.weak circle{stroke:var(--ngTx);stroke-width:2.5;stroke-dasharray:4 3}
-.cm-ic{font-size:11px;text-anchor:middle}
-.cm-lb{font-size:9.5px;fill:var(--faceTx);text-anchor:middle}
-.cm-n.weak .cm-lb{fill:var(--ngTx);font-weight:700}
-[data-skin="hd"] .carmap{--carBody:#3c3354; --carEdge:#7d6cab; --carTyre:#181125}
-.cm-lane{font-size:9.5px;color:var(--faceSub);font-weight:700;padding:0 2px}
-.cm-lane.bottom{text-align:right}
-/* 読みかたの札 */
-.cm-leg{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;
-  padding:2px 2px 3px;font-size:9.5px;color:var(--faceSub)}
-.cm-leg span{display:inline-flex;align-items:center;gap:4px}
-.cm-leg i{display:inline-block;width:16px;height:3px;border-radius:2px;
-  background:var(--faceSub);opacity:.4}
-.cm-leg i.on{height:5px;background:var(--okTx);opacity:1}
-.cm-leg i.wk{width:11px;height:11px;border-radius:50%;background:transparent;
-  border:2px dashed var(--ngTx);opacity:1}
-.cm-sum{margin-left:auto;color:var(--faceTx)}
-.cm-sum b{font-size:12px;color:var(--okTx)}
+.rg-n circle{stroke:var(--faceEdge);stroke-width:2}
+.rg-n.weak circle{stroke:var(--ngTx);stroke-width:2.5;stroke-dasharray:4 3}
+.rg-n.full circle{stroke:var(--okTx);stroke-width:3}
+.rg-ic{font-size:12px;text-anchor:middle}
+.rg-plb{font-size:9.5px;fill:var(--faceSub);font-weight:700}
+.rg-blb{font-size:10px;fill:var(--faceTx);font-weight:700}
+.rg-blb.up{fill:var(--okTx)}
+.rg-blb.dn{fill:var(--ngTx)}
+/* まん中のコンセプト */
+.rg-core{fill:var(--faceEdge);stroke:var(--faceTx);stroke-width:2}
+.rg-cic{font-size:19px;text-anchor:middle}
+.rg-cnm{font-size:10.5px;text-anchor:middle;fill:#fff;font-weight:700}
+/* 読みかた */
+.rg-leg{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;
+  padding:3px 2px;font-size:9.5px;color:var(--faceSub)}
+.rg-leg span{display:inline-flex;align-items:center;gap:4px}
+.rg-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;opacity:.55}
+.rg-sum{margin-left:auto;color:var(--faceTx)}
+.rg-sum b{font-size:12px;color:var(--okTx)}
+.ringmap .desc{margin:2px 2px 4px;font-size:10.5px;line-height:1.6;color:var(--faceSub)}
 
 /* ---- 噛み合いの図（組ごとに一行）----
    丸の大小と、継手の詰まりぐあいだけで読めるようにしてある */
@@ -3937,6 +3957,82 @@ GP.data = (function () {
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
+  /* ---------- 部位のまとまり ----------
+     部品は、ばらばらに効いているのではなく、
+     いくつかの固まりで仕事をしている。
+     空気に当てるところ、それを受け止めるところ、前に出すところ。
+     車体の作り込み（＝その固まりの馴染み方）も、その固まりに属する。
+
+     このまとまりを作ると、噛み合いの線がその固まりの中で閉じる。
+     11組のうち9組が固まりの内側で完結し、外へ出るのは2組だけ。
+     輪に並べても線が総当たりで交差しないのは、これのおかげ。      */
+  const PART_GROUPS = [
+    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3a7ad9',
+      note: '空気をどう当てて、路面にどう置くか',
+      parts: ['aero', 'susp'], body: ['aeroBody', 'drive'] },
+    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4ea63f',
+      note: '受け止めて、止めるところ',
+      parts: ['chas', 'brake'], body: ['rigidity', 'light'] },
+    { key: 'power', name: '動力',     icon: '⚙️', color: '#e04a3f',
+      note: '前に出す力と、それを支えるもの',
+      parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
+  ];
+
+  /* ---------- マシンコンセプト ----------
+     1年を通しての「この車は何で戦うのか」。
+     方針に沿う方向はよく伸び、逆らう方向は<b>上限そのもの</b>が下がる。
+     いくら手をかけても、コンセプトの外までは行けない。
+
+     途中で大きく変えたくなったら、車のバージョンアップで作り直す。
+     規則が変わる年も、そこで白紙になるので選び直せる。            */
+  const CONCEPTS = [
+    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#e04a3f',
+      lead: 'power',
+      desc: '空気を切って、伸びで勝つ。ストレートの長いコースで戦え、追い抜きもしやすい',
+      up:   ['light', 'cooling', 'battery'],
+      down: ['aeroBody', 'drive'],
+      pUp:  ['pu', 'gear'], pDown: ['aero'] },
+    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3a7ad9',
+      lead: 'air',
+      desc: '押しつける力で曲がる。低速コーナーの多い市街地に強いが、直線では伸びない',
+      up:   ['aeroBody', 'rigidity'],
+      down: ['light', 'battery'],
+      pUp:  ['aero', 'susp'], pDown: ['pu'] },
+    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4ea63f',
+      lead: 'power',
+      desc: '立ち上がりで前に出る。ストップ＆ゴーのコースとスタートで効く',
+      up:   ['battery', 'light', 'service'],
+      down: ['aeroBody', 'rigidity'],
+      pUp:  ['pu', 'elec', 'gear'], pDown: ['aero'] },
+    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#b06fd0',
+      lead: 'air',
+      desc: '限界が分かりやすく、誰が乗っても速い。'
+          + 'タイヤに優しく、荒れた週末で落としにくい',
+      up:   ['drive', 'rigidity', 'service'],
+      down: ['light', 'cooling'],
+      pUp:  ['susp', 'chas', 'brake'], pDown: ['pu'] }
+  ];
+
+  const CONCEPT = {
+    /* 方針に沿う向きの伸びかた */
+    onMul:  1.24,
+    /* 逆らう向きの伸びかた。ここは「遅い」であって「不可」ではない */
+    offMul: 0.72,
+    /* 逆らう向きが届く上限（満点に対する割合）。
+       ここが「方針からは外れない」の実体で、
+       いくら時間をかけても、この線より先へは行けない          */
+    offCap: 0.58,
+    /* 設計責任者の得意・不得意が、基本設計能力にどれだけ効くか */
+    fitUp:   0.30,
+    fitDown: 0.22,
+    /* 人事の噛み合わせから基本設計能力を出すときの配合 */
+    mixDesign: 0.62, mixEngineer: 0.38,
+    /* 基本設計能力が、設計したパーツの出来にどれだけ乗るか。
+       頭打ちのある形にして、上限を掛け算で伸ばす。
+       こうすると「部門が厚いほど、責任者の相性がよく効く」になる */
+    designHalf: 11, designMax: 0.62
+  };
+
   /* ---------- 機構の噛み合い ----------
      人が組み合わさって力を出すのと同じで、マシンの部位にも
      「片方だけ厚くしても意味がない」組み合わせがある。
@@ -4674,6 +4770,9 @@ GP.data = (function () {
   /* ---------- マネジメント層（役職）----------
      現場のスタッフとは別枠。1役職に1人だけ据えられる。
      効果はすべて実際の計算に掛かる                                  */
+  /* 首脳陣それぞれの、得意なコンセプトと苦手なコンセプト。
+     人によって違うので、雇うときに引く（makeManager）。
+     設計の段になっていちばん効くのは、開発責任者の相性       */
   const MANAGERS = [
     { key: 'principal', name: 'チームプリンシパル', icon: '👔', salary: 180,
       desc: 'チームの顔。スポンサー収入と注目度が上がり、育成部門もこの人が見る',
@@ -6089,7 +6188,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -6992,6 +7091,102 @@ GP.state = (function () {
   /* =======================================================
      車体（マシン本体）
      ======================================================= */
+  /* =======================================================
+     マシンコンセプト
+
+     1年を通しての「この車は何で戦うのか」。
+     決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
+     いくら時間と金をかけても、コンセプトの外までは行けない。
+     ここが「大きな方針からは外れない」の実体。
+
+     変えられるのは、オフのあいだと、
+     車を作り直したとき（＝世代が上がった直後）だけ。
+     途中でどうしても変えたければ、バージョンアップで作り直す。
+     ======================================================= */
+  function conceptOf(g2) {
+    return D.CONCEPTS.find(c => c.key === (g2 && g2.plan)) || null;
+  }
+  /* いま選び直せるか。オフか、車を作り直した直後 */
+  function conceptOpen(g2) {
+    if (!g2) return false;
+    if (!conceptOf(g2)) return true;              // まだ決めていないなら、いつでも
+    if (g2.offseason) return true;
+    return (g2.planGen != null && g2.planGen !== g2.carGen);
+  }
+  /* 決めたときに控えておく。次にどこで選び直せるかの判定に使う */
+  function setConcept(g2, key) {
+    if (!D.CONCEPTS.some(c => c.key === key)) return null;
+    g2.plan = key;
+    g2.planGen = g2.carGen;
+    return conceptOf(g2);
+  }
+  /* その作り込みが、コンセプトに対してどちら向きか。
+     +1 沿っている ／ -1 逆らっている ／ 0 どちらでもない */
+  function conceptDir(g2, key) {
+    const c = conceptOf(g2);
+    if (!c) return 0;
+    if (c.up.indexOf(key) >= 0) return 1;
+    if (c.down.indexOf(key) >= 0) return -1;
+    return 0;
+  }
+  /* 作り込み1項目ぶんの上限。逆らう向きはここが下がる */
+  function bodyCapOf(g2, key) {
+    const d = conceptDir(g2, key);
+    return d < 0 ? Math.round(bodyCap(g2) * D.CONCEPT.offCap) : bodyCap(g2);
+  }
+  /* 作り込みの伸びかたの倍率 */
+  function conceptMul(g2, key) {
+    const d = conceptDir(g2, key);
+    return d > 0 ? D.CONCEPT.onMul : d < 0 ? D.CONCEPT.offMul : 1;
+  }
+  /* 部品の伸びかたの倍率。
+     部品は上限までは削らない（そこが主な伸びしろなので）。
+     方針に合う部品は速く、合わない部品は遅く進むだけ           */
+  function conceptPartMul(g2, key) {
+    const c = conceptOf(g2);
+    if (!c) return 1;
+    if ((c.pUp || []).indexOf(key) >= 0) return D.CONCEPT.onMul;
+    if ((c.pDown || []).indexOf(key) >= 0) return D.CONCEPT.offMul;
+    return 1;
+  }
+
+  /* ---------- 首脳陣の相性 ----------
+     人には得意な作り方と、そうでない作り方がある。
+     コンセプトと噛み合えば設計が冴え、噛み合わなければ精彩を欠く */
+  function mgrFit(g2, role) {
+    const m = g2 && g2.managers && g2.managers[role];
+    const c = conceptOf(g2);
+    if (!m || !c) return 0;
+    if (m.good === c.key) return 1;
+    if (m.bad === c.key) return -1;
+    return 0;
+  }
+  /* ---------- 基本設計能力値 ----------
+     コンセプトを図面に落とし込む力。
+     もとになるのは人事の噛み合わせ（設計と開発の部門の力）で、
+     そこに開発責任者の相性が掛かる。
+     設計の段でいちばん効くのは、この人の得意・不得意          */
+  function designBase(g2) {
+    const o = org(g2);
+    const K = D.CONCEPT;
+    const raw = o.dept.designer * K.mixDesign + o.dept.engineer * K.mixEngineer;
+    const f = mgrFit(g2, 'technical');
+    const fit = 1 + (f > 0 ? K.fitUp : 0) - (f < 0 ? K.fitDown : 0);
+    return { raw: raw, fit: fit, fitDir: f, value: raw * fit };
+  }
+  /* 設計したパーツの出来に、そのまま乗る倍率。
+
+     まず人事の噛み合わせで「上積みの余地」が決まり（頭打ちのある形）、
+     そこに開発責任者の相性が掛かる。
+     部門が薄いうちは誰が来ても大差なく、
+     厚くなるほど、責任者が誰かで出来が変わるようになる         */
+  function designMul(g2) {
+    const K = D.CONCEPT;
+    const b = designBase(g2);
+    const room = K.designMax * (b.raw / (b.raw + K.designHalf));
+    return 1 + room * b.fit;
+  }
+
   function bodyCap(g2) {
     return Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
   }
@@ -7075,7 +7270,9 @@ GP.state = (function () {
   /* 車体の熟成度（0..1）。今のマシンの上限に対する割合で、効果はここから決まる。
      世代が上がっても「どれだけ煮詰めたか」で効くので、いつでも意味がある */
   function bodyRatio(g2, key) {
-    const cap = bodyCap(g2);
+    // 割る相手はその項目の上限。コンセプトに逆らう項目は、
+    // 満点まで行けないことがそのまま割合に出る
+    const cap = bodyCapOf(g2, key);
     return cap > 0 ? clamp(bodyVal(g2, key) / cap, 0, 1) : 0;
   }
 
@@ -7115,7 +7312,8 @@ GP.state = (function () {
     // 半分をパーツへ、半分を車体へ
     const toParts = total * 0.5, toBody = total * 0.5;
     // 方向に合うパーツほど厚く
-    const w = D.PART_CATS.map(c => 1 + ((dir && c.gain && c.gain[dir]) || 0) * 1.8);
+    const w = D.PART_CATS.map(c => (1 + ((dir && c.gain && c.gain[dir]) || 0) * 1.8)
+                                   * conceptPartMul(g2, c.key));
     const wSum = w.reduce((a, b) => a + b, 0);
     D.PART_CATS.forEach((c, i) => {
       const p = g2.equipped[c.key];
@@ -7126,13 +7324,14 @@ GP.state = (function () {
       p.power = Math.round(Math.min(cap, p.power + add) * 10) / 10;
       if (p.power > before) out.parts.push({ name: p.name, gain: Math.round((p.power - before) * 10) / 10 });
     });
-    const bw = D.BODY_ATTRS.map(a => 1 + ((dir && a.gain && a.gain[dir]) || 0) * 1.8);
+    const bw = D.BODY_ATTRS.map(a => (1 + ((dir && a.gain && a.gain[dir]) || 0) * 1.8)
+                                     * conceptMul(g2, a.key));
     const bSum = bw.reduce((a, b) => a + b, 0);
-    const bcap = bodyCap(g2);
     D.BODY_ATTRS.forEach((a, i) => {
       const add = toBody * (bw[i] / bSum);
       const before = g2.body[a.key] || 0;
-      g2.body[a.key] = Math.round(Math.min(bcap, before + add) * 10) / 10;
+      // コンセプトに逆らう項目は、上限そのものが低い
+      g2.body[a.key] = Math.round(Math.min(bodyCapOf(g2, a.key), before + add) * 10) / 10;
       if (g2.body[a.key] > before) out.body.push({ name: a.name, gain: Math.round((g2.body[a.key] - before) * 10) / 10 });
     });
     g2.nextCar = 0;
@@ -8850,10 +9049,15 @@ GP.state = (function () {
   function makeManager(key, quality) {
     const m = D.MANAGERS.find(x => x.key === key) || D.MANAGERS[0];
     const skill = clamp(Math.round(10 + (quality || 0) * 0.32 + rnd(-5, 9)), 5, 60);
+    /* 得意な作り方と、苦手な作り方。人によって違う。
+       同じにならないように、苦手は得意以外から引く            */
+    const keys = D.CONCEPTS.map(c => c.key);
+    const good = pick(keys);
+    const bad = pick(keys.filter(k => k !== good));
     return {
       id: 'm' + Math.random().toString(36).slice(2, 8),
       role: key, name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: skill,
+      skill: skill, good: good, bad: bad,
       salary: Math.round(m.salary * (0.5 + skill / 46))
     };
   }
@@ -9948,7 +10152,9 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
+    bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
+    conceptPartMul, mgrFit, designBase, designMul,
+    makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
@@ -17239,7 +17445,12 @@ GP.screens.hr = function (A) {
         '<span class="ch-ar">→</span>' +
         // 上司
         '<span class="ch-boss' + (mgrOn ? ' on' : '') + '" title="' + esc(x.boss.name || '') + '">' +
-          (x.boss.icon || '👔') + '<i>' + (mgrOn ? '×' + x.lead.toFixed(2) : '空席') + '</i></span>' +
+          (x.boss.icon || '👔') + '<i>' + (mgrOn ? '×' + x.lead.toFixed(2) : '空席') + '</i>' +
+          // 開発責任者だけは、コンセプトとの相性が設計に直に効く
+          (x.bossKey === 'technical' && mgrOn
+            ? '<u class="fitdot ' + (S.mgrFit(g2, 'technical') > 0 ? 'good'
+              : S.mgrFit(g2, 'technical') < 0 ? 'bad' : '') + '"></u>' : '') +
+          '</span>' +
         '<span class="ch-ar">→</span>' +
         // 部門の力
         '<span class="ch-nm">' + x.r.nm + '</span>' +
@@ -18262,14 +18473,16 @@ GP.screens.dev = function (A) {
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
     // ---- 車体開発 ----
+    // 上限は項目ごと。コンセプトに逆らう項目は、ここが低い
     const cap = S.bodyCap(g);
     // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
     const bodyStep = a => {
       const facBonus = 1 + g.facilities.factory * 0.10;
       const engBonus = 1 + S.devPower(g) * 0.14;
       const drvBonus = 1 + g.drivers.reduce((x, d) => x + S.persOf(d).dev, 0);
-      let gain = 3.4 * facBonus * engBonus * drvBonus * planMul(a.gain) * S.devRate(g);
-      if (((g.body && g.body[a.key]) || 0) >= cap) gain *= 0.30;
+      // 作り込みは、コンセプトに沿う項目ほど速く進む
+      let gain = 3.4 * facBonus * engBonus * drvBonus * S.conceptMul(g, a.key) * S.devRate(g);
+      if (((g.body && g.body[a.key]) || 0) >= S.bodyCapOf(g, a.key)) gain *= 0.30;
       const fc = S.focusOf(g);
       return { now: gain * fc.cur, next: gain * fc.next };
     };
@@ -18517,7 +18730,8 @@ GP.screens.dev = function (A) {
     const a = D.BODY_ATTRS.find(x => x.key === key);
     if (!a || !g.body) return;
     const v = g.body[key] || 0;
-    const cap = S.bodyCap(g);
+    // コンセプトに逆らう項目は、上限そのものが低い
+    const cap = S.bodyCapOf(g, key);
     const cost = bodyCost(v);
     const free = spendTicket();
     if (!free) {
@@ -18529,7 +18743,8 @@ GP.screens.dev = function (A) {
     const engBonus = 1 + S.devPower(g) * 0.12;
     const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
-    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus * planMul((D.BODY_ATTRS.find(a => a.key === key) || {}).gain) * crunchMul() * S.devRate(g);
+    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus
+             * S.conceptMul(g, key) * crunchMul() * S.devRate(g);
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     const brk = S.rollBreakthrough(g);
@@ -18538,7 +18753,8 @@ GP.screens.dev = function (A) {
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
     g.nextCar = (g.nextCar || 0) + toNext;
-    g.body[key] = Math.round((v + gain) * 10) / 10;
+    // 方針の外までは行けない。ここで頭を打つ
+    g.body[key] = Math.round(Math.min(cap, v + gain) * 10) / 10;
     if (brk) {
       g.concepts = (g.concepts || []).concat([{
         body: key, what: brk, gain: gain, at: S.weekStamp(g)
@@ -18562,7 +18778,11 @@ GP.screens.dev = function (A) {
     U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
     if (brk) U.toast('🔬 ' + brk + '！ 車体が一段上のものになった', 'good');
     else if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
-    if (g.body[key] >= cap) U.toast('この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
+    if (g.body[key] >= cap) {
+      U.toast(S.conceptDir(g, key) < 0
+        ? 'いまのコンセプトでは、' + a.name + 'はここまでです。方針を変えるなら車を作り直します。'
+        : 'この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
+    }
     endWeek();
   }
 
@@ -18633,16 +18853,12 @@ GP.screens.dev = function (A) {
 
   /* 来季のマシン方針。オフに決めた方向は伸びやすく、外れた方向は少し鈍る。
      'balance' はどこも少しだけ底上げする。                          */
-  function planMul(gainVec) {
-    const p = g.plan;
-    if (!p) return 1;
-    if (p === 'balance') return 1.06;
-    // 速さの向きを持たない項目（整備性など）は、方針の影響を受けない
-    if (gainVec && !gainVec.speed && !gainVec.corner && !gainVec.accel) return 1;
-    const w = (gainVec && gainVec[p]) || 0;
-    if (w >= 0.5) return 1.22;
-    if (w <= 0.15) return 0.92;
-    return 1;
+  /* コンセプトに合う部品は速く進み、合わない部品は遅い。
+     どの部品が合うかは、速さの向きから推し量るのではなく
+     コンセプトごとに名指ししてある（ドライバビリティのように、
+     速さの3項目では表せない方針があるため）                   */
+  function planMul(cat) {
+    return S.conceptPartMul(g, cat && cat.key);
   }
 
   /* ---- この1回で何がどれだけ動くのか ----
@@ -18674,154 +18890,208 @@ GP.screens.dev = function (A) {
      数字を読まなくても、絵の大小だけで犯人が分かるようにしてある。
      ======================================================= */
   /* =======================================================
-     1台ぜんぶの噛み合い
+     三重の輪
 
-     組ごとの一行は「なぜ効いていないか」は読めるが、
-     車が一つの機械だという感じが落ちる。
-     部品はばらばらに効いているのではなく、
-     全部が繋がって1台になっている。
+     内 … 積んでいる部品
+     中 … 車体の作り込み（＝その固まりの馴染み方）
+     外 … マシンコンセプト
 
-     そこで、車の形そのものの上に全部の組を載せる。
-       上の列 … 積んでいる部品（前から後ろの順に置いてある）
-       下の列 … 車体の作り込み（効いている場所のあたりに置いてある）
-       あいだの線 … 噛み合い。太いほど効いている
-     物の位置どおりに並べてあるので、線はほとんど交差しない。
-     輪に並べていたころ、線が総当たりで交差していたのはこのため。
+     部品はばらばらではなく、いくつかの固まりで仕事をしている。
+     固まりごとに扇形を割り当てると、噛み合いの線はその扇形の中で
+     閉じる（11組のうち9組）。輪に並べても線が総当たりで交差しないのは
+     このおかげで、以前ぜんぶを一つの輪に並べていたときに
+     読めなかったのは、この固まりが無かったからだった。
+
+     いちばん外の曲線は、コンセプトが引いている境目。
+     方針に逆らう向きでは内側へ食い込んでいて、そこから先へは
+     どれだけ手をかけても行けない。作り込みの節はいまの値の位置に
+     置いてあるので、境目に貼りついていれば「もう限界」と分かる。
      ======================================================= */
-  const CAR_X = {
-    /* 前から後ろの順。実際の車での、だいたいの位置 */
-    p: { aero: 60, brake: 120, susp: 175, chas: 235, elec: 285, pu: 345, gear: 405 },
-    /* 車体の作り込みは、それが効いている場所のあたりへ。
-       相手の真下に来るほど線が短くなるので、
-       組んでいる相手を見ながら置いてある                       */
-    b: { aeroBody: 55, drive: 120, rigidity: 180, cooling: 240,
-         light: 300, battery: 355, service: 425 }
+  const RING = {
+    CX: 280, CY: 276, VW: 560, VH: 548,
+    rCore: 30,          // まん中のコンセプト
+    /* 部品の輪を広げると、隣どうしの間隔（弧の長さ）も広がる。
+       名札を置く場所は、そこで稼ぐ                              */
+    rPart: 88,          // 部品の輪（固定）
+    bMin: 152, bMax: 218,   // 作り込みは、いまの値ぶんだけ外へ出る
+    rLabel: 233,        // 作り込みの名札
+    gapDeg: 7           // 固まりどうしのすき間
   };
-  /* 総当たりで並べ替えを試したところ、交差 4本がこの組み合わせの下限だった
-     （冷却がブレーキとパワーの両方と組み、シャシーが剛性と軽量化の
-       両方と組むので、どう並べても交差は消えない）。
-     消せないぶんは、線のたわみを変えて重ならないようにしてある。   */
-  const CAR_W = 480, CAR_H = 286;
-  const LANE_P = 74, LANE_B = 212, BODY_Y = 143;
 
-  /* 車の輪郭。真上から見た形。
-     一本の輪郭で描くと、ただの細長い塊にしか見えなかったので、
-     鼻・モノコック・サイドポッド・エンジンカバーに分けて重ねる。
-     節は車の上下に並ぶので、車体はそのあいだに収まる高さにしてある。
-     色は面から借りずに専用のものを当てる。借りると地に溶けて、
-     「車の上に載っている」ことが伝わらない                       */
-  function carBodySVG() {
-    const y = BODY_Y;
-    const T = 42;                      // 中心からタイヤの中心まで
-    let h = '<g class="cm-car">';
+  const pol = (r, a2) => [RING.CX + Math.cos(a2) * r, RING.CY + Math.sin(a2) * r];
 
-    // ---- タイヤと、それを支える腕 ----
-    [[122, -1], [122, 1], [390, -1], [390, 1]].forEach(w => {
-      const wy = y + w[1] * T;
-      h += '<rect x="' + (w[0] - 12) + '" y="' + (wy - 13) +
-        '" width="24" height="26" rx="7" class="cm-tyre"></rect>';
-      /* 腕は車体側からタイヤの内側の縁まで。
-         タイヤの中心まで引くと、上下の腕が交差して×に見えてしまう */
-      const inner = wy - w[1] * 12;
-      h += '<path class="cm-arm" d="M' + (w[0] - 17) + ' ' + (y + w[1] * 14) +
-        ' L' + (w[0] - 3) + ' ' + inner + ' M' + (w[0] + 17) + ' ' + (y + w[1] * 14) +
-        ' L' + (w[0] + 3) + ' ' + inner + '"></path>';
+  /* 固まりごとに扇形を割り当て、その中に部品と作り込みを並べる。
+     扇形の広さは、その固まりが抱えている数に合わせる           */
+  function ringSlots(g2) {
+    const G = D.PART_GROUPS;
+    const w = G.map(x => Math.max(x.parts.length, x.body.length));
+    const wSum = w.reduce((p, c) => p + c, 0);
+    const gap = RING.gapDeg * Math.PI / 180;
+    const free = Math.PI * 2 - gap * G.length;
+    const out = [];
+    let at = -Math.PI / 2 + gap / 2;
+    G.forEach((grp, i) => {
+      const span = free * (w[i] / wSum);
+      const spread = (list, r) => list.map((k, j) => {
+        // 端に寄りすぎないよう、内側に少し詰めて等間隔に置く
+        const t = list.length === 1 ? 0.5 : (j + 0.5) / list.length;
+        return { key: k, a: at + span * t, r: r };
+      });
+      out.push({ grp: grp, from: at, to: at + span, mid: at + span / 2,
+                 parts: spread(grp.parts, RING.rPart),
+                 body: spread(grp.body, 0) });
+      at += span + gap;
     });
-
-    // ---- 前後のウイング ----
-    h += '<rect x="30" y="' + (y - 35) + '" width="17" height="70" rx="3" class="cm-wing"></rect>';
-    h += '<rect x="406" y="' + (y - 32) + '" width="19" height="64" rx="3" class="cm-wing"></rect>';
-    // ウイングと車体をつなぐ支柱
-    h += '<rect x="44" y="' + (y - 4) + '" width="16" height="8" class="cm-wing"></rect>';
-    h += '<rect x="396" y="' + (y - 5) + '" width="14" height="10" class="cm-wing"></rect>';
-
-    // ---- 鼻（先が細く、根元が太い） ----
-    h += '<path class="cm-hull" d="M56 ' + (y - 6) + ' L172 ' + (y - 17) +
-      ' L172 ' + (y + 17) + ' L56 ' + (y + 6) + ' Z"></path>';
-    // ---- モノコック ----
-    h += '<rect x="168" y="' + (y - 20) + '" width="86" height="40" rx="7" class="cm-hull"></rect>';
-    // ---- サイドポッド（いちばん幅がある） ----
-    h += '<rect x="246" y="' + (y - 27) + '" width="102" height="54" rx="11" class="cm-hull"></rect>';
-    // ---- エンジンカバー（後ろへ絞る） ----
-    h += '<path class="cm-hull" d="M342 ' + (y - 25) + ' L400 ' + (y - 9) +
-      ' L400 ' + (y + 9) + ' L342 ' + (y + 25) + ' Z"></path>';
-
-    // ---- コクピットと、サイドポッドの開口 ----
-    h += '<ellipse cx="200" cy="' + y + '" rx="15" ry="8" class="cm-pit"></ellipse>';
-    h += '<rect x="252" y="' + (y - 25) + '" width="30" height="6" rx="3" class="cm-duct"></rect>';
-    h += '<rect x="252" y="' + (y + 19) + '" width="30" height="6" rx="3" class="cm-duct"></rect>';
-    return h + '</g>';
+    return out;
   }
 
-  function carMapSVG(g2) {
+  function conceptRingSVG(g2) {
+    const slots = ringSlots(g2);
+    const cap = S.bodyCap(g2);
+    const cpt = S.conceptOf(g2);
     const syn = S.mechSynergy(g2);
     const live = syn.filter(x => x.on).length;
-    const xOf = m => (m.p ? CAR_X.p[m.p] : CAR_X.b[m.b]);
-    const yOf = m => (m.p ? LANE_P : LANE_B);
-    const rOf = v => 8 + Math.max(0, Math.min(1, v)) * 9;
 
-    let links = '', nodes = '';
-    /* ---- 線 ----
-       離れている組ほど深くたわませる。
-       同じところを通らなくなるので、重なって読めなくなるのを防げる */
-    syn.forEach(x => {
-      const ax = xOf(x.def.a), ay = yOf(x.def.a);
-      const bx = xOf(x.def.b), by = yOf(x.def.b);
-      const span = Math.abs(bx - ax);
-      const same = ay === by;
-      /* 同じ列どうしは上へ迂回。上下をまたぐものは、
-         離れている組ほど大きく膨らませる。こうしておくと、
-         交差しても別々のところを通るので、目で追える           */
-      const mx = (ax + bx) / 2;
-      const my = same ? ay - 22 - span * 0.10
-                      : (ay + by) / 2 + (ax < bx ? -1 : 1) * (6 + span * 0.11);
-      links += '<path class="cm-l' + (x.on ? ' on' : '') +
-        '" d="M' + ax + ' ' + ay + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) +
-        ' ' + bx + ' ' + by + '" stroke-width="' + (1.4 + x.ratio * 4.6).toFixed(2) + '"></path>';
+    // ---- 角度の索引（線を引くのに使う） ----
+    const at = {};
+    slots.forEach(sl => {
+      sl.parts.forEach(p => { at['p:' + p.key] = { a: p.a, r: RING.rPart }; });
+      sl.body.forEach(bq => {
+        const v = (g2.body && g2.body[bq.key]) || 0;
+        const lim = S.bodyCapOf(g2, bq.key);
+        bq.val = v; bq.lim = lim;
+        bq.r = RING.bMin + (cap > 0 ? Math.min(1, v / cap) : 0) * (RING.bMax - RING.bMin);
+        bq.rLim = RING.bMin + (cap > 0 ? Math.min(1, lim / cap) : 0) * (RING.bMax - RING.bMin);
+        at['b:' + bq.key] = { a: bq.a, r: bq.r };
+      });
     });
 
-    /* ---- 節 ----
-       大きさがそのままその部位の充実ぶり。
-       噛み合いを止めている側には、切れかけの縁をつける          */
+    let h = '<svg viewBox="0 0 ' + RING.VW + ' ' + RING.VH + '" role="img" ' +
+      'aria-label="部品と作り込みとコンセプトの輪">';
+
+    // ---- 固まりの扇形（うっすら敷いて、まとまりを見せる） ----
+    slots.forEach(sl => {
+      const p0 = pol(RING.bMax + 8, sl.from), p1 = pol(RING.bMax + 8, sl.to);
+      const q0 = pol(RING.rCore + 6, sl.from), q1 = pol(RING.rCore + 6, sl.to);
+      h += '<path class="rg-sec" style="fill:' + sl.grp.color + '" d="' +
+        'M' + q0[0].toFixed(1) + ' ' + q0[1].toFixed(1) +
+        ' L' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) +
+        ' A' + (RING.bMax + 8) + ' ' + (RING.bMax + 8) + ' 0 0 1 ' +
+        p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) +
+        ' L' + q1[0].toFixed(1) + ' ' + q1[1].toFixed(1) +
+        ' A' + (RING.rCore + 6) + ' ' + (RING.rCore + 6) + ' 0 0 0 ' + q0[0].toFixed(1) + ' ' + q0[1].toFixed(1) + ' Z"></path>';
+    });
+
+    /* ---- コンセプトの境目 ----
+       方針に逆らう向きでは内側へ食い込む。
+       ここから先へは、どれだけ手をかけても行けない            */
+    const lim = [];
+    slots.forEach(sl => sl.body.forEach(bq => lim.push(bq)));
+    lim.sort((x, y) => x.a - y.a);
+    if (lim.length) {
+      let d = '';
+      lim.forEach((bq, i) => {
+        const p = pol(bq.rLim, bq.a);
+        d += (i ? ' L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+      });
+      d += ' Z';
+      h += '<path class="rg-wall" d="' + d + '"></path>';
+    }
+
+    // ---- 部品の輪（薄い下敷き） ----
+    h += '<circle cx="' + RING.CX + '" cy="' + RING.CY + '" r="' + RING.rPart +
+      '" class="rg-ring"></circle>';
+
+    // ---- 噛み合いの線 ----
+    syn.forEach(x => {
+      const A = at[x.def.a.p ? 'p:' + x.def.a.p : 'b:' + x.def.a.b];
+      const B = at[x.def.b.p ? 'p:' + x.def.b.p : 'b:' + x.def.b.b];
+      if (!A || !B) return;
+      const p = pol(A.r, A.a), q = pol(B.r, B.a);
+      // 中心寄りへ少したわませると、節に重ならない
+      const mr = Math.min(A.r, B.r) * 0.55;
+      const ma = (A.a + B.a) / 2;
+      const m = pol(mr, Math.abs(A.a - B.a) > Math.PI ? ma + Math.PI : ma);
+      h += '<path class="rg-l' + (x.on ? ' on' : '') + '" d="M' + p[0].toFixed(1) + ' ' +
+        p[1].toFixed(1) + ' Q' + m[0].toFixed(1) + ' ' + m[1].toFixed(1) + ' ' +
+        q[0].toFixed(1) + ' ' + q[1].toFixed(1) +
+        '" stroke-width="' + (1.3 + x.ratio * 4.4).toFixed(2) + '"></path>';
+    });
+
+    // ---- どちらが噛み合いを止めているか ----
     const weak = {};
     syn.forEach(x => {
-      const k = x.weak.p ? 'p:' + x.weak.p : 'b:' + x.weak.b;
-      if (x.ratio < 0.97) weak[k] = true;
-    });
-    const put = (m, score) => {
-      const o = S.mechName(m);
-      const k = m.p ? 'p:' + m.p : 'b:' + m.b;
-      const x = xOf(m), y = yOf(m), r = rOf(score);
-      const lab = m.p ? y - r - 8 : y + r + 14;
-      nodes += '<g class="cm-n' + (weak[k] ? ' weak' : '') + '">' +
-        '<circle cx="' + x + '" cy="' + y + '" r="' + r.toFixed(1) +
-          '" style="fill:' + o.color + '"></circle>' +
-        '<text x="' + x + '" y="' + (y + 4.5) + '" class="cm-ic">' + o.icon + '</text>' +
-        '<text x="' + x + '" y="' + lab + '" class="cm-lb">' +
-          esc(o.short || o.name) + '</text></g>';
-    };
-    D.PART_CATS.forEach(c => {
-      if (CAR_X.p[c.key] == null) return;
-      put({ p: c.key }, S.mechScore(g2, { p: c.key }));
-    });
-    D.BODY_ATTRS.forEach(c => {
-      if (CAR_X.b[c.key] == null) return;
-      put({ b: c.key }, S.mechScore(g2, { b: c.key }));
+      if (x.ratio >= 0.97) return;
+      weak[x.weak.p ? 'p:' + x.weak.p : 'b:' + x.weak.b] = true;
     });
 
-    return '<div class="carmap">' +
-      '<div class="cm-lane top">▲ 積んでいる部品</div>' +
-      '<svg viewBox="0 0 ' + CAR_W + ' ' + CAR_H + '" role="img" ' +
-        'aria-label="車ぜんぶの噛み合い">' +
-      carBodySVG() + links + nodes +
-      '</svg>' +
-      '<div class="cm-lane bottom">▼ 車体の作り込み</div>' +
-      '<div class="cm-leg">' +
-      '<span><i class="on"></i>太い線ほど噛み合っている</span>' +
-      '<span><i class="off"></i>細い線は、まだ効いていない</span>' +
-      '<span><i class="wk"></i>破線の縁が、止めている側</span>' +
-      '<span class="cm-sum">噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</span>' +
-      '</div></div>';
+    // ---- 部品の節 ----
+    slots.forEach(sl => sl.parts.forEach(p => {
+      const o = S.mechName({ p: p.key });
+      const sc = S.mechScore(g2, { p: p.key });
+      const [x, y] = pol(RING.rPart, p.a);
+      const r = 10 + Math.min(1, sc) * 8;
+      h += '<g class="rg-n' + (weak['p:' + p.key] ? ' weak' : '') + '">' +
+        '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(1) +
+          '" style="fill:' + o.color + '"></circle>' +
+        '<text x="' + x.toFixed(1) + '" y="' + (y + 4.5).toFixed(1) + '" class="rg-ic">' +
+          o.icon + '</text></g>';
+      /* 名札は輪の外側へ。内側に置くと、7つぶんが中心に集まって
+         団子になり、まん中のコンセプトとも重なってしまう          */
+      const [lx, ly] = pol(RING.rPart + r + 15, p.a);
+      h += '<text x="' + lx.toFixed(1) + '" y="' + (ly + 3).toFixed(1) +
+        '" class="rg-plb" text-anchor="middle">' + esc(o.short || o.name) + '</text>';
+    }));
+
+    // ---- 作り込みの節と、名札 ----
+    slots.forEach(sl => sl.body.forEach(bq => {
+      const o = S.mechName({ b: bq.key });
+      const dir = S.conceptDir(g2, bq.key);
+      const [x, y] = pol(bq.r, bq.a);
+      const full = bq.val >= bq.lim - 0.05;
+      h += '<g class="rg-n' + (weak['b:' + bq.key] ? ' weak' : '') + (full ? ' full' : '') + '">' +
+        '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) +
+          '" r="12" style="fill:' + o.color + '"></circle>' +
+        '<text x="' + x.toFixed(1) + '" y="' + (y + 4.5).toFixed(1) + '" class="rg-ic">' +
+          o.icon + '</text></g>';
+      // 節から境目までの「まだ伸ばせるぶん」
+      if (bq.rLim - bq.r > 3) {
+        const p2 = pol(bq.r + 12, bq.a), q2 = pol(bq.rLim, bq.a);
+        h += '<path class="rg-room" d="M' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1) +
+          ' L' + q2[0].toFixed(1) + ' ' + q2[1].toFixed(1) + '"></path>';
+      }
+      const [lx, ly] = pol(RING.rLabel, bq.a);
+      const anc = Math.abs(Math.cos(bq.a)) < 0.30 ? 'middle'
+                : (Math.cos(bq.a) > 0 ? 'start' : 'end');
+      h += '<text x="' + lx.toFixed(1) + '" y="' + (ly + 3).toFixed(1) +
+        '" class="rg-blb' + (dir > 0 ? ' up' : dir < 0 ? ' dn' : '') +
+        '" text-anchor="' + anc + '">' +
+        (dir > 0 ? '▲' : dir < 0 ? '▽' : '') + esc(o.short || o.name) + '</text>';
+    }));
+
+    // ---- まん中：コンセプトそのもの ----
+    h += '<circle cx="' + RING.CX + '" cy="' + RING.CY + '" r="' + RING.rCore + '" class="rg-core"' +
+      (cpt ? ' style="fill:' + cpt.color + '"' : '') + '></circle>';
+    h += '<text x="' + RING.CX + '" y="' + (RING.CY - 1) + '" class="rg-cic">' +
+      (cpt ? cpt.icon : '❓') + '</text>';
+    h += '<text x="' + RING.CX + '" y="' + (RING.CY + 14) + '" class="rg-cnm">' +
+      (cpt ? esc(cpt.name.replace('重視', '')) : '未定') + '</text>';
+
+    h += '</svg>';
+
+    // ---- 読みかた ----
+    const gl = D.PART_GROUPS.map(x =>
+      '<span><i style="background:' + x.color + '"></i>' + x.icon + x.name + '</span>').join('');
+    return '<div class="ringmap">' + h +
+      '<div class="rg-leg">' + gl +
+      '<span class="rg-sum">噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</span>' +
+      '</div>' +
+      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>です。' +
+      '作り込みの節は<b>いまの値の位置</b>にあり、いちばん外の線が' +
+      '<b>コンセプトの引いた境目</b>。方針に逆らう向きでは境目が内側へ食い込んでいて、' +
+      'そこから先へはどれだけ手をかけても行けません。' +
+      '節が境目に貼りついていたら、その項目はもう限界です。</p>' +
+      '</div>';
   }
 
   function couplingSVG(x) {
@@ -18852,13 +19122,13 @@ GP.screens.dev = function (A) {
     const gen = D.CAR_GENS[g2.carGen];
     const live = syn.filter(x => x.on).length;
 
-    let h = carMapSVG(g2) + '<div class="mechlist">' +
+    let h = conceptRingSVG(g2) + '<div class="mechlist">' +
       '<div class="ml-head"><b>' + esc(gen.name) + '</b>' +
       '<span>速' + Math.round(st.speed) + '／曲' + Math.round(st.corner) +
       '／加' + Math.round(st.accel) + '</span>' +
       '<em>噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</em></div>' +
       '<p class="desc">部品は、単体ではなく<b>組で効きます</b>。' +
-      '上の図が1台ぜんぶ、下がその組ひとつずつの中身です。' +
+      '上の輪が全体、下がその組ひとつずつの中身です。' +
       '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
       'そこを厚くすると、継手が詰まって効きはじめます。</p>';
 
@@ -19001,7 +19271,7 @@ GP.screens.dev = function (A) {
                    * (wind ? S.rigMul(g, 'tunnel') : 1);
     const engBonus = 1 + S.devPower(g) * 0.14;
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
-    let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
+    let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c) * S.devRate(g);
     if (c.key === 'pu') gain *= S.puDevMul(g);      // よそに配っているぶん、手が回らない
     if (p.power >= cap) gain *= 0.30;
     const now = gain * fc.cur, next = gain * fc.next;
@@ -19053,7 +19323,7 @@ GP.screens.dev = function (A) {
     // ドライバーのフィードバック（職人肌ほど的確）
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
     const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
+    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c) * crunchMul() * S.devRate(g);
     if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
     let crit = false;
     // 研究で溜めた知見があれば、ここで1つ使う。何を直せばいいか分かっている
@@ -19181,8 +19451,11 @@ GP.screens.dev = function (A) {
     if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
     const ws = S.workshopOf(g);
     const part = S.makePart(key, g.carGen, rarity);
-    // 同じ図面でも、どの機械で削ったかで出来が変わる
-    part.power = Math.round(part.power * ws.prec * 10) / 10;
+    /* 同じ図面でも、どの機械で削ったかで出来が変わる。
+       そしてその図面そのものの質が、基本設計能力で決まる。
+       （人事の噛み合わせ × 開発責任者とコンセプトの相性）      */
+    const dm = S.designMul(g);
+    part.power = Math.round(part.power * ws.prec * dm * 10) / 10;
     g.inventory.push(part);
 
     const rr = D.RARITY[rarity - 1];
@@ -24077,45 +24350,77 @@ GP.screens.home = function (A) {
 
   /* ---- 来季のマシン方針 ----
      どの性能を軸に作るかを決める。決めた方向は来季の開発で伸びやすくなる。 */
+  /* コンセプトを小さな札で見せる。得意・苦手の説明で使う */
+  function cnptChip(key) {
+    const c = D.CONCEPTS.find(x => x.key === key);
+    if (!c) return '—';
+    return '<i class="cchip" style="background:' + c.color + '">' + c.icon + c.name + '</i>';
+  }
+
   function doOffPlan() {
-    const DIRS = [
-      { k: 'speed',  name: '最高速に振る', icon: '🚀', color: '#e04a3f',
-        desc: 'ストレートの長いコースで戦える。抜きやすくもなる' },
-      { k: 'corner', name: 'コーナーに振る', icon: '🌀', color: '#3a7ad9',
-        desc: '低速コーナーの多いコースで効く。市街地に強い' },
-      { k: 'accel',  name: '加速に振る',   icon: '⚡', color: '#4ea63f',
-        desc: 'ストップ＆ゴーのコースと、スタートで効く' },
-      { k: 'balance', name: 'バランス',    icon: '⚖️', color: '#8a8578',
-        desc: 'どこでも戦えるが、飛び抜けはしない' }
-    ];
+    /* ---- マシンコンセプト ----
+       決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
+       いくら時間をかけてもコンセプトの外までは行けないので、
+       ここは1年ぶんの覚悟を決める場面になる                     */
     const cur = g.plan || null;
     const stock = g.nextCar || 0;
-    let body = '<p class="lead">来季のマシンをどの方向で作るか決めます。</p>' +
-      '<p class="desc">決めた方向の開発は来季ずっと <b>+22%</b> 伸びやすくなり、' +
-      '他の方向は少しだけ伸びが鈍ります。オフのうちにしか決められません。</p>';
+    const db = S.designBase(g);
+    const tech = (g.managers || {}).technical;
+
+    let body = '<p class="lead">この車は、<b>何で戦うのか</b>を決めます。</p>' +
+      '<p class="desc">決めた向きの開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
+      '逆らう向きは遅くなるうえに、<b>上限そのものが ' +
+      Math.round(D.CONCEPT.offCap * 100) + '% で止まります</b>。' +
+      'いくら時間をかけても、決めたコンセプトの外までは行けません。<br>' +
+      '<b>変えられるのは、オフのあいだと、車を作り直した直後だけ</b>です。' +
+      '途中でどうしても方向を変えたくなったら、世代を上げて作り直すことになります。</p>';
+
+    // ---- 図面を引く人との相性 ----
+    body += '<div class="cnpt-boss' + (tech ? '' : ' empty') + '">' +
+      '<b>📐 基本設計能力 <em>' + db.value.toFixed(1) + '</em></b>' +
+      '<small>コンセプトを図面に落とし込む力です。' +
+      'もとになるのは<b>人事の噛み合わせ</b>（設計グループと開発グループ）で、' +
+      'そこに<b>開発責任者の相性</b>が掛かります。' +
+      (tech
+        ? '<br>いまの開発責任者は <b>' + esc(tech.name) + '</b>。' +
+          '得意は ' + cnptChip(tech.good) + '、苦手は ' + cnptChip(tech.bad) + '。'
+        : '<br><em class="warn">開発責任者が空席です。図面の質はスタッフの力そのままになります。</em>') +
+      '</small></div>';
+
     if (stock > 0) {
-      body += '<div class="stockbox"><b>🌱 積んである来季ぶりの開発：' +
+      body += '<div class="stockbox"><b>🌱 積んである来季ぶんの開発：' +
         Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
         '<small>方針を決めると、この仕込みが<b>いまここでマシンに落とし込まれます</b>。' +
         '決めた方向のパーツと車体に厚く配られます。<br>' +
         '<em class="warn">オフのうちに決めないと、来季へ持ち越すあいだに2割が失われます。</em></small></div>';
     }
     body += '<div class="pick">';
-    DIRS.forEach(d => {
-      body += '<button class="pickbtn' + (cur === d.k ? ' on' : '') + '" data-k="plan:' + d.k + '">' +
+    D.CONCEPTS.forEach(d => {
+      const f = tech ? (tech.good === d.key ? 1 : tech.bad === d.key ? -1 : 0) : 0;
+      const mul = 1 + (f > 0 ? D.CONCEPT.fitUp : 0) - (f < 0 ? D.CONCEPT.fitDown : 0);
+      const upNm = d.up.map(k => (D.BODY_ATTRS.find(x => x.key === k) || {}).name).join('・');
+      const dnNm = d.down.map(k => (D.BODY_ATTRS.find(x => x.key === k) || {}).name).join('・');
+      body += '<button class="pickbtn' + (cur === d.key ? ' on' : '') +
+        '" data-k="plan:' + d.key + '">' +
         '<span class="pb-ic" style="background:' + d.color + '">' + d.icon + '</span>' +
-        '<span class="pb-body"><b>' + d.name + '</b><small>' + d.desc + '</small></span>' +
-        (cur === d.k ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
+        '<span class="pb-body"><b>' + d.name + '</b>' +
+        (f ? '<i class="fitm ' + (f > 0 ? 'good' : 'bad') + '">' +
+             (f > 0 ? '開発責任者の得意 ×' + mul.toFixed(2) : '開発責任者の苦手 ×' + mul.toFixed(2)) +
+             '</i>' : '') +
+        '<small>' + esc(d.desc) +
+        '<br><b class="up">伸びる：' + upNm + '</b>' +
+        '　<b class="dn">頭打ち：' + dnNm + '</b></small></span>' +
+        (cur === d.key ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
     });
     body += '</div>';
     U.modal('📋 来季のマシン方針', body, [{ label: '閉じる', fn: U.closeModal }]);
     bindPick(k => {
       if (k.indexOf('plan:') !== 0) return;
-      g.plan = k.slice(5);
+      S.setConcept(g, k.slice(5));
       offMark('plan');
-      const d = DIRS.find(x => x.k === g.plan);
+      const d = D.CONCEPTS.find(x => x.key === g.plan);
       // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む
-      const got = S.applyStock(g, g.plan === 'balance' ? null : g.plan);
+      const got = S.applyStock(g, g.plan);
       S.save(g);
       U.closeModal();
       U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');

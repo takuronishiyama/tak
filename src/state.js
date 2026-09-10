@@ -619,6 +619,102 @@ GP.state = (function () {
   /* =======================================================
      車体（マシン本体）
      ======================================================= */
+  /* =======================================================
+     マシンコンセプト
+
+     1年を通しての「この車は何で戦うのか」。
+     決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
+     いくら時間と金をかけても、コンセプトの外までは行けない。
+     ここが「大きな方針からは外れない」の実体。
+
+     変えられるのは、オフのあいだと、
+     車を作り直したとき（＝世代が上がった直後）だけ。
+     途中でどうしても変えたければ、バージョンアップで作り直す。
+     ======================================================= */
+  function conceptOf(g2) {
+    return D.CONCEPTS.find(c => c.key === (g2 && g2.plan)) || null;
+  }
+  /* いま選び直せるか。オフか、車を作り直した直後 */
+  function conceptOpen(g2) {
+    if (!g2) return false;
+    if (!conceptOf(g2)) return true;              // まだ決めていないなら、いつでも
+    if (g2.offseason) return true;
+    return (g2.planGen != null && g2.planGen !== g2.carGen);
+  }
+  /* 決めたときに控えておく。次にどこで選び直せるかの判定に使う */
+  function setConcept(g2, key) {
+    if (!D.CONCEPTS.some(c => c.key === key)) return null;
+    g2.plan = key;
+    g2.planGen = g2.carGen;
+    return conceptOf(g2);
+  }
+  /* その作り込みが、コンセプトに対してどちら向きか。
+     +1 沿っている ／ -1 逆らっている ／ 0 どちらでもない */
+  function conceptDir(g2, key) {
+    const c = conceptOf(g2);
+    if (!c) return 0;
+    if (c.up.indexOf(key) >= 0) return 1;
+    if (c.down.indexOf(key) >= 0) return -1;
+    return 0;
+  }
+  /* 作り込み1項目ぶんの上限。逆らう向きはここが下がる */
+  function bodyCapOf(g2, key) {
+    const d = conceptDir(g2, key);
+    return d < 0 ? Math.round(bodyCap(g2) * D.CONCEPT.offCap) : bodyCap(g2);
+  }
+  /* 作り込みの伸びかたの倍率 */
+  function conceptMul(g2, key) {
+    const d = conceptDir(g2, key);
+    return d > 0 ? D.CONCEPT.onMul : d < 0 ? D.CONCEPT.offMul : 1;
+  }
+  /* 部品の伸びかたの倍率。
+     部品は上限までは削らない（そこが主な伸びしろなので）。
+     方針に合う部品は速く、合わない部品は遅く進むだけ           */
+  function conceptPartMul(g2, key) {
+    const c = conceptOf(g2);
+    if (!c) return 1;
+    if ((c.pUp || []).indexOf(key) >= 0) return D.CONCEPT.onMul;
+    if ((c.pDown || []).indexOf(key) >= 0) return D.CONCEPT.offMul;
+    return 1;
+  }
+
+  /* ---------- 首脳陣の相性 ----------
+     人には得意な作り方と、そうでない作り方がある。
+     コンセプトと噛み合えば設計が冴え、噛み合わなければ精彩を欠く */
+  function mgrFit(g2, role) {
+    const m = g2 && g2.managers && g2.managers[role];
+    const c = conceptOf(g2);
+    if (!m || !c) return 0;
+    if (m.good === c.key) return 1;
+    if (m.bad === c.key) return -1;
+    return 0;
+  }
+  /* ---------- 基本設計能力値 ----------
+     コンセプトを図面に落とし込む力。
+     もとになるのは人事の噛み合わせ（設計と開発の部門の力）で、
+     そこに開発責任者の相性が掛かる。
+     設計の段でいちばん効くのは、この人の得意・不得意          */
+  function designBase(g2) {
+    const o = org(g2);
+    const K = D.CONCEPT;
+    const raw = o.dept.designer * K.mixDesign + o.dept.engineer * K.mixEngineer;
+    const f = mgrFit(g2, 'technical');
+    const fit = 1 + (f > 0 ? K.fitUp : 0) - (f < 0 ? K.fitDown : 0);
+    return { raw: raw, fit: fit, fitDir: f, value: raw * fit };
+  }
+  /* 設計したパーツの出来に、そのまま乗る倍率。
+
+     まず人事の噛み合わせで「上積みの余地」が決まり（頭打ちのある形）、
+     そこに開発責任者の相性が掛かる。
+     部門が薄いうちは誰が来ても大差なく、
+     厚くなるほど、責任者が誰かで出来が変わるようになる         */
+  function designMul(g2) {
+    const K = D.CONCEPT;
+    const b = designBase(g2);
+    const room = K.designMax * (b.raw / (b.raw + K.designHalf));
+    return 1 + room * b.fit;
+  }
+
   function bodyCap(g2) {
     return Math.round(D.CAR_GENS[g2.carGen].cap * D.BODY_CAP_RATIO);
   }
@@ -702,7 +798,9 @@ GP.state = (function () {
   /* 車体の熟成度（0..1）。今のマシンの上限に対する割合で、効果はここから決まる。
      世代が上がっても「どれだけ煮詰めたか」で効くので、いつでも意味がある */
   function bodyRatio(g2, key) {
-    const cap = bodyCap(g2);
+    // 割る相手はその項目の上限。コンセプトに逆らう項目は、
+    // 満点まで行けないことがそのまま割合に出る
+    const cap = bodyCapOf(g2, key);
     return cap > 0 ? clamp(bodyVal(g2, key) / cap, 0, 1) : 0;
   }
 
@@ -742,7 +840,8 @@ GP.state = (function () {
     // 半分をパーツへ、半分を車体へ
     const toParts = total * 0.5, toBody = total * 0.5;
     // 方向に合うパーツほど厚く
-    const w = D.PART_CATS.map(c => 1 + ((dir && c.gain && c.gain[dir]) || 0) * 1.8);
+    const w = D.PART_CATS.map(c => (1 + ((dir && c.gain && c.gain[dir]) || 0) * 1.8)
+                                   * conceptPartMul(g2, c.key));
     const wSum = w.reduce((a, b) => a + b, 0);
     D.PART_CATS.forEach((c, i) => {
       const p = g2.equipped[c.key];
@@ -753,13 +852,14 @@ GP.state = (function () {
       p.power = Math.round(Math.min(cap, p.power + add) * 10) / 10;
       if (p.power > before) out.parts.push({ name: p.name, gain: Math.round((p.power - before) * 10) / 10 });
     });
-    const bw = D.BODY_ATTRS.map(a => 1 + ((dir && a.gain && a.gain[dir]) || 0) * 1.8);
+    const bw = D.BODY_ATTRS.map(a => (1 + ((dir && a.gain && a.gain[dir]) || 0) * 1.8)
+                                     * conceptMul(g2, a.key));
     const bSum = bw.reduce((a, b) => a + b, 0);
-    const bcap = bodyCap(g2);
     D.BODY_ATTRS.forEach((a, i) => {
       const add = toBody * (bw[i] / bSum);
       const before = g2.body[a.key] || 0;
-      g2.body[a.key] = Math.round(Math.min(bcap, before + add) * 10) / 10;
+      // コンセプトに逆らう項目は、上限そのものが低い
+      g2.body[a.key] = Math.round(Math.min(bodyCapOf(g2, a.key), before + add) * 10) / 10;
       if (g2.body[a.key] > before) out.body.push({ name: a.name, gain: Math.round((g2.body[a.key] - before) * 10) / 10 });
     });
     g2.nextCar = 0;
@@ -2477,10 +2577,15 @@ GP.state = (function () {
   function makeManager(key, quality) {
     const m = D.MANAGERS.find(x => x.key === key) || D.MANAGERS[0];
     const skill = clamp(Math.round(10 + (quality || 0) * 0.32 + rnd(-5, 9)), 5, 60);
+    /* 得意な作り方と、苦手な作り方。人によって違う。
+       同じにならないように、苦手は得意以外から引く            */
+    const keys = D.CONCEPTS.map(c => c.key);
+    const good = pick(keys);
+    const bad = pick(keys.filter(k => k !== good));
     return {
       id: 'm' + Math.random().toString(36).slice(2, 8),
       role: key, name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: skill,
+      skill: skill, good: good, bad: bad,
       salary: Math.round(m.salary * (0.5 + skill / 46))
     };
   }
@@ -3575,7 +3680,9 @@ GP.state = (function () {
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
-    bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
+    bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
+    conceptPartMul, mgrFit, designBase, designMul,
+    makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,

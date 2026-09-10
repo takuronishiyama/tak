@@ -629,7 +629,12 @@ GP.screens.hr = function (A) {
         '<span class="ch-ar">→</span>' +
         // 上司
         '<span class="ch-boss' + (mgrOn ? ' on' : '') + '" title="' + esc(x.boss.name || '') + '">' +
-          (x.boss.icon || '👔') + '<i>' + (mgrOn ? '×' + x.lead.toFixed(2) : '空席') + '</i></span>' +
+          (x.boss.icon || '👔') + '<i>' + (mgrOn ? '×' + x.lead.toFixed(2) : '空席') + '</i>' +
+          // 開発責任者だけは、コンセプトとの相性が設計に直に効く
+          (x.bossKey === 'technical' && mgrOn
+            ? '<u class="fitdot ' + (S.mgrFit(g2, 'technical') > 0 ? 'good'
+              : S.mgrFit(g2, 'technical') < 0 ? 'bad' : '') + '"></u>' : '') +
+          '</span>' +
         '<span class="ch-ar">→</span>' +
         // 部門の力
         '<span class="ch-nm">' + x.r.nm + '</span>' +

@@ -384,6 +384,82 @@ GP.data = (function () {
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
+  /* ---------- 部位のまとまり ----------
+     部品は、ばらばらに効いているのではなく、
+     いくつかの固まりで仕事をしている。
+     空気に当てるところ、それを受け止めるところ、前に出すところ。
+     車体の作り込み（＝その固まりの馴染み方）も、その固まりに属する。
+
+     このまとまりを作ると、噛み合いの線がその固まりの中で閉じる。
+     11組のうち9組が固まりの内側で完結し、外へ出るのは2組だけ。
+     輪に並べても線が総当たりで交差しないのは、これのおかげ。      */
+  const PART_GROUPS = [
+    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3a7ad9',
+      note: '空気をどう当てて、路面にどう置くか',
+      parts: ['aero', 'susp'], body: ['aeroBody', 'drive'] },
+    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4ea63f',
+      note: '受け止めて、止めるところ',
+      parts: ['chas', 'brake'], body: ['rigidity', 'light'] },
+    { key: 'power', name: '動力',     icon: '⚙️', color: '#e04a3f',
+      note: '前に出す力と、それを支えるもの',
+      parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
+  ];
+
+  /* ---------- マシンコンセプト ----------
+     1年を通しての「この車は何で戦うのか」。
+     方針に沿う方向はよく伸び、逆らう方向は<b>上限そのもの</b>が下がる。
+     いくら手をかけても、コンセプトの外までは行けない。
+
+     途中で大きく変えたくなったら、車のバージョンアップで作り直す。
+     規則が変わる年も、そこで白紙になるので選び直せる。            */
+  const CONCEPTS = [
+    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#e04a3f',
+      lead: 'power',
+      desc: '空気を切って、伸びで勝つ。ストレートの長いコースで戦え、追い抜きもしやすい',
+      up:   ['light', 'cooling', 'battery'],
+      down: ['aeroBody', 'drive'],
+      pUp:  ['pu', 'gear'], pDown: ['aero'] },
+    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3a7ad9',
+      lead: 'air',
+      desc: '押しつける力で曲がる。低速コーナーの多い市街地に強いが、直線では伸びない',
+      up:   ['aeroBody', 'rigidity'],
+      down: ['light', 'battery'],
+      pUp:  ['aero', 'susp'], pDown: ['pu'] },
+    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4ea63f',
+      lead: 'power',
+      desc: '立ち上がりで前に出る。ストップ＆ゴーのコースとスタートで効く',
+      up:   ['battery', 'light', 'service'],
+      down: ['aeroBody', 'rigidity'],
+      pUp:  ['pu', 'elec', 'gear'], pDown: ['aero'] },
+    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#b06fd0',
+      lead: 'air',
+      desc: '限界が分かりやすく、誰が乗っても速い。'
+          + 'タイヤに優しく、荒れた週末で落としにくい',
+      up:   ['drive', 'rigidity', 'service'],
+      down: ['light', 'cooling'],
+      pUp:  ['susp', 'chas', 'brake'], pDown: ['pu'] }
+  ];
+
+  const CONCEPT = {
+    /* 方針に沿う向きの伸びかた */
+    onMul:  1.24,
+    /* 逆らう向きの伸びかた。ここは「遅い」であって「不可」ではない */
+    offMul: 0.72,
+    /* 逆らう向きが届く上限（満点に対する割合）。
+       ここが「方針からは外れない」の実体で、
+       いくら時間をかけても、この線より先へは行けない          */
+    offCap: 0.58,
+    /* 設計責任者の得意・不得意が、基本設計能力にどれだけ効くか */
+    fitUp:   0.30,
+    fitDown: 0.22,
+    /* 人事の噛み合わせから基本設計能力を出すときの配合 */
+    mixDesign: 0.62, mixEngineer: 0.38,
+    /* 基本設計能力が、設計したパーツの出来にどれだけ乗るか。
+       頭打ちのある形にして、上限を掛け算で伸ばす。
+       こうすると「部門が厚いほど、責任者の相性がよく効く」になる */
+    designHalf: 11, designMax: 0.62
+  };
+
   /* ---------- 機構の噛み合い ----------
      人が組み合わさって力を出すのと同じで、マシンの部位にも
      「片方だけ厚くしても意味がない」組み合わせがある。
@@ -1121,6 +1197,9 @@ GP.data = (function () {
   /* ---------- マネジメント層（役職）----------
      現場のスタッフとは別枠。1役職に1人だけ据えられる。
      効果はすべて実際の計算に掛かる                                  */
+  /* 首脳陣それぞれの、得意なコンセプトと苦手なコンセプト。
+     人によって違うので、雇うときに引く（makeManager）。
+     設計の段になっていちばん効くのは、開発責任者の相性       */
   const MANAGERS = [
     { key: 'principal', name: 'チームプリンシパル', icon: '👔', salary: 180,
       desc: 'チームの顔。スポンサー収入と注目度が上がり、育成部門もこの人が見る',
@@ -2536,6 +2615,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
