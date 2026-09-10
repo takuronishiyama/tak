@@ -1434,9 +1434,15 @@ GP.raceview = (function () {
       const e = o.e;
       const pitting = !o.out && inPit(e, vt);
       // 先頭がこの位置を通過したのは何秒前か＝本当の意味での差
-      const behind = i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p));
+      const behind = i === 0 ? 0
+                   : (o.fin && leader.fin) ? Math.max(0, o.fin - leader.fin)
+                   : Math.max(0, vt - timeAt(leader.e, o.p));
+      // 走った距離が1周ぶん以上離れていたら、秒ではなく周で言う
+      const dn = i === 0 ? 0 : Math.max(0, Math.floor(leader.p - o.p + 1e-9));
       const gap = o.out ? 'DNF' : pitting ? 'PIT'
-                : (i === 0 ? '先頭' : '-' + behind.toFixed(1) + 's');
+                : i === 0 ? '先頭'
+                : dn > 0 ? '+' + dn + '周'
+                : '-' + behind.toFixed(1) + 's';
       const ty = tyreNow(e, vt);
       let chip = '<span class="rv-ty">–</span>';
       if (ty) {
@@ -1793,14 +1799,22 @@ GP.raceview = (function () {
       return Math.max(0, vt - timeAt(leader.e, o.p));
     });
     /* 何周遅れているか。1周以上離れたら、秒ではなく周で出す
-       （実際の中継と同じで、そのほうが差の大きさが伝わる）      */
-    const lapsDown = ord.map(o => Math.max(0,
-      Math.floor(leader.p + 1e-6) - Math.floor(o.p + 1e-6)));
+       （実際の中継と同じで、そのほうが差の大きさが伝わる）
+
+       周回カウンタどうしの引き算にしてはいけない。
+       先頭がコントロールラインを通った瞬間、
+       まだ通っていない車はみな「1周少ない」ことになるので、
+       0.02周しか離れていない2位まで +1周 と出てしまう。
+       数えるのは、あくまで走った距離の差のほう。            */
+    const lapsDown = ord.map(o => Math.max(0, Math.floor(leader.p - o.p + 1e-9)));
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
-      '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
+      '<span class="tb-p">P</span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
+      '<u class="tb-full">ドライバー</u></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
+      '<span class="tb-br"></span>' +
       '<span class="tb-s">S1</span><span class="tb-s">S2</span><span class="tb-s">S3</span>' +
       '<span class="tb-t">ラップ</span><span class="tb-t">ベスト</span></div>';
     ord.forEach((o, i) => {
@@ -1821,7 +1835,7 @@ GP.raceview = (function () {
           (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em></b></span>';
       }
-      const dLap = i === 0 ? 0 : lapsDown[i] - lapsDown[i - 1];
+      const dLap = i === 0 ? 0 : Math.max(0, Math.floor(ord[i - 1].p - o.p + 1e-9));
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
                  : dLap > 0 ? '+' + dLap + '周'
                  : '+' + (behind[i] - behind[i - 1]).toFixed(1);
@@ -1845,18 +1859,24 @@ GP.raceview = (function () {
       h += '<div class="tb-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') +
         (pitting ? ' pit' : '') + '">' +
         '<span class="tb-p">' + (i + 1) + '</span>' +
-        '<span class="tb-nm"><i style="background:' + e.color + '"></i>' + rvEsc(e.driver.name) + '</span>' +
+        '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
+          '<i style="background:' + e.color + '"></i>' +
+          '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
+          '<u class="tb-full">' + rvEsc(e.driver.name) + '</u></span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +
         '<span class="tb-g' + (i === 0 ? ' lead' : '') + '">' + gapL + '</span>' +
-        secs +
+        '<span class="tb-br"></span>' + secs +
         '<span class="tb-t">' + fmtLap(c.lastLap) + '</span>' +
         '<span class="tb-t' + blCls + '">' + fmtLap(bl) + '</span></div>';
     });
     h += '<div class="tb-row tb-head"><span class="tb-p"></span>' +
-      '<span class="tb-nm">セッション最速</span><span class="tb-lap"></span><span class="tb-ty"></span>' +
+      '<span class="tb-nm sess">セッション最速</span>' +
+      '<span class="tb-lap"></span><span class="tb-ty"></span>' +
       '<span class="tb-g"></span><span class="tb-g"></span>' +
+      '<span class="tb-br"></span>' +
       [0, 1, 2].map(k => '<span class="tb-s purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="tb-t"></span><span class="tb-t purple">' +

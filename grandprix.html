@@ -469,6 +469,10 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
          text-shadow:1px 1px 0 rgba(0,0,0,.35);animation:pulse .8s ease-in-out infinite alternate}
 .cmd.big span{font-size:26px}
 .cmd-sep{width:2px;height:34px;background:rgba(74,47,26,.35);border-radius:2px}
+/* 「見に行くだけ」のボタンの入れ物。
+   広い画面では無いものとして扱い、今までどおり横一列に並べる。
+   縦のスマートフォンのときだけ、ここが1段の升目になる          */
+.cmdsubs{display:contents}
 
 /* ---------- タイトル表示中はガレージを隠す ---------- */
 body.preboot .main,
@@ -594,9 +598,13 @@ body.preboot .topbar{visibility:hidden}
 .rv-wrap{width:100%;max-width:900px;max-height:96vh;display:flex;flex-direction:column;gap:6px;
          background:var(--paper);border:4px solid var(--ink);border-radius:12px;padding:8px;
          box-shadow:0 6px 0 rgba(0,0,0,.4)}
-.rv-head{display:flex;align-items:center;gap:10px;background:var(--ink);color:#ffeec4;
+/* 雨の日はここに路面の札が増えるので、1行に収まらなくなる。
+   折り返さないままだと、いちばん左のコース名だけが押し潰されて
+   1文字ずつ縦に並んでいた。あふれたぶんは下の段へ送る            */
+.rv-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;row-gap:5px;
+         background:var(--ink);color:#ffeec4;
          border-radius:7px;padding:5px 10px;font-size:13px}
-.rv-head b{flex:1}
+.rv-head b{flex:1 1 auto;min-width:7em;white-space:nowrap}
 .rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
 .rv-canvaswrap{position:relative;flex-shrink:0;max-width:100%}
@@ -729,7 +737,7 @@ body.preboot .topbar{visibility:hidden}
 /* ================= トースト・ポップ ================= */
 #toastLayer{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;pointer-events:none;z-index:80;
   display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding-top:calc(60px + env(safe-area-inset-top))}
+  padding-top:calc(var(--topH, 60px) + 8px)}
 .toast{
   flex-shrink:0;
   background:var(--paper);border:3px solid var(--ink);border-radius:9px;
@@ -769,9 +777,9 @@ body.preboot .topbar{visibility:hidden}
           background:linear-gradient(transparent,rgba(201,168,106,.9) 30%)}
   .cmd{min-height:52px}
   .btn{min-height:44px}
-  /* 上部バーが2段になるぶん、通知を下げて重ならないようにする */
-  #toastLayer{padding-top:calc(104px + env(safe-area-inset-top))}
-  .numpop{top:calc(150px + env(safe-area-inset-top))}
+  /* 上部バーの下に出す（高さは main.js が測って --topH に入れている） */
+  #toastLayer{padding-top:calc(var(--topH, 104px) + 10px)}
+  .numpop{top:calc(var(--topH, 150px) + 34px)}
   .rv-body{flex-direction:column;align-items:center}
   .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
@@ -792,6 +800,31 @@ body.preboot .topbar{visibility:hidden}
   .cmd{min-width:60px;font-size:11px}
   .cmd span{font-size:17px}
   .tb-stats{width:100%;margin-left:0}
+}
+
+/* ---- 縦に持ったときのコマンドバー ----
+   横に並べて折り返していたので、
+   「週を使う手」と「見に行くだけの場所」が段の途中で混ざり、
+   幅もばらばらになっていた。
+   升目にして、上段＝週を使う手／下段＝見に行くだけ、と分ける。 */
+@media (orientation:portrait) and (max-width:560px){
+  .cmdset{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;align-items:stretch}
+  .cmd{flex:none;min-width:0;font-size:11px;padding:5px 2px;min-height:52px}
+  .cmd span{font-size:19px}
+  /* 区切りは、段をまたぐ1本の線にする */
+  .cmd-sep{grid-column:1/-1;width:auto;height:2px;margin:2px 0 1px;
+           background:rgba(74,47,26,.30)}
+  /* 見に行くだけのボタンは、7つで1段にする。
+     上段（週を使う手）と同じ大きさで置くと、
+     画面の3分の1がボタンで埋まってしまう                     */
+  .cmdsubs{display:grid;grid-column:1/-1;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cmd.sub{min-width:0;font-size:9px;padding:3px 1px;min-height:44px;
+           border-width:2px;box-shadow:0 3px 0 var(--ink);gap:0}
+  .cmd.sub span{font-size:17px}
+  .cmd-sep{background:rgba(74,47,26,.30)}
+  /* 「レースへ向かう！」のような一手は、幅いっぱいで受ける */
+  .cmd.big{grid-column:1/-1;min-height:56px;font-size:15px;padding:6px}
+  .cmd.big span{font-size:22px}
 }
 
 /* =========================================================
@@ -1130,6 +1163,7 @@ body[data-skin="hd"]{
 [data-skin="hd"] .bad{color:#ff7a6a}
 [data-skin="hd"] .mgeff{color:#7fd0f0}
 [data-skin="hd"] .cmd.sub{color:#f2e4c4}
+[data-skin="hd"] .cmd-sep{background:rgba(255,238,196,.30)}
 
 /* ---------- 本拠地ハブ（メイン画面の入口） ---------- */
 .card.hub .basewrap{margin-bottom:6px;display:flex;justify-content:center;align-items:center}
@@ -2282,6 +2316,18 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tb-nm{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap}
 .tb-nm i{width:7px;height:7px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
+/* 英語3文字。中継のタイミング表と同じで、狭いところではこれだけを出す。
+   チームは地の色に溶かし、ドライバーは白で立てる（人を追うための表なので） */
+.tb-tm{flex-shrink:0;font-size:9px;letter-spacing:.06em;color:#c9b68c;
+       background:rgba(255,238,196,.10);border-radius:3px;padding:0 3px;line-height:1.45}
+.tb-dv{flex-shrink:0;font-size:11px;letter-spacing:.05em;color:#fff4d8;font-weight:bold}
+.tb-row.me .tb-dv{color:#ffe89a}
+.tb-full{font-style:normal;text-decoration:none;overflow:hidden;
+         text-overflow:ellipsis;white-space:nowrap;color:#e2d5b6}
+.tb-head .tb-nm i{border-color:transparent;background:none!important}
+.tb-head .tb-tm,.tb-head .tb-dv{background:none;color:#d8c8a4;font-weight:normal;font-size:9px}
+/* 広い画面では折り返さないので、折り目は無いものとして扱う */
+.tb-br{display:none}
 .tb-lap{width:20px;text-align:right;flex-shrink:0;color:#cfc0a0}
 .tb-ty{width:34px;text-align:center;flex-shrink:0}
 .tb-ty .rv-ty{min-width:0;padding:0 3px}
@@ -2299,6 +2345,25 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .tb-s{width:42px}
   .tb-t{width:54px}
   .tb-lap{display:none}
+}
+/* ---- 手のひらの中のタイミングモニター ----
+   11列を1行に押し込むと、名前の欄が潰れて誰なのか分からなくなり、
+   それでも右端のベストタイムは画面の外へ出ていた。
+   実物のモニターと同じ並び順のまま、
+   「順位・誰・タイヤ・差」と「区間タイム」の二段に折る。       */
+@media (max-width:560px){
+  /* 2段に折ったぶん1行が高くなるので、見える台数を保つために背を伸ばす */
+  .rv-sectors.board{padding:2px 6px;max-height:min(52vh,420px)}
+  .tb-row{flex-wrap:wrap;row-gap:2px;padding:4px 0 5px 4px}
+  .tb-br{display:block;width:100%;height:0;margin:0}
+  .tb-full{display:none}
+  .tb-nm{flex:0 0 auto;gap:5px}
+  .tb-g{flex:1;width:auto;min-width:46px}
+  /* 二段目は幅いっぱいに割り、一段目の順位のぶんだけ下げて揃える */
+  .tb-br+.tb-s{margin-left:19px}
+  .tb-s{flex:1;width:auto;min-width:0;font-size:10px}
+  .tb-t{flex:1.35;width:auto;min-width:0;font-size:10px}
+  .tb-row.tb-head .tb-s,.tb-row.tb-head .tb-t{font-size:9px}
 }
 
 /* =========================================================
@@ -2327,6 +2392,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .drv-sub,.drv-age,.s-nm small,.fin-row,.ec-row,.envbox small,
   .skill,.p-rar,.ptr,.mst,.battr,.dept,.fac,.spon,.hist,.logline{font-size:11px}
   .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
+  .hl-h span,.mini{font-size:11px}
   .sc-row,.tb-row{font-size:11px}
   .tb-row.tb-head{font-size:10px}
 
@@ -2337,8 +2403,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .qev i{font-size:10px}
   .qcut{font-size:11px}
 
-  /* 個別に小さいまま残っていたもの */
-  .hlbtn em{font-size:10px}
+  /* 個別に小さいまま残っていたもの。
+     札の下の用事名（整備・改良…）は、実機だと10pxでは潰れる */
+  .hlbtn em{font-size:11px}
   .hlbtn b{font-size:11px}
   .battr em small,.part .p-lv small,.p-lv small{font-size:10px}
   .drv-sal{font-size:11px}
@@ -2363,6 +2430,11 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-side{width:100%;min-height:132px;max-height:152px}
   /* 無線は2件まで。画面の半分を覆わないようにする */
   .rv-radio{width:auto;left:6px;right:6px;bottom:6px}
+  /* 狭い画面では無線が下いっぱいに広がるので、
+     カメラの切り替えはそこを空けて上へ逃がす。
+     置いたままだと、無線の文字がボタンの下に潜って読めなかった   */
+  .rv-cam{top:6px;bottom:auto;right:6px}
+  .rv-cam button{min-height:32px;padding:4px 8px}
   .rv-radio .rvr:nth-last-child(n+3){display:none}
   .rvr{padding:3px 6px}
   .rvr b{font-size:9px}
@@ -2765,13 +2837,18 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* ---- 縦向きのスマートフォンに、そっと知らせる ---- */
 .rotate-tip{display:none}
 @media (orientation:portrait) and (max-width:560px){
-  .rotate-tip{display:flex;align-items:center;gap:8px;
-    background:linear-gradient(#fff3c4,#ffe08a);border:3px solid var(--ink);border-radius:9px;
-    padding:6px 10px;font-size:12px;font-weight:bold;box-shadow:0 3px 0 rgba(74,47,26,.4);
-    margin-bottom:6px}
-  .rotate-tip i{font-style:normal;font-size:18px;animation:rotatehint 1.8s ease-in-out infinite}
-  .rotate-tip button{margin-left:auto;background:var(--ink);color:#ffeec4;border:0;
-    border-radius:5px;font-size:11px;padding:3px 8px}
+  /* 明るい札なので、文字色は継がずにここで決める。
+     皮を替えると地の色だけが変わり、
+     明るい札に明るい文字が乗って読めなくなっていた            */
+  .rotate-tip{display:flex;align-items:center;gap:7px;color:#3a2611;
+    background:linear-gradient(#fff3c4,#ffe08a);border:2px solid var(--ink);border-radius:8px;
+    padding:4px 8px;font-size:11.5px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.4);
+    margin-bottom:5px}
+  .rotate-tip span{flex:1;min-width:0;line-height:1.25}
+  .rotate-tip i{font-style:normal;font-size:16px;flex-shrink:0;
+    animation:rotatehint 1.8s ease-in-out infinite}
+  .rotate-tip button{flex-shrink:0;background:var(--ink);color:#ffeec4;border:0;
+    border-radius:5px;font-size:11px;padding:5px 10px;min-height:32px}
 }
 @keyframes rotatehint{0%,60%,100%{transform:rotate(0)}30%{transform:rotate(90deg)}}
 
@@ -3071,34 +3148,40 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <button class="cmd" id="cCrunch" title="次の1コマンドが2回ぶんになるが、疲れが残る"><span>🌙</span>徹夜</button>
       <button class="cmd" id="cKart" title="自前のカート場でレースを開く。若手が伸び、街の子が見つかる"><span>🏁</span>カート</button>
       <span class="cmd-sep"></span>
-      <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
-      <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
-      <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
-      <button class="cmd sub" id="cEngine" title="パワーユニットをよそから買うか、こちらから分けるか"><span>🔌</span>エンジン</button>
-      <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
-      <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
+      <div class="cmdsubs">
+        <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
+        <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
+        <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
+        <button class="cmd sub" id="cEngine" title="パワーユニットをよそから買うか、こちらから分けるか"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
+        <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
+      </div>
     </div>
     <div id="cmdRace" class="cmdset" style="display:none">
       <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
       <span class="cmd-sep"></span>
-      <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
-      <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
-      <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
-      <button class="cmd sub" id="cEngineR"><span>🔌</span>エンジン</button>
-      <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
+      <div class="cmdsubs">
+        <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
+        <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
+        <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
+        <button class="cmd sub" id="cEngineR"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
+      </div>
     </div>
     <div id="cmdOff" class="cmdset" style="display:none">
       <button class="cmd big" id="cOffGo"><span>🌱</span>来季を始める</button>
       <span class="cmd-sep"></span>
-      <button class="cmd sub" id="cGarageO"><span>🏎️</span>マシン</button>
-      <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
-      <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
-      <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
-      <button class="cmd sub" id="cEngineO"><span>🔌</span>エンジン</button>
-      <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
-      <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
+      <div class="cmdsubs">
+        <button class="cmd sub" id="cGarageO"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
+        <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
+        <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
+        <button class="cmd sub" id="cEngineO"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
+        <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
+      </div>
     </div>
   </nav>
 </div>
@@ -4674,17 +4757,99 @@ GP.data = (function () {
   /* bias は3性能の配分。チームごとにマシンの個性が違い、
      コースとの相性で速さが変わる（合計 1.0）                       */
   const RIVALS = [
-    { name: 'スクーデリア・ロッソ',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
-    { name: 'アルジェント・ワークス', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
-    { name: 'ブルーブル・レーシング', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
-    { name: 'マクレイン・パピヤ',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
-    { name: 'アストロ・グリーン',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
-    { name: 'アルピナ・ブルー',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
-    { name: 'ウィリス・モータース',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
-    { name: 'ハースト・レーシング',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
-    { name: 'キック・ザウバル',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
-    { name: 'ヴィザ・トロロッソ',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
+    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
+    { name: 'アルジェント・ワークス', abbr: 'ARG', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
+    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
+    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
+    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
+    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
+    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
+    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
+    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
+    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
   ];
+
+  /* ---------- 英語3文字の略号 ----------
+     中継のタイミング表と同じで、狭いところには3文字だけを出す。
+     カタカナのままでは幅が読めないうえ、
+     並べたときに姓の頭が揃わないので数字が追えない。
+
+     決まった名前には、綴りに合った略号を持たせてある
+     （ヴァレンティ→VAL、マクレガー→MCG のように、
+      ローマ字読みではなく、その名前の綴りのほう）。
+     自分でつけたチーム名など、表に無いものは
+     下の kana() で音から起こす。                        */
+  const LAST_ABBR = {
+    'ヴァレンティ': 'VAL', 'シュナイダー': 'SCH', 'ロッシ': 'ROS', 'ベルガー': 'BER',
+    'クルツ': 'KUR', 'モラレス': 'MOR', 'イワノフ': 'IVA', 'タカハシ': 'TAK',
+    'デュポン': 'DUP', 'オコナー': 'OCO', 'リンドクヴィスト': 'LIN', 'ペレイラ': 'PER',
+    'ファン・デル・ベルク': 'VDB', 'コルテス': 'COR', 'ヤマギシ': 'YAM', 'ブランコ': 'BLA',
+    'ヴァイス': 'WEI', 'ドラゴ': 'DRA', 'マルケス': 'MAR', 'キャンベル': 'CAM',
+    'ソレンセン': 'SOR', 'ナカジマ': 'NAK', 'フェルナンデス': 'FER', 'ヴィドマー': 'WID',
+    'オルソン': 'OLS', 'ブルネッリ': 'BRU', 'マクレガー': 'MCG', 'ハートマン': 'HAR',
+    'コヴァチ': 'KOV', 'ルソー': 'ROU', 'サンチェス': 'SAN', 'エステバン': 'EST',
+    'ノヴァク': 'NOV', 'ミハイロフ': 'MIK', 'ベネデット': 'BEN', 'クロフト': 'CRO',
+    'アマーリオ': 'AMA', 'シライシ': 'SHI', 'ラガルド': 'LAG', 'フォークナー': 'FAU'
+  };
+
+  /* カタカナ1音 → ローマ字。小書きの組み合わせを先に見る */
+  const KANA2 = {
+    'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho',
+    'チャ':'cha','チュ':'chu','チョ':'cho','ニャ':'nya','ニュ':'nyu','ニョ':'nyo',
+    'ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo','ミャ':'mya','ミュ':'myu','ミョ':'myo',
+    'リャ':'rya','リュ':'ryu','リョ':'ryo','ギャ':'gya','ギュ':'gyu','ギョ':'gyo',
+    'ジャ':'ja','ジュ':'ju','ジョ':'jo','ビャ':'bya','ビュ':'byu','ビョ':'byo',
+    'ピャ':'pya','ピュ':'pyu','ピョ':'pyo','シェ':'she','ジェ':'je','チェ':'che',
+    'ティ':'ti','ディ':'di','デュ':'du','テュ':'tu','ツァ':'tsa','ツェ':'tse','ツォ':'tso',
+    'ファ':'fa','フィ':'fi','フェ':'fe','フォ':'fo','フュ':'fu',
+    'ヴァ':'va','ヴィ':'vi','ヴェ':'ve','ヴォ':'vo','ヴュ':'vu',
+    'ウィ':'wi','ウェ':'we','ウォ':'wo','クァ':'kwa','クォ':'kwo','グァ':'gwa'
+  };
+  const KANA1 = {
+    'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o',
+    'カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko',
+    'ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+    'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so',
+    'ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo',
+    'タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+    'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do',
+    'ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no',
+    'ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+    'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo',
+    'パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po',
+    'マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+    'ヤ':'ya','ユ':'yu','ヨ':'yo',
+    'ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro',
+    'ワ':'wa','ヲ':'o','ン':'n','ヴ':'vu'
+  };
+  function kana(str) {
+    let out = '';
+    for (let i = 0; i < str.length && out.length < 6; i++) {
+      const two = str.substr(i, 2);
+      if (KANA2[two]) { out += KANA2[two]; i++; continue; }
+      const one = str[i];
+      if (KANA1[one]) { out += KANA1[one]; continue; }
+      if (one === 'ッ') continue;                    // 促音。3文字には出てこない
+      if (one === 'ー') continue;                    // 伸ばし棒も落とす
+      if (/[A-Za-z]/.test(one)) { out += one; continue; }
+    }
+    return out;
+  }
+  /* 名前 → 英語3文字。
+     drv:true のときは、姓のほう（「・」より後ろ）を見る */
+  function abbr3(name, drv) {
+    let s2 = String(name || '').replace(/[\s\u3000]/g, '');
+    if (drv) { const i = s2.indexOf('・'); if (i >= 0) s2 = s2.slice(i + 1); }
+    if (LAST_ABBR[s2]) return LAST_ABBR[s2];
+    const rv = RIVALS.filter(r => r.name === s2)[0];
+    if (rv && rv.abbr) return rv.abbr;
+    // 表に無い名前は、音から起こす。「・」は語の切れ目なので落とす
+    const r2 = kana(s2.split('・').join(''));
+    if (r2.length >= 3) return r2.slice(0, 3).toUpperCase();
+    const ln = s2.replace(/[^A-Za-z0-9]/g, '');
+    if (ln.length >= 2) return (ln + 'XX').slice(0, 3).toUpperCase();
+    return (r2 + 'XX').slice(0, 3).toUpperCase();
+  }
 
   /* ---------- スポンサー ---------- */
   /* fans はファン数、hype は注目度（露出）の必要値。
@@ -6298,7 +6463,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -14949,9 +15114,15 @@ GP.raceview = (function () {
       const e = o.e;
       const pitting = !o.out && inPit(e, vt);
       // 先頭がこの位置を通過したのは何秒前か＝本当の意味での差
-      const behind = i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p));
+      const behind = i === 0 ? 0
+                   : (o.fin && leader.fin) ? Math.max(0, o.fin - leader.fin)
+                   : Math.max(0, vt - timeAt(leader.e, o.p));
+      // 走った距離が1周ぶん以上離れていたら、秒ではなく周で言う
+      const dn = i === 0 ? 0 : Math.max(0, Math.floor(leader.p - o.p + 1e-9));
       const gap = o.out ? 'DNF' : pitting ? 'PIT'
-                : (i === 0 ? '先頭' : '-' + behind.toFixed(1) + 's');
+                : i === 0 ? '先頭'
+                : dn > 0 ? '+' + dn + '周'
+                : '-' + behind.toFixed(1) + 's';
       const ty = tyreNow(e, vt);
       let chip = '<span class="rv-ty">–</span>';
       if (ty) {
@@ -15308,14 +15479,22 @@ GP.raceview = (function () {
       return Math.max(0, vt - timeAt(leader.e, o.p));
     });
     /* 何周遅れているか。1周以上離れたら、秒ではなく周で出す
-       （実際の中継と同じで、そのほうが差の大きさが伝わる）      */
-    const lapsDown = ord.map(o => Math.max(0,
-      Math.floor(leader.p + 1e-6) - Math.floor(o.p + 1e-6)));
+       （実際の中継と同じで、そのほうが差の大きさが伝わる）
+
+       周回カウンタどうしの引き算にしてはいけない。
+       先頭がコントロールラインを通った瞬間、
+       まだ通っていない車はみな「1周少ない」ことになるので、
+       0.02周しか離れていない2位まで +1周 と出てしまう。
+       数えるのは、あくまで走った距離の差のほう。            */
+    const lapsDown = ord.map(o => Math.max(0, Math.floor(leader.p - o.p + 1e-9)));
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
-      '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
+      '<span class="tb-p">P</span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
+      '<u class="tb-full">ドライバー</u></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
+      '<span class="tb-br"></span>' +
       '<span class="tb-s">S1</span><span class="tb-s">S2</span><span class="tb-s">S3</span>' +
       '<span class="tb-t">ラップ</span><span class="tb-t">ベスト</span></div>';
     ord.forEach((o, i) => {
@@ -15336,7 +15515,7 @@ GP.raceview = (function () {
           (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em></b></span>';
       }
-      const dLap = i === 0 ? 0 : lapsDown[i] - lapsDown[i - 1];
+      const dLap = i === 0 ? 0 : Math.max(0, Math.floor(ord[i - 1].p - o.p + 1e-9));
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
                  : dLap > 0 ? '+' + dLap + '周'
                  : '+' + (behind[i] - behind[i - 1]).toFixed(1);
@@ -15360,18 +15539,24 @@ GP.raceview = (function () {
       h += '<div class="tb-row' + (e.isPlayer ? ' me' : '') + (o.out ? ' out' : '') +
         (pitting ? ' pit' : '') + '">' +
         '<span class="tb-p">' + (i + 1) + '</span>' +
-        '<span class="tb-nm"><i style="background:' + e.color + '"></i>' + rvEsc(e.driver.name) + '</span>' +
+        '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
+          '<i style="background:' + e.color + '"></i>' +
+          '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
+          '<u class="tb-full">' + rvEsc(e.driver.name) + '</u></span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +
         '<span class="tb-g' + (i === 0 ? ' lead' : '') + '">' + gapL + '</span>' +
-        secs +
+        '<span class="tb-br"></span>' + secs +
         '<span class="tb-t">' + fmtLap(c.lastLap) + '</span>' +
         '<span class="tb-t' + blCls + '">' + fmtLap(bl) + '</span></div>';
     });
     h += '<div class="tb-row tb-head"><span class="tb-p"></span>' +
-      '<span class="tb-nm">セッション最速</span><span class="tb-lap"></span><span class="tb-ty"></span>' +
+      '<span class="tb-nm sess">セッション最速</span>' +
+      '<span class="tb-lap"></span><span class="tb-ty"></span>' +
       '<span class="tb-g"></span><span class="tb-g"></span>' +
+      '<span class="tb-br"></span>' +
       [0, 1, 2].map(k => '<span class="tb-s purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="tb-t"></span><span class="tb-t purple">' +
@@ -28177,8 +28362,31 @@ window.GP = window.GP || {};
     x.onclick = () => {
       tip.style.display = 'none';
       try { localStorage.setItem('gp-rotate-ok', '1'); } catch (e) {}
+      measureTop();
     };
   })();
+
+  /* ---- 上部バーの高さを、CSS に渡す ----
+     お知らせの札を「だいたいこのへん」で下げていたので、
+     案内が1本増えたスマートフォンでは、
+     出たお知らせが資金や研究の数字にかぶっていた。
+     決め打ちをやめて、実際に測った高さのぶんだけ下げる。      */
+  function measureTop() {
+    const bar = document.querySelector('.topbar');
+    if (!bar) return;
+    const b = bar.getBoundingClientRect().bottom;
+    document.documentElement.style.setProperty('--topH', Math.max(0, Math.round(b)) + 'px');
+  }
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(measureTop);
+    const bar = document.querySelector('.topbar');
+    if (bar) ro.observe(bar);
+    const tip2 = document.getElementById('rotateTip');
+    if (tip2) ro.observe(tip2);
+  }
+  window.addEventListener('resize', measureTop);
+  window.addEventListener('orientationchange', () => setTimeout(measureTop, 120));
+  measureTop();
 
   function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
 

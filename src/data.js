@@ -1090,17 +1090,99 @@ GP.data = (function () {
   /* bias は3性能の配分。チームごとにマシンの個性が違い、
      コースとの相性で速さが変わる（合計 1.0）                       */
   const RIVALS = [
-    { name: 'スクーデリア・ロッソ',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
-    { name: 'アルジェント・ワークス', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
-    { name: 'ブルーブル・レーシング', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
-    { name: 'マクレイン・パピヤ',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
-    { name: 'アストロ・グリーン',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
-    { name: 'アルピナ・ブルー',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
-    { name: 'ウィリス・モータース',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
-    { name: 'ハースト・レーシング',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
-    { name: 'キック・ザウバル',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
-    { name: 'ヴィザ・トロロッソ',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
+    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
+    { name: 'アルジェント・ワークス', abbr: 'ARG', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
+    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
+    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
+    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
+    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
+    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
+    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
+    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
+    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
   ];
+
+  /* ---------- 英語3文字の略号 ----------
+     中継のタイミング表と同じで、狭いところには3文字だけを出す。
+     カタカナのままでは幅が読めないうえ、
+     並べたときに姓の頭が揃わないので数字が追えない。
+
+     決まった名前には、綴りに合った略号を持たせてある
+     （ヴァレンティ→VAL、マクレガー→MCG のように、
+      ローマ字読みではなく、その名前の綴りのほう）。
+     自分でつけたチーム名など、表に無いものは
+     下の kana() で音から起こす。                        */
+  const LAST_ABBR = {
+    'ヴァレンティ': 'VAL', 'シュナイダー': 'SCH', 'ロッシ': 'ROS', 'ベルガー': 'BER',
+    'クルツ': 'KUR', 'モラレス': 'MOR', 'イワノフ': 'IVA', 'タカハシ': 'TAK',
+    'デュポン': 'DUP', 'オコナー': 'OCO', 'リンドクヴィスト': 'LIN', 'ペレイラ': 'PER',
+    'ファン・デル・ベルク': 'VDB', 'コルテス': 'COR', 'ヤマギシ': 'YAM', 'ブランコ': 'BLA',
+    'ヴァイス': 'WEI', 'ドラゴ': 'DRA', 'マルケス': 'MAR', 'キャンベル': 'CAM',
+    'ソレンセン': 'SOR', 'ナカジマ': 'NAK', 'フェルナンデス': 'FER', 'ヴィドマー': 'WID',
+    'オルソン': 'OLS', 'ブルネッリ': 'BRU', 'マクレガー': 'MCG', 'ハートマン': 'HAR',
+    'コヴァチ': 'KOV', 'ルソー': 'ROU', 'サンチェス': 'SAN', 'エステバン': 'EST',
+    'ノヴァク': 'NOV', 'ミハイロフ': 'MIK', 'ベネデット': 'BEN', 'クロフト': 'CRO',
+    'アマーリオ': 'AMA', 'シライシ': 'SHI', 'ラガルド': 'LAG', 'フォークナー': 'FAU'
+  };
+
+  /* カタカナ1音 → ローマ字。小書きの組み合わせを先に見る */
+  const KANA2 = {
+    'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho',
+    'チャ':'cha','チュ':'chu','チョ':'cho','ニャ':'nya','ニュ':'nyu','ニョ':'nyo',
+    'ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo','ミャ':'mya','ミュ':'myu','ミョ':'myo',
+    'リャ':'rya','リュ':'ryu','リョ':'ryo','ギャ':'gya','ギュ':'gyu','ギョ':'gyo',
+    'ジャ':'ja','ジュ':'ju','ジョ':'jo','ビャ':'bya','ビュ':'byu','ビョ':'byo',
+    'ピャ':'pya','ピュ':'pyu','ピョ':'pyo','シェ':'she','ジェ':'je','チェ':'che',
+    'ティ':'ti','ディ':'di','デュ':'du','テュ':'tu','ツァ':'tsa','ツェ':'tse','ツォ':'tso',
+    'ファ':'fa','フィ':'fi','フェ':'fe','フォ':'fo','フュ':'fu',
+    'ヴァ':'va','ヴィ':'vi','ヴェ':'ve','ヴォ':'vo','ヴュ':'vu',
+    'ウィ':'wi','ウェ':'we','ウォ':'wo','クァ':'kwa','クォ':'kwo','グァ':'gwa'
+  };
+  const KANA1 = {
+    'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o',
+    'カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko',
+    'ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+    'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so',
+    'ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo',
+    'タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+    'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do',
+    'ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no',
+    'ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+    'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo',
+    'パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po',
+    'マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+    'ヤ':'ya','ユ':'yu','ヨ':'yo',
+    'ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro',
+    'ワ':'wa','ヲ':'o','ン':'n','ヴ':'vu'
+  };
+  function kana(str) {
+    let out = '';
+    for (let i = 0; i < str.length && out.length < 6; i++) {
+      const two = str.substr(i, 2);
+      if (KANA2[two]) { out += KANA2[two]; i++; continue; }
+      const one = str[i];
+      if (KANA1[one]) { out += KANA1[one]; continue; }
+      if (one === 'ッ') continue;                    // 促音。3文字には出てこない
+      if (one === 'ー') continue;                    // 伸ばし棒も落とす
+      if (/[A-Za-z]/.test(one)) { out += one; continue; }
+    }
+    return out;
+  }
+  /* 名前 → 英語3文字。
+     drv:true のときは、姓のほう（「・」より後ろ）を見る */
+  function abbr3(name, drv) {
+    let s2 = String(name || '').replace(/[\s\u3000]/g, '');
+    if (drv) { const i = s2.indexOf('・'); if (i >= 0) s2 = s2.slice(i + 1); }
+    if (LAST_ABBR[s2]) return LAST_ABBR[s2];
+    const rv = RIVALS.filter(r => r.name === s2)[0];
+    if (rv && rv.abbr) return rv.abbr;
+    // 表に無い名前は、音から起こす。「・」は語の切れ目なので落とす
+    const r2 = kana(s2.split('・').join(''));
+    if (r2.length >= 3) return r2.slice(0, 3).toUpperCase();
+    const ln = s2.replace(/[^A-Za-z0-9]/g, '');
+    if (ln.length >= 2) return (ln + 'XX').slice(0, 3).toUpperCase();
+    return (r2 + 'XX').slice(0, 3).toUpperCase();
+  }
 
   /* ---------- スポンサー ---------- */
   /* fans はファン数、hype は注目度（露出）の必要値。
@@ -2714,5 +2796,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

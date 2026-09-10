@@ -64,8 +64,31 @@ window.GP = window.GP || {};
     x.onclick = () => {
       tip.style.display = 'none';
       try { localStorage.setItem('gp-rotate-ok', '1'); } catch (e) {}
+      measureTop();
     };
   })();
+
+  /* ---- 上部バーの高さを、CSS に渡す ----
+     お知らせの札を「だいたいこのへん」で下げていたので、
+     案内が1本増えたスマートフォンでは、
+     出たお知らせが資金や研究の数字にかぶっていた。
+     決め打ちをやめて、実際に測った高さのぶんだけ下げる。      */
+  function measureTop() {
+    const bar = document.querySelector('.topbar');
+    if (!bar) return;
+    const b = bar.getBoundingClientRect().bottom;
+    document.documentElement.style.setProperty('--topH', Math.max(0, Math.round(b)) + 'px');
+  }
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(measureTop);
+    const bar = document.querySelector('.topbar');
+    if (bar) ro.observe(bar);
+    const tip2 = document.getElementById('rotateTip');
+    if (tip2) ro.observe(tip2);
+  }
+  window.addEventListener('resize', measureTop);
+  window.addEventListener('orientationchange', () => setTimeout(measureTop, 120));
+  measureTop();
 
   function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
 
