@@ -1940,6 +1940,47 @@ body[data-skin="hd"]{
   .ch-to{grid-column:1 / -1;padding-left:2px}
 }
 
+/* ---- 1台ぜんぶの噛み合い ----
+   車の形の上に、全部の組を載せた図。
+   面の色に合わせるので、皮を変えても浮かない            */
+.carmap{background:var(--face2);border:1px solid var(--faceEdge);border-radius:10px;
+  padding:6px 8px 4px;margin:4px 0 8px}
+.carmap svg{display:block;width:100%;height:auto}
+/* 車体。主役は線と節なので、車そのものは静かに置く */
+/* 車体は面の色を借りず、専用の色を当てる。
+   借りると地に溶けて、車の上に載っていることが伝わらない */
+.carmap{--carBody:#e6ddc9; --carEdge:#9a8b70; --carTyre:#4a4134}
+.cm-car{opacity:1}
+.cm-hull{fill:var(--carBody);stroke:var(--carEdge);stroke-width:2}
+.cm-wing{fill:var(--carEdge)}
+.cm-pit{fill:var(--carTyre);opacity:.55}
+.cm-duct{fill:var(--carEdge)}
+.cm-tyre{fill:var(--carTyre);opacity:.8}
+.cm-arm{fill:none;stroke:var(--carEdge);stroke-width:3;stroke-linecap:round;opacity:.85}
+/* 噛み合いの線 */
+.cm-l{fill:none;stroke:var(--faceSub);stroke-linecap:round;opacity:.34}
+.cm-l.on{stroke:var(--okTx);opacity:.95}
+/* 節 */
+.cm-n circle{stroke:var(--faceEdge);stroke-width:2}
+.cm-n.weak circle{stroke:var(--ngTx);stroke-width:2.5;stroke-dasharray:4 3}
+.cm-ic{font-size:11px;text-anchor:middle}
+.cm-lb{font-size:9.5px;fill:var(--faceTx);text-anchor:middle}
+.cm-n.weak .cm-lb{fill:var(--ngTx);font-weight:700}
+[data-skin="hd"] .carmap{--carBody:#3c3354; --carEdge:#7d6cab; --carTyre:#181125}
+.cm-lane{font-size:9.5px;color:var(--faceSub);font-weight:700;padding:0 2px}
+.cm-lane.bottom{text-align:right}
+/* 読みかたの札 */
+.cm-leg{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;
+  padding:2px 2px 3px;font-size:9.5px;color:var(--faceSub)}
+.cm-leg span{display:inline-flex;align-items:center;gap:4px}
+.cm-leg i{display:inline-block;width:16px;height:3px;border-radius:2px;
+  background:var(--faceSub);opacity:.4}
+.cm-leg i.on{height:5px;background:var(--okTx);opacity:1}
+.cm-leg i.wk{width:11px;height:11px;border-radius:50%;background:transparent;
+  border:2px dashed var(--ngTx);opacity:1}
+.cm-sum{margin-left:auto;color:var(--faceTx)}
+.cm-sum b{font-size:12px;color:var(--okTx)}
+
 /* ---- 噛み合いの図（組ごとに一行）----
    丸の大小と、継手の詰まりぐあいだけで読めるようにしてある */
 .mechlist{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}

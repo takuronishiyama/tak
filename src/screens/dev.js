@@ -659,6 +659,157 @@ GP.screens.dev = function (A) {
      ・継手の詰まりぐあいが、いま出ている効き
      数字を読まなくても、絵の大小だけで犯人が分かるようにしてある。
      ======================================================= */
+  /* =======================================================
+     1台ぜんぶの噛み合い
+
+     組ごとの一行は「なぜ効いていないか」は読めるが、
+     車が一つの機械だという感じが落ちる。
+     部品はばらばらに効いているのではなく、
+     全部が繋がって1台になっている。
+
+     そこで、車の形そのものの上に全部の組を載せる。
+       上の列 … 積んでいる部品（前から後ろの順に置いてある）
+       下の列 … 車体の作り込み（効いている場所のあたりに置いてある）
+       あいだの線 … 噛み合い。太いほど効いている
+     物の位置どおりに並べてあるので、線はほとんど交差しない。
+     輪に並べていたころ、線が総当たりで交差していたのはこのため。
+     ======================================================= */
+  const CAR_X = {
+    /* 前から後ろの順。実際の車での、だいたいの位置 */
+    p: { aero: 60, brake: 120, susp: 175, chas: 235, elec: 285, pu: 345, gear: 405 },
+    /* 車体の作り込みは、それが効いている場所のあたりへ。
+       相手の真下に来るほど線が短くなるので、
+       組んでいる相手を見ながら置いてある                       */
+    b: { aeroBody: 55, drive: 120, rigidity: 180, cooling: 240,
+         light: 300, battery: 355, service: 425 }
+  };
+  /* 総当たりで並べ替えを試したところ、交差 4本がこの組み合わせの下限だった
+     （冷却がブレーキとパワーの両方と組み、シャシーが剛性と軽量化の
+       両方と組むので、どう並べても交差は消えない）。
+     消せないぶんは、線のたわみを変えて重ならないようにしてある。   */
+  const CAR_W = 480, CAR_H = 286;
+  const LANE_P = 74, LANE_B = 212, BODY_Y = 143;
+
+  /* 車の輪郭。真上から見た形。
+     一本の輪郭で描くと、ただの細長い塊にしか見えなかったので、
+     鼻・モノコック・サイドポッド・エンジンカバーに分けて重ねる。
+     節は車の上下に並ぶので、車体はそのあいだに収まる高さにしてある。
+     色は面から借りずに専用のものを当てる。借りると地に溶けて、
+     「車の上に載っている」ことが伝わらない                       */
+  function carBodySVG() {
+    const y = BODY_Y;
+    const T = 42;                      // 中心からタイヤの中心まで
+    let h = '<g class="cm-car">';
+
+    // ---- タイヤと、それを支える腕 ----
+    [[122, -1], [122, 1], [390, -1], [390, 1]].forEach(w => {
+      const wy = y + w[1] * T;
+      h += '<rect x="' + (w[0] - 12) + '" y="' + (wy - 13) +
+        '" width="24" height="26" rx="7" class="cm-tyre"></rect>';
+      /* 腕は車体側からタイヤの内側の縁まで。
+         タイヤの中心まで引くと、上下の腕が交差して×に見えてしまう */
+      const inner = wy - w[1] * 12;
+      h += '<path class="cm-arm" d="M' + (w[0] - 17) + ' ' + (y + w[1] * 14) +
+        ' L' + (w[0] - 3) + ' ' + inner + ' M' + (w[0] + 17) + ' ' + (y + w[1] * 14) +
+        ' L' + (w[0] + 3) + ' ' + inner + '"></path>';
+    });
+
+    // ---- 前後のウイング ----
+    h += '<rect x="30" y="' + (y - 35) + '" width="17" height="70" rx="3" class="cm-wing"></rect>';
+    h += '<rect x="406" y="' + (y - 32) + '" width="19" height="64" rx="3" class="cm-wing"></rect>';
+    // ウイングと車体をつなぐ支柱
+    h += '<rect x="44" y="' + (y - 4) + '" width="16" height="8" class="cm-wing"></rect>';
+    h += '<rect x="396" y="' + (y - 5) + '" width="14" height="10" class="cm-wing"></rect>';
+
+    // ---- 鼻（先が細く、根元が太い） ----
+    h += '<path class="cm-hull" d="M56 ' + (y - 6) + ' L172 ' + (y - 17) +
+      ' L172 ' + (y + 17) + ' L56 ' + (y + 6) + ' Z"></path>';
+    // ---- モノコック ----
+    h += '<rect x="168" y="' + (y - 20) + '" width="86" height="40" rx="7" class="cm-hull"></rect>';
+    // ---- サイドポッド（いちばん幅がある） ----
+    h += '<rect x="246" y="' + (y - 27) + '" width="102" height="54" rx="11" class="cm-hull"></rect>';
+    // ---- エンジンカバー（後ろへ絞る） ----
+    h += '<path class="cm-hull" d="M342 ' + (y - 25) + ' L400 ' + (y - 9) +
+      ' L400 ' + (y + 9) + ' L342 ' + (y + 25) + ' Z"></path>';
+
+    // ---- コクピットと、サイドポッドの開口 ----
+    h += '<ellipse cx="200" cy="' + y + '" rx="15" ry="8" class="cm-pit"></ellipse>';
+    h += '<rect x="252" y="' + (y - 25) + '" width="30" height="6" rx="3" class="cm-duct"></rect>';
+    h += '<rect x="252" y="' + (y + 19) + '" width="30" height="6" rx="3" class="cm-duct"></rect>';
+    return h + '</g>';
+  }
+
+  function carMapSVG(g2) {
+    const syn = S.mechSynergy(g2);
+    const live = syn.filter(x => x.on).length;
+    const xOf = m => (m.p ? CAR_X.p[m.p] : CAR_X.b[m.b]);
+    const yOf = m => (m.p ? LANE_P : LANE_B);
+    const rOf = v => 8 + Math.max(0, Math.min(1, v)) * 9;
+
+    let links = '', nodes = '';
+    /* ---- 線 ----
+       離れている組ほど深くたわませる。
+       同じところを通らなくなるので、重なって読めなくなるのを防げる */
+    syn.forEach(x => {
+      const ax = xOf(x.def.a), ay = yOf(x.def.a);
+      const bx = xOf(x.def.b), by = yOf(x.def.b);
+      const span = Math.abs(bx - ax);
+      const same = ay === by;
+      /* 同じ列どうしは上へ迂回。上下をまたぐものは、
+         離れている組ほど大きく膨らませる。こうしておくと、
+         交差しても別々のところを通るので、目で追える           */
+      const mx = (ax + bx) / 2;
+      const my = same ? ay - 22 - span * 0.10
+                      : (ay + by) / 2 + (ax < bx ? -1 : 1) * (6 + span * 0.11);
+      links += '<path class="cm-l' + (x.on ? ' on' : '') +
+        '" d="M' + ax + ' ' + ay + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) +
+        ' ' + bx + ' ' + by + '" stroke-width="' + (1.4 + x.ratio * 4.6).toFixed(2) + '"></path>';
+    });
+
+    /* ---- 節 ----
+       大きさがそのままその部位の充実ぶり。
+       噛み合いを止めている側には、切れかけの縁をつける          */
+    const weak = {};
+    syn.forEach(x => {
+      const k = x.weak.p ? 'p:' + x.weak.p : 'b:' + x.weak.b;
+      if (x.ratio < 0.97) weak[k] = true;
+    });
+    const put = (m, score) => {
+      const o = S.mechName(m);
+      const k = m.p ? 'p:' + m.p : 'b:' + m.b;
+      const x = xOf(m), y = yOf(m), r = rOf(score);
+      const lab = m.p ? y - r - 8 : y + r + 14;
+      nodes += '<g class="cm-n' + (weak[k] ? ' weak' : '') + '">' +
+        '<circle cx="' + x + '" cy="' + y + '" r="' + r.toFixed(1) +
+          '" style="fill:' + o.color + '"></circle>' +
+        '<text x="' + x + '" y="' + (y + 4.5) + '" class="cm-ic">' + o.icon + '</text>' +
+        '<text x="' + x + '" y="' + lab + '" class="cm-lb">' +
+          esc(o.short || o.name) + '</text></g>';
+    };
+    D.PART_CATS.forEach(c => {
+      if (CAR_X.p[c.key] == null) return;
+      put({ p: c.key }, S.mechScore(g2, { p: c.key }));
+    });
+    D.BODY_ATTRS.forEach(c => {
+      if (CAR_X.b[c.key] == null) return;
+      put({ b: c.key }, S.mechScore(g2, { b: c.key }));
+    });
+
+    return '<div class="carmap">' +
+      '<div class="cm-lane top">▲ 積んでいる部品</div>' +
+      '<svg viewBox="0 0 ' + CAR_W + ' ' + CAR_H + '" role="img" ' +
+        'aria-label="車ぜんぶの噛み合い">' +
+      carBodySVG() + links + nodes +
+      '</svg>' +
+      '<div class="cm-lane bottom">▼ 車体の作り込み</div>' +
+      '<div class="cm-leg">' +
+      '<span><i class="on"></i>太い線ほど噛み合っている</span>' +
+      '<span><i class="off"></i>細い線は、まだ効いていない</span>' +
+      '<span><i class="wk"></i>破線の縁が、止めている側</span>' +
+      '<span class="cm-sum">噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</span>' +
+      '</div></div>';
+  }
+
   function couplingSVG(x) {
     const A = S.mechName(x.def.a), B = S.mechName(x.def.b);
     const nm = o => o.short || o.name;
@@ -687,13 +838,13 @@ GP.screens.dev = function (A) {
     const gen = D.CAR_GENS[g2.carGen];
     const live = syn.filter(x => x.on).length;
 
-    let h = '<div class="mechlist">' +
+    let h = carMapSVG(g2) + '<div class="mechlist">' +
       '<div class="ml-head"><b>' + esc(gen.name) + '</b>' +
       '<span>速' + Math.round(st.speed) + '／曲' + Math.round(st.corner) +
       '／加' + Math.round(st.accel) + '</span>' +
       '<em>噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</em></div>' +
       '<p class="desc">部品は、単体ではなく<b>組で効きます</b>。' +
-      '下の図は、その組がいま噛み合っているかどうかです。' +
+      '上の図が1台ぜんぶ、下がその組ひとつずつの中身です。' +
       '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
       'そこを厚くすると、継手が詰まって効きはじめます。</p>';
 
