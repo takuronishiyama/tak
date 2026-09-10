@@ -55,9 +55,12 @@ window.GP = window.GP || {};
     }
     // どこかのチームが何かを掘り当てていたら、そのぶんの報せを出す
     (g.innovLog || []).forEach(n => {
-      U.log(g, '🔬 ' + n.team + ' が「' + n.what + '」を投入！ 1周あたり約 ' +
-        n.sec.toFixed(2) + '秒 速くなった', 'warn');
-      U.toast('🔬 ' + n.team + '「' + n.what + '」', 'warn');
+      // 秒数が分からないもの（古いデータ）は、無理に 0.00 秒と書かない
+      const amt = n.sec > 0 ? ' 1周あたり約 ' + n.sec.toFixed(2) + '秒 速くなった' : '';
+      U.log(g, n.copyOf
+        ? '🔬 ' + n.team + ' が ' + n.copyOf + ' の「' + n.what + '」を写してきた。' + amt
+        : '🔬 ' + n.team + ' が「' + n.what + '」を投入！' + amt, 'warn');
+      U.toast('🔬 ' + n.team + (n.copyOf ? 'も「' : '「') + n.what + '」', 'warn');
     });
     g.innovLog = [];
     // FIA の裁定。掘り当てたものが、そのまま認められるとは限らない
@@ -789,7 +792,7 @@ window.GP = window.GP || {};
         const t2 = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
         const sec = S.rnd(D.INNOV.secMin, D.INNOV.secMax);
         const mul = 1 + S.secToScore(g, sec) / Math.max(1, S.carScore(g, t2));
-        S.setTrend(g, g.team, brk, mul, true);
+        S.setTrend(g, g.team, brk, mul, true, sec);
       }
     }
 
@@ -6258,17 +6261,19 @@ window.GP = window.GP || {};
   const openFacility = key => { baseSel = key; cmdFacility(); };
 
   const HUB_DOORS = {
+    // 敷地の絵と同じ並び。手前の列を左から、そのあと奥の列を左から
     pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
     factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
+    sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
+    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
+    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
                fn: () => openFacility('depot') },
-    sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
-               fn: () => openFacility('mission') },
-    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
-    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() }
+               fn: () => openFacility('mission') }
   };
+
 
   /* ---------- 拠点の画面 ----------
      以前はチームプリンシパルを歩かせていたが、

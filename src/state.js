@@ -919,13 +919,20 @@ GP.state = (function () {
      風洞で再現され、数戦のうちにグリッドの半分が同じ形になる。
      真似るほうが速いが、本家の写しでしかないので届ききらない。
      ======================================================= */
-  function setTrend(g2, by, what, mul, mine) {
+  function setTrend(g2, by, what, mul, mine, sec) {
     g2.trend = {
       by: by, what: what, mul: mul, mine: !!mine,
+      // 本家が何秒ぶん速くなったのか。写したチームの伸びはここから割り出す
+      sec: sec != null ? Math.round(sec * 100) / 100 : null,
       at: g2.week || 0, season: g2.season || 1,
       copied: [], playerCopied: false
     };
     pushNews(g2, 'trend', what, { by: by });
+  }
+  /* 写したチームが縮めた秒数。本家の伸びに、写しの届き具合を掛ける。
+     本家の秒数を持っていない（古いデータの）ときは分からないままにする */
+  function copiedSec(t, ratio) {
+    return t.sec == null ? null : Math.round(t.sec * ratio * 100) / 100;
   }
   function trendOf(g2) {
     const t = g2.trend;
@@ -957,11 +964,13 @@ GP.state = (function () {
     const posOf = nm => { const i = tbl.findIndex(r => r.name === nm); return i < 0 ? 99 : i; };
     pool.sort((a, b) => Math.abs(posOf(a.name) - myPos) - Math.abs(posOf(b.name) - myPos));
     const r = pool[Math.min(pool.length - 1, rint(0, 2))];
-    const gain = (cur.t.mul - 1) * (ratio == null ? D.TREND.copyOf : ratio);
+    const rt = (ratio == null ? D.TREND.copyOf : ratio);
+    const gain = (cur.t.mul - 1) * rt;
     ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= 1 + gain; });
     cur.t.copied.push(r.name);
     g2.innovLog = (g2.innovLog || []).concat([{
-      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2), sec: 0, mine: false
+      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2),
+      sec: copiedSec(cur.t, rt), mine: false
     }]);
     return { team: r.name, what: cur.t.what, gain: gain };
   }
@@ -1206,7 +1215,7 @@ GP.state = (function () {
           team: r.name, color: r.color, what: what,
           sec: Math.round(sec * 100) / 100, mine: false
         }]);
-        setTrend(g2, r.name, what, mul, false);
+        setTrend(g2, r.name, what, mul, false, sec);
       }
     });
     /* ---- 真似が広がる ----
@@ -1227,7 +1236,7 @@ GP.state = (function () {
           cur.t.copied.push(r.name);
           g2.innovLog = (g2.innovLog || []).concat([{
             team: r.name, color: r.color, what: cur.t.what,
-            copyOf: cur.t.by, sec: 0, mine: false
+            copyOf: cur.t.by, sec: copiedSec(cur.t, ratio), mine: false
           }]);
         });
         // 真似られたぶん、本家の優位は薄れていく

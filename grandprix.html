@@ -6031,13 +6031,20 @@ GP.state = (function () {
      風洞で再現され、数戦のうちにグリッドの半分が同じ形になる。
      真似るほうが速いが、本家の写しでしかないので届ききらない。
      ======================================================= */
-  function setTrend(g2, by, what, mul, mine) {
+  function setTrend(g2, by, what, mul, mine, sec) {
     g2.trend = {
       by: by, what: what, mul: mul, mine: !!mine,
+      // 本家が何秒ぶん速くなったのか。写したチームの伸びはここから割り出す
+      sec: sec != null ? Math.round(sec * 100) / 100 : null,
       at: g2.week || 0, season: g2.season || 1,
       copied: [], playerCopied: false
     };
     pushNews(g2, 'trend', what, { by: by });
+  }
+  /* 写したチームが縮めた秒数。本家の伸びに、写しの届き具合を掛ける。
+     本家の秒数を持っていない（古いデータの）ときは分からないままにする */
+  function copiedSec(t, ratio) {
+    return t.sec == null ? null : Math.round(t.sec * ratio * 100) / 100;
   }
   function trendOf(g2) {
     const t = g2.trend;
@@ -6069,11 +6076,13 @@ GP.state = (function () {
     const posOf = nm => { const i = tbl.findIndex(r => r.name === nm); return i < 0 ? 99 : i; };
     pool.sort((a, b) => Math.abs(posOf(a.name) - myPos) - Math.abs(posOf(b.name) - myPos));
     const r = pool[Math.min(pool.length - 1, rint(0, 2))];
-    const gain = (cur.t.mul - 1) * (ratio == null ? D.TREND.copyOf : ratio);
+    const rt = (ratio == null ? D.TREND.copyOf : ratio);
+    const gain = (cur.t.mul - 1) * rt;
     ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= 1 + gain; });
     cur.t.copied.push(r.name);
     g2.innovLog = (g2.innovLog || []).concat([{
-      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2), sec: 0, mine: false
+      team: r.name, color: r.color, what: cur.t.what, copyOf: teamLabel(g2),
+      sec: copiedSec(cur.t, rt), mine: false
     }]);
     return { team: r.name, what: cur.t.what, gain: gain };
   }
@@ -6318,7 +6327,7 @@ GP.state = (function () {
           team: r.name, color: r.color, what: what,
           sec: Math.round(sec * 100) / 100, mine: false
         }]);
-        setTrend(g2, r.name, what, mul, false);
+        setTrend(g2, r.name, what, mul, false, sec);
       }
     });
     /* ---- 真似が広がる ----
@@ -6339,7 +6348,7 @@ GP.state = (function () {
           cur.t.copied.push(r.name);
           g2.innovLog = (g2.innovLog || []).concat([{
             team: r.name, color: r.color, what: cur.t.what,
-            copyOf: cur.t.by, sec: 0, mine: false
+            copyOf: cur.t.by, sec: copiedSec(cur.t, ratio), mine: false
           }]);
         });
         // 真似られたぶん、本家の優位は薄れていく
@@ -12525,17 +12534,24 @@ GP.base = (function () {
 
   const W = 780, H = 340;
 
-  /* 建物の区画。x,y は左下（正面）を基準にする */
+  /* 建物の区画。x,y は左下（正面）を基準にする。
+     実際のF1ファクトリーに倣って、一列に並べず
+     周回路をはさんだ奥（back）と手前（front）の二列に置く。
+     奥の列は BACK_SCALE で縮めて描き、遠くにあるように見せる。   */
+  const BACK_SCALE = 0.62;
   const PLOTS = [
-    { key: 'pit',     x: 12,  y: 238, label: 'ピット設備' },
-    { key: 'factory', x: 98,  y: 246, label: 'ファクトリー' },
-    { key: 'tunnel',  x: 186, y: 238, label: '風洞' },
-    { key: 'depot',   x: 262, y: 242, label: '物流倉庫' },
-    { key: 'sim',     x: 360, y: 246, label: 'シミュレーター' },
-    { key: 'mission', x: 448, y: 236, label: 'ミッションコントロール' },
-    { key: 'youth',   x: 552, y: 240, label: 'ユース' },
-    { key: 'market',  x: 640, y: 234, label: 'マーケ室' }
+    // 奥の列（生産・技術のブロック）
+    { key: 'tunnel',  x: 70,  y: 122, back: true, label: '風洞' },
+    { key: 'depot',   x: 180, y: 124, back: true, label: '物流倉庫' },
+    { key: 'mission', x: 430, y: 120, back: true, label: 'ミッションコントロール' },
+    // 手前の列（毎日出入りするところ）
+    { key: 'pit',     x: 28,  y: 288, label: 'ピット設備' },
+    { key: 'factory', x: 150, y: 292, label: 'ファクトリー' },
+    { key: 'sim',     x: 352, y: 292, label: 'シミュレーター' },
+    { key: 'market',  x: 506, y: 286, label: 'マーケ室' },
+    { key: 'youth',   x: 648, y: 290, label: 'ユース' }
   ];
+  const ROAD = { backY: 128, midY: 236, spanX: 268, spanW: 44 };   // 周回路と引き込み路
 
   let hitBoxes = [];
   let dusk = false;          // HD-2Dスキンのときは夕景で描く
@@ -12543,7 +12559,7 @@ GP.base = (function () {
 
   /* 歩ける範囲。建物の手前の敷地を左右に移動する。
      建物より奥へは行けないので、キャラは常に建物より手前に描けばよい。 */
-  const WALK = { x0: 18, x1: W - 18, y0: 262, y1: 318 };
+  const WALK = { x0: 18, x1: W - 18, y0: 298, y1: 330 };
 
   /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
   const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516, 584, 652];
@@ -12943,26 +12959,19 @@ GP.base = (function () {
 
   /* ---------- 賑わい（ファン数・タイトル）---------- */
   function drawCrowd(g, fans, titles, color, rnd) {
-    // 来場者
+    // 来場者。正面の広場と中庭に散らばる
     const people = Math.min(46, Math.floor(Math.log10(Math.max(10, fans)) * 12) - 8);
     for (let i = 0; i < people; i++) {
-      const x = 20 + rnd() * (W - 40), y = 262 + rnd() * 62;
+      const back = rnd() < 0.34;
+      const x = 20 + rnd() * (W - 40);
+      const y = back ? 148 + rnd() * 84 : 296 + rnd() * 40;
       g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0'][Math.floor(rnd() * 5)];
       g.fillRect(x, y, 3, 4);
       g.fillStyle = '#f2c9a0'; g.fillRect(x, y - 3, 3, 3);
     }
-    // 駐車場の車
-    const cars = Math.min(10, Math.floor(fans / 2500));
-    for (let i = 0; i < cars; i++) {
-      const x = 24 + (i % 5) * 24, y = 292 + Math.floor(i / 5) * 16;
-      g.fillStyle = '#3a2413'; g.fillRect(x - 1, y - 1, 18, 10);
-      g.fillStyle = ['#c85040', '#4070c0', '#50a050', '#d0a030'][i % 4];
-      g.fillRect(x, y, 16, 8);
-      g.fillStyle = '#bcd8e8'; g.fillRect(x + 4, y + 1, 8, 3);
-    }
-    // トロフィー像
+    // トロフィー像。池のほとりに並べる
     for (let i = 0; i < Math.min(6, titles); i++) {
-      const x = 320 + i * 24, y = 320;
+      const x = 352 + i * 22, y = 224;
       g.fillStyle = '#8f7a5c'; g.fillRect(x, y, 12, 8);
       g.fillStyle = '#f0c040'; g.fillRect(x + 3, y - 10, 6, 10);
       g.fillRect(x + 1, y - 13, 10, 3);
@@ -13032,7 +13041,7 @@ GP.base = (function () {
     for (let y = 0; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
     // 奥の木立。幹・輪郭・本体・光の葉 の4層で、遠景でも立体に見せる
     for (let x = 4; x < W; x += 19) {
-      const ty = 74 + Math.floor(rnd() * 12);
+      const ty = 36 + Math.floor(rnd() * 10);
       const sc = 0.8 + rnd() * 0.55;
       const cw = Math.round(8 * sc), ch = Math.round(12 * sc);
       ctx.fillStyle = '#3a2712'; ctx.fillRect(x + 6, ty - 6, 3, 7);          // 幹
@@ -13053,77 +13062,152 @@ GP.base = (function () {
       ctx.fillRect(x + 8.5 - cw, ty - 3 - ch, cw * 0.6, ch * 0.28);
       ctx.fillRect(x + 8 - cw * 0.5, ty - 6.5 - ch, cw * 0.5, 2.4);
     }
-    // 敷地の舗装（建物が建つ面）
-    ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(10, 108, W - 20, H - 128);
-    ctx.fillStyle = dusk ? '#524b58' : '#c4bcac';
-    for (let x = 10; x < W - 10; x += 24) ctx.fillRect(x, 108, 22, H - 128);
-    ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c'; ctx.fillRect(10, 108, W - 20, 3);
-    // 引き込み路。奥のゲートから手前まで通す
-    ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(W / 2 - 22, 112, 44, H - 112);
-    ctx.fillStyle = 'rgba(255,255,255,.55)';
-    for (let y = 120; y < H; y += 16) ctx.fillRect(W / 2 - 2, y, 4, 8);
+    /* ---- 敷地（キャンパス）----
+       上から見下ろした一枚として組む。
+       外周の生垣 → 奥の建物 → 周回路 → 中庭（池と駐車場）→
+       手前の建物 → 正面の広場、の順に手前へ降りてくる。      */
 
-    /* ---- 奥の駐車場 ----
-       建物の裏手。ここで働く人たちの車を並べておく。
-       チームが大きくなるほど埋まっていく。                */
+    // 外周の生垣とフェンス
+    ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(0, 46, W, 9);
+    ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
+    for (let x = 0; x < W; x += 12) ctx.fillRect(x, 46, 7, 4);
+    ctx.fillStyle = dusk ? '#3a3442' : '#7a6a52';
+    for (let x = 5; x < W; x += 11) ctx.fillRect(x, 48, 2, 9);
+
+    // 敷地の芝。外の野原よりわずかに手入れされた色にする
+    ctx.fillStyle = dusk ? '#2a4527' : '#83b95a'; ctx.fillRect(0, 55, W, H - 55);
+    ctx.fillStyle = dusk ? '#264022' : '#7bb052';
+    for (let y = 58; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
+
+    // 舗装（建物が建つ面）
+    const pave = (px, py2, pw, ph) => {
+      ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(px, py2, pw, ph);
+      ctx.fillStyle = dusk ? '#524b58' : '#c4bcac';
+      for (let x = px; x < px + pw; x += 24) ctx.fillRect(x, py2, 22, ph);
+      ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c'; ctx.fillRect(px, py2, pw, 2);
+    };
+    pave(12, 80, W - 24, 48);            // 奥の建物の足元
+    // 敷地の内側にも生垣を一列。芝と舗装のあいだを締める
+    ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(12, 74, W - 24, 7);
+    ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
+    for (let x = 12; x < W - 12; x += 10) ctx.fillRect(x, 74, 7, 3);
+    pave(12, 258, W - 24, H - 262);      // 手前の建物の足元と正面広場
+
+    // 周回路と、正門からの引き込み路
+    const road = (rx, ry, rw, rh, horiz) => {
+      ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(rx, ry, rw, rh);
+      ctx.fillStyle = dusk ? '#3a3d47' : '#7b7e86'; ctx.fillRect(rx, ry, rw, 2);
+      ctx.fillStyle = 'rgba(255,255,255,.50)';
+      if (horiz) for (let x = rx + 8; x < rx + rw - 6; x += 20) ctx.fillRect(x, ry + rh / 2 - 1.5, 10, 3);
+      else       for (let y = ry + 8; y < ry + rh - 6; y += 20) ctx.fillRect(rx + rw / 2 - 1.5, y, 3, 10);
+    };
+    road(10, ROAD.backY, W - 20, 18, true);
+    road(10, ROAD.midY, W - 20, 18, true);
+    road(ROAD.spanX, 50, ROAD.spanW, H - 50, false);
+
+    // 正門。遠征のトラックはここから出ていく
+    ctx.fillStyle = dusk ? '#4a4250' : '#8a8578';
+    ctx.fillRect(ROAD.spanX - 6, 44, 4, 18);
+    ctx.fillRect(ROAD.spanX + ROAD.spanW + 2, 44, 4, 18);
+    ctx.fillStyle = '#e8e2d4'; ctx.fillRect(ROAD.spanX - 2, 49, ROAD.spanW + 4, 4);
+    ctx.fillStyle = '#c8503f';
+    for (let x = ROAD.spanX; x < ROAD.spanX + ROAD.spanW - 2; x += 13) ctx.fillRect(x, 49, 6, 4);
+
+    /* ---- 奥の空き地 ----
+       右側が寂しいので、実物のファクトリーにもあるものを置く。 */
+    // ヘリポート
+    const heli = (hx, hy, r2) => {
+      ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c';
+      ctx.beginPath(); ctx.ellipse(hx, hy, r2, r2 * 0.52, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = dusk ? 'rgba(230,224,200,.55)' : 'rgba(255,255,255,.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(hx, hy, r2 - 4, r2 * 0.52 - 2, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = dusk ? 'rgba(230,224,200,.75)' : 'rgba(255,255,255,.95)';
+      ctx.fillRect(hx - 6, hy - 5, 3, 10); ctx.fillRect(hx + 3, hy - 5, 3, 10);
+      ctx.fillRect(hx - 4, hy - 1.5, 8, 3);
+    };
+    heli(600, 104, 22);
+    // 貯水タンク
+    const silo = (sx, sy, sw, sh) => {
+      ctx.fillStyle = '#3a2413'; ctx.fillRect(sx - 1, sy - sh - 1, sw + 2, sh + 2);
+      ctx.fillStyle = dusk ? '#6a6470' : '#cfd2d6'; ctx.fillRect(sx, sy - sh, sw, sh);
+      ctx.fillStyle = 'rgba(255,255,255,.30)'; ctx.fillRect(sx, sy - sh, Math.max(2, sw * 0.3), sh);
+      ctx.fillStyle = 'rgba(40,24,10,.22)'; ctx.fillRect(sx + sw * 0.72, sy - sh, sw * 0.28, sh);
+      ctx.fillStyle = dusk ? '#8a8494' : '#9aa0a8'; ctx.fillRect(sx - 2, sy - sh - 3, sw + 4, 3);
+    };
+    silo(690, 126, 16, 30); silo(712, 126, 16, 24); silo(732, 126, 12, 18);
+
+    /* ---- 中庭の池 ----
+       実際のファクトリーにもよくある水の景色。
+       芝の岸と遊歩道で囲って、敷地の真ん中に余白を作る。    */
+    const pond = (cx, cy, rx, ry) => {
+      const ell = (ex, ey, w2, h2, c) => {
+        ctx.fillStyle = c; ctx.beginPath();
+        ctx.ellipse(ex, ey, w2, h2, 0, 0, Math.PI * 2); ctx.fill();
+      };
+      ell(cx, cy, rx + 9, ry + 8, dusk ? '#264022' : '#79ad52');            // 岸の芝
+      ell(cx, cy, rx + 5, ry + 4, dusk ? '#3c3742' : '#a89e8c');            // 遊歩道
+      ell(cx, cy, rx, ry, dusk ? '#0e2a3c' : '#2f6a97');                    // 水
+      ell(cx, cy - ry * 0.16, rx * 0.9, ry * 0.6, dusk ? '#173d55' : '#3f86b8');
+      ctx.fillStyle = 'rgba(255,255,255,.28)';                              // 水面の照り
+      for (let i = 0; i < 5; i++) {
+        const lw = rx * (0.46 - i * 0.06);
+        ctx.fillRect(cx - lw / 2 + (i % 2 ? 7 : -5), cy - ry * 0.42 + i * 5, lw, 1.5);
+      }
+    };
+    pond(410, 186, 56, 21);
+
+    /* ---- 中庭の駐車場 ----
+       ここで働く人たちの車。チームが大きくなるほど埋まっていく。 */
     const CARC = ['#c8503f', '#3a6fb0', '#e0e0e0', '#4f5560', '#4e9b46', '#d8a832', '#7a5a9a'];
-    const parkRow = (py2, fill) => {
-      ctx.fillStyle = dusk ? '#3f3947' : '#9d9687';
-      ctx.fillRect(16, py2 - 13, W - 32, 17);
+    const parkRow = (px, py2, cols, fill) => {
+      const pw = cols * 17 + 4;
+      ctx.fillStyle = dusk ? '#3f3947' : '#9d9687'; ctx.fillRect(px, py2 - 15, pw, 18);
       ctx.fillStyle = dusk ? 'rgba(230,224,200,.14)' : 'rgba(255,255,255,.34)';
-      for (let x = 20; x < W - 20; x += 18) ctx.fillRect(x, py2 - 13, 1, 17);
-      for (let x = 22; x < W - 26; x += 18) {
-        if (x > W / 2 - 30 && x < W / 2 + 24) continue;      // 引き込み路は空ける
+      for (let i = 0; i <= cols; i++) ctx.fillRect(px + 2 + i * 17, py2 - 15, 1, 18);
+      for (let i = 0; i < cols; i++) {
         if (rnd() > fill) continue;
+        const x = px + 4 + i * 17;
         const c = CARC[Math.floor(rnd() * CARC.length)];
         ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x - 1, py2 - 1, 16, 3);
-        ctx.fillStyle = shadeHex(c, -0.16); ctx.fillRect(x, py2 - 11, 14, 11);
-        ctx.fillStyle = c;                  ctx.fillRect(x, py2 - 11, 14, 5);
+        ctx.fillStyle = shadeHex(c, -0.16); ctx.fillRect(x, py2 - 12, 14, 12);
+        ctx.fillStyle = c;                  ctx.fillRect(x, py2 - 12, 14, 5);
         ctx.fillStyle = dusk ? 'rgba(120,150,180,.75)' : 'rgba(190,220,240,.88)';
-        ctx.fillRect(x + 2, py2 - 9, 10, 3);
-        ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x, py2 - 11, 14, 1);
+        ctx.fillRect(x + 2, py2 - 10, 10, 3);
+        ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x, py2 - 12, 14, 1);
         ctx.fillStyle = '#15161a';
         ctx.fillRect(x + 1, py2 - 2, 3, 2); ctx.fillRect(x + 10, py2 - 2, 3, 2);
       }
     };
     const parkFill = Math.min(0.92, 0.22 + g2.fans / 11000);
-    parkRow(150, parkFill);
-    parkRow(182, parkFill * 0.78);
+    [172, 200, 228].forEach((y, i) => {
+      parkRow(22, y, 13, parkFill * (1 - i * 0.10));
+      parkRow(556, y, 12, parkFill * (0.86 - i * 0.10));
+    });
 
-    // 照明塔。夜は灯りが入る
-    const lamp = (lx, ly, h2) => {
-      ctx.fillStyle = dusk ? '#3a3442' : '#7d786c'; ctx.fillRect(lx, ly - h2, 3, h2);
-      ctx.fillStyle = dusk ? '#4a4250' : '#5a5448'; ctx.fillRect(lx - 5, ly - h2 - 5, 13, 5);
-      ctx.fillStyle = dusk ? 'rgba(255,238,170,.95)' : 'rgba(255,255,240,.85)';
-      ctx.fillRect(lx - 4, ly - h2 - 4, 11, 3);
-      if (dusk) {                                   // 灯りの下だけ明るくする
-        const gr = ctx.createLinearGradient(lx - 20, 0, lx + 23, 0);
-        gr.addColorStop(0, 'rgba(255,236,170,0)');
-        gr.addColorStop(0.5, 'rgba(255,236,170,.15)');
-        gr.addColorStop(1, 'rgba(255,236,170,0)');
-        ctx.fillStyle = gr; ctx.fillRect(lx - 20, ly - h2, 43, h2 + 30);
-      }
+    // 中庭の植え込み
+    const bush = (bx, by, bw) => {
+      ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(bx, by, bw, 7);
+      ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
+      for (let x = bx; x < bx + bw; x += 9) ctx.fillRect(x, by, 6, 3);
     };
-    [66, 246, 424, 604, 736].forEach(x => lamp(x, 158, 34));
+    bush(322, 150, 70); bush(322, 220, 70);
+    bush(492, 150, 52); bush(492, 220, 52);
 
-    // 正門。遠征のトラックはここから出ていく
-    ctx.fillStyle = dusk ? '#4a4250' : '#8a8578';
-    ctx.fillRect(W / 2 - 27, 102, 4, 18); ctx.fillRect(W / 2 + 23, 102, 4, 18);
-    ctx.fillStyle = '#e8e2d4'; ctx.fillRect(W / 2 - 23, 107, 46, 4);
-    ctx.fillStyle = '#c8503f';
-    for (let x = W / 2 - 21; x < W / 2 + 20; x += 13) ctx.fillRect(x, 107, 6, 4);
+    // 引き込み路のわきに、チームカラーの旗ざおを3本立てる
+    for (let i = 0; i < 3; i++) {
+      const fx = 248 + i * 8;
+      ctx.fillStyle = dusk ? '#4a4250' : '#8a8578'; ctx.fillRect(fx, 202, 2, 30);
+      ctx.fillStyle = i === 1 ? g2.color : shadeHex(g2.color, i ? 0.18 : -0.14);
+      ctx.fillRect(fx + 2, 202, 9, 7);
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(fx + 2, 203, 8, 1.5);
+    }
 
-    // ---- 手前の敷地 ----
-    // ここをキャラが歩くので、生活感のあるものを置いて「場所」らしくする。
-    // 建物の当たり判定とは無関係なので、通り抜けられる（歩行の邪魔をしない）。
-    const yardLine = dusk ? 'rgba(230,224,200,.22)' : 'rgba(255,255,255,.40)';
-    ctx.fillStyle = yardLine;                                   // 駐車枠の白線
-    for (let x = 30; x < W / 2 - 40; x += 34) ctx.fillRect(x, 286, 2, 30);
-    ctx.fillRect(30, 286, W / 2 - 70 - 30, 2);
-    for (let x = W / 2 + 40; x < W - 30; x += 34) ctx.fillRect(x, 286, 2, 30);
-    ctx.fillRect(W / 2 + 40, 286, W - 30 - (W / 2 + 40), 2);
+    /* ---- 正面の広場 ----
+       手前の建物の足元。ここに人と、遠征の道具が並ぶ。        */
+    const GY = 338;                                     // 置きものの地面
 
-    // タイヤの山（積み上げ）
+    // タイヤの山（ピット設備が大きいほど積み上がる）
     const tyreStack = (tx, ty, n) => {
       for (let i = 0; i < n; i++) {
         const yy = ty - i * 5;
@@ -13132,29 +13216,27 @@ GP.base = (function () {
       }
       ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(tx - 8, ty - n * 5 - 5, 16, 1);
     };
-    // タイヤはピット設備のそばに。設備が大きいほど積み上がる
     const pitLv = g2.facilities.pit || 1;
-    tyreStack(64, 316, Math.min(7, 3 + Math.floor(pitLv / 2.5)));
-    tyreStack(86, 316, Math.min(5, 2 + Math.floor(pitLv / 3.5)));
-    tyreStack(210, 318, 3);
-    tyreStack(486, 316, 2);
+    tyreStack(72, GY, Math.min(7, 3 + Math.floor(pitLv / 2.5)));
+    tyreStack(90, GY, Math.min(5, 2 + Math.floor(pitLv / 3.5)));
+    tyreStack(414, GY - 2, 3);
+    tyreStack(620, GY - 2, 2);
 
-    // 資材のコンテナ（チームカラー）
+    // 資材のコンテナ（物流倉庫が育つほど積み荷が増える）
     const crate = (cx, cy, cw, ch2, c) => {
       ctx.fillStyle = '#2a2015'; ctx.fillRect(cx - 1, cy - ch2 - 1, cw + 2, ch2 + 2);
       ctx.fillStyle = c; ctx.fillRect(cx, cy - ch2, cw, ch2);
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx, cy - ch2, cw, 2);
       ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(cx, cy - 3, cw, 3);
     };
-    // 荷は物流倉庫の前に集まる。倉庫が育つほど積み荷が増える
     const depLv = g2.facilities.depot || 1;
-    crate(150, 318, 22, 13, g2.color);
-    crate(178, 318, 16, 10, '#6a7078');
-    crate(302, 318, 20, 12, '#6a7078');
-    if (depLv >= 3) crate(326, 318, 14, 9, g2.color);
-    if (depLv >= 5) crate(344, 318, 12, 15, '#6a7078');
+    crate(134, GY, 22, 13, g2.color);
+    crate(206, GY, 16, 10, '#6a7078');
+    crate(480, GY, 20, 12, '#6a7078');
+    if (depLv >= 3) crate(504, GY, 14, 9, g2.color);
+    if (depLv >= 5) crate(546, GY, 12, 15, '#6a7078');
 
-    // ドラム缶。ピットの脇に転がしておく
+    // ドラム缶
     const drum = (dx, dy, c) => {
       ctx.fillStyle = '#2a2015'; ctx.fillRect(dx - 1, dy - 13, 10, 13);
       ctx.fillStyle = c; ctx.fillRect(dx, dy - 12, 8, 12);
@@ -13162,8 +13244,7 @@ GP.base = (function () {
       ctx.fillStyle = 'rgba(0,0,0,.20)';
       ctx.fillRect(dx, dy - 8, 8, 1); ctx.fillRect(dx, dy - 5, 8, 1);
     };
-    drum(120, 318, '#c05a30'); drum(131, 318, '#4a6f9a'); drum(125, 305, '#c05a30');
-    drum(560, 318, '#6a7078');
+    drum(340, GY, '#c05a30'); drum(351, GY, '#4a6f9a'); drum(345, GY - 13, '#c05a30');
 
     /* ---- チームのトランスポーター ----
        遠征のたびに、ここから機材を積んで出ていく。
@@ -13188,25 +13269,47 @@ GP.base = (function () {
       });
     };
     const hlen = 44 + Math.min(3, Math.floor(depLv / 2.5)) * 8;
-    hauler(W - 20 - hlen - 16, 318, g2.color, hlen);
+    hauler(W - 18 - hlen - 16, GY, g2.color, hlen);
 
-    // 車止めのポール
-    ctx.fillStyle = dusk ? '#4a4450' : '#8a8578';
-    for (let x = 40; x < W - 30; x += 58) { ctx.fillRect(x, 278, 3, 7); }
-    // フェンス（敷地の奥側）
-    ctx.fillStyle = '#7a6a52';
-    for (let x = 10; x < W - 8; x += 10) ctx.fillRect(x, 100, 3, 10);
-    ctx.fillRect(10, 100, W - 20, 3);
+    // 照明塔。夕景では灯りの下だけ明るくなる
+    const lamp = (lx, ly, h2) => {
+      ctx.fillStyle = dusk ? '#3a3442' : '#7d786c'; ctx.fillRect(lx, ly - h2, 3, h2);
+      ctx.fillStyle = dusk ? '#4a4250' : '#5a5448'; ctx.fillRect(lx - 5, ly - h2 - 5, 13, 5);
+      ctx.fillStyle = dusk ? 'rgba(255,238,170,.95)' : 'rgba(255,255,240,.85)';
+      ctx.fillRect(lx - 4, ly - h2 - 4, 11, 3);
+      if (dusk) {
+        const gr = ctx.createLinearGradient(lx - 20, 0, lx + 23, 0);
+        gr.addColorStop(0, 'rgba(255,236,170,0)');
+        gr.addColorStop(0.5, 'rgba(255,236,170,.15)');
+        gr.addColorStop(1, 'rgba(255,236,170,0)');
+        ctx.fillStyle = gr; ctx.fillRect(lx - 20, ly - h2, 43, h2 + 30);
+      }
+    };
+    [16, 486, 768].forEach(x => lamp(x, 232, 30));
+    [130, 350, 545, 660].forEach(x => lamp(x, 126, 22));
 
     // 建物より手前は別レイヤーに描く。シルエットから影を作りたいので
     const bl = dusk ? layer() : null;
     const bg = bl ? bl.g : ctx;
 
-    // 建物（奥から手前へ）
+    /* ---- 建物（奥の列 → 手前の列）----
+       奥の列は縮尺を落として描く。同じ絵のまま小さくすることで、
+       遠くに建っているように見え、敷地に奥行きが出る。          */
     const signs = [];
-    PLOTS.forEach(p => {
+    PLOTS.forEach((p, pi) => {
       const lv = g2.facilities[p.key] || 1;
-      const bb = DRAW[p.key](bg, p, lv, g2.color);
+      const sc = p.back ? BACK_SCALE : 1;
+      let bb;
+      if (sc === 1) {
+        bb = DRAW[p.key](bg, p, lv, g2.color);
+      } else {
+        // 縮めた座標系で描き、当たり判定は元の縮尺へ戻す
+        bg.save(); bg.scale(sc, sc);
+        const raw = DRAW[p.key](bg, { key: p.key, x: p.x / sc, y: p.y / sc, label: p.label },
+                                lv, g2.color);
+        bg.restore();
+        bb = { x: raw.x * sc, y: raw.y * sc, w: raw.w * sc, h: raw.h * sc };
+      }
       hitBoxes.push({ key: p.key, x: bb.x, y: bb.y, w: bb.w, h: bb.h });
       if (sel === p.key) {
         bg.strokeStyle = '#fff34d'; bg.lineWidth = 3;
@@ -13214,9 +13317,8 @@ GP.base = (function () {
         bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
         bg.setLineDash([]);
       }
-      // 看板は建物の上に出す（手前はキャラが歩くので空けておく）。
-      // 隣同士でぶつからないよう、一段ずつ高さをずらす。
-      signs.push({ x: p.x + bb.w / 2 - 2, y: Math.max(2, bb.y - 15 - (signs.length % 2) * 13),
+      // 看板は建物の上に出す。隣同士でぶつからないよう一段ずつずらす
+      signs.push({ x: bb.x + bb.w / 2, y: Math.max(2, bb.y - 15 - (pi % 2) * 13),
                    text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
     signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
@@ -13231,14 +13333,11 @@ GP.base = (function () {
         if (q.prop === 'brief') { briefStand(bg, x, py, q.color, q.done); }
         else person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
-        sign(bg, x, py - 42 - (i % 3) * 13, q.label, sel === q.key ? '#e04a3f' : '#3f3a30');
+        // 名札を全員ぶん出すと建物が隠れてしまう。
+        // 名前は下のタイルに並んでいるので、ここでは選んだ人だけ出す
+        if (sel === q.key) sign(bg, x, py - 42, q.label, '#e04a3f');
       });
     }
-
-    // チーム旗
-    bg.fillStyle = '#7a6a52'; bg.fillRect(24, 116, 3, 54);
-    bg.fillStyle = g2.color; bg.fillRect(27, 116, 26, 16);
-    bg.fillStyle = 'rgba(255,255,255,.55)'; bg.fillRect(29, 119, 22, 3);
 
     /* ---- オフ期間 ----
        建物は閉まっていて、人が敷地に出ている。歩いて話しかけて回る。 */
@@ -15675,9 +15774,12 @@ window.GP = window.GP || {};
     }
     // どこかのチームが何かを掘り当てていたら、そのぶんの報せを出す
     (g.innovLog || []).forEach(n => {
-      U.log(g, '🔬 ' + n.team + ' が「' + n.what + '」を投入！ 1周あたり約 ' +
-        n.sec.toFixed(2) + '秒 速くなった', 'warn');
-      U.toast('🔬 ' + n.team + '「' + n.what + '」', 'warn');
+      // 秒数が分からないもの（古いデータ）は、無理に 0.00 秒と書かない
+      const amt = n.sec > 0 ? ' 1周あたり約 ' + n.sec.toFixed(2) + '秒 速くなった' : '';
+      U.log(g, n.copyOf
+        ? '🔬 ' + n.team + ' が ' + n.copyOf + ' の「' + n.what + '」を写してきた。' + amt
+        : '🔬 ' + n.team + ' が「' + n.what + '」を投入！' + amt, 'warn');
+      U.toast('🔬 ' + n.team + (n.copyOf ? 'も「' : '「') + n.what + '」', 'warn');
     });
     g.innovLog = [];
     // FIA の裁定。掘り当てたものが、そのまま認められるとは限らない
@@ -16409,7 +16511,7 @@ window.GP = window.GP || {};
         const t2 = D.TRACKS[Math.min(g.nextRace, D.TRACKS.length - 1)];
         const sec = S.rnd(D.INNOV.secMin, D.INNOV.secMax);
         const mul = 1 + S.secToScore(g, sec) / Math.max(1, S.carScore(g, t2));
-        S.setTrend(g, g.team, brk, mul, true);
+        S.setTrend(g, g.team, brk, mul, true, sec);
       }
     }
 
@@ -21878,17 +21980,19 @@ window.GP = window.GP || {};
   const openFacility = key => { baseSel = key; cmdFacility(); };
 
   const HUB_DOORS = {
+    // 敷地の絵と同じ並び。手前の列を左から、そのあと奥の列を左から
     pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
     factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
+    sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
+    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
+    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
                fn: () => openFacility('depot') },
-    sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
-               fn: () => openFacility('mission') },
-    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
-    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() }
+               fn: () => openFacility('mission') }
   };
+
 
   /* ---------- 拠点の画面 ----------
      以前はチームプリンシパルを歩かせていたが、
