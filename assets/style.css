@@ -1875,7 +1875,27 @@ body[data-skin="hd"]{
 [data-skin="hd"] .mm-node.part{fill:#40304e}
 [data-skin="hd"] .mm-node.body{fill:#26374e}
 .mm-ic{font-size:16px;text-anchor:middle;dominant-baseline:middle}
-.mm-lb{font-size:10px;font-weight:bold;fill:var(--ink);font-family:inherit}
+.mm-ic.sm{font-size:12px}
+/* 層そのものを、うっすら円で見せる */
+.mm-ring{fill:none;stroke:rgba(74,47,26,.16);stroke-width:2}
+.mm-ring.dash{stroke-dasharray:4 6;stroke:rgba(74,47,26,.12)}
+[data-skin="hd"] .mm-ring{stroke:rgba(214,178,106,.16)}
+[data-skin="hd"] .mm-ring.dash{stroke:rgba(214,178,106,.12)}
+/* 中心：マシンそのもの */
+.mm-core{fill:#fff8e3;stroke:var(--ink);stroke-width:3}
+[data-skin="hd"] .mm-core{fill:#241c30;stroke:var(--gold)}
+.mm-core-t{font-size:13px;font-weight:bold;fill:var(--ink);text-anchor:middle;font-family:inherit}
+.mm-core-s{font-size:8.5px;fill:var(--ink2);text-anchor:middle;font-family:inherit}
+[data-skin="hd"] .mm-core-t{fill:#ffeec0}
+[data-skin="hd"] .mm-core-s{fill:#cbbb9a}
+/* いちばん外：チームの技術 */
+.mm-tech{fill:#e8dcc0;stroke:var(--ink);stroke-width:2}
+[data-skin="hd"] .mm-tech{fill:#3a3050;stroke:#5b4a74}
+.mm-find{font-size:8.5px;font-weight:bold;fill:#fff;text-anchor:middle;font-family:inherit}
+.mm-lb{font-size:10px;font-weight:bold;fill:var(--ink);font-family:inherit;
+  paint-order:stroke;stroke:var(--paper3);stroke-width:3px;stroke-linejoin:round}
+.mm-lb.in{font-size:8.5px}
+.mm-lb.sm{font-size:8.5px;font-weight:normal;opacity:.85}
 [data-skin="hd"] .mm-lb{fill:#efe4cf}
 .mm-pct{font-size:9px;font-weight:bold;fill:#1f5a1f;text-anchor:middle;font-family:inherit}
 .mm-leg{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:9px;
@@ -1885,6 +1905,8 @@ body[data-skin="hd"]{
 .mm-leg i.part{background:#ffeec6}
 .mm-leg i.body{background:#e2eefc}
 .mm-leg i.edge{width:16px;height:4px;border-radius:2px;border:none;background:#4ea63f}
+.mm-leg i.tech{background:#e8dcc0}
+.mm-leg i.find{background:#3a7ad9}
 /* 見立てのコメント */
 .mechread{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
 .mr-row{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;

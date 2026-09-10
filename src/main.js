@@ -1026,15 +1026,138 @@ window.GP = window.GP || {};
      線の太さがそのまま「いま効いている量」で、細い線が伸びしろ。
      人の組織図と同じ読みかたができるようにしてある。
      ======================================================= */
-  // 結んだ相手が隣どうしに来るよう、並び順は手で決めてある
-  const MECH_RING = [
-    { b: 'aeroBody', s: '空力' }, { p: 'aero', s: 'エアロ' }, { p: 'susp', s: 'サス' },
-    { b: 'drive', s: '乗りやすさ' }, { p: 'chas', s: 'シャシー' }, { b: 'rigidity', s: '剛性' },
-    { b: 'light', s: '軽量化' }, { p: 'gear', s: 'ギア' }, { b: 'service', s: '整備性' },
-    { p: 'pu', s: 'パワー' }, { b: 'cooling', s: '冷却' }, { p: 'brake', s: 'ブレーキ' },
-    { b: 'battery', s: 'バッテリー' }, { p: 'elec', s: '電装' }
+  /* 輪は二重。内は「車体の熟成」、外は「装着パーツ」。
+     噛み合う相手が同じ角度に来るよう、並び順は手で決めてある。
+     いちばん外の弧はチームの技術で、これは全パーツに乗る。      */
+  const MECH_INNER = [
+    { b: 'aeroBody', s: '空力' }, { b: 'drive', s: '乗り味' }, { b: 'rigidity', s: '剛性' },
+    { b: 'light', s: '軽量' }, { b: 'cooling', s: '冷却' }, { b: 'service', s: '整備' },
+    { b: 'battery', s: '電池' }
+  ];
+  const MECH_OUTER = [
+    { p: 'aero', s: 'エアロ' }, { p: 'susp', s: 'サス' }, { p: 'chas', s: 'シャシー' },
+    { p: 'gear', s: 'ギア' }, { p: 'pu', s: 'パワー' }, { p: 'brake', s: 'ブレーキ' },
+    { p: 'elec', s: '電装' }
   ];
   const mechKey = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
+
+  function mechMapSVG(g2) {
+    const syn = S.mechSynergy(g2);
+    const CX = 240, CY = 238;
+    // 内の輪の名前は輪の内側へ。外へ出すと、外の輪の節とぶつかる
+    const R1 = 82, R2 = 152, L1 = 51, L2 = 186, R3 = 214;
+
+    const place = (list, R, RL) => {
+      const N = list.length;
+      return list.map((m, i) => {
+        const a2 = -Math.PI / 2 + i / N * Math.PI * 2;
+        return { m: m, a: a2, x: CX + Math.cos(a2) * R, y: CY + Math.sin(a2) * R,
+                 lx: CX + Math.cos(a2) * RL, ly: CY + Math.sin(a2) * RL };
+      });
+    };
+    const inner = place(MECH_INNER, R1, L1);
+    const outer = place(MECH_OUTER, R2, L2);
+    const pos = {};
+    inner.forEach(q => { pos[mechKey(q.m)] = q; });
+    outer.forEach(q => { pos[mechKey(q.m)] = q; });
+
+    // ---- 輪そのもの（うっすら円を敷いて、層があることを見せる）----
+    let rings = '';
+    [R1, R2].forEach(r => {
+      rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + r +
+        '" class="mm-ring"></circle>';
+    });
+    rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R3 + '" class="mm-ring dash"></circle>';
+
+    // ---- 線（噛み合い）----
+    let lines = '';
+    syn.forEach(x => {
+      const A = pos[mechKey(x.def.a)], B = pos[mechKey(x.def.b)];
+      if (!A || !B) return;
+      const r = x.ratio;
+      lines += '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) +
+        '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) +
+        '" stroke="' + (x.on ? '#4ea63f' : '#8a8578') + '" stroke-width="' + (1.2 + r * 5.0).toFixed(2) +
+        '" stroke-linecap="round" opacity="' + (0.20 + r * 0.7).toFixed(2) + '"></line>';
+      if (x.on) {
+        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
+          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
+          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) +
+          '" class="mm-pct">' + Math.round(x.ratio * 100) + '</text>';
+      }
+    });
+
+    // ---- 節 ----
+    const nodeOf = (q, rr) => {
+      const def = S.mechName(q.m);
+      const sc = Math.min(1, S.mechScore(g2, q.m));
+      const isP = !!q.m.p;
+      const find = isP ? S.findingsOf(g2, q.m.p) : 0;
+      let arc = '';
+      if (sc > 0.001) {
+        const a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
+        const RR = rr + 3.5;
+        if (sc >= 0.999) {
+          arc = '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + RR +
+            '" fill="none" stroke="' + def.color + '" stroke-width="3"></circle>';
+        } else {
+          const x0 = q.x + Math.cos(a0) * RR, y0 = q.y + Math.sin(a0) * RR;
+          const x1 = q.x + Math.cos(a1) * RR, y1 = q.y + Math.sin(a1) * RR;
+          arc = '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + RR + ' ' + RR +
+            ' 0 ' + (sc > 0.5 ? 1 : 0) + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+            '" fill="none" stroke="' + def.color + '" stroke-width="3" stroke-linecap="round"></path>';
+        }
+      }
+      return '<g>' + arc +
+        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
+        '" class="mm-node ' + (isP ? 'part' : 'body') + '"></circle>' +
+        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' +
+        def.icon + '</text>' +
+        (find ? '<circle cx="' + (q.x + rr * 0.72).toFixed(1) + '" cy="' + (q.y - rr * 0.72).toFixed(1) +
+                '" r="6.5" fill="#3a7ad9" stroke="#0e0b14" stroke-width="1.5"></circle>' +
+                '<text x="' + (q.x + rr * 0.72).toFixed(1) + '" y="' + (q.y - rr * 0.72 + 3).toFixed(1) +
+                '" class="mm-find">' + find + '</text>' : '') +
+        '<text x="' + q.lx.toFixed(1) + '" y="' + (q.ly + 3).toFixed(1) +
+        '" class="mm-lb' + (isP ? '' : ' in') + '" ' +
+        'text-anchor="' + (isP ? (Math.abs(Math.cos(q.a)) < 0.25 ? 'middle'
+                          : (Math.cos(q.a) > 0 ? 'start' : 'end')) : 'middle') + '">' +
+        esc(q.m.s) + '</text></g>';
+    };
+    const nodes = inner.map(q => nodeOf(q, 15)).join('') + outer.map(q => nodeOf(q, 17)).join('');
+
+    // ---- 中心：マシンそのもの ----
+    const st = S.carStats(g2);
+    const gen = D.CAR_GENS[g2.carGen];
+    const core = '<circle cx="' + CX + '" cy="' + CY + '" r="34" class="mm-core"></circle>' +
+      '<text x="' + CX + '" y="' + (CY - 5) + '" class="mm-core-t">' + esc(gen.name) + '</text>' +
+      '<text x="' + CX + '" y="' + (CY + 9) + '" class="mm-core-s">速' + Math.round(st.speed) +
+      '／曲' + Math.round(st.corner) + '／加' + Math.round(st.accel) + '</text>';
+
+    // ---- いちばん外の弧：チームの技術（全パーツに乗る）----
+    let tech = '';
+    D.PART_TRAITS.forEach((t, i) => {
+      const lv = S.techLv(g2, t.key);
+      const a2 = -Math.PI / 2 + (i + 0.5) / D.PART_TRAITS.length * Math.PI * 2;
+      const x = CX + Math.cos(a2) * R3, y = CY + Math.sin(a2) * R3;
+      tech += '<g opacity="' + (lv ? 1 : 0.42) + '">' +
+        '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="12" class="mm-tech"' +
+        (lv ? ' style="fill:' + t.color + '"' : '') + '></circle>' +
+        '<text x="' + x.toFixed(1) + '" y="' + (y + 4.5).toFixed(1) + '" class="mm-ic sm">' + t.icon + '</text>' +
+        '<text x="' + x.toFixed(1) + '" y="' + (y + 25).toFixed(1) + '" class="mm-lb sm" text-anchor="middle">' +
+        esc(t.name) + (lv ? ' ' + lv : '') + '</text></g>';
+    });
+
+    return '<div class="mechmap"><svg viewBox="0 0 480 500" role="img">' +
+      rings + lines + core + nodes + tech + '</svg>' +
+      '<div class="mm-leg">' +
+      '<span><i class="body"></i>内の輪：車体の熟成</span>' +
+      '<span><i class="part"></i>外の輪：装着パーツ</span>' +
+      '<span><i class="edge"></i>太い線ほど噛み合っている</span>' +
+      '<span><i class="tech"></i>いちばん外：チームの技術（全パーツに乗る）</span>' +
+      '<span><i class="find"></i>🔬 は研究の知見</span>' +
+      '</div></div>';
+  }
 
   /* ---- 見立てと、これからの方向 ----
      いまの車が何型で、どこが噛み合っていなくて、
@@ -1133,80 +1256,6 @@ window.GP = window.GP || {};
        'タイヤ -' + (lift.wear * 100).toFixed(1) + '%',
        '壊れにくさ +' + (lift.rel * 100).toFixed(1) + 'pt'
       ].map(x => '<span>' + x + '</span>').join('') + '</div>';
-  }
-
-  function mechMapSVG(g2) {
-    const syn = S.mechSynergy(g2);
-    const N = MECH_RING.length;
-    const CX = 230, CY = 198, R = 126, RL = 156;
-    const pos = MECH_RING.map((m, i) => {
-      const a = -Math.PI / 2 + i / N * Math.PI * 2;
-      return { x: CX + Math.cos(a) * R, y: CY + Math.sin(a) * R,
-               lx: CX + Math.cos(a) * RL, ly: CY + Math.sin(a) * RL, a: a, m: m };
-    });
-    const idx = {};
-    MECH_RING.forEach((m, i) => { idx[mechKey(m)] = i; });
-
-    // ---- 線（噛み合い）----
-    let lines = '';
-    syn.forEach(x => {
-      const A = pos[idx[mechKey(x.def.a)]], B = pos[idx[mechKey(x.def.b)]];
-      if (!A || !B) return;
-      const r = x.ratio;
-      const w = 1.2 + r * 5.2;
-      const col = x.on ? '#4ea63f' : '#8a8578';
-      lines += '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) +
-        '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) +
-        '" stroke="' + col + '" stroke-width="' + w.toFixed(2) +
-        '" stroke-linecap="round" opacity="' + (0.22 + r * 0.7).toFixed(2) + '"></line>';
-      // 効いている線には、真ん中に効き目を出す
-      if (x.on) {
-        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
-          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
-          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) +
-          '" class="mm-pct">' + Math.round(x.ratio * 100) + '</text>';
-      }
-    });
-
-    // ---- 節（部位）----
-    let nodes = '';
-    pos.forEach(q => {
-      const def = S.mechName(q.m);
-      const sc = Math.min(1, S.mechScore(g2, q.m));
-      const isP = !!q.m.p;
-      const rr = 17;
-      // 仕上がりを外周の弧で見せる
-      const arc = (() => {
-        if (sc <= 0.001) return '';
-        const a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
-        const big = sc > 0.5 ? 1 : 0;
-        const x0 = q.x + Math.cos(a0) * (rr + 3.5), y0 = q.y + Math.sin(a0) * (rr + 3.5);
-        const x1 = q.x + Math.cos(a1) * (rr + 3.5), y1 = q.y + Math.sin(a1) * (rr + 3.5);
-        if (sc >= 0.999) {
-          return '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + (rr + 3.5) +
-            '" fill="none" stroke="' + def.color + '" stroke-width="3"></circle>';
-        }
-        return '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + (rr + 3.5) + ' ' + (rr + 3.5) +
-          ' 0 ' + big + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
-          '" fill="none" stroke="' + def.color + '" stroke-width="3" stroke-linecap="round"></path>';
-      })();
-      nodes += '<g>' + arc +
-        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
-        '" class="mm-node ' + (isP ? 'part' : 'body') + '"></circle>' +
-        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' +
-        def.icon + '</text>' +
-        '<text x="' + q.lx.toFixed(1) + '" y="' + (q.ly + 3).toFixed(1) + '" class="mm-lb" ' +
-        'text-anchor="' + (Math.abs(Math.cos(q.a)) < 0.25 ? 'middle'
-                          : (Math.cos(q.a) > 0 ? 'start' : 'end')) + '">' +
-        esc(q.m.s || def.name) + '</text></g>';
-    });
-
-    return '<div class="mechmap"><svg viewBox="0 0 460 396" role="img">' +
-      lines + nodes + '</svg>' +
-      '<div class="mm-leg"><span><i class="part"></i>装着パーツ</span>' +
-      '<span><i class="body"></i>車体の熟成</span>' +
-      '<span><i class="edge"></i>太い線ほど噛み合っている</span></div></div>';
   }
 
   /* 1回の改良が、次のコースのどの区間で返ってくるか。
