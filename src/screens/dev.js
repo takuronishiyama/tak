@@ -1166,10 +1166,46 @@ GP.screens.dev = function (A) {
         '（各項目 <b>' + nv.withStock + '</b> から再スタート' +
         (nv.gain > 0 ? '／うち +' + nv.gain + ' は来季ぶんの仕込み' : '') + '）</small></div>';
     }
-    // ---- パワーユニットの供給 ----
+    /* パワーユニットの供給は、話が大きくなったので別の画面に移した。
+       ここからも入れるようにしておく                              */
+    body += '<div class="sub">パワーユニットの供給</div>' +
+      '<p class="desc">' + (g.engine
+        ? '<b>' + esc(g.engine.team) + '</b> から供給を受けています。'
+        : (g.customers || []).length
+          ? '<b>' + (g.customers || []).length + 'チーム</b>にパワーユニットを供給しています。'
+          : 'よそから買うことも、こちらが供給する側に回ることもできます。') +
+      '</p><div class="pick"><button class="pickbtn" data-k="__engscreen">' +
+      '<span class="pb-ic engic">🔌</span>' +
+      '<span class="pb-body"><b>エンジン供給の画面へ</b>' +
+      '<small>買う・売る・契約を切る</small></span>' +
+      '<span class="pb-cost">›</span></button></div>';
+
+    U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
+    bindPick(k => {
+      if (k === '__gain') return doResearchGain();
+      if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
+      if (k === '__engoff') return doEngineOff();
+      if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
+      if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
+      if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
+      if (k === '__engscreen') return cmdEngine();
+    });
+  }
+
+  /* =======================================================
+     エンジン供給
+     買う側にも、売る側にも回れる。研究開発の一部だったが、
+     どちらも一つの大きな判断なので、独立した画面にした
+     ======================================================= */
+  function cmdEngine() {
+    let body = '<p class="lead">パワーユニットを<b>よそから買う</b>か、' +
+      '<b>こちらが分ける</b>か。<br>' +
+      'どちらも、開発の何年ぶんかを一度に動かす話になります。</p>';
+    // ---- 買う側 ----
     // 自前で育てるか、強いチームから買うか。買えばすぐ速くなるが、
     // 供給を受けているあいだは自分で手を入れられず、毎戦の供給料もかかる。
-    body += '<div class="sub">パワーユニットの供給</div>';
+    body += '<div class="sub">🔌 よそから買う</div>';
     if (g.engine) {
       const mine = g.equipped.pu;
       const stash = g.engineStash;
@@ -1229,11 +1265,9 @@ GP.screens.dev = function (A) {
 
     body += customerBoxHTML();
 
-    U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    U.modal('🔌 エンジン供給', body, [{ label: 'とじる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
-      if (k === '__gain') return doResearchGain();
-      if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
       if (k === '__engoff') return doEngineOff();
       if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
       if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
@@ -1822,6 +1856,7 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+    api: {
+      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };

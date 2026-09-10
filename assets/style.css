@@ -2775,6 +2775,11 @@ body[data-skin="hd"]{
   color:var(--faceTx)}
 .lf-row>b{font-size:12px;min-width:88px;color:var(--faceTx)}
 .lf-row>span{color:var(--faceSub)}
+/* 見出しの右に置く「いま何人／何人まで」の札 */
+.slotchip{float:right;margin-top:1px;padding:1px 8px;border-radius:9px;
+  background:var(--face2);border:1px solid var(--faceEdge);
+  color:var(--faceSub);font-size:10px;font-weight:700}
+.slotchip.full{background:var(--ngTx);border-color:var(--ngTx);color:#fff}
 /* ---- タイヤの持ちの表 ---- */
 .degtab{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px;
   border:1px solid var(--faceEdge);border-radius:9px;overflow:hidden}

@@ -512,6 +512,10 @@ GP.data = (function () {
             'ドライバーの言い分が形になり、話が届くようになる' }
   ];
 
+  /* 施設を伸ばすと、置ける人の数も増える。
+     base は建てはじめの席数、per は「施設レベルいくつで1席増えるか」 */
+  const STAFF_SLOTS = { base: 5, per: 2 };
+
   /* ---------- 備品 ----------
      建物を大きくするのが「規模」なら、こちらは「中身」。
      現場に良い道具と、まともな職場環境を入れていく。
@@ -788,6 +792,24 @@ GP.data = (function () {
       rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.80, sponsor: 0.82,
       upkeep: 1.32, repair: 1.35,
       ticket: 5, oilSponsor: false
+    },
+    {
+      key: 'hell', name: 'ヘル', icon: '💀', color: '#8a2fb0',
+      short: 'レギュレーション最終年、全チーム横並び',
+      desc: '規則が固まりきった最終年から始まります。' +
+            'どのチームも同じところに行き着いていて、上から下まで1周2秒たらず。' +
+            'コンマ1秒で3つも4つも順位が動きます。' +
+            'まだ掘られていないものはほとんど残っておらず、大逆転の一発はありません。' +
+            '抜くには、金曜の一本と、タイヤ1セットと、ピットの1秒を積み上げるしかない。' +
+            'しかも今季が終われば規則は白紙に戻り、積み上げたマシンは持ち越せません。',
+      rivalPower: 1.00, rivalGrow: 1.04, dev: 0.50, funds: 0.74, prize: 0.74, sponsor: 0.76,
+      upkeep: 1.40, repair: 1.45,
+      ticket: 6, oilSponsor: false,
+      /* チームごとの地力の差を、これだけ潰して横並びにする（1で完全な横並び） */
+      tight: 0.80,
+      /* 規則の何年目から始めるか。最終年から始めるので、
+         ブレイクスルーはほとんど出ず、今季末で白紙に戻る          */
+      regFrom: 3
     }
   ];
 
@@ -2514,6 +2536,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

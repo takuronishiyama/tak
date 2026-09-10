@@ -824,10 +824,22 @@ GP.screens.hr = function (A) {
       '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
     body += '<div class="deptgrid" style="display:none">';
     body += '</div>';
-    body += '<div class="sub">スタッフ市場</div><div class="pick">';
+    /* ---- 置ける席 ----
+       腕の良い人が来るかどうかは規模の話、何人置けるかは建物の話 */
+    const room = S.staffRoom(g);
+    body += '<div class="sub">スタッフ市場' +
+      '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
+      (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
+      '<p class="desc">' + (room > 0
+        ? 'あと <b>' + room + '人</b> 置けます。'
+        : '<b class="warn">席が埋まっています。</b>') +
+      '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
+      'レベルぶん伸ばすごとに1席）。どの施設を伸ばしても構いません。</p>' +
+      '<div class="pick">';
     staffMarket.forEach((st, i) => {
       const fee = staffFee(st);
-      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+      body += '<button class="pickbtn" data-k="sm:' + i + '"' +
+        (g.funds < fee || room <= 0 ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#7b5a3a">' +
         (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
@@ -844,11 +856,14 @@ GP.screens.hr = function (A) {
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
       '<p class="desc">よそで働いている人は、市場の応募者より腕が立ちます。' +
       'そのぶん要る金は高く、「一途」な人はなかなか動きません。' +
-      'オーナーの交渉術があると安く済みます。</p><div class="pick">';
+      'オーナーの交渉術があると安く済みます。' +
+      (room > 0 ? '' : '<br><b class="warn">こちらも、席が空いていないと連れて来られません。</b>') +
+      '</p><div class="pick">';
     rivalStaffMarket.forEach((st, i) => {
       const fee = S.poachFee(g, st);
       const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
-      body += '<button class="pickbtn" data-k="ps:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+      body += '<button class="pickbtn" data-k="ps:' + i + '"' +
+        (g.funds < fee || room <= 0 ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#8a4a3a">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
         t.name + '／技能 ' + st.skill + '　' + (st.age || 34) + '歳　<em class="fromteam">' + esc(st.team) + '</em>' +
@@ -1050,7 +1065,7 @@ GP.screens.hr = function (A) {
       U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
     } else if (kind === 'sm') {
       const st = staffMarket[idx], fee = staffFee(st);
-      if (g.funds < fee) return;
+      if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee; g.staff.push(st);
       staffMarket.splice(idx, 1);
       U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
@@ -1059,7 +1074,7 @@ GP.screens.hr = function (A) {
       const st = rivalStaffMarket[idx];
       if (!st) return;
       const fee = S.poachFee(g, st);
-      if (g.funds < fee) return;
+      if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee;
       const from = st.team;
       delete st.team;

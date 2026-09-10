@@ -868,13 +868,19 @@ GP.state = (function () {
      ライバルも同じだけ戻るので、上位と下位の差が一度リセットされる。       */
   const REG_EVERY = 4;
 
+  /* いま規則の何年目か（0＝変わったばかり、REG_EVERY-1＝最終年）。
+     難易度によっては、途中の年から始まることがある            */
+  function regSince(g2) {
+    return ((g2.season || 1) - 1 + (g2.regFrom || 0)) % REG_EVERY;
+  }
+
   function regulationDue(g2) {
-    return g2.season > 1 && ((g2.season - 1) % REG_EVERY === 0);
+    return g2.season > 1 && regSince(g2) === 0;
   }
 
   /* 今季が終わったら規則が変わるか（＝いま作っているマシンが白紙になる年か） */
   function regulationNext(g2) {
-    return (g2.season % REG_EVERY) === 0;
+    return regSince(g2) === REG_EVERY - 1;
   }
 
   function applyRegulation(g2) {
@@ -950,7 +956,7 @@ GP.state = (function () {
      規則が新しいうちほど、まだ掘られていないものが残っている。
      見つけたチームは一気に速くなる。規則が固まるほど、その芽は減る  */
   function innovFresh(g2) {
-    const since = ((g2.season || 1) - 1) % REG_EVERY;
+    const since = regSince(g2);
     return D.INNOV.fresh[Math.min(D.INNOV.fresh.length - 1, since)];
   }
   /* 1周あたり何秒ぶんの発見か → マシン性能で何点ぶんか に直す */
@@ -1240,7 +1246,9 @@ GP.state = (function () {
     (g2.rivals || []).forEach(r => {
       // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
       if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
-      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      // 横並びの年は、伸びかたの差も潰しておく（放っておくとまた開く）
+      const power = 1 + (((D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power) - 1)
+                      * (1 - (diff.tight || 0));
       // 1週あたりの伸び。season が進むほど全体の水準も上がる。
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
@@ -2684,9 +2692,14 @@ GP.state = (function () {
     const dp = diff ? diff.rivalPower : 1;
     const dg = diff ? diff.rivalGrow : 1;
     const ep = (era || 0) * D.ERA_STEP;
+    /* 規則が固まりきった年は、どのチームも同じところに行き着く。
+       チームごとの地力の差を、そのぶんだけ 1 に寄せて横並びにする */
+    const tg = (diff && diff.tight) || 0;
     return D.RIVALS.map((r, i) => {
-      const lv = (3 + season * 2.1 * dg) * r.power * dp;
-      const base = (18 * r.power + (season * 4 + ep) * r.power * dg) * dp + rnd(-4, 4);
+      const pw = 1 + (r.power - 1) * (1 - tg);
+      const lv = (3 + season * 2.1 * dg) * pw * dp;
+      const base = (18 * pw + (season * 4 + ep) * pw * dg) * dp
+                 + rnd(-4, 4) * (1 - tg * 0.75);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
@@ -2695,7 +2708,7 @@ GP.state = (function () {
           corner: base * 3 * r.bias.corner,
           accel:  base * 3 * r.bias.accel
         },
-        rel: clamp(72 + r.power * 18 + season * 1.2 + rnd(-8, 8), 40, 97),
+        rel: clamp(72 + pw * 18 + season * 1.2 + rnd(-8, 8) * (1 - tg * 0.6), 40, 97),
         // 作戦の性格。チームごとに固定なので、対戦を重ねると読めるようになる
         style: D.STRAT_STYLE_KEYS[(i + season) % D.STRAT_STYLE_KEYS.length],
         points: 0,
@@ -2756,6 +2769,7 @@ GP.state = (function () {
       // オーナー（プレイヤー自身）。元ドライバーの経歴で初期スキルが変わる
       owner: null,
       reg: 0,                       // レギュレーション世代（4シーズンごとに変わる）
+      regFrom: diff.regFrom || 0,   // 規則の何年目から始めるか（ヘルは最終年から）
       history: [],
       carGen: 0,
       body: null,
@@ -3208,6 +3222,22 @@ GP.state = (function () {
   }
 
   /* 抱えられる若手の人数 */
+  /* ---------- 置ける人の数 ----------
+     腕の良い人が応募してくるかどうかは、チームの規模で決まる。
+     ではその人たちを何人置けるかというと、それは建物の話になる。
+     机も、工具も、無線の席も、有限だから。
+     どの施設を伸ばしても席は増えるので、
+     「まず建てて、それから雇う」という順番が生まれる。          */
+  function staffSlots(g2) {
+    const f = g2.facilities || {};
+    const lv = D.FACILITIES.reduce((a, c) => a + ((f[c.key] || 1) - 1), 0);
+    return D.STAFF_SLOTS.base + Math.floor(lv / D.STAFF_SLOTS.per)
+         + (hasEstate(g2, 'academy') ? 1 : 0);
+  }
+  function staffRoom(g2) {
+    return Math.max(0, staffSlots(g2) - ((g2.staff || []).length));
+  }
+
   function youthSlots(g2) {
     return 1 + Math.floor(((g2.facilities && g2.facilities.youth) || 1) / 2)
              + (hasEstate(g2, 'academy') ? 2 : 0);
@@ -3513,7 +3543,7 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, careOf, careTier, careCrashMul, careMissMul, repairCut,
-    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul, staffSlots, staffRoom,
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
@@ -3540,7 +3570,7 @@ GP.state = (function () {
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
-    REG_EVERY, regulationDue, regulationNext, applyRegulation,
+    REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,

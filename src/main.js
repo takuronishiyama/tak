@@ -1015,7 +1015,8 @@ window.GP = window.GP || {};
       cOffGo: A.doOffNext, cStaffO: A.cmdStaff, cInfoO: A.cmdInfo,
       cGarageO: A.cmdGarage, cFacilityO: A.cmdFacility, cFacilityR: A.cmdFacility,
       cOwner: A.cmdOwner, cOwnerR: A.cmdOwner, cOwnerO: A.cmdOwner,
-      cCrunch: A.cmdCrunch, cKart: A.askKart
+      cCrunch: A.cmdCrunch, cKart: A.askKart,
+      cEngine: A.cmdEngine, cEngineR: A.cmdEngine, cEngineO: A.cmdEngine
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;

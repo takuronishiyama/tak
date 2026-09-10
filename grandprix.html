@@ -2790,6 +2790,11 @@ body[data-skin="hd"]{
   color:var(--faceTx)}
 .lf-row>b{font-size:12px;min-width:88px;color:var(--faceTx)}
 .lf-row>span{color:var(--faceSub)}
+/* 見出しの右に置く「いま何人／何人まで」の札 */
+.slotchip{float:right;margin-top:1px;padding:1px 8px;border-radius:9px;
+  background:var(--face2);border:1px solid var(--faceEdge);
+  color:var(--faceSub);font-size:10px;font-weight:700}
+.slotchip.full{background:var(--ngTx);border-color:var(--ngTx);color:#fff}
 /* ---- タイヤの持ちの表 ---- */
 .degtab{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px;
   border:1px solid var(--faceEdge);border-radius:9px;overflow:hidden}
@@ -2903,6 +2908,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
       <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
+      <button class="cmd sub" id="cEngine" title="パワーユニットをよそから買うか、こちらから分けるか"><span>🔌</span>エンジン</button>
       <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
       <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
     </div>
@@ -2913,6 +2919,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
       <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
+      <button class="cmd sub" id="cEngineR"><span>🔌</span>エンジン</button>
       <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
     </div>
     <div id="cmdOff" class="cmdset" style="display:none">
@@ -2922,6 +2929,7 @@ body[data-skin="hd"]{
       <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
       <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
       <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
+      <button class="cmd sub" id="cEngineO"><span>🔌</span>エンジン</button>
       <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
       <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
     </div>
@@ -3922,6 +3930,10 @@ GP.data = (function () {
             'ドライバーの言い分が形になり、話が届くようになる' }
   ];
 
+  /* 施設を伸ばすと、置ける人の数も増える。
+     base は建てはじめの席数、per は「施設レベルいくつで1席増えるか」 */
+  const STAFF_SLOTS = { base: 5, per: 2 };
+
   /* ---------- 備品 ----------
      建物を大きくするのが「規模」なら、こちらは「中身」。
      現場に良い道具と、まともな職場環境を入れていく。
@@ -4198,6 +4210,24 @@ GP.data = (function () {
       rivalPower: 0.98, rivalGrow: 1.02, dev: 0.58, funds: 0.82, prize: 0.80, sponsor: 0.82,
       upkeep: 1.32, repair: 1.35,
       ticket: 5, oilSponsor: false
+    },
+    {
+      key: 'hell', name: 'ヘル', icon: '💀', color: '#8a2fb0',
+      short: 'レギュレーション最終年、全チーム横並び',
+      desc: '規則が固まりきった最終年から始まります。' +
+            'どのチームも同じところに行き着いていて、上から下まで1周2秒たらず。' +
+            'コンマ1秒で3つも4つも順位が動きます。' +
+            'まだ掘られていないものはほとんど残っておらず、大逆転の一発はありません。' +
+            '抜くには、金曜の一本と、タイヤ1セットと、ピットの1秒を積み上げるしかない。' +
+            'しかも今季が終われば規則は白紙に戻り、積み上げたマシンは持ち越せません。',
+      rivalPower: 1.00, rivalGrow: 1.04, dev: 0.50, funds: 0.74, prize: 0.74, sponsor: 0.76,
+      upkeep: 1.40, repair: 1.45,
+      ticket: 6, oilSponsor: false,
+      /* チームごとの地力の差を、これだけ潰して横並びにする（1で完全な横並び） */
+      tight: 0.80,
+      /* 規則の何年目から始めるか。最終年から始めるので、
+         ブレイクスルーはほとんど出ず、今季末で白紙に戻る          */
+      regFrom: 3
     }
   ];
 
@@ -5924,7 +5954,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -7076,13 +7106,19 @@ GP.state = (function () {
      ライバルも同じだけ戻るので、上位と下位の差が一度リセットされる。       */
   const REG_EVERY = 4;
 
+  /* いま規則の何年目か（0＝変わったばかり、REG_EVERY-1＝最終年）。
+     難易度によっては、途中の年から始まることがある            */
+  function regSince(g2) {
+    return ((g2.season || 1) - 1 + (g2.regFrom || 0)) % REG_EVERY;
+  }
+
   function regulationDue(g2) {
-    return g2.season > 1 && ((g2.season - 1) % REG_EVERY === 0);
+    return g2.season > 1 && regSince(g2) === 0;
   }
 
   /* 今季が終わったら規則が変わるか（＝いま作っているマシンが白紙になる年か） */
   function regulationNext(g2) {
-    return (g2.season % REG_EVERY) === 0;
+    return regSince(g2) === REG_EVERY - 1;
   }
 
   function applyRegulation(g2) {
@@ -7158,7 +7194,7 @@ GP.state = (function () {
      規則が新しいうちほど、まだ掘られていないものが残っている。
      見つけたチームは一気に速くなる。規則が固まるほど、その芽は減る  */
   function innovFresh(g2) {
-    const since = ((g2.season || 1) - 1) % REG_EVERY;
+    const since = regSince(g2);
     return D.INNOV.fresh[Math.min(D.INNOV.fresh.length - 1, since)];
   }
   /* 1周あたり何秒ぶんの発見か → マシン性能で何点ぶんか に直す */
@@ -7448,7 +7484,9 @@ GP.state = (function () {
     (g2.rivals || []).forEach(r => {
       // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
       if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
-      const power = (D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power;
+      // 横並びの年は、伸びかたの差も潰しておく（放っておくとまた開く）
+      const power = 1 + (((D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power) - 1)
+                      * (1 - (diff.tight || 0));
       // 1週あたりの伸び。season が進むほど全体の水準も上がる。
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
@@ -8892,9 +8930,14 @@ GP.state = (function () {
     const dp = diff ? diff.rivalPower : 1;
     const dg = diff ? diff.rivalGrow : 1;
     const ep = (era || 0) * D.ERA_STEP;
+    /* 規則が固まりきった年は、どのチームも同じところに行き着く。
+       チームごとの地力の差を、そのぶんだけ 1 に寄せて横並びにする */
+    const tg = (diff && diff.tight) || 0;
     return D.RIVALS.map((r, i) => {
-      const lv = (3 + season * 2.1 * dg) * r.power * dp;
-      const base = (18 * r.power + (season * 4 + ep) * r.power * dg) * dp + rnd(-4, 4);
+      const pw = 1 + (r.power - 1) * (1 - tg);
+      const lv = (3 + season * 2.1 * dg) * pw * dp;
+      const base = (18 * pw + (season * 4 + ep) * pw * dg) * dp
+                 + rnd(-4, 4) * (1 - tg * 0.75);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
@@ -8903,7 +8946,7 @@ GP.state = (function () {
           corner: base * 3 * r.bias.corner,
           accel:  base * 3 * r.bias.accel
         },
-        rel: clamp(72 + r.power * 18 + season * 1.2 + rnd(-8, 8), 40, 97),
+        rel: clamp(72 + pw * 18 + season * 1.2 + rnd(-8, 8) * (1 - tg * 0.6), 40, 97),
         // 作戦の性格。チームごとに固定なので、対戦を重ねると読めるようになる
         style: D.STRAT_STYLE_KEYS[(i + season) % D.STRAT_STYLE_KEYS.length],
         points: 0,
@@ -8964,6 +9007,7 @@ GP.state = (function () {
       // オーナー（プレイヤー自身）。元ドライバーの経歴で初期スキルが変わる
       owner: null,
       reg: 0,                       // レギュレーション世代（4シーズンごとに変わる）
+      regFrom: diff.regFrom || 0,   // 規則の何年目から始めるか（ヘルは最終年から）
       history: [],
       carGen: 0,
       body: null,
@@ -9416,6 +9460,22 @@ GP.state = (function () {
   }
 
   /* 抱えられる若手の人数 */
+  /* ---------- 置ける人の数 ----------
+     腕の良い人が応募してくるかどうかは、チームの規模で決まる。
+     ではその人たちを何人置けるかというと、それは建物の話になる。
+     机も、工具も、無線の席も、有限だから。
+     どの施設を伸ばしても席は増えるので、
+     「まず建てて、それから雇う」という順番が生まれる。          */
+  function staffSlots(g2) {
+    const f = g2.facilities || {};
+    const lv = D.FACILITIES.reduce((a, c) => a + ((f[c.key] || 1) - 1), 0);
+    return D.STAFF_SLOTS.base + Math.floor(lv / D.STAFF_SLOTS.per)
+         + (hasEstate(g2, 'academy') ? 1 : 0);
+  }
+  function staffRoom(g2) {
+    return Math.max(0, staffSlots(g2) - ((g2.staff || []).length));
+  }
+
   function youthSlots(g2) {
     return 1 + Math.floor(((g2.facilities && g2.facilities.youth) || 1) / 2)
              + (hasEstate(g2, 'academy') ? 2 : 0);
@@ -9721,7 +9781,7 @@ GP.state = (function () {
   return {
     rnd, rint, pick, clamp,
     makeDriver, careOf, careTier, careCrashMul, careMissMul, repairCut,
-    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul,
+    makeStaff, staffSalary, staffCap, staffNeed, staffGrowMul, staffSlots, staffRoom,
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
@@ -9748,7 +9808,7 @@ GP.state = (function () {
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
-    REG_EVERY, regulationDue, regulationNext, applyRegulation,
+    REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
@@ -17239,10 +17299,22 @@ GP.screens.hr = function (A) {
       '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
     body += '<div class="deptgrid" style="display:none">';
     body += '</div>';
-    body += '<div class="sub">スタッフ市場</div><div class="pick">';
+    /* ---- 置ける席 ----
+       腕の良い人が来るかどうかは規模の話、何人置けるかは建物の話 */
+    const room = S.staffRoom(g);
+    body += '<div class="sub">スタッフ市場' +
+      '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
+      (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
+      '<p class="desc">' + (room > 0
+        ? 'あと <b>' + room + '人</b> 置けます。'
+        : '<b class="warn">席が埋まっています。</b>') +
+      '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
+      'レベルぶん伸ばすごとに1席）。どの施設を伸ばしても構いません。</p>' +
+      '<div class="pick">';
     staffMarket.forEach((st, i) => {
       const fee = staffFee(st);
-      body += '<button class="pickbtn" data-k="sm:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+      body += '<button class="pickbtn" data-k="sm:' + i + '"' +
+        (g.funds < fee || room <= 0 ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#7b5a3a">' +
         (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
@@ -17259,11 +17331,14 @@ GP.screens.hr = function (A) {
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
       '<p class="desc">よそで働いている人は、市場の応募者より腕が立ちます。' +
       'そのぶん要る金は高く、「一途」な人はなかなか動きません。' +
-      'オーナーの交渉術があると安く済みます。</p><div class="pick">';
+      'オーナーの交渉術があると安く済みます。' +
+      (room > 0 ? '' : '<br><b class="warn">こちらも、席が空いていないと連れて来られません。</b>') +
+      '</p><div class="pick">';
     rivalStaffMarket.forEach((st, i) => {
       const fee = S.poachFee(g, st);
       const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
-      body += '<button class="pickbtn" data-k="ps:' + i + '"' + (g.funds < fee ? ' disabled' : '') + '>' +
+      body += '<button class="pickbtn" data-k="ps:' + i + '"' +
+        (g.funds < fee || room <= 0 ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:#8a4a3a">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
         t.name + '／技能 ' + st.skill + '　' + (st.age || 34) + '歳　<em class="fromteam">' + esc(st.team) + '</em>' +
@@ -17465,7 +17540,7 @@ GP.screens.hr = function (A) {
       U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
     } else if (kind === 'sm') {
       const st = staffMarket[idx], fee = staffFee(st);
-      if (g.funds < fee) return;
+      if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee; g.staff.push(st);
       staffMarket.splice(idx, 1);
       U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
@@ -17474,7 +17549,7 @@ GP.screens.hr = function (A) {
       const st = rivalStaffMarket[idx];
       if (!st) return;
       const fee = S.poachFee(g, st);
-      if (g.funds < fee) return;
+      if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee;
       const from = st.team;
       delete st.team;
@@ -19045,10 +19120,46 @@ GP.screens.dev = function (A) {
         '（各項目 <b>' + nv.withStock + '</b> から再スタート' +
         (nv.gain > 0 ? '／うち +' + nv.gain + ' は来季ぶんの仕込み' : '') + '）</small></div>';
     }
-    // ---- パワーユニットの供給 ----
+    /* パワーユニットの供給は、話が大きくなったので別の画面に移した。
+       ここからも入れるようにしておく                              */
+    body += '<div class="sub">パワーユニットの供給</div>' +
+      '<p class="desc">' + (g.engine
+        ? '<b>' + esc(g.engine.team) + '</b> から供給を受けています。'
+        : (g.customers || []).length
+          ? '<b>' + (g.customers || []).length + 'チーム</b>にパワーユニットを供給しています。'
+          : 'よそから買うことも、こちらが供給する側に回ることもできます。') +
+      '</p><div class="pick"><button class="pickbtn" data-k="__engscreen">' +
+      '<span class="pb-ic engic">🔌</span>' +
+      '<span class="pb-body"><b>エンジン供給の画面へ</b>' +
+      '<small>買う・売る・契約を切る</small></span>' +
+      '<span class="pb-cost">›</span></button></div>';
+
+    U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    paintInterior();
+    bindPick(k => {
+      if (k === '__gain') return doResearchGain();
+      if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
+      if (k === '__engoff') return doEngineOff();
+      if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
+      if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
+      if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
+      if (k === '__engscreen') return cmdEngine();
+    });
+  }
+
+  /* =======================================================
+     エンジン供給
+     買う側にも、売る側にも回れる。研究開発の一部だったが、
+     どちらも一つの大きな判断なので、独立した画面にした
+     ======================================================= */
+  function cmdEngine() {
+    let body = '<p class="lead">パワーユニットを<b>よそから買う</b>か、' +
+      '<b>こちらが分ける</b>か。<br>' +
+      'どちらも、開発の何年ぶんかを一度に動かす話になります。</p>';
+    // ---- 買う側 ----
     // 自前で育てるか、強いチームから買うか。買えばすぐ速くなるが、
     // 供給を受けているあいだは自分で手を入れられず、毎戦の供給料もかかる。
-    body += '<div class="sub">パワーユニットの供給</div>';
+    body += '<div class="sub">🔌 よそから買う</div>';
     if (g.engine) {
       const mine = g.equipped.pu;
       const stash = g.engineStash;
@@ -19108,11 +19219,9 @@ GP.screens.dev = function (A) {
 
     body += customerBoxHTML();
 
-    U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    U.modal('🔌 エンジン供給', body, [{ label: 'とじる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
-      if (k === '__gain') return doResearchGain();
-      if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
       if (k === '__engoff') return doEngineOff();
       if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
       if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
@@ -19701,7 +19810,8 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+    api: {
+      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
 
@@ -28185,7 +28295,8 @@ window.GP = window.GP || {};
       cOffGo: A.doOffNext, cStaffO: A.cmdStaff, cInfoO: A.cmdInfo,
       cGarageO: A.cmdGarage, cFacilityO: A.cmdFacility, cFacilityR: A.cmdFacility,
       cOwner: A.cmdOwner, cOwnerR: A.cmdOwner, cOwnerO: A.cmdOwner,
-      cCrunch: A.cmdCrunch, cKart: A.askKart
+      cCrunch: A.cmdCrunch, cKart: A.askKart,
+      cEngine: A.cmdEngine, cEngineR: A.cmdEngine, cEngineO: A.cmdEngine
     };
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
