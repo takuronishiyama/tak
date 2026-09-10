@@ -2767,35 +2767,183 @@ window.GP = window.GP || {};
     U.modal('🏁 カートレース',
       '<p class="lead">今週、自前のカート場でレースを開きます。' +
       '街の子どもたちが集まってきます。</p>' +
-      '<div class="pick">' + ys.slice(0, 4).map(d =>
-        '<div class="pickbtn done"><span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '（' + d.age + '歳）</b>' +
-        '<small>カート適性 <b>' + Math.round(S.kartRating(d)) + '</b>' +
-        '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
-        '／精神 ' + Math.round(d.mental) + '</small></span></div>').join('') + '</div>' +
       '<p class="desc">開催費 💰' + money(K.fee) + '万（1週消費）。' +
       '走った子は実戦のぶんだけ伸び、勝てば大きく伸びます。' +
-      '街の子のなかに光るものがいたら、声をかけられます。</p>',
-      [{ label: '🏁 開催する', cls: 'primary', disabled: !ok, fn: doKart },
+      '街の子のなかに光るものがいたら、声をかけられます。</p>' +
+      '<div class="sub small">🎮 自分でハンドルを握る</div>' +
+      '<p class="desc">誰かの車に乗って、実際に走らせられます。' +
+      '<b>左右で曲がり、⚡で加速、🛑で減速</b>（キーボードなら矢印キー）。<br>' +
+      '曲がりどころでは<b>速度の二乗ぶんだけ外へ押し出される</b>ので、' +
+      '手前で緩めて、内側から立ち上がるのが速い。コースの外に出ると急に遅くなります。<br>' +
+      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ速さで踏ん張る）。</p>' +
+      '<div class="pick">' + ys.slice(0, 4).map(d =>
+        '<button class="pickbtn" data-k="kdrive:' + d.id + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '（' + d.age + '歳）で走る</b>' +
+        '<small>カート適性 <b>' + Math.round(S.kartRating(d)) + '</b>' +
+        '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
+        '／精神 ' + Math.round(d.mental) +
+        '<br>タイヤの許容 <b>×' + kartSkillOf(d).toFixed(2) + '</b></small></span>' +
+        '<span class="pb-cost">🎮<br>運転</span></button>').join('') + '</div>',
+      [{ label: '👀 見ているだけにする', cls: 'primary', disabled: !ok, fn: doKart },
        { label: 'やめる', fn: U.closeModal }]);
+    bindPick(k => { if (k.indexOf('kdrive:') === 0) startKartGame(k.slice(7)); });
   }
+  /* =======================================================
+     カートを、実際に運転する
+     コースの上を自分で走らせる。曲がりどころでは速度の二乗ぶんだけ
+     外へ押し出されるので、手前で緩めて、内側から立ち上がる。
+     操作は左右とアクセルとブレーキだけ。
+     乗せる子の腕は「タイヤの許容」として効く。
+     ======================================================= */
+  let kartRun = null;
+
+  function kartSkillOf(d) {
+    return 0.82 + Math.min(1, S.kartRating(d) / 160) * 0.34;
+  }
+
+  /* 出走表を作る。自分が乗る子、残りの若手、そして街の子たち */
+  function kartField(driveId) {
+    const K = D.KART;
+    const ys = (g.youth || []).slice(0, 4);
+    const field = [];
+    ys.forEach((d, i) => {
+      field.push({ name: d.name, youth: d, mine: true, you: d.id === driveId,
+                   color: d.id === driveId ? '#ffd54a' : g.color,
+                   skill: kartSkillOf(d) });
+    });
+    const base = field.length
+      ? field.reduce((a, e) => a + e.skill, 0) / field.length : 0.95;
+    const COL = ['#4a8fd0', '#d06a4a', '#6ac06a', '#b06fd0', '#d0a84a', '#5fbfc0'];
+    const n = Math.max(4, K.field - field.length);
+    for (let i = 0; i < n; i++) {
+      const star = Math.random() < 0.18;
+      field.push({
+        name: S.kartName ? S.kartName() : 'こども' + (i + 1),
+        mine: false, you: false, star: star, color: COL[i % COL.length],
+        skill: S.clamp(base * S.rnd(0.88, 1.06) * (star ? S.rnd(1.06, 1.13) : 1), 0.72, 1.20)
+      });
+    }
+    // スタート順は混ぜる（自分だけ有利にはしない）
+    for (let i = field.length - 1; i > 0; i--) {
+      const j = S.rint(0, i);
+      const t = field[i]; field[i] = field[j]; field[j] = t;
+    }
+    return field;
+  }
+
+  function startKartGame(driveId) {
+    const K = D.KART;
+    if (g.funds < K.fee) return;
+    g.funds -= K.fee;
+    U.closeModal();
+    const d = (g.youth || []).filter(x => x.id === driveId)[0];
+    const field = kartField(driveId);
+    const stt = GP.kart.start({ field: field, laps: GP.kart.LAPS });
+    const cv = $('kartCanvas');
+    $('kvName').textContent = d ? d.name + '（' + d.age + '歳）' : 'カートレース';
+    $('kvLap').textContent = 'LAP 1 / ' + GP.kart.LAPS;
+    $('kvPos').textContent = 'P-';
+    $('kvSpd').textContent = '0';
+    $('kartScreen').className = 'show';
+    kartRun = { raf: 0, last: performance.now(), keys: {}, quit: false, driveId: driveId };
+    bindKartPad();
+    const loop = (now) => {
+      if (!kartRun) return;
+      const dt = Math.min(0.05, (now - kartRun.last) / 1000);
+      kartRun.last = now;
+      const s2 = GP.kart.tick(dt);
+      GP.kart.draw(cv, { dusk: document.body.getAttribute('data-skin') === 'hd2d' });
+      const you = s2.karts.filter(k => k.you)[0];
+      $('kvCount').textContent = s2.count > 0
+        ? (s2.count > 3 ? 'READY' : Math.ceil(s2.count)) : '';
+      if (you) {
+        $('kvLap').textContent = 'LAP ' + Math.min(GP.kart.LAPS, you.lap + 1) + ' / ' + GP.kart.LAPS;
+        $('kvPos').textContent = 'P' + (you.pos || '-');
+        $('kvSpd').textContent = Math.round(you.v * 0.42) + ' km/h' +
+          (Math.abs(you.off) > 26 ? '　⚠️コース外' : you.slip > 0 ? '　💨スリップ' : '');
+      }
+      if (s2.over || kartRun.quit) { endKartGame(); return; }
+      kartRun.raf = requestAnimationFrame(loop);
+    };
+    kartRun.raf = requestAnimationFrame(loop);
+  }
+
+  function bindKartPad() {
+    const set = (k, v) => { if (GP.kart.state) GP.kart.state.inp[k] = v; };
+    const hold = (id, on, off) => {
+      const el = $(id);
+      if (!el) return;
+      const down = e => { e.preventDefault(); el.classList.add('on'); on(); };
+      const up = e => { if (e) e.preventDefault(); el.classList.remove('on'); off(); };
+      el.onpointerdown = down;
+      el.onpointerup = up;
+      el.onpointerleave = up;
+      el.onpointercancel = up;
+    };
+    hold('kvL', () => set('steer', 1), () => { if (GP.kart.state && GP.kart.state.inp.steer > 0) set('steer', 0); });
+    hold('kvR', () => set('steer', -1), () => { if (GP.kart.state && GP.kart.state.inp.steer < 0) set('steer', 0); });
+    hold('kvA', () => set('throttle', 1), () => set('throttle', 0));
+    hold('kvB', () => set('brake', 1), () => set('brake', 0));
+    $('kvQuit').onclick = () => { if (kartRun) kartRun.quit = true; };
+    const key = (e, down) => {
+      const k = e.key;
+      if (k === 'ArrowLeft' || k === 'a') set('steer', down ? 1 : 0);
+      else if (k === 'ArrowRight' || k === 'd') set('steer', down ? -1 : 0);
+      else if (k === 'ArrowUp' || k === 'z' || k === ' ') set('throttle', down ? 1 : 0);
+      else if (k === 'ArrowDown' || k === 'x') set('brake', down ? 1 : 0);
+      else return;
+      e.preventDefault();
+    };
+    kartRun.onKD = e => key(e, true);
+    kartRun.onKU = e => key(e, false);
+    window.addEventListener('keydown', kartRun.onKD);
+    window.addEventListener('keyup', kartRun.onKU);
+  }
+
+  function endKartGame() {
+    if (!kartRun) return;
+    cancelAnimationFrame(kartRun.raf);
+    window.removeEventListener('keydown', kartRun.onKD);
+    window.removeEventListener('keyup', kartRun.onKU);
+    const order = GP.kart.finish();
+    kartRun = null;
+    $('kartScreen').className = '';
+    // 既存の実り（賞金・ファン・若手の伸び・スカウト）にそのまま渡す
+    const res = { field: order.map(k => ({
+      name: k.name, mine: k.mine, youth: k.youth, star: k.star,
+      pos: k.pos, spun: k.spun > 2.5, unfin: !k.done,
+      time: k.finish != null ? k.finish : (order[0].finish || 0) + 30
+    })), log: [] };
+    showKartResult(res, true);
+  }
+
   function doKart() {
     const K = D.KART;
     if (g.funds < K.fee) return;
     g.funds -= K.fee;
     const res = S.runKart(g);
-    const rw = S.kartReward(g, res);
     U.closeModal();
-    let body = '<div class="racehead"><b>🏁 カートレース</b><span>' + K.laps + '周</span></div>' +
+    showKartResult(res, false);
+  }
+
+  function showKartResult(res, played) {
+    const K = D.KART;
+    const rw = S.kartReward(g, res);
+    let body = '<div class="racehead"><b>🏁 カートレース</b><span>' +
+      (played ? GP.kart.LAPS : K.laps) + '周</span></div>' +
       '<div class="gridlist">' + res.field.map(e =>
         '<div class="gridrow' + (e.mine ? ' me' : '') + '">' +
         '<span class="gp-pos' + (e.pos === 1 ? ' gold' : e.pos === 2 ? ' silver' : e.pos === 3 ? ' bronze' : '') + '">' +
         e.pos + '</span>' +
         '<span class="gp-nm">' + esc(e.name) + (e.mine ? ' <b>（うち）</b>' : e.star ? ' ✨' : '') + '</span>' +
-        '<span class="gp-t">' + (e.pos === 1 ? '—' : '+' + (e.time - res.field[0].time).toFixed(1) + 's') +
+        '<span class="gp-t">' + (e.unfin ? '＋1周' :
+          e.pos === 1 ? '—' : '+' + (e.time - res.field[0].time).toFixed(1) + 's') +
         (e.spun ? ' 🌀' : '') + '</span></div>').join('') + '</div>' +
-      '<div class="rv-loglist kartlog">' + res.log.map(t =>
-        '<div class="rv-ev">' + esc(t) + '</div>').join('') + '</div>' +
+      (res.log.length
+        ? '<div class="rv-loglist kartlog">' + res.log.map(t =>
+            '<div class="rv-ev">' + esc(t) + '</div>').join('') + '</div>'
+        : '') +
       '<div class="rewardbox">' +
         '<div>💰 賞金 <b>+' + money(rw.prize) + '</b><small>出走したぶんだけ</small></div>' +
         '<div>🔥 ファン <b>+' + rw.fans + '</b><small>近所の子とその家族</small></div>' +

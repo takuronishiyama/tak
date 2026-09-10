@@ -122,6 +122,32 @@
 </div>
 
 <!-- ================= レース画面 ================= -->
+<div id="kartScreen">
+  <div class="kv-wrap">
+    <div class="kv-head">
+      <b id="kvName">-</b>
+      <span id="kvLap">LAP 1 / 3</span>
+      <span id="kvPos">P-</span>
+      <span id="kvSpd">0</span>
+      <button id="kvQuit" class="kv-quit">やめる</button>
+    </div>
+    <div class="kv-body">
+      <canvas id="kartCanvas" width="620" height="380"></canvas>
+      <div id="kvCount" class="kv-count"></div>
+    </div>
+    <div class="kv-pad">
+      <div class="kv-side">
+        <button id="kvL" class="kvbtn">◀</button>
+        <button id="kvR" class="kvbtn">▶</button>
+      </div>
+      <div class="kv-hint" id="kvHint">左右で曲がる／⚡で加速／🛑で減速</div>
+      <div class="kv-side right">
+        <button id="kvB" class="kvbtn brk">🛑</button>
+        <button id="kvA" class="kvbtn acc">⚡</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="raceScreen">
   <div class="rv-wrap">
     <div class="rv-head">
@@ -183,6 +209,7 @@
 <script src="src/race.js"></script>
 <script src="src/raceview.js"></script>
 <script src="src/base.js"></script>
+<script src="src/kart.js"></script>
 <script src="src/paddock.js"></script>
 <script src="src/grid.js"></script>
 <script src="src/interior.js"></script>

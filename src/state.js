@@ -3443,7 +3443,7 @@ GP.state = (function () {
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList, polishStep, polishLeft,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
-    hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
+    hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,
     supplierPower, tickEngine, myPuPower, puRank01, canSupplyPU, customerOffers,
     signCustomer, dropCustomer, dropCustomerFee, customerFee, tickCustomers, rivalPuOf,
     tickCustomerYears, puDevMul, isCustomer,

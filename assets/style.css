@@ -2680,3 +2680,34 @@ body[data-skin="hd"]{
 .whybox.alt{background:#fdf8ee;border-color:#e6d9bd}
 .whybox.alt>b{color:#7a5a12}
 .whybox.alt>span{color:#5f5541}
+
+/* ---- カートのミニゲーム ---- */
+#kartScreen{display:none;position:fixed;inset:0;z-index:60;background:#141a12;
+  flex-direction:column;align-items:center;justify-content:center}
+#kartScreen.show{display:flex}
+.kv-wrap{width:100%;max-width:660px;display:flex;flex-direction:column;gap:6px;padding:8px}
+.kv-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#e8e2d4;
+  background:#1e281b;border:1px solid #3a4a33;border-radius:9px;padding:6px 10px}
+.kv-head>b{font-size:13px;color:#ffe066}
+.kv-head>span{font-size:12px;font-variant-numeric:tabular-nums}
+#kvPos{font-weight:700;color:#9fe08a}
+.kv-quit{margin-left:auto;background:#3a2a26;border:1px solid #6a4a40;color:#e8ded4;
+  border-radius:7px;padding:3px 10px;font:inherit;font-size:11px;cursor:pointer}
+.kv-body{position:relative;width:100%;border-radius:10px;overflow:hidden;
+  border:1px solid #3a4a33;background:#000;line-height:0}
+#kartCanvas{width:100%;height:auto;display:block;image-rendering:pixelated}
+.kv-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:64px;font-weight:800;color:#ffe066;text-shadow:0 3px 0 rgba(0,0,0,.6);
+  pointer-events:none}
+.kv-pad{display:flex;align-items:center;gap:8px}
+.kv-side{display:flex;gap:8px}
+.kv-hint{flex:1;text-align:center;font-size:10px;color:#8ba07e}
+.kvbtn{width:64px;height:56px;border-radius:12px;border:1px solid #4a5a42;
+  background:#27331f;color:#e8e2d4;font-size:22px;cursor:pointer;
+  user-select:none;-webkit-user-select:none;touch-action:none}
+.kvbtn:active,.kvbtn.on{background:#3d5230;border-color:#7ea468}
+.kvbtn.acc{background:#2b4022;border-color:#5e8a48}
+.kvbtn.acc:active,.kvbtn.acc.on{background:#4b7a34}
+.kvbtn.brk{background:#3a2622;border-color:#8a5548}
+.kvbtn.brk:active,.kvbtn.brk.on{background:#7a3a2c}
+@media (max-width:520px){ .kvbtn{width:56px;height:52px} .kv-hint{display:none} }
