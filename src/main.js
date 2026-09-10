@@ -4883,7 +4883,13 @@ window.GP = window.GP || {};
           '<em class="fresh' + (r.fresh ? '' : ' zero') + '">新' + r.fresh + '</em>' +
           '<em class="used' + (r.used ? '' : ' zero') + '">中' + r.used + '</em></span>';
       });
-      h += '</span></div>';
+      h += '</span>';
+      // 雨用は別枠。数だけ添えておく
+      h += '<span class="tb-wet">' + S.bankRows(e.bank, true).map(r => {
+        const t2 = D.TYRES.filter(x => x.key === r.key)[0];
+        return '<i style="--tc:' + t2.color + ';--tt:' + t2.text + '">' + t2.short +
+               (r.fresh + r.used) + '</i>';
+      }).join('') + '</span></div>';
     });
     return h + '</div>';
   }
@@ -4899,16 +4905,53 @@ window.GP = window.GP || {};
       t.short + (q.fresh ? '' : 'ᵘ') + '</span>';
   }
 
+  /* ---- 金曜に何を履いて走るか ----
+     「何を作業するか」とは別の選択。ソフトばかり走れば一発の速さは掴めるが、
+     決勝で履く銘柄のことは何も分からないまま日曜を迎える。
+     逆に決勝用を走り込めば読みは決まるが、日曜に出てくるのは中古ばかり。 */
+  function fpTyreHTML() {
+    const cur = pendingStrategy.fpt || 'mix';
+    const crew = S.readCrew(g);
+    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
+      '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
+      '（ハード' + D.TYRE_ALLOC.sets.hard + '／ミディアム' + D.TYRE_ALLOC.sets.medium +
+      '／ソフト' + D.TYRE_ALLOC.sets.soft + '）。' +
+      '雨用はインター' + D.TYRE_ALLOC.wet.inter + '・ウェット' + D.TYRE_ALLOC.wet.wet +
+      'の別枠です。走行で使った本数は戻ってきません。<br>' +
+      '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
+      'ただし、データは読める人がいてはじめて数字になります' +
+      '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
+      '：ストラテジストとエンジニアの両方が要ります）。</p><div class="pick fptyre" data-fpt="1">';
+    D.FP_TYRE.forEach(p => {
+      const read = S.tyreRead(g, p.key, 1);
+      h += '<button class="pickbtn' + (p.key === cur ? ' on' : '') + '" data-v="' + p.key + '">' +
+        '<span class="pb-ic" style="background:#8a4a3a">' + p.icon + '</span>' +
+        '<span class="pb-body"><b>' + p.name + '</b><small>' + esc(p.desc) +
+        '<br>一発の速さの手応え <b>' + Math.round(p.pace * 100) + '%</b>' +
+        '／タイヤの読み <b>' + Math.round(read * 100) + '%</b>' +
+        '</small></span>' +
+        '<span class="pb-cost">🛞' + p.sets.length + '本<br>' +
+        '<i class="tyuse">' + p.sets.filter(k => k === 'soft').length + 'S ' +
+        p.sets.filter(k => k === 'medium').length + 'M ' +
+        p.sets.filter(k => k === 'hard').length + 'H</i></span></button>';
+    });
+    return h + '</div>';
+  }
+
   function cmdPractice() {
     const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    if (!pendingStrategy.fpt) pendingStrategy.fpt = 'mix';
     let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
       t.country + ' ' + esc(t.name) + '</span></div>' +
-      '<p class="desc">決勝までに走れる時間は限られています。何に使うか、ひとつだけ選んでください。' +
-      'ここで決めたことは、この週末のあいだ効きます。<br>' +
-      '<b>走り込むほどタイヤを使います</b>。金曜に減らした本数は、日曜には戻ってきません。</p>' +
+      fpTyreHTML() +
+      '<div class="sub small">🔧 走行時間を何に使うか</div>' +
+      '<p class="desc">決まった時間を、何に使うか。ひとつだけ選んでください。' +
+      'ここで決めたことは、この週末のあいだ効きます。</p>' +
       '<div class="pick">';
     PRACTICE.forEach((x, i) => {
       const ok = !x.avail || x.avail();
+      const sets = x.k === 'save' ? D.FP_SAVE_SETS
+                 : S.fpTyrePlan(pendingStrategy.fpt).sets.length;
       body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="fp:' + i + '"' +
         (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
@@ -4920,11 +4963,20 @@ window.GP = window.GP || {};
           ' が乗ります</em>' : '') +
         '</small></span>' +
         '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%' +
-        '<br><i class="tyuse">🛞' + (D.FP_SETS[x.k] || D.FP_SETS.setup).length + '本</i></span></button>';
+        '<br><i class="tyuse">🛞' + sets + '本</i></span></button>';
     });
     body += '</div>';
     U.modal('🔧 フリー走行', body, [], { wide: true });
     bindPick(k => doPractice(+k.split(':')[1]));
+    Array.prototype.forEach.call(document.querySelectorAll('[data-fpt]'), wrap => {
+      Array.prototype.forEach.call(wrap.children, b => {
+        b.onclick = () => {
+          pendingStrategy.fpt = b.dataset.v;
+          GP.sound.play('tap');
+          cmdPractice();
+        };
+      });
+    });
   }
 
   function doPractice(i) {
@@ -5143,6 +5195,7 @@ window.GP = window.GP || {};
       '<p class="note">✈️🚢 の印は、そのチームが機材をどうやって運んできたかです。' +
       'チャーターで先乗りしたチームはセットアップが進んでおり、' +
       '船便のチームは荷が遅れることがあります（⏳）。</p>';
+    body += fpLearnHTML(res);
     body += bankHTML(res, 'フリー走行で使ったぶんが引かれています。' +
                           '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
@@ -5541,6 +5594,45 @@ window.GP = window.GP || {};
     qStage = null;
     qTab = 'grid';
     showQualifying();
+  }
+
+  /* ---- 金曜に分かったこと ----
+     何を履いて走ったか（データ）と、それを読める人（ストラテジストと
+     エンジニア）の積が「読み」になる。読みが深いほど、
+     タイヤの持ちの見立てが細く、ストップ数の判断も外れなくなる。   */
+  function fpLearnHTML(res) {
+    const t = res.track || D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    const plan = S.fpTyrePlan(pendingStrategy.fpt || 'mix');
+    const me = (res.entries || []).filter(e => e.isPlayer)[0];
+    const read = S.tyreRead(g, plan.key, me ? me.fpRan : 1);
+    const laps = Math.max(4, Math.round(t.laps * (raceCtx.special ? raceCtx.special.lapMul : 1)));
+    let h = '<div class="sub small">📋 金曜に分かったこと</div>' +
+      '<div class="readbox"><span>' + plan.icon + ' ' + plan.name + '</span>' +
+      '<span>読み手の厚み <b>' + Math.round(S.readCrew(g) * 100) + '%</b></span>' +
+      '<span>タイヤの読み <b>' + Math.round(read * 100) + '%</b></span></div>';
+    h += '<div class="lifelist">';
+    (g.drivers || []).forEach(d => {
+      const r = S.tyreLifeRead(g, t, d, read);
+      const stops = S.naturalStops(t, laps, r.wear);
+      h += '<div class="lf-row"><b>' + esc(d.name) + '</b>' +
+        '<span>ミディアム1セットで <b>' + Math.round(r.lo) + '〜' + Math.round(r.hi) + '周</b></span>' +
+        '<span>タイヤへの入力 <b>×' + S.tyreWear(d).toFixed(2) + '</b></span>' +
+        '<span>' + (read >= D.TYRE_READ.missFrom
+          ? '見立て <b>' + stops + 'ストップ</b>'
+          : '<em class="warn">ストップ数は読み切れていない</em>') + '</span></div>';
+    });
+    h += '</div>';
+    h += '<p class="desc">タイヤの減りは、<b>ドライバーのタイヤへの入力</b>' +
+      '（丁寧なほど保つ）と、<b>マシンのタイヤへの攻撃性</b>' +
+      '（いま ×' + S.tyreKind(g).toFixed(2) + '：ダウンフォースと軽さで変わります）、' +
+      'そして<b>路面に乗ったゴム</b>で決まります。' +
+      (read < D.TYRE_READ.missFrom
+        ? '<br><em class="warn">読みが浅いので、「おまかせ」のストップ数が' +
+          '1回ぶんずれることがあります。決勝用の銘柄を走らせるか、' +
+          'ストラテジストとエンジニアを厚くすると当たるようになります。</em>'
+        : '<br><em class="free">読みが足りているので、「おまかせ」のストップ数は当たります。</em>') +
+      '</p>';
+    return h;
   }
 
   /* ---- 予選の表 ----

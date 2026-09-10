@@ -2223,10 +2223,10 @@ GP.state = (function () {
      ======================================================= */
   function newTyreBank() {
     const b = {};
-    Object.keys(D.TYRE_ALLOC.sets).forEach(k => {
-      b[k] = [];
-      for (let i = 0; i < D.TYRE_ALLOC.sets[k]; i++) b[k].push(0);
-    });
+    const put = (k, n) => { b[k] = []; for (let i = 0; i < n; i++) b[k].push(0); };
+    Object.keys(D.TYRE_ALLOC.sets).forEach(k => put(k, D.TYRE_ALLOC.sets[k]));
+    // 雨用は別枠。数は決まっているが、ドライの本数には数えない
+    Object.keys(D.TYRE_ALLOC.wet).forEach(k => put(k, D.TYRE_ALLOC.wet[k]));
     return b;
   }
   /* セットを1本取り出す（戻さない）。
@@ -2235,8 +2235,12 @@ GP.state = (function () {
   function drawSet(bank, key, wantNew) {
     let arr = bank[key];
     if (!arr || !arr.length) {
-      // その銘柄を使い切ったら、残っているうちでいちばん新しいものに履き替える
-      const alt = D.DRY_TYRES.filter(k => bank[k] && bank[k].length)
+      /* その銘柄を使い切ったら、同じ用途のうちで残っているものに履き替える。
+         乾いた路面でウェットを出すわけにはいかないので、
+         ドライはドライ、雨用は雨用のなかだけで探す                   */
+      const pool = D.DRY_TYRES.indexOf(key) >= 0
+        ? D.DRY_TYRES : Object.keys(D.TYRE_ALLOC.wet);
+      const alt = pool.filter(k => bank[k] && bank[k].length)
         .sort((a, b) => Math.min.apply(null, bank[a]) - Math.min.apply(null, bank[b]))[0];
       if (!alt) return { key: key, age: 0, empty: true };
       key = alt; arr = bank[key];
@@ -2265,8 +2269,9 @@ GP.state = (function () {
     (list || []).forEach(k => runSet(bank, k, true, typeof laps === 'function' ? laps() : laps));
   }
   /* 棚の中身（画面用）。銘柄ごとに 新品／中古 が何本ずつ残っているか */
-  function bankRows(bank) {
-    return D.DRY_TYRES.map(k => {
+  function bankRows(bank, wet) {
+    const keys = wet ? Object.keys(D.TYRE_ALLOC.wet) : D.DRY_TYRES;
+    return keys.map(k => {
       const arr = (bank && bank[k]) || [];
       return { key: k, fresh: arr.filter(a => a <= 0).length,
                used: arr.filter(a => a > 0).length, all: arr.length,
@@ -2279,6 +2284,51 @@ GP.state = (function () {
     const A = D.TYRE_ALLOC;
     if (!age || age <= 1) return 0;
     return A.qUsedLoss * Math.min(1, (age - 1) / 5);
+  }
+
+  /* =======================================================
+     タイヤの読み
+     金曜に何を履いて走ったか（データ）と、
+     それを読める人がいるか（ストラテジストとエンジニア）。
+     この二つは掛け算で、片方が欠けると何も出てこない。
+     データがあっても読めないし、読めてもデータがなければ空振りになる。
+     ======================================================= */
+  function fpTyrePlan(key) {
+    return D.FP_TYRE.filter(x => x.key === key)[0] || D.FP_TYRE[1];
+  }
+  /* 読める人の厚み（0..1）。読む人と、数字にする人の両方が要る */
+  function readCrew(g2) {
+    const R = D.TYRE_READ;
+    const o = org(g2);
+    return clamp(o.dept.strategist * R.str + o.dept.engineer * R.eng
+                 + kitEff(g2, 'wall', 'read') * 0.30, 0, 1);
+  }
+  function tyreRead(g2, planKey, ran) {
+    const R = D.TYRE_READ;
+    const plan = fpTyrePlan(planKey);
+    // 走らなかった週末は、データそのものが薄い
+    const data = plan.deg * (ran == null ? 1 : ran);
+    return clamp(R.base + data * readCrew(g2) * R.gain, 0, R.max);
+  }
+  /* このコースで、この車とこの人なら1セットが何周もつか。
+     読みが浅いほど、出てくる数字の幅が広い（見立ての精度そのもの）  */
+  function tyreLifeRead(g2, track, d, read) {
+    const life = D.TYRES.filter(t => t.key === 'medium')[0].life;
+    const wear = track.tyre * tyreWear(d) * tyreKind(g2);
+    const real = life / Math.max(0.35, wear);
+    const band = D.TYRE_READ.bandMax * (1 - read);
+    return { real: real, lo: real * (1 - band), hi: real * (1 + band),
+             wear: wear, band: band };
+  }
+  /* ストップ数の見立て。読みが浅いと、1回ぶんずれることがある */
+  function stopsRead(g2, track, laps, wear, read) {
+    const R = D.TYRE_READ;
+    const real = naturalStops(track, laps, wear);
+    if (read >= R.missFrom) return { n: real, sure: true, real: real };
+    const p = R.missMax * (R.missFrom - read) / R.missFrom;
+    if (Math.random() >= p) return { n: real, sure: false, real: real };
+    return { n: clamp(real + (Math.random() < 0.5 ? -1 : 1), 1, 3),
+             sure: false, real: real, off: true };
   }
 
   /* ---------- スタッフ効果 ---------- */
@@ -3467,6 +3517,7 @@ GP.state = (function () {
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
     newTyreBank, drawSet, returnSet, runSet, scrubBank, bankRows, bankFresh, usedLoss,
+    fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
     mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,

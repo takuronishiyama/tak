@@ -2621,7 +2621,9 @@ body[data-skin="hd"]{
   margin-right:4px;opacity:.62}
 .qty.new{opacity:1;box-shadow:0 0 0 2px #fff,0 0 0 3px #2f6b33}
 .tyuse{display:inline-block;font-style:normal;font-size:10px;color:#8a6a30}
-.pick.qplan .pickbtn.on{border-color:#c0392b;background:#fff4ef}
+/* 選ばれている札は、下地を塗り替えず「縁と艶」で示す。
+   下地を明るくすると、暗い皮のときに文字が読めなくなる          */
+.pick.qplan .pickbtn.on{outline:3px solid #c0392b;outline-offset:-3px}
 .qpickrow{display:flex;gap:8px;margin:4px 0 10px}
 .qpickrow .stratbtn{flex:1}
 
@@ -2726,6 +2728,23 @@ body[data-skin="hd"]{
 .kvbtn.brk{background:#3a2622;border-color:#8a5548}
 .kvbtn.brk:active,.kvbtn.brk.on{background:#7a3a2c}
 @media (max-width:520px){ .kvbtn{width:56px;height:52px} .kv-hint{display:none} }
+
+/* ---- 金曜のタイヤと、そこから分かること ---- */
+.pick.fptyre .pickbtn.on{outline:3px solid #e0894a;outline-offset:-3px}
+.pick.fptyre .pickbtn.on .pb-body>b::after{content:'　← いまこれ';font-size:10px;
+  font-weight:400;color:#e0894a}
+.readbox{display:flex;gap:10px;flex-wrap:wrap;background:#f3f0fa;border:1px solid #ddd5ee;
+  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.readbox span{font-size:11px;color:#4d4560}
+.readbox b{font-size:12px;color:#2f2848}
+.lifelist{display:flex;flex-direction:column;gap:4px;margin:4px 0 8px}
+.lf-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fffaf0;
+  border:1px solid #e6d9bd;border-radius:8px;padding:5px 9px;font-size:11px}
+.lf-row>b{font-size:12px;min-width:88px;color:#4a3720}
+.lf-row>span{color:#6b6152}
+.tb-wet{display:inline-flex;gap:4px;margin-left:6px;padding-left:8px;border-left:1px dashed #d8cbae}
+.tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 5px;
+  border-radius:9px;background:var(--tc);color:var(--tt);font-style:normal;font-weight:700;font-size:10px}
 
 </style>
 <!--
@@ -5504,24 +5523,66 @@ GP.data = (function () {
      「速く走ること」と「日曜のためにとっておくこと」が、はじめて競合する。
      インターとウェットはこの数に入らない（雨は誰のせいでもないので別枠）  */
   const TYRE_ALLOC = {
-    sets:  { soft: 8, medium: 3, hard: 2 },   // 1台・1週末ぶん（計13セット）
-    carry: 0.62,      // ユーズドは、前に走った周回のこれだけを引きずって始まる
+    /* 1台・1週末ぶんの持ち込み。実際のF1と同じ本数。
+       通常大会はドライ13セット（ハード2／ミディアム3／ソフト8）        */
+    sets:  { hard: 2, medium: 3, soft: 8 },
+    /* 雨用は別枠。インターミディエイト5／フルウェット2。
+       雨は誰のせいでもないので、ドライの本数とは切り離されている        */
+    wet:   { inter: 5, wet: 2 },
+    carry: 0.55,      // ユーズドは、前に走った周回のこれだけを引きずって始まる
     fpLaps: 7.5,      // フリー走行で1セットあたり走る周回
     qLaps: 2.6,       // 予選の1本で走る周回（アウト・アタック・イン）
     qUsedLoss: 0.13,  // 中古で予選を走ると1周でこれだけ失う（秒・皮むき済みぶん差し引き後）
-    freshEdge: 0.02   // 新品のほうが素直に食いつくぶん（秒）
+    freshEdge: 0.02,  // 新品のほうが素直に食いつくぶん（秒）
+    /* フリー走行で走ったぶん、路面にゴムが乗る。
+       全車の平均走行本数（3〜6セット）から、決勝が始まる時点のラバーを決める */
+    rubberFrom: 3,
+    rubberTo: 6,
+    rubberGain: 0.14
   };
-  /* ---------- フリー走行で、どの銘柄を何本おろすか ----------
-     メニューによって、手をつける銘柄が変わる。
-     セットアップを詰めるならソフトで一本ずつ確かめればよいが、
-     決勝のことを調べるなら、決勝で履く銘柄を走らせるしかない。
-     つまり「日曜のために調べるほど、日曜のタイヤが古くなる」        */
-  const FP_SETS = {
-    save:   ['soft', 'medium'],
-    setup:  ['medium', 'soft', 'hard', 'medium', 'soft', 'hard'],
-    rookie: ['medium', 'soft', 'medium', 'hard', 'soft', 'medium', 'soft'],
-    tyre:   ['medium', 'hard', 'medium', 'soft', 'hard', 'medium', 'soft', 'soft'],
-    long:   ['medium', 'hard', 'medium', 'hard', 'soft', 'medium', 'soft', 'soft']
+  /* ---------- フリー走行で、どのタイヤを走らせるか ----------
+     金曜と土曜の走行で使えるのは4〜6セット。何を履いて出るかは、
+     「何を作業するか」とは別の選択になる。
+
+     ソフトばかり走れば一発の速さは掴めるが、決勝で履く銘柄のことは
+     何も分からないまま日曜を迎える。逆に決勝用を走り込めば、
+     ストップの読みは決まるが、日曜に出てくるのは中古ばかりになる。
+
+     pace はその週末の一発の速さへの手応え、deg はタイヤの持ちへの手応え。
+     deg は「読み」の材料になり、読める人がいてはじめて数字になる。   */
+  const FP_TYRE = [
+    { key: 'soft', name: 'ソフト中心', icon: '🔴',
+      sets: ['soft', 'soft', 'soft', 'soft'],
+      pace: 0.95, deg: 0.20, qBoost: 1.008, rBoost: 0.996,
+      desc: '一発の速さを見る。予選の狙いは絞れるが、決勝の読みは粗いまま' },
+    { key: 'mix',  name: 'ひととおり', icon: '🟡',
+      sets: ['soft', 'medium', 'soft', 'hard', 'medium'],
+      pace: 0.60, deg: 0.62, qBoost: 1.003, rBoost: 1.002,
+      desc: '全銘柄に触れる。どちらも半端だが、大きくは外さない' },
+    { key: 'race', name: '決勝用を読む', icon: '⚪',
+      sets: ['medium', 'hard', 'medium', 'hard', 'medium', 'soft'],
+      pace: 0.28, deg: 1.00, qBoost: 0.997, rBoost: 1.012,
+      desc: '決勝で履く銘柄を走り込む。ストップの読みが決まるが、日曜は中古ばかり' }
+  ];
+  /* 「走らずに残す」を選んだ週は、どの銘柄を選んでも2セットで済む */
+  const FP_SAVE_SETS = 2;
+
+  /* ---------- タイヤの読み ----------
+     走らせたデータの質（何を履いて走ったか）と、
+     それを読める人の厚み。片方だけでは足りない。
+     データがあっても読めないし、読めてもデータがなければ何も出てこない。
+     この積が「読み」になり、ストップ数の見立てとタイヤ寿命の見積もりに効く。 */
+  const TYRE_READ = {
+    base: 0.16,      // 何もしなくても、経験でこれくらいは当たる
+    str:  0.055,     // ストラテジスト1あたり（読む人）
+    eng:  0.030,     // エンジニア1あたり（数字にする人）
+    gain: 0.74,      // データ × 人 が満点のとき、これだけ上積みされる
+    max:  0.94,
+    /* 読みが浅いと、ストップ数の見立てが1回ぶんずれることがある */
+    missFrom: 0.70,  // ここを下回ると、ずれはじめる
+    missMax:  0.55,  // 読みが底のとき、ずれる確率
+    /* 見積もりの幅（表示用）。読みが深いほど幅が狭くなる */
+    bandMax: 0.42
   };
   /* ---------- 予選のタイヤの使いかた ----------
      newQ は Q1・Q2・Q3 それぞれに新品を入れるかどうか。
@@ -5534,13 +5595,14 @@ GP.data = (function () {
     { key: 'race', name: '決勝重視', icon: '🏁',  newQ: [0, 0, 1],
       desc: 'Q1・Q2は中古。予選の並びは捨てるが、日曜のタイヤは厚い' }
   ];
-  /* ライバルの走り込み（作戦の性格ごと）。
-     走らないチームは仕上がらないが、日曜のタイヤは新しい          */
+  /* ライバルが金曜に何を履くか（作戦の性格ごと）。
+     攻めるチームはソフトで一発を狙い、堅実なチームは決勝用を読む。
+     日曜に新品が何本残るかは、この選択の結果として決まる            */
   const RIVAL_RUN = {
-    aggressive: ['medium', 'hard', 'medium', 'soft', 'hard', 'medium', 'soft', 'soft'],
-    wild:       ['soft', 'medium', 'soft', 'hard', 'medium', 'soft', 'medium', 'hard'],
-    balanced:   ['medium', 'hard', 'medium', 'soft', 'hard', 'soft', 'soft'],
-    steady:     ['soft', 'medium', 'soft', 'hard', 'soft']
+    aggressive: 'soft',
+    wild:       'soft',
+    balanced:   'mix',
+    steady:     'race'
   };
   /* 路面と噛み合わないぶん、1周でどれだけ失うか。
      大雨（濡れ1.0）でドライのまま走ると 1周 +13% ほど。
@@ -5734,7 +5796,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -8240,10 +8302,10 @@ GP.state = (function () {
      ======================================================= */
   function newTyreBank() {
     const b = {};
-    Object.keys(D.TYRE_ALLOC.sets).forEach(k => {
-      b[k] = [];
-      for (let i = 0; i < D.TYRE_ALLOC.sets[k]; i++) b[k].push(0);
-    });
+    const put = (k, n) => { b[k] = []; for (let i = 0; i < n; i++) b[k].push(0); };
+    Object.keys(D.TYRE_ALLOC.sets).forEach(k => put(k, D.TYRE_ALLOC.sets[k]));
+    // 雨用は別枠。数は決まっているが、ドライの本数には数えない
+    Object.keys(D.TYRE_ALLOC.wet).forEach(k => put(k, D.TYRE_ALLOC.wet[k]));
     return b;
   }
   /* セットを1本取り出す（戻さない）。
@@ -8252,8 +8314,12 @@ GP.state = (function () {
   function drawSet(bank, key, wantNew) {
     let arr = bank[key];
     if (!arr || !arr.length) {
-      // その銘柄を使い切ったら、残っているうちでいちばん新しいものに履き替える
-      const alt = D.DRY_TYRES.filter(k => bank[k] && bank[k].length)
+      /* その銘柄を使い切ったら、同じ用途のうちで残っているものに履き替える。
+         乾いた路面でウェットを出すわけにはいかないので、
+         ドライはドライ、雨用は雨用のなかだけで探す                   */
+      const pool = D.DRY_TYRES.indexOf(key) >= 0
+        ? D.DRY_TYRES : Object.keys(D.TYRE_ALLOC.wet);
+      const alt = pool.filter(k => bank[k] && bank[k].length)
         .sort((a, b) => Math.min.apply(null, bank[a]) - Math.min.apply(null, bank[b]))[0];
       if (!alt) return { key: key, age: 0, empty: true };
       key = alt; arr = bank[key];
@@ -8282,8 +8348,9 @@ GP.state = (function () {
     (list || []).forEach(k => runSet(bank, k, true, typeof laps === 'function' ? laps() : laps));
   }
   /* 棚の中身（画面用）。銘柄ごとに 新品／中古 が何本ずつ残っているか */
-  function bankRows(bank) {
-    return D.DRY_TYRES.map(k => {
+  function bankRows(bank, wet) {
+    const keys = wet ? Object.keys(D.TYRE_ALLOC.wet) : D.DRY_TYRES;
+    return keys.map(k => {
       const arr = (bank && bank[k]) || [];
       return { key: k, fresh: arr.filter(a => a <= 0).length,
                used: arr.filter(a => a > 0).length, all: arr.length,
@@ -8296,6 +8363,51 @@ GP.state = (function () {
     const A = D.TYRE_ALLOC;
     if (!age || age <= 1) return 0;
     return A.qUsedLoss * Math.min(1, (age - 1) / 5);
+  }
+
+  /* =======================================================
+     タイヤの読み
+     金曜に何を履いて走ったか（データ）と、
+     それを読める人がいるか（ストラテジストとエンジニア）。
+     この二つは掛け算で、片方が欠けると何も出てこない。
+     データがあっても読めないし、読めてもデータがなければ空振りになる。
+     ======================================================= */
+  function fpTyrePlan(key) {
+    return D.FP_TYRE.filter(x => x.key === key)[0] || D.FP_TYRE[1];
+  }
+  /* 読める人の厚み（0..1）。読む人と、数字にする人の両方が要る */
+  function readCrew(g2) {
+    const R = D.TYRE_READ;
+    const o = org(g2);
+    return clamp(o.dept.strategist * R.str + o.dept.engineer * R.eng
+                 + kitEff(g2, 'wall', 'read') * 0.30, 0, 1);
+  }
+  function tyreRead(g2, planKey, ran) {
+    const R = D.TYRE_READ;
+    const plan = fpTyrePlan(planKey);
+    // 走らなかった週末は、データそのものが薄い
+    const data = plan.deg * (ran == null ? 1 : ran);
+    return clamp(R.base + data * readCrew(g2) * R.gain, 0, R.max);
+  }
+  /* このコースで、この車とこの人なら1セットが何周もつか。
+     読みが浅いほど、出てくる数字の幅が広い（見立ての精度そのもの）  */
+  function tyreLifeRead(g2, track, d, read) {
+    const life = D.TYRES.filter(t => t.key === 'medium')[0].life;
+    const wear = track.tyre * tyreWear(d) * tyreKind(g2);
+    const real = life / Math.max(0.35, wear);
+    const band = D.TYRE_READ.bandMax * (1 - read);
+    return { real: real, lo: real * (1 - band), hi: real * (1 + band),
+             wear: wear, band: band };
+  }
+  /* ストップ数の見立て。読みが浅いと、1回ぶんずれることがある */
+  function stopsRead(g2, track, laps, wear, read) {
+    const R = D.TYRE_READ;
+    const real = naturalStops(track, laps, wear);
+    if (read >= R.missFrom) return { n: real, sure: true, real: real };
+    const p = R.missMax * (R.missFrom - read) / R.missFrom;
+    if (Math.random() >= p) return { n: real, sure: false, real: real };
+    return { n: clamp(real + (Math.random() < 0.5 ? -1 : 1), 1, 3),
+             sure: false, real: real, off: true };
   }
 
   /* ---------- スタッフ効果 ---------- */
@@ -9484,6 +9596,7 @@ GP.state = (function () {
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
     newTyreBank, drawSet, returnSet, runSet, scrubBank, bankRows, bankFresh, usedLoss,
+    fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
     mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
@@ -10363,20 +10476,37 @@ GP.race = (function () {
       });
     });
     /* ---- 週末のタイヤ棚 ----
-       金曜に走り込むほどマシンは仕上がるが、そのぶん日曜のタイヤは古くなる。
-       ライバルも同じ棚を持っている。走り込まないチームは仕上がらない代わりに、
-       日曜の朝、まだ手つかずのタイヤを何本も持っている                */
-    const fpKey = (strategy && strategy.fp) || 'setup';
+       ドライは13セット（ハード2／ミディアム3／ソフト8）、雨用は別枠で7セット。
+       金曜と土曜に何を履いて走ったかが、そのまま日曜に残るものを決める。
+       ソフトばかり走れば決勝用の新品は残るが、決勝のことは何も分からない。
+       決勝用を走り込めば読みは決まるが、日曜に出てくるのは中古ばかりになる。 */
     const A = D.TYRE_ALLOC;
+    const fpKey = (strategy && strategy.fp) || 'setup';
+    const myTyre = (strategy && strategy.fpt) || 'mix';
+    let ranSets = 0;
     list.forEach(e => {
       e.bank = S.newTyreBank();
-      const plan = e.isPlayer ? (D.FP_SETS[fpKey] || D.FP_SETS.setup)
-                              : (D.RIVAL_RUN[e.style] || D.RIVAL_RUN.balanced);
-      // 走る本数は日によって前後する。荷が遅れた週は、走れる時間そのものが足りない
-      const n = S.clamp(plan.length + S.rint(-1, 1), 3, plan.length + 1);
-      e.fpSets = n;
-      S.scrubBank(e.bank, plan.slice(0, n), () => A.fpLaps * S.rnd(0.80, 1.20));
+      const key = e.isPlayer ? myTyre : (D.RIVAL_RUN[e.style] || 'mix');
+      const plan = S.fpTyrePlan(key);
+      e.fpTyre = key;
+      // 「走らずに残す」を選んだ週は、どの銘柄でも2セットで済む
+      const cap = (e.isPlayer && fpKey === 'save') ? D.FP_SAVE_SETS
+                : S.clamp(plan.sets.length + S.rint(-1, 0), 3, plan.sets.length);
+      e.fpSets = cap;
+      e.fpRan = cap / plan.sets.length;         // 予定のうち、どれだけ走れたか
+      /* 何を履いて走ったかで、仕上がる方向も変わる。
+         ソフトばかり走れば土曜の一発は決まるが、日曜の設定は詰め切れない。
+         決勝用を走り込めば、その逆になる                              */
+      e.fpQ = plan.qBoost;
+      e.fpR = plan.rBoost;
+      ranSets += cap;
+      S.scrubBank(e.bank, plan.sets.slice(0, cap), () => A.fpLaps * S.rnd(0.80, 1.20));
     });
+    /* 走ったぶんだけ、路面にゴムが乗る。
+       全車の平均なので、自分が走らなくても誰かが乗せていく          */
+    const avg = ranSets / Math.max(1, list.length);
+    list.rubber0 = D.RUBBER.start + S.clamp(
+      (avg - A.rubberFrom) / (A.rubberTo - A.rubberFrom), 0, 1) * A.rubberGain;
     return list;
   }
 
@@ -10552,7 +10682,7 @@ GP.race = (function () {
     // 「いま何番手の速さか」。新品を入れるかどうかの読みに使う
     field.slice().sort((a, b) => b.perf - a.perf).forEach((e, i) => { e.qRank = i + 1; });
     field.forEach(e => {
-      let q = e.perf;
+      let q = e.perf * (e.fpQ || 1);    // 金曜に何を履いたかは、土曜の一発に出る
       if (e.sk('qualify')) q *= 1.07;
       const sp = Q.spread[si];
       q *= (1 - sp + Math.random() * sp * 2) * weather.grip;
@@ -10844,6 +10974,12 @@ GP.race = (function () {
   /* ---------- 決勝シミュレーション ---------- */
   function simulate(g, trackIndex, strategy, special, pre) {
     fiaFav = S.fiaFavor(g);      // 今日の車検場に、どんな顔が並んでいるか
+    // 金曜に決勝用の銘柄を走り込んだぶんは、日曜の設定として返ってくる
+    if (pre && pre.entries) {
+      pre.entries.forEach(e => {
+        if (e.fpR && !e.fpRdone) { e.perf *= e.fpR; e.fpRdone = true; }
+      });
+    }
     const track = D.TRACKS[trackIndex];
     // 予選を先に走らせてあれば、そのグリッドをそのまま使う
     const weather = pre ? pre.weather : Object.assign({}, special && special.force
@@ -10864,7 +11000,9 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
-    let rubber = D.RUBBER.start, rubberWashed = false;   // 路面に乗ったゴム
+    // 金曜と土曜に走ったぶんが、すでに路面に乗っている
+    let rubber = (entries && entries.rubber0) || D.RUBBER.start;
+    let rubberWashed = false;
     const rubberLog = [];
     let scStarted = false, wxChangedThisLap = false;   // 無線でひとこと入れるための目印
     const bestSectorBy = [null, null, null];
@@ -11045,6 +11183,13 @@ GP.race = (function () {
       }
     }
 
+    /* 金曜のデータと、それを読める人。この積が「読み」になる。
+       1レースのあいだ変わらないので、ここで一度だけ出しておく        */
+    const myFpTyre = (strategy && strategy.fpt) || 'mix';
+    const myRan = (entries.filter(e => e.isPlayer)[0] || {}).fpRan;
+    const tyreRead = S.tyreRead(g, myFpTyre, myRan);
+    entries.tyreRead = tyreRead;
+
     entries.forEach(e => {
       // タイヤに優しい車ほど引っぱれるので、素直なストップ回数も減る
       const wear = track.tyre * e.st.tyre * e.tyreSkill * (e.wearCar || 1);
@@ -11058,10 +11203,18 @@ GP.race = (function () {
       e.react = 0.45;                     // アンダーカットを仕掛ける積極性
 
       if (e.isPlayer) {
-        // プレイヤーは自分で選べる。'auto' ならコース任せ
+        /* プレイヤーは自分で選べる。'auto' はピットウォールの見立てに任せる。
+           その見立ては、金曜に何を履いて走ったか（データ）と、
+           それを読める人がいるか（ストラテジストとエンジニア）で決まる。
+           読みが浅いと、素直な回数から1回ぶんずれたまま組んでしまう      */
         const want = e.stopPlan;
         if (want === '1' || want === '2' || want === '3') stops = parseInt(want, 10);
         else if (e.forceStops) stops = e.forceStops;      // 振り分けられたほう
+        else {
+          const rd = S.stopsRead(g, track, laps, wear, tyreRead);
+          stops = rd.n;
+          if (rd.off) e.stopMissed = true;                // あとで振り返るための目印
+        }
         e.tyreBias = e.forceStops ? e.tyreBias
                    : (e.tyrePlan == null ? 1 : e.tyrePlan);
         e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready;
@@ -11118,8 +11271,14 @@ GP.race = (function () {
       for (let i = 0; i < bounds.length - 1; i++) {
         const len = bounds[i + 1] - bounds[i];
         const prefer = (i === 0 && e.isPlayer) ? e.startTyre : null;
+        /* ---- 読みが浅いと、区間の長さを見誤ったまま銘柄を選ぶ ----
+           金曜に決勝用を走らせていなければ、何周もつのかが分かっていない。
+           やわらかすぎればタレ、硬すぎれば遅いまま走ることになる      */
+        const guess = e.isPlayer
+          ? Math.max(2, Math.round(len * (1 + (1 - tyreRead) * S.rnd(-0.30, 0.30))))
+          : len;
         e.stints.push({ from: bounds[i] + 1, to: bounds[i + 1],
-                        key: pickTyre(len, weather, prefer, e.tyreBias), laps: len });
+                        key: pickTyre(guess, weather, prefer, e.tyreBias), laps: len });
       }
       // ドライレースでは2種類以上のタイヤを使わなければならない（実際のF1のルール）
       if (!weather.wetTyres && e.stints.length >= 2) {
@@ -23052,7 +23211,13 @@ window.GP = window.GP || {};
           '<em class="fresh' + (r.fresh ? '' : ' zero') + '">新' + r.fresh + '</em>' +
           '<em class="used' + (r.used ? '' : ' zero') + '">中' + r.used + '</em></span>';
       });
-      h += '</span></div>';
+      h += '</span>';
+      // 雨用は別枠。数だけ添えておく
+      h += '<span class="tb-wet">' + S.bankRows(e.bank, true).map(r => {
+        const t2 = D.TYRES.filter(x => x.key === r.key)[0];
+        return '<i style="--tc:' + t2.color + ';--tt:' + t2.text + '">' + t2.short +
+               (r.fresh + r.used) + '</i>';
+      }).join('') + '</span></div>';
     });
     return h + '</div>';
   }
@@ -23068,16 +23233,53 @@ window.GP = window.GP || {};
       t.short + (q.fresh ? '' : 'ᵘ') + '</span>';
   }
 
+  /* ---- 金曜に何を履いて走るか ----
+     「何を作業するか」とは別の選択。ソフトばかり走れば一発の速さは掴めるが、
+     決勝で履く銘柄のことは何も分からないまま日曜を迎える。
+     逆に決勝用を走り込めば読みは決まるが、日曜に出てくるのは中古ばかり。 */
+  function fpTyreHTML() {
+    const cur = pendingStrategy.fpt || 'mix';
+    const crew = S.readCrew(g);
+    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
+      '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
+      '（ハード' + D.TYRE_ALLOC.sets.hard + '／ミディアム' + D.TYRE_ALLOC.sets.medium +
+      '／ソフト' + D.TYRE_ALLOC.sets.soft + '）。' +
+      '雨用はインター' + D.TYRE_ALLOC.wet.inter + '・ウェット' + D.TYRE_ALLOC.wet.wet +
+      'の別枠です。走行で使った本数は戻ってきません。<br>' +
+      '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
+      'ただし、データは読める人がいてはじめて数字になります' +
+      '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
+      '：ストラテジストとエンジニアの両方が要ります）。</p><div class="pick fptyre" data-fpt="1">';
+    D.FP_TYRE.forEach(p => {
+      const read = S.tyreRead(g, p.key, 1);
+      h += '<button class="pickbtn' + (p.key === cur ? ' on' : '') + '" data-v="' + p.key + '">' +
+        '<span class="pb-ic" style="background:#8a4a3a">' + p.icon + '</span>' +
+        '<span class="pb-body"><b>' + p.name + '</b><small>' + esc(p.desc) +
+        '<br>一発の速さの手応え <b>' + Math.round(p.pace * 100) + '%</b>' +
+        '／タイヤの読み <b>' + Math.round(read * 100) + '%</b>' +
+        '</small></span>' +
+        '<span class="pb-cost">🛞' + p.sets.length + '本<br>' +
+        '<i class="tyuse">' + p.sets.filter(k => k === 'soft').length + 'S ' +
+        p.sets.filter(k => k === 'medium').length + 'M ' +
+        p.sets.filter(k => k === 'hard').length + 'H</i></span></button>';
+    });
+    return h + '</div>';
+  }
+
   function cmdPractice() {
     const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    if (!pendingStrategy.fpt) pendingStrategy.fpt = 'mix';
     let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
       t.country + ' ' + esc(t.name) + '</span></div>' +
-      '<p class="desc">決勝までに走れる時間は限られています。何に使うか、ひとつだけ選んでください。' +
-      'ここで決めたことは、この週末のあいだ効きます。<br>' +
-      '<b>走り込むほどタイヤを使います</b>。金曜に減らした本数は、日曜には戻ってきません。</p>' +
+      fpTyreHTML() +
+      '<div class="sub small">🔧 走行時間を何に使うか</div>' +
+      '<p class="desc">決まった時間を、何に使うか。ひとつだけ選んでください。' +
+      'ここで決めたことは、この週末のあいだ効きます。</p>' +
       '<div class="pick">';
     PRACTICE.forEach((x, i) => {
       const ok = !x.avail || x.avail();
+      const sets = x.k === 'save' ? D.FP_SAVE_SETS
+                 : S.fpTyrePlan(pendingStrategy.fpt).sets.length;
       body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="fp:' + i + '"' +
         (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
@@ -23089,11 +23291,20 @@ window.GP = window.GP || {};
           ' が乗ります</em>' : '') +
         '</small></span>' +
         '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%' +
-        '<br><i class="tyuse">🛞' + (D.FP_SETS[x.k] || D.FP_SETS.setup).length + '本</i></span></button>';
+        '<br><i class="tyuse">🛞' + sets + '本</i></span></button>';
     });
     body += '</div>';
     U.modal('🔧 フリー走行', body, [], { wide: true });
     bindPick(k => doPractice(+k.split(':')[1]));
+    Array.prototype.forEach.call(document.querySelectorAll('[data-fpt]'), wrap => {
+      Array.prototype.forEach.call(wrap.children, b => {
+        b.onclick = () => {
+          pendingStrategy.fpt = b.dataset.v;
+          GP.sound.play('tap');
+          cmdPractice();
+        };
+      });
+    });
   }
 
   function doPractice(i) {
@@ -23312,6 +23523,7 @@ window.GP = window.GP || {};
       '<p class="note">✈️🚢 の印は、そのチームが機材をどうやって運んできたかです。' +
       'チャーターで先乗りしたチームはセットアップが進んでおり、' +
       '船便のチームは荷が遅れることがあります（⏳）。</p>';
+    body += fpLearnHTML(res);
     body += bankHTML(res, 'フリー走行で使ったぶんが引かれています。' +
                           '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
@@ -23710,6 +23922,45 @@ window.GP = window.GP || {};
     qStage = null;
     qTab = 'grid';
     showQualifying();
+  }
+
+  /* ---- 金曜に分かったこと ----
+     何を履いて走ったか（データ）と、それを読める人（ストラテジストと
+     エンジニア）の積が「読み」になる。読みが深いほど、
+     タイヤの持ちの見立てが細く、ストップ数の判断も外れなくなる。   */
+  function fpLearnHTML(res) {
+    const t = res.track || D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    const plan = S.fpTyrePlan(pendingStrategy.fpt || 'mix');
+    const me = (res.entries || []).filter(e => e.isPlayer)[0];
+    const read = S.tyreRead(g, plan.key, me ? me.fpRan : 1);
+    const laps = Math.max(4, Math.round(t.laps * (raceCtx.special ? raceCtx.special.lapMul : 1)));
+    let h = '<div class="sub small">📋 金曜に分かったこと</div>' +
+      '<div class="readbox"><span>' + plan.icon + ' ' + plan.name + '</span>' +
+      '<span>読み手の厚み <b>' + Math.round(S.readCrew(g) * 100) + '%</b></span>' +
+      '<span>タイヤの読み <b>' + Math.round(read * 100) + '%</b></span></div>';
+    h += '<div class="lifelist">';
+    (g.drivers || []).forEach(d => {
+      const r = S.tyreLifeRead(g, t, d, read);
+      const stops = S.naturalStops(t, laps, r.wear);
+      h += '<div class="lf-row"><b>' + esc(d.name) + '</b>' +
+        '<span>ミディアム1セットで <b>' + Math.round(r.lo) + '〜' + Math.round(r.hi) + '周</b></span>' +
+        '<span>タイヤへの入力 <b>×' + S.tyreWear(d).toFixed(2) + '</b></span>' +
+        '<span>' + (read >= D.TYRE_READ.missFrom
+          ? '見立て <b>' + stops + 'ストップ</b>'
+          : '<em class="warn">ストップ数は読み切れていない</em>') + '</span></div>';
+    });
+    h += '</div>';
+    h += '<p class="desc">タイヤの減りは、<b>ドライバーのタイヤへの入力</b>' +
+      '（丁寧なほど保つ）と、<b>マシンのタイヤへの攻撃性</b>' +
+      '（いま ×' + S.tyreKind(g).toFixed(2) + '：ダウンフォースと軽さで変わります）、' +
+      'そして<b>路面に乗ったゴム</b>で決まります。' +
+      (read < D.TYRE_READ.missFrom
+        ? '<br><em class="warn">読みが浅いので、「おまかせ」のストップ数が' +
+          '1回ぶんずれることがあります。決勝用の銘柄を走らせるか、' +
+          'ストラテジストとエンジニアを厚くすると当たるようになります。</em>'
+        : '<br><em class="free">読みが足りているので、「おまかせ」のストップ数は当たります。</em>') +
+      '</p>';
+    return h;
   }
 
   /* ---- 予選の表 ----
