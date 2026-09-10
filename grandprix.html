@@ -2676,6 +2676,14 @@ body[data-skin="hd"]{
 .fia-row>em{font-style:normal;font-weight:700}
 .fia-row>small{color:#98a2aa;flex:1 1 100%}
 
+/* ---- ピットへの信頼 ---- */
+.trustchip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
+  color:var(--tk);border:1px solid var(--tk);border-radius:999px;padding:1px 7px;
+  background:color-mix(in srgb, var(--tk) 10%, #fff)}
+.trustrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
+.tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#fffaf0;
+  border:1px solid #e6d9bd;border-radius:8px;padding:4px 8px}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -3745,7 +3753,10 @@ GP.data = (function () {
     { key: 'mission', name: 'ミッションコントロール', icon: '🛰️', base: 2600,
       desc: '本国に残った人間が、回線の向こうからレースに加わる。作戦と天候の読みが伸びる' },
     { key: 'depot',   name: '物流倉庫',       icon: '📦', base: 1700,
-      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' }
+      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' },
+    { key: 'meeting', name: 'ミーティングルーム', icon: '🗣️', base: 1500,
+      desc: 'ブリーフィングとデブリーフィングをここでやる。' +
+            'ドライバーの言い分が形になり、話が届くようになる' }
   ];
 
   /* ---------- 備品 ----------
@@ -3800,6 +3811,12 @@ GP.data = (function () {
         eff: '遅延の危険 -20%', note: '番地で出てくる。積み忘れという言葉がなくなった' },
       { key: 'crate', name: '専用コンテナ一式', icon: '🧳', cost: 5200, need: 5, env: 2,
         eff: '輸送費 -8%／クルーの消耗 -2', note: '寸法が決まっているぶん、積むのも解くのも速い' }
+    ],
+    meeting: [
+      { key: 'wall3', name: '大型スクリーン', icon: '🖥️', cost: 2100, need: 2, env: 1,
+        eff: '話が届く +12%', note: '同じ画を全員で見る。言葉の行き違いが半分になる' },
+      { key: 'rec',   name: '記録と書き起こし', icon: '🎧', cost: 3300, need: 4, env: 2,
+        eff: '話が届く +10%／信頼の伸び +', note: '言った言わないが消える。前の週末の話から始められる' }
     ],
     youth: [
       { key: 'dorm', name: '若手寮', icon: '🏠', cost: 2600, need: 2, env: 3,
@@ -4343,6 +4360,95 @@ GP.data = (function () {
       desc: '遠征と運営の効率化。週ごとの固定費が下がる（大所帯ほど効く）',
       effect: '固定費 -1.0%／技能1（最大35%）' }
   ];
+
+  /* ---------- ブリーフィング ----------
+     走り終えたドライバーは、必ず何かを言う。
+     その言い分は、実際にこのマシンがこのコースで足りていないところから出る。
+     エンジニアがどう返すかで、車が変わることもあれば、
+     「そこは腕の見せどころだ」で終わることもある。
+     どちらを選んでも、結果が出たかどうかで信頼が動く。            */
+  const COMPLAINTS = [
+    { key: 'speed', icon: '🏁', name: '直線が伸びない',
+      say: ['「直線で並ばれる。踏んでるのに、そこから先がない」',
+            '「ストレートエンドで置いていかれます。あれは追えない」',
+            '「立ち上がってからが長い。他が来るのが見えてる」'],
+      eng: '出力そのものより、押しつけすぎているぶんが抵抗になっている',
+      fix: { speed: 0.014, corner: -0.005 } },
+    { key: 'corner', icon: '🌀', name: '高速で頭が入らない',
+      say: ['「高速で頭が入らない。曲がる前に逃げていく」',
+            '「ここのS字、アンダーで一杯です。狙ったところに置けない」',
+            '「押しつけが足りない。攻めようとすると外へ出る」'],
+      eng: '前がまだ寝ている。翼を起こせば入るが、直線は捨てることになる',
+      fix: { corner: 0.014, speed: -0.005 } },
+    { key: 'accel', icon: '⚡', name: '立ち上がりで逃げる',
+      say: ['「立ち上がりでホイールスピンする。踏めない」',
+            '「トラクションがないです。出口で待たされる」',
+            '「アクセルを開けた瞬間にリアが流れる。じわっとしか踏めない」'],
+      eng: '後ろの荷重が抜けている。車高と減衰で拾えるはず',
+      fix: { accel: 0.014, speed: -0.004 } },
+    { key: 'wear', icon: '🛞', name: 'タイヤが保たない',
+      say: ['「3周でタレます。これじゃ最後まで走れない」',
+            '「リアが終わるのが早い。ペースを守れと言われても、もう無理です」',
+            '「フロントの表面が溶けてる。長いスティントは組めない」'],
+      eng: '滑らせているぶんが熱になっている。押しつけを増やせば止まる',
+      fix: { wear: -0.070, speed: -0.004 } },
+    { key: 'drive', icon: '🎯', name: 'リアが落ち着かない',
+      say: ['「ブレーキを残すとリアが出る。怖くて攻められない」',
+            '「唐突なんです。同じ入り方をしても、同じように返ってこない」',
+            '「乗りにくい。持っているものを出せている気がしない」'],
+      eng: '前後の釣り合いの話。落ち着かせれば、そのぶん速さは削れる',
+      fix: { drive: 0.045, speed: -0.006 } }
+  ];
+  const BRIEF_REPLIES = [
+    { key: 'fix',   icon: '🔧', name: '分かった、セッティングを変えよう',
+      line: '「分かった。そこに振ってみよう。次のランで確かめてくれ」',
+      desc: '言われたところに振る。決まればいちばん効くが、外すこともある',
+      okTrust: 12, ngTrust: -9, raceOk: 6, raceNg: -8 },
+    { key: 'pride', icon: '💪', name: 'そこは腕の見せどころだ',
+      line: '「そこは君の腕の見せどころだ。いまの車で、そのぶんは出せる」',
+      desc: '車はこれで戦える、と返す。結果が出れば大きいが、出なければ響く',
+      okTrust: 5, ngTrust: -6, raceOk: 12, raceNg: -16 },
+    { key: 'data',  icon: '📊', name: 'データを見せて話す',
+      line: '「数字を見てくれ。ここは、君が感じているのとは少し違う」',
+      desc: '数字で説明する。車は変わらないが、納得すれば信頼は残る',
+      okTrust: 9, ngTrust: -3, raceOk: 3, raceNg: -4 }
+  ];
+  /* ---------- ピットへの信頼 ----------
+     言ったことが当たったか、外れたか。その積み重ね。
+     低いと、無線を無視して自分の判断で走りはじめる。
+     底を割ると、移籍したいと言い出す。                            */
+  const TRUST = {
+    start: 60,
+    tiers: [
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2f7a3a',
+        note: '言えば、そのとおりに走ってくれる' },
+      { at: 62, name: '信頼している', icon: '🙂', color: '#4f8a45',
+        note: 'おおむね指示どおりに動く' },
+      { at: 40, name: '半信半疑', icon: '😐', color: '#8a7a3a',
+        note: '納得のいかない指示は、うまく飲み込めていない' },
+      { at: 22, name: '不信', icon: '😠', color: '#b06a2a',
+        note: '無線を聞いても、自分の判断で走ることがある' },
+      { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
+        note: 'ここを出たがっている' }
+    ],
+    ignoreFrom: 40,   // ここを割ると、指示を飲み込めない周が出はじめる
+    ignoreMax: 0.55,  // 底まで落ちたとき、指示を無視する確率
+    leaveAt: 18,      // ここを割ったまま週末を終えると、移籍を言い出す
+    devFrom: 70,      // 信頼が厚いほど、開発へのフィードバックが的確になる
+    devMax: 0.06,
+    drift: 0.35       // 毎レース、少しだけ中央（start）へ戻る
+  };
+  const BRIEF = {
+    fixBase: 0.40,    // セッティング変更が決まる確率の底
+    fixEng: 0.011,    // 技術陣1あたり
+    fixRoom: 0.038,   // ミーティングルーム1レベルあたり
+    fixMax: 0.90,
+    dataBase: 0.38,
+    dataAnalyst: 0.10,
+    dataRoom: 0.030,
+    dataMax: 0.88,
+    roomTrust: 0.05   // 部屋のレベル1あたり、信頼の動きがこれだけ大きくなる（良い側だけ）
+  };
 
   /* ---------- エグゼクティブ講習 ----------
      人は現場でしか育たない、というのは半分だけ本当で、
@@ -5529,7 +5635,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -8709,6 +8815,87 @@ GP.state = (function () {
   }
 
   /* =======================================================
+     ブリーフィングと、ピットへの信頼
+     走り終えたドライバーは必ず何かを言う。その言い分は、
+     このマシンがこのコースで足りていないところから出てくる。
+     エンジニアがどう返したかと、そのあと結果が出たかどうかで、
+     ピットへの信頼が動いていく。
+     ======================================================= */
+  function meetingLv(g2) { return (g2.facilities && g2.facilities.meeting) || 1; }
+  /* 話がどれだけ届くか。部屋と、そこに入れた道具で決まる */
+  function roomPower(g2) {
+    return meetingLv(g2)
+         + (hasGear(g2, 'meeting', 'wall3') ? 1.2 : 0)
+         + (hasGear(g2, 'meeting', 'rec') ? 1.0 : 0);
+  }
+  function trustOf(d) {
+    return d.trust == null ? D.TRUST.start : d.trust;
+  }
+  function trustTier(v) {
+    const t = D.TRUST.tiers;
+    for (let i = 0; i < t.length; i++) if (v >= t[i].at) return t[i];
+    return t[t.length - 1];
+  }
+  function addTrust(g2, d, n) {
+    // 良い方向の動きだけ、部屋のぶんだけ大きくなる。壊れるときは同じ速さで壊れる
+    const k = n > 0 ? 1 + roomPower(g2) * D.BRIEF.roomTrust : 1;
+    d.trust = clamp(trustOf(d) + n * k, 0, 100);
+    return Math.round(d.trust);
+  }
+  /* レースごとに、少しだけ中央へ戻る。恨みも信頼も、走れば薄れる */
+  function trustDrift(g2) {
+    (g2.drivers || []).forEach(d => {
+      const v = trustOf(d);
+      d.trust = v + (D.TRUST.start - v) * (D.TRUST.drift * 0.1);
+    });
+  }
+  /* 信頼が薄いと、指示を飲み込めない周が出る（0..ignoreMax） */
+  function ignoreRate(d) {
+    const v = trustOf(d);
+    const from = D.TRUST.ignoreFrom;
+    if (v >= from) return 0;
+    return D.TRUST.ignoreMax * Math.min(1, (from - v) / from);
+  }
+  /* 信頼が厚いドライバーほど、開発へのフィードバックが的確になる */
+  function trustDev(g2) {
+    return (g2.drivers || []).reduce((a, d) => {
+      const v = trustOf(d);
+      if (v <= D.TRUST.devFrom) return a;
+      return a + D.TRUST.devMax * (v - D.TRUST.devFrom) / (100 - D.TRUST.devFrom);
+    }, 0);
+  }
+
+  /* ---- ドライバーが何を言うか ----
+     コースが求めているものと、この車が持っているものの差。
+     いちばん大きく足りていないところが、そのまま口から出る    */
+  function briefFind(g2, track) {
+    const st = carStats(g2);
+    const w = (track && track.weight) || { speed: 0.33, corner: 0.34, accel: 0.33 };
+    const tot = (st.speed + st.corner + st.accel) || 1;
+    const wtot = (w.speed + w.corner + w.accel) || 1;
+    const gaps = ['speed', 'corner', 'accel'].map(k => ({
+      key: k, v: (w[k] / wtot) - (st[k] / tot)
+    }));
+    // タイヤの減りと乗り味も、同じ土俵に載せて比べる
+    const wear = tyreKind(g2);                 // 1.00 が標準。大きいほど減る
+    gaps.push({ key: 'wear',  v: (wear - 1) * 0.55 });
+    const drive = bodyRatio(g2, 'drive');
+    gaps.push({ key: 'drive', v: (RIVAL_BODY_REF - drive) * 0.85 });
+    gaps.sort((a, b) => b.v - a.v);
+    const top = gaps[0];
+    const c = D.COMPLAINTS.filter(x => x.key === top.key)[0] || D.COMPLAINTS[0];
+    return { def: c, gap: Math.round(top.v * 1000) / 1000, all: gaps };
+  }
+  function fixOdds(g2) {
+    return clamp(D.BRIEF.fixBase + org(g2).dept.engineer * D.BRIEF.fixEng
+               + roomPower(g2) * D.BRIEF.fixRoom, 0.10, D.BRIEF.fixMax);
+  }
+  function dataOdds(g2) {
+    return clamp(D.BRIEF.dataBase + analystPower(g2) * D.BRIEF.dataAnalyst
+               + roomPower(g2) * D.BRIEF.dataRoom, 0.10, D.BRIEF.dataMax);
+  }
+
+  /* =======================================================
      エグゼクティブ講習
      人は現場でしか育たない、というのは半分だけ本当で、
      残りの半分は、いちど現場を離れないと身につかない。
@@ -9139,6 +9326,8 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
@@ -9985,7 +10174,15 @@ GP.race = (function () {
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
-        const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        let stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        /* ブリーフィングで振ったぶん。この週末だけの、セットアップの片寄り。
+           どこかを取れば、どこかを捨てることになる                */
+        const tune = (t.isPlayer && strategy && strategy.tune) || null;
+        if (tune) {
+          stats = { speed:  stats.speed  * (1 + (tune.speed  || 0)),
+                    corner: stats.corner * (1 + (tune.corner || 0)),
+                    accel:  stats.accel  * (1 + (tune.accel  || 0)) };
+        }
         // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
         const secPerf = SW.w.map(w =>
           (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
@@ -9995,8 +10192,9 @@ GP.race = (function () {
         const dfBias = S.dfBiasOf(stats);
         /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
            軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
-        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
-                                    t.isPlayer ? myMech : 0);
+        let wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
+                                  t.isPlayer ? myMech : 0);
+        if (tune && tune.wear) wearCar *= 1 + tune.wear;
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
@@ -10009,7 +10207,12 @@ GP.race = (function () {
           pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
           // あとで「何が効いて、その順位になったのか」を分解するために残す
           carScore: t.car, drvScore: drv, formMul: form[ti],
-          bd: t.isPlayer ? myBody : evenBody,
+          bd: (tune && tune.drive)
+                ? Object.assign({}, myBody, { drive: myBody.drive + tune.drive })
+                : (t.isPlayer ? myBody : evenBody),
+          // ピットへの信頼。薄いと、無線を飲み込めない周が出る
+          trust: t.isPlayer ? S.trustOf(d) : 100,
+          ignore: t.isPlayer ? S.ignoreRate(d) : 0,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
           style: t.style || 'balanced',
@@ -11158,7 +11361,25 @@ GP.race = (function () {
         // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
         // 無線で言っていることが、そのままここで効く
         const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
+        let ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
+        /* ---- ピットへの信頼 ----
+           言われたとおりに走るのは、言うとおりにして良くなった経験があるから。
+           それが薄いと、ドライバーは自分の見立てで走りはじめる。
+           抑えろと言われても踏むし、行けと言われても引く            */
+        if (e.ignore > 0 && !scNow2 && Math.random() < e.ignore) {
+          const own = (ordKey === 'save' || ordKey === 'cool') ? 'push'
+                    : ordKey === 'push' ? 'save' : (Math.random() < 0.5 ? 'push' : 'save');
+          if (own !== ordKey) {
+            e.defied = (e.defied || 0) + 1;
+            if (e.isPlayer && e.defied <= 3 && Math.random() < 0.55) {
+              events.push({ lap: lap, type: 'radio', car: e,
+                text: '📻 ' + e.driver.name + '「' +
+                  (own === 'push' ? 'このペースじゃ届かない。行きます'
+                                  : 'いまは行けない。こっちで判断します') + '」' });
+            }
+            ordKey = own;
+          }
+        }
         if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);
@@ -14122,16 +14343,47 @@ GP.base = (function () {
      一枚の絵で見下ろしているように見える。
      ang は輪の上の角度（度）。0が右、90が手前、180が左、270が奥。 */
   const RING = { cx: 390, cy: 192, rx: 300, ry: 82, w: 22 };
-  const PLOTS = [
-    { key: 'depot',   ang: 250, label: '物流倉庫' },
-    { key: 'mission', ang: 286, label: 'ミッションコントロール' },
-    { key: 'tunnel',  ang: 322, label: '風洞' },
-    { key: 'sim',     ang: 10,  label: 'シミュレーター' },
-    { key: 'youth',   ang: 48,  label: 'ユース' },
-    { key: 'market',  ang: 132, label: 'マーケ室' },
-    { key: 'pit',     ang: 170, label: 'ピット設備' },
-    { key: 'factory', ang: 210, label: 'ファクトリー' }
+  /* ---------- 輪の上を、見た目の距離で等間隔に割る ----------
+     角度で等分すると、平たい楕円では左右の端に建物が固まってしまう。
+     （端は角度が大きく動いても、画面上の距離はほとんど動かない）
+     そこで周の長さで割り、どこを見ても同じ間隔に見えるようにする。 */
+  function ringSpread(n, fromDeg, toDeg) {
+    const STEP = 0.5;
+    const pts = [];
+    let len = 0, px = null, py = null;
+    for (let d = fromDeg; d <= toDeg + 0.001; d += STEP) {
+      const a = d * Math.PI / 180;
+      const x = Math.cos(a) * RING.rx, y = Math.sin(a) * RING.ry;
+      if (px !== null) len += Math.hypot(x - px, y - py);
+      pts.push({ d: d, len: len });
+      px = x; py = y;
+    }
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const want = len * (i + 0.5) / n;
+      let j = 0;
+      while (j < pts.length - 1 && pts[j].len < want) j++;
+      out.push(((pts[j].d % 360) + 360) % 360);
+    }
+    return out;
+  }
+  /* 手前のまん中（90度）は正門なので空けておく。
+     残りを周の長さで9等分し、そこへ順に建物を置く            */
+  const PLOT_KEYS = [
+    { key: 'market',  label: 'マーケ室' },
+    { key: 'meeting', label: 'ミーティングルーム' },
+    { key: 'pit',     label: 'ピット設備' },
+    { key: 'factory', label: 'ファクトリー' },
+    { key: 'depot',   label: '物流倉庫' },
+    { key: 'mission', label: 'ミッションコントロール' },
+    { key: 'tunnel',  label: '風洞' },
+    { key: 'sim',     label: 'シミュレーター' },
+    { key: 'youth',   label: 'ユース' }
   ];
+  const PLOTS = (function () {
+    const angs = ringSpread(PLOT_KEYS.length, 108, 432);
+    return PLOT_KEYS.map((p, i) => ({ key: p.key, label: p.label, ang: angs[i] }));
+  })();
   /* 輪の上の点。out は輪からどれだけ外へ出すか（建物は外側に建つ） */
   function ringAt(ang, out) {
     const a = ang * Math.PI / 180;
@@ -14554,9 +14806,47 @@ GP.base = (function () {
     return { x: p.x - 2, y: p.y - h - 4, w: w + (cn ? 22 : 4), h: h + 6 };
   }
 
+  /* ミーティングルーム：低い平屋。大きな窓が並び、
+     中に長机とホワイトボードが見える。レベルが上がると窓が増え、
+     屋根に小さな会議塔（ガラスの箱）が載る                        */
+  function drawMeeting(g, p, lv, color) {
+    const s = tierOf(lv);
+    const w = s.w * 0.92, h = s.h * 0.56;
+    box(g, p.x, p.y, w, h, '#d8cfc0', color);
+    // 横に長い窓。中で人が向かい合っているのが透けて見える
+    const n = Math.min(5, 2 + Math.floor(lv / 2.4));
+    const gw = Math.min(15, (w - 10) / n - 3);
+    for (let i = 0; i < n; i++) {
+      const x = p.x + 5 + i * (gw + 3);
+      g.fillStyle = '#3c4a58'; g.fillRect(x, p.y - h + 6, gw, h * 0.46);
+      g.fillStyle = 'rgba(255,226,160,' + (0.30 + lv * 0.05).toFixed(2) + ')';
+      g.fillRect(x + 1, p.y - h + 7, gw - 2, h * 0.46 - 2);
+      // 机に向かう人影
+      g.fillStyle = 'rgba(40,34,28,0.55)';
+      g.fillRect(x + 2, p.y - h + 9 + h * 0.16, 2, 3);
+      g.fillRect(x + gw - 5, p.y - h + 9 + h * 0.16, 2, 3);
+      g.fillStyle = 'rgba(40,34,28,0.35)';
+      g.fillRect(x + 1, p.y - h + 12 + h * 0.16, gw - 2, 1);
+    }
+    // 入口の庇
+    g.fillStyle = color;
+    g.fillRect(p.x + w * 0.42, p.y - 8, w * 0.20, 2);
+    // 屋根の上のガラス会議室（レベルが上がると現れる）
+    if (lv >= 4) {
+      const cw = 10 + lv, ch = 5 + lv * 0.6;
+      g.fillStyle = '#b9c6cf'; g.fillRect(p.x + w - cw - 6, p.y - h - ch, cw, ch);
+      g.fillStyle = 'rgba(150,215,255,0.55)';
+      g.fillRect(p.x + w - cw - 5, p.y - h - ch + 1, cw - 2, ch - 2);
+      g.fillStyle = color; g.fillRect(p.x + w - cw - 6, p.y - h - ch - 2, cw, 2);
+      return { x: p.x - 2, y: p.y - h - ch - 6, w: w + 4, h: h + ch + 8 };
+    }
+    return { x: p.x - 2, y: p.y - h - 4, w: w + 4, h: h + 6 };
+  }
+
   const DRAW = { factory: drawFactory, tunnel: drawTunnel, sim: drawSim,
                  market: drawMarket, pit: drawPit, youth: drawYouth,
-                 mission: drawMission, depot: drawWarehouse };
+                 mission: drawMission, depot: drawWarehouse,
+                 meeting: drawMeeting };
 
   /* ---------- 賑わい（ファン数・タイトル）---------- */
   function drawCrowd(g, fans, titles, color, rnd) {
@@ -18710,7 +19000,7 @@ window.GP = window.GP || {};
     const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
                    * (wind ? S.rigMul(g, 'tunnel') : 1);
     const engBonus = 1 + S.devPower(g) * 0.14;
-    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
     let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
     if (c.key === 'pu') gain *= S.puDevMul(g);      // よそに配っているぶん、手が回らない
     if (p.power >= cap) gain *= 0.30;
@@ -18761,7 +19051,7 @@ window.GP = window.GP || {};
     const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
                         + (S.hasGear(g, 'factory', 'am')  ? 0.09 : 0);
     // ドライバーのフィードバック（職人肌ほど的確）
-    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
     const fc = S.focusOf(g);
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
@@ -20707,7 +20997,14 @@ window.GP = window.GP || {};
   }
 
   function hrDrivers() {
-    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
+    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div>' +
+      '<div class="trustrow">' + g.drivers.map(d =>
+        '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
+      '</div>' +
+      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、ブリーフィングで言ったことが' +
+      '結果として返ってきたかどうかで動きます。薄くなると、レース中に指示とは違う走りをするようになり、' +
+      '底を割ると移籍を言い出します。厚いと、開発へのフィードバックも的確になります。</p>' +
+      '<div class="pick">';
     g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
@@ -21692,6 +21989,7 @@ window.GP = window.GP || {};
     // 実際に走る2人。負傷や体調不良ならリザーブが入る
     const lineup = S.allTeams(g, t).find(x => x.isPlayer).drivers;
     pendingStrategy = {};
+    briefState = null;
     lineup.forEach(d => { pendingStrategy[d.id] = 'balance'; });
     const laps = Math.max(4, Math.round(t.laps * (special ? special.lapMul : 1)));
 
@@ -22305,10 +22603,201 @@ window.GP = window.GP || {};
                           '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
     U.modal('🔧 フリー走行', body, [
-      { label: '⏱️ 一本ずつ走る', cls: 'primary', fn: runQualiStaged },
-      { label: '⏱️ 一気に走らせる', fn: runQualifying }
+      { label: '🎙️ ブリーフィングへ', cls: 'primary', fn: showBrief },
+      { label: '⏱️ 予選へ（話を飛ばす）', fn: () => { briefState = null; runQualiStaged(); } }
     ], { wide: true });
     bindPuDecide(res, showPractice);
+  }
+
+  /* =======================================================
+     ブリーフィング
+     走り終えたドライバーは、必ず何かを言う。
+     その言い分は、このマシンがこのコースで足りていないところから出る。
+     エンジニアがどう返すかで車が変わることもあれば、
+     「そこは腕の見せどころだ」で終わることもある。
+     どちらを選んでも、結果が出たかどうかで信頼が動く。
+     ======================================================= */
+  let briefState = null;
+
+  function trustChip(d) {
+    const v = S.trustOf(d), t = S.trustTier(v);
+    return '<span class="trustchip" style="--tk:' + t.color + '" title="' + esc(t.note) + '">' +
+      t.icon + ' ' + t.name + ' <b>' + Math.round(v) + '</b></span>';
+  }
+
+  function showBrief() {
+    const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    if (!briefState) {
+      const f = S.briefFind(g, t);
+      // 言い出すのは、いちばん納得のいっていないほう
+      const d = g.drivers.slice().sort((a, b) => S.trustOf(a) - S.trustOf(b))[0];
+      if (!d) { runQualiStaged(); return; }
+      briefState = { c: f.def, gap: f.gap, id: d.id,
+                     say: f.def.say[S.rint(0, f.def.say.length - 1)], done: null };
+    }
+    const st = briefState;
+    const d = g.drivers.filter(x => x.id === st.id)[0] || g.drivers[0];
+    const room = S.meetingLv(g);
+    let body = '<div class="racehead"><b>🗣️ ミーティングルーム Lv.' + room +
+      '</b><span>' + t.country + ' ' + esc(t.name) + '　フリー走行のあと</span></div>';
+
+    body += '<div class="quote qsay mine">' + U.face(d, 34) +
+      '<span><em>' + esc(d.name) + '　' + trustChip(d) + '</em>' + esc(st.say) + '</span></div>';
+    body += '<p class="desc">🔧 エンジニア：' + esc(st.c.eng) + '</p>';
+
+    if (!st.done) {
+      body += '<p class="desc">言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) +
+        '</b>。ここでの返し方が、そのままこの週末のマシンと、' +
+        'この人のピットへの信頼に効きます。<br>' +
+        '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
+        S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
+      body += '<div class="pick">';
+      D.BRIEF_REPLIES.forEach(r => {
+        const odds = r.key === 'fix' ? S.fixOdds(g) : r.key === 'data' ? S.dataOdds(g) : null;
+        body += '<button class="pickbtn" data-k="br:' + r.key + '">' +
+          '<span class="pb-ic" style="background:#3f6f8a">' + r.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(r.name) + '</b>' +
+          '<small>' + esc(r.desc) +
+          '<br><em class="pnote">' + esc(r.line) + '</em>' +
+          '<br>信頼 決まれば <b>+' + r.okTrust + '</b>／外せば <b>' + r.ngTrust + '</b>' +
+          '　決勝しだいで さらに <b>+' + r.raceOk + ' / ' + r.raceNg + '</b>' +
+          '</small></span>' +
+          '<span class="pb-cost">' + (odds == null ? '結果しだい'
+            : '決まる<br>' + Math.round(odds * 100) + '%') + '</span></button>';
+      });
+      body += '</div>';
+      U.modal('🎙️ ブリーフィング', body, [
+        { label: '何も言わずに送り出す', fn: () => { briefState.done = { skip: true }; showBrief(); } }
+      ], { wide: true });
+      bindPick(k => { if (k.indexOf('br:') === 0) doBrief(k.slice(3)); });
+      return;
+    }
+
+    // ---- 返したあと ----
+    const r = st.done.reply;
+    if (r) {
+      body += '<div class="quote qsay"><span><em>🔧 エンジニア</em>' + esc(r.line) + '</span></div>';
+      body += '<p class="note' + (st.done.ok ? ' good' : ' warn') + '">' + esc(st.done.msg) + '</p>';
+    } else {
+      body += '<p class="note">何も言わず、そのまま送り出した。</p>';
+    }
+    body += bankHTML(fpPack || prePack);
+    U.modal('🎙️ ブリーフィング', body, [
+      { label: '⏱️ 一本ずつ走る', cls: 'primary', fn: () => { runQualiStaged(); } },
+      { label: '⏱️ 一気に走らせる', fn: () => { runQualifying(); } }
+    ], { wide: true });
+  }
+
+  function doBrief(key) {
+    const st = briefState;
+    if (!st || st.done) return;
+    const r = D.BRIEF_REPLIES.filter(x => x.key === key)[0];
+    const d = g.drivers.filter(x => x.id === st.id)[0] || g.drivers[0];
+    if (!r || !d) return;
+    let ok = true, msg = '';
+    if (r.key === 'fix') {
+      ok = Math.random() < S.fixOdds(g);
+      const f = st.c.fix;
+      const tune = {};
+      Object.keys(f).forEach(k => {
+        // 外したときは、狙ったぶんは半分しか出ず、捨てたぶんはそのまま出る
+        tune[k] = f[k] > 0 ? (ok ? f[k] : f[k] * 0.35) : f[k];
+      });
+      pendingStrategy.tune = tune;
+      msg = ok
+        ? '🔧 狙ったところに決まった。次のランで、本人の口調が変わった。'
+        : '⚠️ 振ったぶんが噛み合わなかった。取りにいったところは出ず、捨てたところだけが減った。';
+      staffExp('engineer', 10);
+    } else if (r.key === 'data') {
+      ok = Math.random() < S.dataOdds(g);
+      msg = ok
+        ? '📊 数字を見せると、本人が黙って頷いた。車はこのまま行く。'
+        : '⚠️ 数字では納得しなかった。「乗ってるのは自分です」と言われて終わった。';
+      staffExp('analyst', 10);
+    } else {
+      // 腕の見せどころ、は決勝まで答えが出ない
+      ok = d.mental >= 100 || Math.random() < 0.5;
+      msg = ok
+        ? '💪 少し間があって、「やってみます」と返ってきた。'
+        : '⚠️ 「分かりました」とだけ言って、席を立った。納得はしていない。';
+    }
+    S.addTrust(g, d, ok ? r.okTrust : r.ngTrust);
+    // 決勝のあとに、結果でもう一度動かすために覚えておく
+    g.brief = { id: d.id, reply: r.key, key: st.c.key,
+                raceOk: r.raceOk, raceNg: r.raceNg, at: g.week };
+    st.done = { reply: r, ok: ok, msg: msg };
+    U.log(g, '🗣️ ' + d.name + '「' + st.say + '」→ ' + r.name + '（' +
+      (ok ? '通じた' : '通じなかった') + '／信頼 ' + Math.round(S.trustOf(d)) + '）',
+      ok ? 'good' : 'warn');
+    GP.sound.play(ok ? 'confirm' : 'no');
+    S.save(g);
+    showBrief();
+  }
+
+  /* ---- 信頼が底を割ったドライバーは、ここを出たがる ---- */
+  function checkLeave(after) {
+    const d = (g.drivers || []).filter(x => S.trustOf(x) < D.TRUST.leaveAt && !x.leaveAsked)[0];
+    if (!d) return false;
+    const go = () => { U.closeModal(); if (after) after(); };
+    d.leaveAsked = true;
+    const fee = Math.round(d.salary * 26 + 1800);
+    const canPay = g.funds >= fee;
+    U.modal('💢 ' + esc(d.name) + ' から話がある',
+      '<div class="quote qsay mine">' + U.face(d, 34) +
+      '<span><em>' + esc(d.name) + '　' + trustChip(d) + '</em>' +
+      '「ここでは、もう自分の走りができません。来季の席を探させてください」</span></div>' +
+      '<p class="desc">ピットへの信頼が底を割りました。言ったことが当たらない週末が続けば、' +
+      '乗っている人間はいちばん先にそれを知ります。<br>' +
+      '引き止めるには、条件を積み直すしかありません（信頼が <b>' +
+      D.TRUST.start + '</b> まで戻り、給料が上がります）。</p>' +
+      '<div class="poachbox"><span>💰 積み直す支度金</span><b>' + money(fee) + '万</b></div>' +
+      '<div class="poachbox"><span>📈 これからの給料</span><b>+25%</b></div>' +
+      (canPay ? '' : '<p class="note">いまの資金では引き止められません。</p>'), [
+      { label: '引き止める', cls: 'primary', disabled: !canPay, fn: () => {
+          g.funds -= fee;
+          d.salary = Math.round(d.salary * 1.25);
+          d.trust = D.TRUST.start;
+          d.leaveAsked = false;
+          U.log(g, '🤝 ' + d.name + ' を引き止めた（支度金 ' + money(fee) + '万／給料 +25%）。' +
+            'ここからは、言ったことを当てていくしかない。', 'good');
+          GP.sound.play('confirm');
+          S.save(g); render(); go();
+        } },
+      { label: '受け入れる', fn: () => {
+          d.wantOut = true;
+          U.log(g, '💢 ' + d.name + ' の移籍希望を受け入れた。今季かぎりでチームを離れる。', 'bad');
+          GP.sound.play('dnf');
+          S.save(g); render(); go();
+        } }
+    ]);
+    // ✕で閉じたときも「受け入れる」と同じ扱いにする（週が飛ばないように）
+    const prevX = $('modalClose').onclick;
+    $('modalClose').onclick = () => {
+      $('modalClose').onclick = prevX;
+      d.wantOut = true;
+      S.save(g); go();
+    };
+    return true;
+  }
+
+  /* ---- 決勝のあと、約束が果たされたかどうかで信頼が動く ---- */
+  function settleBrief(res) {
+    const b = g.brief;
+    g.brief = null;
+    S.trustDrift(g);
+    if (!b) return null;
+    const e = (res.classified || []).filter(x => x.isPlayer && x.driver.id === b.id)[0];
+    const d = (g.drivers || []).filter(x => x.id === b.id)[0];
+    if (!e || !d) return null;
+    // グリッドを守れたか、上げられたか。持って帰れなかったのはいちばん響く
+    const good = !e.dnf && e.pos <= e.grid;
+    const amt = good ? b.raceOk : b.raceNg;
+    const before = Math.round(S.trustOf(d));
+    S.addTrust(g, d, amt);
+    const after = Math.round(S.trustOf(d));
+    return { name: d.name, good: good, before: before, after: after,
+             reply: (D.BRIEF_REPLIES.filter(x => x.key === b.reply)[0] || {}).name || '',
+             tier: S.trustTier(after) };
   }
 
   /* =======================================================
@@ -22797,6 +23286,7 @@ window.GP = window.GP || {};
     const res = currentRes;
     const htBefore = S.hypeTier(g).name;
     const reward = R.applyResult(g, res);
+    const trustNews = settleBrief(res);
     // 注目度の段が上がったら、それもオーナーの名になる
     if (S.hypeTier(g).name !== htBefore && (res.hypeDelta || 0) > 0) {
       grantFame(D.fameOf('hype'), '注目度の段が上がった');
@@ -22841,6 +23331,24 @@ window.GP = window.GP || {};
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
+      // ---- ピットへの信頼 ----
+      // ブリーフィングで言ったことが、結果として返ってきたかどうか
+      if (trustNews) {
+        body += '<p class="note' + (trustNews.good ? ' good' : ' warn') + '">' +
+          '🗣️ ' + esc(trustNews.name) + '：' + esc(trustNews.reply) + ' と返した週末は、' +
+          (trustNews.good ? '結果でも応えられた。' : '結果が伴わなかった。') +
+          ' ピットへの信頼 <b>' + trustNews.before + ' → ' + trustNews.after + '</b>' +
+          '（' + trustNews.tier.icon + trustNews.tier.name + '）</p>';
+      }
+      // 指示を飲み込めなかった周があれば、そのことも出す
+      {
+        const defied = (res.classified || []).filter(x => x.isPlayer && x.defied > 0);
+        if (defied.length) {
+          body += '<p class="note warn">📻 ' + defied.map(x =>
+            esc(x.driver.name) + ' は <b>' + x.defied + '周</b>、ピットの指示とは違う走りをしました')
+            .join('<br>') + '。信頼が戻るまでは、こういう周が出ます。</p>';
+        }
+      }
       // いまの順位に、どれだけの重みがあるのか
       if (!res.special) body += stakeBlock(false);
       // なぜその順位だったのかを分解して見せる
@@ -22959,10 +23467,14 @@ window.GP = window.GP || {};
       } : null;
       g.debrief = 2;                 // endWeek で1つ減り、次の週に反省会ができる
     }
-    // よそのチームが、うちの誰かに声をかけてくることがある
-    const raid = S.poachAttempt(g);
-    if (raid) { askPoach(raid); return; }
-    endWeek();
+    // 信頼が底を割ったドライバーがいれば、まずその話を聞く
+    const nextUp = () => {
+      const raid = S.poachAttempt(g);
+      if (raid) { askPoach(raid); return; }
+      endWeek();
+    };
+    if (checkLeave(nextUp)) return;
+    nextUp();
   }
 
   /* ---- 引き抜きの申し出。引き止めるか、送り出すか ---- */
@@ -25021,7 +25533,9 @@ window.GP = window.GP || {};
     depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
                fn: () => openFacility('depot') },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
-               fn: () => openFacility('mission') }
+               fn: () => openFacility('mission') },
+    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる',
+               fn: () => openFacility('meeting') }
   };
 
 

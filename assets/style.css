@@ -2660,3 +2660,11 @@ body[data-skin="hd"]{
 .fia-row>span{color:#6b7680}
 .fia-row>em{font-style:normal;font-weight:700}
 .fia-row>small{color:#98a2aa;flex:1 1 100%}
+
+/* ---- ピットへの信頼 ---- */
+.trustchip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
+  color:var(--tk);border:1px solid var(--tk);border-radius:999px;padding:1px 7px;
+  background:color-mix(in srgb, var(--tk) 10%, #fff)}
+.trustrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
+.tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#fffaf0;
+  border:1px solid #e6d9bd;border-radius:8px;padding:4px 8px}

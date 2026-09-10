@@ -1371,7 +1371,7 @@ window.GP = window.GP || {};
     const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
                    * (wind ? S.rigMul(g, 'tunnel') : 1);
     const engBonus = 1 + S.devPower(g) * 0.14;
-    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
     let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
     if (c.key === 'pu') gain *= S.puDevMul(g);      // よそに配っているぶん、手が回らない
     if (p.power >= cap) gain *= 0.30;
@@ -1422,7 +1422,7 @@ window.GP = window.GP || {};
     const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
                         + (S.hasGear(g, 'factory', 'am')  ? 0.09 : 0);
     // ドライバーのフィードバック（職人肌ほど的確）
-    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
+    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
     const fc = S.focusOf(g);
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
     if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
@@ -3368,7 +3368,14 @@ window.GP = window.GP || {};
   }
 
   function hrDrivers() {
-    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div><div class="pick">';
+    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div>' +
+      '<div class="trustrow">' + g.drivers.map(d =>
+        '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
+      '</div>' +
+      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、ブリーフィングで言ったことが' +
+      '結果として返ってきたかどうかで動きます。薄くなると、レース中に指示とは違う走りをするようになり、' +
+      '底を割ると移籍を言い出します。厚いと、開発へのフィードバックも的確になります。</p>' +
+      '<div class="pick">';
     g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
@@ -4353,6 +4360,7 @@ window.GP = window.GP || {};
     // 実際に走る2人。負傷や体調不良ならリザーブが入る
     const lineup = S.allTeams(g, t).find(x => x.isPlayer).drivers;
     pendingStrategy = {};
+    briefState = null;
     lineup.forEach(d => { pendingStrategy[d.id] = 'balance'; });
     const laps = Math.max(4, Math.round(t.laps * (special ? special.lapMul : 1)));
 
@@ -4966,10 +4974,201 @@ window.GP = window.GP || {};
                           '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
     U.modal('🔧 フリー走行', body, [
-      { label: '⏱️ 一本ずつ走る', cls: 'primary', fn: runQualiStaged },
-      { label: '⏱️ 一気に走らせる', fn: runQualifying }
+      { label: '🎙️ ブリーフィングへ', cls: 'primary', fn: showBrief },
+      { label: '⏱️ 予選へ（話を飛ばす）', fn: () => { briefState = null; runQualiStaged(); } }
     ], { wide: true });
     bindPuDecide(res, showPractice);
+  }
+
+  /* =======================================================
+     ブリーフィング
+     走り終えたドライバーは、必ず何かを言う。
+     その言い分は、このマシンがこのコースで足りていないところから出る。
+     エンジニアがどう返すかで車が変わることもあれば、
+     「そこは腕の見せどころだ」で終わることもある。
+     どちらを選んでも、結果が出たかどうかで信頼が動く。
+     ======================================================= */
+  let briefState = null;
+
+  function trustChip(d) {
+    const v = S.trustOf(d), t = S.trustTier(v);
+    return '<span class="trustchip" style="--tk:' + t.color + '" title="' + esc(t.note) + '">' +
+      t.icon + ' ' + t.name + ' <b>' + Math.round(v) + '</b></span>';
+  }
+
+  function showBrief() {
+    const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    if (!briefState) {
+      const f = S.briefFind(g, t);
+      // 言い出すのは、いちばん納得のいっていないほう
+      const d = g.drivers.slice().sort((a, b) => S.trustOf(a) - S.trustOf(b))[0];
+      if (!d) { runQualiStaged(); return; }
+      briefState = { c: f.def, gap: f.gap, id: d.id,
+                     say: f.def.say[S.rint(0, f.def.say.length - 1)], done: null };
+    }
+    const st = briefState;
+    const d = g.drivers.filter(x => x.id === st.id)[0] || g.drivers[0];
+    const room = S.meetingLv(g);
+    let body = '<div class="racehead"><b>🗣️ ミーティングルーム Lv.' + room +
+      '</b><span>' + t.country + ' ' + esc(t.name) + '　フリー走行のあと</span></div>';
+
+    body += '<div class="quote qsay mine">' + U.face(d, 34) +
+      '<span><em>' + esc(d.name) + '　' + trustChip(d) + '</em>' + esc(st.say) + '</span></div>';
+    body += '<p class="desc">🔧 エンジニア：' + esc(st.c.eng) + '</p>';
+
+    if (!st.done) {
+      body += '<p class="desc">言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) +
+        '</b>。ここでの返し方が、そのままこの週末のマシンと、' +
+        'この人のピットへの信頼に効きます。<br>' +
+        '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
+        S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
+      body += '<div class="pick">';
+      D.BRIEF_REPLIES.forEach(r => {
+        const odds = r.key === 'fix' ? S.fixOdds(g) : r.key === 'data' ? S.dataOdds(g) : null;
+        body += '<button class="pickbtn" data-k="br:' + r.key + '">' +
+          '<span class="pb-ic" style="background:#3f6f8a">' + r.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(r.name) + '</b>' +
+          '<small>' + esc(r.desc) +
+          '<br><em class="pnote">' + esc(r.line) + '</em>' +
+          '<br>信頼 決まれば <b>+' + r.okTrust + '</b>／外せば <b>' + r.ngTrust + '</b>' +
+          '　決勝しだいで さらに <b>+' + r.raceOk + ' / ' + r.raceNg + '</b>' +
+          '</small></span>' +
+          '<span class="pb-cost">' + (odds == null ? '結果しだい'
+            : '決まる<br>' + Math.round(odds * 100) + '%') + '</span></button>';
+      });
+      body += '</div>';
+      U.modal('🎙️ ブリーフィング', body, [
+        { label: '何も言わずに送り出す', fn: () => { briefState.done = { skip: true }; showBrief(); } }
+      ], { wide: true });
+      bindPick(k => { if (k.indexOf('br:') === 0) doBrief(k.slice(3)); });
+      return;
+    }
+
+    // ---- 返したあと ----
+    const r = st.done.reply;
+    if (r) {
+      body += '<div class="quote qsay"><span><em>🔧 エンジニア</em>' + esc(r.line) + '</span></div>';
+      body += '<p class="note' + (st.done.ok ? ' good' : ' warn') + '">' + esc(st.done.msg) + '</p>';
+    } else {
+      body += '<p class="note">何も言わず、そのまま送り出した。</p>';
+    }
+    body += bankHTML(fpPack || prePack);
+    U.modal('🎙️ ブリーフィング', body, [
+      { label: '⏱️ 一本ずつ走る', cls: 'primary', fn: () => { runQualiStaged(); } },
+      { label: '⏱️ 一気に走らせる', fn: () => { runQualifying(); } }
+    ], { wide: true });
+  }
+
+  function doBrief(key) {
+    const st = briefState;
+    if (!st || st.done) return;
+    const r = D.BRIEF_REPLIES.filter(x => x.key === key)[0];
+    const d = g.drivers.filter(x => x.id === st.id)[0] || g.drivers[0];
+    if (!r || !d) return;
+    let ok = true, msg = '';
+    if (r.key === 'fix') {
+      ok = Math.random() < S.fixOdds(g);
+      const f = st.c.fix;
+      const tune = {};
+      Object.keys(f).forEach(k => {
+        // 外したときは、狙ったぶんは半分しか出ず、捨てたぶんはそのまま出る
+        tune[k] = f[k] > 0 ? (ok ? f[k] : f[k] * 0.35) : f[k];
+      });
+      pendingStrategy.tune = tune;
+      msg = ok
+        ? '🔧 狙ったところに決まった。次のランで、本人の口調が変わった。'
+        : '⚠️ 振ったぶんが噛み合わなかった。取りにいったところは出ず、捨てたところだけが減った。';
+      staffExp('engineer', 10);
+    } else if (r.key === 'data') {
+      ok = Math.random() < S.dataOdds(g);
+      msg = ok
+        ? '📊 数字を見せると、本人が黙って頷いた。車はこのまま行く。'
+        : '⚠️ 数字では納得しなかった。「乗ってるのは自分です」と言われて終わった。';
+      staffExp('analyst', 10);
+    } else {
+      // 腕の見せどころ、は決勝まで答えが出ない
+      ok = d.mental >= 100 || Math.random() < 0.5;
+      msg = ok
+        ? '💪 少し間があって、「やってみます」と返ってきた。'
+        : '⚠️ 「分かりました」とだけ言って、席を立った。納得はしていない。';
+    }
+    S.addTrust(g, d, ok ? r.okTrust : r.ngTrust);
+    // 決勝のあとに、結果でもう一度動かすために覚えておく
+    g.brief = { id: d.id, reply: r.key, key: st.c.key,
+                raceOk: r.raceOk, raceNg: r.raceNg, at: g.week };
+    st.done = { reply: r, ok: ok, msg: msg };
+    U.log(g, '🗣️ ' + d.name + '「' + st.say + '」→ ' + r.name + '（' +
+      (ok ? '通じた' : '通じなかった') + '／信頼 ' + Math.round(S.trustOf(d)) + '）',
+      ok ? 'good' : 'warn');
+    GP.sound.play(ok ? 'confirm' : 'no');
+    S.save(g);
+    showBrief();
+  }
+
+  /* ---- 信頼が底を割ったドライバーは、ここを出たがる ---- */
+  function checkLeave(after) {
+    const d = (g.drivers || []).filter(x => S.trustOf(x) < D.TRUST.leaveAt && !x.leaveAsked)[0];
+    if (!d) return false;
+    const go = () => { U.closeModal(); if (after) after(); };
+    d.leaveAsked = true;
+    const fee = Math.round(d.salary * 26 + 1800);
+    const canPay = g.funds >= fee;
+    U.modal('💢 ' + esc(d.name) + ' から話がある',
+      '<div class="quote qsay mine">' + U.face(d, 34) +
+      '<span><em>' + esc(d.name) + '　' + trustChip(d) + '</em>' +
+      '「ここでは、もう自分の走りができません。来季の席を探させてください」</span></div>' +
+      '<p class="desc">ピットへの信頼が底を割りました。言ったことが当たらない週末が続けば、' +
+      '乗っている人間はいちばん先にそれを知ります。<br>' +
+      '引き止めるには、条件を積み直すしかありません（信頼が <b>' +
+      D.TRUST.start + '</b> まで戻り、給料が上がります）。</p>' +
+      '<div class="poachbox"><span>💰 積み直す支度金</span><b>' + money(fee) + '万</b></div>' +
+      '<div class="poachbox"><span>📈 これからの給料</span><b>+25%</b></div>' +
+      (canPay ? '' : '<p class="note">いまの資金では引き止められません。</p>'), [
+      { label: '引き止める', cls: 'primary', disabled: !canPay, fn: () => {
+          g.funds -= fee;
+          d.salary = Math.round(d.salary * 1.25);
+          d.trust = D.TRUST.start;
+          d.leaveAsked = false;
+          U.log(g, '🤝 ' + d.name + ' を引き止めた（支度金 ' + money(fee) + '万／給料 +25%）。' +
+            'ここからは、言ったことを当てていくしかない。', 'good');
+          GP.sound.play('confirm');
+          S.save(g); render(); go();
+        } },
+      { label: '受け入れる', fn: () => {
+          d.wantOut = true;
+          U.log(g, '💢 ' + d.name + ' の移籍希望を受け入れた。今季かぎりでチームを離れる。', 'bad');
+          GP.sound.play('dnf');
+          S.save(g); render(); go();
+        } }
+    ]);
+    // ✕で閉じたときも「受け入れる」と同じ扱いにする（週が飛ばないように）
+    const prevX = $('modalClose').onclick;
+    $('modalClose').onclick = () => {
+      $('modalClose').onclick = prevX;
+      d.wantOut = true;
+      S.save(g); go();
+    };
+    return true;
+  }
+
+  /* ---- 決勝のあと、約束が果たされたかどうかで信頼が動く ---- */
+  function settleBrief(res) {
+    const b = g.brief;
+    g.brief = null;
+    S.trustDrift(g);
+    if (!b) return null;
+    const e = (res.classified || []).filter(x => x.isPlayer && x.driver.id === b.id)[0];
+    const d = (g.drivers || []).filter(x => x.id === b.id)[0];
+    if (!e || !d) return null;
+    // グリッドを守れたか、上げられたか。持って帰れなかったのはいちばん響く
+    const good = !e.dnf && e.pos <= e.grid;
+    const amt = good ? b.raceOk : b.raceNg;
+    const before = Math.round(S.trustOf(d));
+    S.addTrust(g, d, amt);
+    const after = Math.round(S.trustOf(d));
+    return { name: d.name, good: good, before: before, after: after,
+             reply: (D.BRIEF_REPLIES.filter(x => x.key === b.reply)[0] || {}).name || '',
+             tier: S.trustTier(after) };
   }
 
   /* =======================================================
@@ -5458,6 +5657,7 @@ window.GP = window.GP || {};
     const res = currentRes;
     const htBefore = S.hypeTier(g).name;
     const reward = R.applyResult(g, res);
+    const trustNews = settleBrief(res);
     // 注目度の段が上がったら、それもオーナーの名になる
     if (S.hypeTier(g).name !== htBefore && (res.hypeDelta || 0) > 0) {
       grantFame(D.fameOf('hype'), '注目度の段が上がった');
@@ -5502,6 +5702,24 @@ window.GP = window.GP || {};
         '<div>👥 ファン <b class="' + (reward.fanDelta >= 0 ? 'good' : 'bad') + '">' + (reward.fanDelta >= 0 ? '+' : '') + money(reward.fanDelta) + '</b></div>' +
         '<div>' + ht.icon + ' 注目度 <b class="' + (hd >= 0 ? 'good' : 'bad') + '">' + (hd >= 0 ? '+' : '') + hd.toFixed(1) + '</b><small>' + ht.name + '</small></div>' +
         '</div>';
+      // ---- ピットへの信頼 ----
+      // ブリーフィングで言ったことが、結果として返ってきたかどうか
+      if (trustNews) {
+        body += '<p class="note' + (trustNews.good ? ' good' : ' warn') + '">' +
+          '🗣️ ' + esc(trustNews.name) + '：' + esc(trustNews.reply) + ' と返した週末は、' +
+          (trustNews.good ? '結果でも応えられた。' : '結果が伴わなかった。') +
+          ' ピットへの信頼 <b>' + trustNews.before + ' → ' + trustNews.after + '</b>' +
+          '（' + trustNews.tier.icon + trustNews.tier.name + '）</p>';
+      }
+      // 指示を飲み込めなかった周があれば、そのことも出す
+      {
+        const defied = (res.classified || []).filter(x => x.isPlayer && x.defied > 0);
+        if (defied.length) {
+          body += '<p class="note warn">📻 ' + defied.map(x =>
+            esc(x.driver.name) + ' は <b>' + x.defied + '周</b>、ピットの指示とは違う走りをしました')
+            .join('<br>') + '。信頼が戻るまでは、こういう周が出ます。</p>';
+        }
+      }
       // いまの順位に、どれだけの重みがあるのか
       if (!res.special) body += stakeBlock(false);
       // なぜその順位だったのかを分解して見せる
@@ -5620,10 +5838,14 @@ window.GP = window.GP || {};
       } : null;
       g.debrief = 2;                 // endWeek で1つ減り、次の週に反省会ができる
     }
-    // よそのチームが、うちの誰かに声をかけてくることがある
-    const raid = S.poachAttempt(g);
-    if (raid) { askPoach(raid); return; }
-    endWeek();
+    // 信頼が底を割ったドライバーがいれば、まずその話を聞く
+    const nextUp = () => {
+      const raid = S.poachAttempt(g);
+      if (raid) { askPoach(raid); return; }
+      endWeek();
+    };
+    if (checkLeave(nextUp)) return;
+    nextUp();
   }
 
   /* ---- 引き抜きの申し出。引き止めるか、送り出すか ---- */
@@ -7682,7 +7904,9 @@ window.GP = window.GP || {};
     depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
                fn: () => openFacility('depot') },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
-               fn: () => openFacility('mission') }
+               fn: () => openFacility('mission') },
+    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる',
+               fn: () => openFacility('meeting') }
   };
 
 

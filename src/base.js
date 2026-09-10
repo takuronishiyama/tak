@@ -16,16 +16,47 @@ GP.base = (function () {
      一枚の絵で見下ろしているように見える。
      ang は輪の上の角度（度）。0が右、90が手前、180が左、270が奥。 */
   const RING = { cx: 390, cy: 192, rx: 300, ry: 82, w: 22 };
-  const PLOTS = [
-    { key: 'depot',   ang: 250, label: '物流倉庫' },
-    { key: 'mission', ang: 286, label: 'ミッションコントロール' },
-    { key: 'tunnel',  ang: 322, label: '風洞' },
-    { key: 'sim',     ang: 10,  label: 'シミュレーター' },
-    { key: 'youth',   ang: 48,  label: 'ユース' },
-    { key: 'market',  ang: 132, label: 'マーケ室' },
-    { key: 'pit',     ang: 170, label: 'ピット設備' },
-    { key: 'factory', ang: 210, label: 'ファクトリー' }
+  /* ---------- 輪の上を、見た目の距離で等間隔に割る ----------
+     角度で等分すると、平たい楕円では左右の端に建物が固まってしまう。
+     （端は角度が大きく動いても、画面上の距離はほとんど動かない）
+     そこで周の長さで割り、どこを見ても同じ間隔に見えるようにする。 */
+  function ringSpread(n, fromDeg, toDeg) {
+    const STEP = 0.5;
+    const pts = [];
+    let len = 0, px = null, py = null;
+    for (let d = fromDeg; d <= toDeg + 0.001; d += STEP) {
+      const a = d * Math.PI / 180;
+      const x = Math.cos(a) * RING.rx, y = Math.sin(a) * RING.ry;
+      if (px !== null) len += Math.hypot(x - px, y - py);
+      pts.push({ d: d, len: len });
+      px = x; py = y;
+    }
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const want = len * (i + 0.5) / n;
+      let j = 0;
+      while (j < pts.length - 1 && pts[j].len < want) j++;
+      out.push(((pts[j].d % 360) + 360) % 360);
+    }
+    return out;
+  }
+  /* 手前のまん中（90度）は正門なので空けておく。
+     残りを周の長さで9等分し、そこへ順に建物を置く            */
+  const PLOT_KEYS = [
+    { key: 'market',  label: 'マーケ室' },
+    { key: 'meeting', label: 'ミーティングルーム' },
+    { key: 'pit',     label: 'ピット設備' },
+    { key: 'factory', label: 'ファクトリー' },
+    { key: 'depot',   label: '物流倉庫' },
+    { key: 'mission', label: 'ミッションコントロール' },
+    { key: 'tunnel',  label: '風洞' },
+    { key: 'sim',     label: 'シミュレーター' },
+    { key: 'youth',   label: 'ユース' }
   ];
+  const PLOTS = (function () {
+    const angs = ringSpread(PLOT_KEYS.length, 108, 432);
+    return PLOT_KEYS.map((p, i) => ({ key: p.key, label: p.label, ang: angs[i] }));
+  })();
   /* 輪の上の点。out は輪からどれだけ外へ出すか（建物は外側に建つ） */
   function ringAt(ang, out) {
     const a = ang * Math.PI / 180;
@@ -448,9 +479,47 @@ GP.base = (function () {
     return { x: p.x - 2, y: p.y - h - 4, w: w + (cn ? 22 : 4), h: h + 6 };
   }
 
+  /* ミーティングルーム：低い平屋。大きな窓が並び、
+     中に長机とホワイトボードが見える。レベルが上がると窓が増え、
+     屋根に小さな会議塔（ガラスの箱）が載る                        */
+  function drawMeeting(g, p, lv, color) {
+    const s = tierOf(lv);
+    const w = s.w * 0.92, h = s.h * 0.56;
+    box(g, p.x, p.y, w, h, '#d8cfc0', color);
+    // 横に長い窓。中で人が向かい合っているのが透けて見える
+    const n = Math.min(5, 2 + Math.floor(lv / 2.4));
+    const gw = Math.min(15, (w - 10) / n - 3);
+    for (let i = 0; i < n; i++) {
+      const x = p.x + 5 + i * (gw + 3);
+      g.fillStyle = '#3c4a58'; g.fillRect(x, p.y - h + 6, gw, h * 0.46);
+      g.fillStyle = 'rgba(255,226,160,' + (0.30 + lv * 0.05).toFixed(2) + ')';
+      g.fillRect(x + 1, p.y - h + 7, gw - 2, h * 0.46 - 2);
+      // 机に向かう人影
+      g.fillStyle = 'rgba(40,34,28,0.55)';
+      g.fillRect(x + 2, p.y - h + 9 + h * 0.16, 2, 3);
+      g.fillRect(x + gw - 5, p.y - h + 9 + h * 0.16, 2, 3);
+      g.fillStyle = 'rgba(40,34,28,0.35)';
+      g.fillRect(x + 1, p.y - h + 12 + h * 0.16, gw - 2, 1);
+    }
+    // 入口の庇
+    g.fillStyle = color;
+    g.fillRect(p.x + w * 0.42, p.y - 8, w * 0.20, 2);
+    // 屋根の上のガラス会議室（レベルが上がると現れる）
+    if (lv >= 4) {
+      const cw = 10 + lv, ch = 5 + lv * 0.6;
+      g.fillStyle = '#b9c6cf'; g.fillRect(p.x + w - cw - 6, p.y - h - ch, cw, ch);
+      g.fillStyle = 'rgba(150,215,255,0.55)';
+      g.fillRect(p.x + w - cw - 5, p.y - h - ch + 1, cw - 2, ch - 2);
+      g.fillStyle = color; g.fillRect(p.x + w - cw - 6, p.y - h - ch - 2, cw, 2);
+      return { x: p.x - 2, y: p.y - h - ch - 6, w: w + 4, h: h + ch + 8 };
+    }
+    return { x: p.x - 2, y: p.y - h - 4, w: w + 4, h: h + 6 };
+  }
+
   const DRAW = { factory: drawFactory, tunnel: drawTunnel, sim: drawSim,
                  market: drawMarket, pit: drawPit, youth: drawYouth,
-                 mission: drawMission, depot: drawWarehouse };
+                 mission: drawMission, depot: drawWarehouse,
+                 meeting: drawMeeting };
 
   /* ---------- 賑わい（ファン数・タイトル）---------- */
   function drawCrowd(g, fans, titles, color, rnd) {

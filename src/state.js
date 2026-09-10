@@ -2897,6 +2897,87 @@ GP.state = (function () {
   }
 
   /* =======================================================
+     ブリーフィングと、ピットへの信頼
+     走り終えたドライバーは必ず何かを言う。その言い分は、
+     このマシンがこのコースで足りていないところから出てくる。
+     エンジニアがどう返したかと、そのあと結果が出たかどうかで、
+     ピットへの信頼が動いていく。
+     ======================================================= */
+  function meetingLv(g2) { return (g2.facilities && g2.facilities.meeting) || 1; }
+  /* 話がどれだけ届くか。部屋と、そこに入れた道具で決まる */
+  function roomPower(g2) {
+    return meetingLv(g2)
+         + (hasGear(g2, 'meeting', 'wall3') ? 1.2 : 0)
+         + (hasGear(g2, 'meeting', 'rec') ? 1.0 : 0);
+  }
+  function trustOf(d) {
+    return d.trust == null ? D.TRUST.start : d.trust;
+  }
+  function trustTier(v) {
+    const t = D.TRUST.tiers;
+    for (let i = 0; i < t.length; i++) if (v >= t[i].at) return t[i];
+    return t[t.length - 1];
+  }
+  function addTrust(g2, d, n) {
+    // 良い方向の動きだけ、部屋のぶんだけ大きくなる。壊れるときは同じ速さで壊れる
+    const k = n > 0 ? 1 + roomPower(g2) * D.BRIEF.roomTrust : 1;
+    d.trust = clamp(trustOf(d) + n * k, 0, 100);
+    return Math.round(d.trust);
+  }
+  /* レースごとに、少しだけ中央へ戻る。恨みも信頼も、走れば薄れる */
+  function trustDrift(g2) {
+    (g2.drivers || []).forEach(d => {
+      const v = trustOf(d);
+      d.trust = v + (D.TRUST.start - v) * (D.TRUST.drift * 0.1);
+    });
+  }
+  /* 信頼が薄いと、指示を飲み込めない周が出る（0..ignoreMax） */
+  function ignoreRate(d) {
+    const v = trustOf(d);
+    const from = D.TRUST.ignoreFrom;
+    if (v >= from) return 0;
+    return D.TRUST.ignoreMax * Math.min(1, (from - v) / from);
+  }
+  /* 信頼が厚いドライバーほど、開発へのフィードバックが的確になる */
+  function trustDev(g2) {
+    return (g2.drivers || []).reduce((a, d) => {
+      const v = trustOf(d);
+      if (v <= D.TRUST.devFrom) return a;
+      return a + D.TRUST.devMax * (v - D.TRUST.devFrom) / (100 - D.TRUST.devFrom);
+    }, 0);
+  }
+
+  /* ---- ドライバーが何を言うか ----
+     コースが求めているものと、この車が持っているものの差。
+     いちばん大きく足りていないところが、そのまま口から出る    */
+  function briefFind(g2, track) {
+    const st = carStats(g2);
+    const w = (track && track.weight) || { speed: 0.33, corner: 0.34, accel: 0.33 };
+    const tot = (st.speed + st.corner + st.accel) || 1;
+    const wtot = (w.speed + w.corner + w.accel) || 1;
+    const gaps = ['speed', 'corner', 'accel'].map(k => ({
+      key: k, v: (w[k] / wtot) - (st[k] / tot)
+    }));
+    // タイヤの減りと乗り味も、同じ土俵に載せて比べる
+    const wear = tyreKind(g2);                 // 1.00 が標準。大きいほど減る
+    gaps.push({ key: 'wear',  v: (wear - 1) * 0.55 });
+    const drive = bodyRatio(g2, 'drive');
+    gaps.push({ key: 'drive', v: (RIVAL_BODY_REF - drive) * 0.85 });
+    gaps.sort((a, b) => b.v - a.v);
+    const top = gaps[0];
+    const c = D.COMPLAINTS.filter(x => x.key === top.key)[0] || D.COMPLAINTS[0];
+    return { def: c, gap: Math.round(top.v * 1000) / 1000, all: gaps };
+  }
+  function fixOdds(g2) {
+    return clamp(D.BRIEF.fixBase + org(g2).dept.engineer * D.BRIEF.fixEng
+               + roomPower(g2) * D.BRIEF.fixRoom, 0.10, D.BRIEF.fixMax);
+  }
+  function dataOdds(g2) {
+    return clamp(D.BRIEF.dataBase + analystPower(g2) * D.BRIEF.dataAnalyst
+               + roomPower(g2) * D.BRIEF.dataRoom, 0.10, D.BRIEF.dataMax);
+  }
+
+  /* =======================================================
      エグゼクティブ講習
      人は現場でしか育たない、というのは半分だけ本当で、
      残りの半分は、いちど現場を離れないと身につかない。
@@ -3327,6 +3408,8 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,

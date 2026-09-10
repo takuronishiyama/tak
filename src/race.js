@@ -801,7 +801,15 @@ GP.race = (function () {
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
-        const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        let stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        /* ブリーフィングで振ったぶん。この週末だけの、セットアップの片寄り。
+           どこかを取れば、どこかを捨てることになる                */
+        const tune = (t.isPlayer && strategy && strategy.tune) || null;
+        if (tune) {
+          stats = { speed:  stats.speed  * (1 + (tune.speed  || 0)),
+                    corner: stats.corner * (1 + (tune.corner || 0)),
+                    accel:  stats.accel  * (1 + (tune.accel  || 0)) };
+        }
         // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
         const secPerf = SW.w.map(w =>
           (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
@@ -811,8 +819,9 @@ GP.race = (function () {
         const dfBias = S.dfBiasOf(stats);
         /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
            軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
-        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
-                                    t.isPlayer ? myMech : 0);
+        let wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
+                                  t.isPlayer ? myMech : 0);
+        if (tune && tune.wear) wearCar *= 1 + tune.wear;
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
@@ -825,7 +834,12 @@ GP.race = (function () {
           pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
           // あとで「何が効いて、その順位になったのか」を分解するために残す
           carScore: t.car, drvScore: drv, formMul: form[ti],
-          bd: t.isPlayer ? myBody : evenBody,
+          bd: (tune && tune.drive)
+                ? Object.assign({}, myBody, { drive: myBody.drive + tune.drive })
+                : (t.isPlayer ? myBody : evenBody),
+          // ピットへの信頼。薄いと、無線を飲み込めない周が出る
+          trust: t.isPlayer ? S.trustOf(d) : 100,
+          ignore: t.isPlayer ? S.ignoreRate(d) : 0,
           startTyre: t.isPlayer ? (strategy['tyre_' + d.id] || null) : null,
           // 作戦の性格（ライバル）と、プレイヤーが選んだピット回数・タイヤの狙い
           style: t.style || 'balanced',
@@ -1974,7 +1988,25 @@ GP.race = (function () {
         // 攻めれば速いがタイヤを食い、抑えればタイヤは保つが遅い。
         // 無線で言っていることが、そのままここで効く
         const scNow2 = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
-        const ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
+        let ordKey = scNow2 ? 'hold' : decideOrder(e, lap, laps, ty, wx.level || 0);
+        /* ---- ピットへの信頼 ----
+           言われたとおりに走るのは、言うとおりにして良くなった経験があるから。
+           それが薄いと、ドライバーは自分の見立てで走りはじめる。
+           抑えろと言われても踏むし、行けと言われても引く            */
+        if (e.ignore > 0 && !scNow2 && Math.random() < e.ignore) {
+          const own = (ordKey === 'save' || ordKey === 'cool') ? 'push'
+                    : ordKey === 'push' ? 'save' : (Math.random() < 0.5 ? 'push' : 'save');
+          if (own !== ordKey) {
+            e.defied = (e.defied || 0) + 1;
+            if (e.isPlayer && e.defied <= 3 && Math.random() < 0.55) {
+              events.push({ lap: lap, type: 'radio', car: e,
+                text: '📻 ' + e.driver.name + '「' +
+                  (own === 'push' ? 'このペースじゃ届かない。行きます'
+                                  : 'いまは行けない。こっちで判断します') + '」' });
+            }
+            ordKey = own;
+          }
+        }
         if (ordKey !== e.order) { e.orderChanged = lap; e.order = ordKey; }
         // 攻めた周を数えておく。続けざまには出せない
         e.pushLaps = ordKey === 'push' ? (e.pushLaps || 0) + 1 : Math.max(0, (e.pushLaps || 0) - 1);

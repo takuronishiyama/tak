@@ -506,7 +506,10 @@ GP.data = (function () {
     { key: 'mission', name: 'ミッションコントロール', icon: '🛰️', base: 2600,
       desc: '本国に残った人間が、回線の向こうからレースに加わる。作戦と天候の読みが伸びる' },
     { key: 'depot',   name: '物流倉庫',       icon: '📦', base: 1700,
-      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' }
+      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' },
+    { key: 'meeting', name: 'ミーティングルーム', icon: '🗣️', base: 1500,
+      desc: 'ブリーフィングとデブリーフィングをここでやる。' +
+            'ドライバーの言い分が形になり、話が届くようになる' }
   ];
 
   /* ---------- 備品 ----------
@@ -561,6 +564,12 @@ GP.data = (function () {
         eff: '遅延の危険 -20%', note: '番地で出てくる。積み忘れという言葉がなくなった' },
       { key: 'crate', name: '専用コンテナ一式', icon: '🧳', cost: 5200, need: 5, env: 2,
         eff: '輸送費 -8%／クルーの消耗 -2', note: '寸法が決まっているぶん、積むのも解くのも速い' }
+    ],
+    meeting: [
+      { key: 'wall3', name: '大型スクリーン', icon: '🖥️', cost: 2100, need: 2, env: 1,
+        eff: '話が届く +12%', note: '同じ画を全員で見る。言葉の行き違いが半分になる' },
+      { key: 'rec',   name: '記録と書き起こし', icon: '🎧', cost: 3300, need: 4, env: 2,
+        eff: '話が届く +10%／信頼の伸び +', note: '言った言わないが消える。前の週末の話から始められる' }
     ],
     youth: [
       { key: 'dorm', name: '若手寮', icon: '🏠', cost: 2600, need: 2, env: 3,
@@ -1104,6 +1113,95 @@ GP.data = (function () {
       desc: '遠征と運営の効率化。週ごとの固定費が下がる（大所帯ほど効く）',
       effect: '固定費 -1.0%／技能1（最大35%）' }
   ];
+
+  /* ---------- ブリーフィング ----------
+     走り終えたドライバーは、必ず何かを言う。
+     その言い分は、実際にこのマシンがこのコースで足りていないところから出る。
+     エンジニアがどう返すかで、車が変わることもあれば、
+     「そこは腕の見せどころだ」で終わることもある。
+     どちらを選んでも、結果が出たかどうかで信頼が動く。            */
+  const COMPLAINTS = [
+    { key: 'speed', icon: '🏁', name: '直線が伸びない',
+      say: ['「直線で並ばれる。踏んでるのに、そこから先がない」',
+            '「ストレートエンドで置いていかれます。あれは追えない」',
+            '「立ち上がってからが長い。他が来るのが見えてる」'],
+      eng: '出力そのものより、押しつけすぎているぶんが抵抗になっている',
+      fix: { speed: 0.014, corner: -0.005 } },
+    { key: 'corner', icon: '🌀', name: '高速で頭が入らない',
+      say: ['「高速で頭が入らない。曲がる前に逃げていく」',
+            '「ここのS字、アンダーで一杯です。狙ったところに置けない」',
+            '「押しつけが足りない。攻めようとすると外へ出る」'],
+      eng: '前がまだ寝ている。翼を起こせば入るが、直線は捨てることになる',
+      fix: { corner: 0.014, speed: -0.005 } },
+    { key: 'accel', icon: '⚡', name: '立ち上がりで逃げる',
+      say: ['「立ち上がりでホイールスピンする。踏めない」',
+            '「トラクションがないです。出口で待たされる」',
+            '「アクセルを開けた瞬間にリアが流れる。じわっとしか踏めない」'],
+      eng: '後ろの荷重が抜けている。車高と減衰で拾えるはず',
+      fix: { accel: 0.014, speed: -0.004 } },
+    { key: 'wear', icon: '🛞', name: 'タイヤが保たない',
+      say: ['「3周でタレます。これじゃ最後まで走れない」',
+            '「リアが終わるのが早い。ペースを守れと言われても、もう無理です」',
+            '「フロントの表面が溶けてる。長いスティントは組めない」'],
+      eng: '滑らせているぶんが熱になっている。押しつけを増やせば止まる',
+      fix: { wear: -0.070, speed: -0.004 } },
+    { key: 'drive', icon: '🎯', name: 'リアが落ち着かない',
+      say: ['「ブレーキを残すとリアが出る。怖くて攻められない」',
+            '「唐突なんです。同じ入り方をしても、同じように返ってこない」',
+            '「乗りにくい。持っているものを出せている気がしない」'],
+      eng: '前後の釣り合いの話。落ち着かせれば、そのぶん速さは削れる',
+      fix: { drive: 0.045, speed: -0.006 } }
+  ];
+  const BRIEF_REPLIES = [
+    { key: 'fix',   icon: '🔧', name: '分かった、セッティングを変えよう',
+      line: '「分かった。そこに振ってみよう。次のランで確かめてくれ」',
+      desc: '言われたところに振る。決まればいちばん効くが、外すこともある',
+      okTrust: 12, ngTrust: -9, raceOk: 6, raceNg: -8 },
+    { key: 'pride', icon: '💪', name: 'そこは腕の見せどころだ',
+      line: '「そこは君の腕の見せどころだ。いまの車で、そのぶんは出せる」',
+      desc: '車はこれで戦える、と返す。結果が出れば大きいが、出なければ響く',
+      okTrust: 5, ngTrust: -6, raceOk: 12, raceNg: -16 },
+    { key: 'data',  icon: '📊', name: 'データを見せて話す',
+      line: '「数字を見てくれ。ここは、君が感じているのとは少し違う」',
+      desc: '数字で説明する。車は変わらないが、納得すれば信頼は残る',
+      okTrust: 9, ngTrust: -3, raceOk: 3, raceNg: -4 }
+  ];
+  /* ---------- ピットへの信頼 ----------
+     言ったことが当たったか、外れたか。その積み重ね。
+     低いと、無線を無視して自分の判断で走りはじめる。
+     底を割ると、移籍したいと言い出す。                            */
+  const TRUST = {
+    start: 60,
+    tiers: [
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2f7a3a',
+        note: '言えば、そのとおりに走ってくれる' },
+      { at: 62, name: '信頼している', icon: '🙂', color: '#4f8a45',
+        note: 'おおむね指示どおりに動く' },
+      { at: 40, name: '半信半疑', icon: '😐', color: '#8a7a3a',
+        note: '納得のいかない指示は、うまく飲み込めていない' },
+      { at: 22, name: '不信', icon: '😠', color: '#b06a2a',
+        note: '無線を聞いても、自分の判断で走ることがある' },
+      { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
+        note: 'ここを出たがっている' }
+    ],
+    ignoreFrom: 40,   // ここを割ると、指示を飲み込めない周が出はじめる
+    ignoreMax: 0.55,  // 底まで落ちたとき、指示を無視する確率
+    leaveAt: 18,      // ここを割ったまま週末を終えると、移籍を言い出す
+    devFrom: 70,      // 信頼が厚いほど、開発へのフィードバックが的確になる
+    devMax: 0.06,
+    drift: 0.35       // 毎レース、少しだけ中央（start）へ戻る
+  };
+  const BRIEF = {
+    fixBase: 0.40,    // セッティング変更が決まる確率の底
+    fixEng: 0.011,    // 技術陣1あたり
+    fixRoom: 0.038,   // ミーティングルーム1レベルあたり
+    fixMax: 0.90,
+    dataBase: 0.38,
+    dataAnalyst: 0.10,
+    dataRoom: 0.030,
+    dataMax: 0.88,
+    roomTrust: 0.05   // 部屋のレベル1あたり、信頼の動きがこれだけ大きくなる（良い側だけ）
+  };
 
   /* ---------- エグゼクティブ講習 ----------
      人は現場でしか育たない、というのは半分だけ本当で、
@@ -2290,5 +2388,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
