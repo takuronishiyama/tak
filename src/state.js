@@ -65,6 +65,8 @@ GP.state = (function () {
     return (D.GEAR[fac] || []).map(x => ({
       fac: fac, key: x.key, name: x.name, icon: x.icon, cost: x.cost, need: x.need,
       env: x.env, eff: x.eff, note: x.note,
+      price: perkPrice(g2, 'gear:' + fac, x.cost),
+      up: Math.round(x.cost * D.UPKEEP.gear * (1 - perkCut(g2, 'up'))),
       owned: hasGear(g2, fac, x.key),
       open: ((g2.facilities && g2.facilities[fac]) || 1) >= x.need
     }));
@@ -73,8 +75,9 @@ GP.state = (function () {
     const x = (D.GEAR[fac] || []).filter(y => y.key === key)[0];
     if (!x || hasGear(g2, fac, key)) return null;
     if (((g2.facilities && g2.facilities[fac]) || 1) < x.need) return null;
-    if (g2.funds < x.cost) return null;
-    g2.funds -= x.cost;
+    const price = perkPrice(g2, 'gear:' + fac, x.cost);
+    if (g2.funds < price) return null;
+    g2.funds -= price;
     g2.gear = (g2.gear || []).concat([fac + ':' + key]);
     return x;
   }
@@ -1637,11 +1640,21 @@ GP.state = (function () {
   function kitList(g2) { return D.RACEKIT.map(K => kitOf(g2, K.key)); }
   function buyKit(g2, key) {
     const k = kitOf(g2, key);
-    if (!k || !k.next || g2.funds < k.next.cost) return null;
-    g2.funds -= k.next.cost;
+    if (!k || !k.next) return null;
+    const price = perkPrice(g2, 'kit:' + key, k.next.cost);
+    if (g2.funds < price) return null;
+    g2.funds -= price;
     g2.kit = g2.kit || {};
     g2.kit[key] = k.lv + 1;
     return k.next;
+  }
+  /* 次の段に上げるときの、割引後の値段と、そのあとの維持費 */
+  function kitPrice(g2, key) {
+    const k = kitOf(g2, key);
+    if (!k || !k.next) return null;
+    return { price: perkPrice(g2, 'kit:' + key, k.next.cost),
+             list: k.next.cost,
+             up: Math.round(k.next.cost * D.UPKEEP.kit * (1 - perkCut(g2, 'up'))) };
   }
 
   /* ---------- グループ ----------
@@ -2237,7 +2250,103 @@ GP.state = (function () {
     if (ts && ts.perk && (ts.perk.key === target || target.indexOf(ts.perk.key + ':') === 0)) {
       cut += ts.perk.cut;
     }
+    /* サプライヤーは、看板ではなく道具そのものに効く。
+       買うときと、持ち続けるあいだの両方が安くなる                */
+    (g2.supply || []).forEach(c => {
+      const d = D.SUPPLIERS.filter(x => x.key === c.key)[0];
+      if (!d) return;
+      const deep = 1 + supplyDeep(g2, c);
+      const hitsGear = (target === 'gear' || target.indexOf('gear:') === 0);
+      const hitsKit = (target === 'kit' || target.indexOf('kit:') === 0);
+      if (target === 'up') cut += d.keep * deep;
+      else if (hitsGear && (d.field === 'gear' || d.field === 'both')) cut += d.buy * deep;
+      else if (hitsKit && (d.field === 'kit' || d.field === 'both')) cut += d.buy * deep;
+    });
     return Math.min(D.PERK_CAP, cut);
+  }
+
+  /* =======================================================
+     サプライヤー
+     スポンサーは看板を貼って金を出す相手。
+     サプライヤーは道具そのものを卸し、面倒を見てくれる相手。
+     毎週いくらか払う代わりに、装備の値段と維持費が下がる。
+     長く付き合うほど、値引きは深くなる。
+     ======================================================= */
+  function supplyDeep(g2, c) {
+    const yrs = Math.max(0, (g2.season || 1) - (c.since || g2.season || 1));
+    return Math.min(D.SUPPLY.deepCap, yrs * D.SUPPLY.deep);
+  }
+  function supplySlots(g2) {
+    return D.SUPPLY.slots + (depotLv(g2) >= 4 ? 1 : 0);
+  }
+  function supplyOpen(g2, d) {
+    return (g2.fans || 0) >= (d.fans || 0) && (g2.hype || 0) >= (d.hype || 0);
+  }
+  function supplyList(g2) {
+    return D.SUPPLIERS.map(d => {
+      const c = (g2.supply || []).filter(x => x.key === d.key)[0];
+      return { def: d, on: !!c, contract: c || null,
+               deep: c ? supplyDeep(g2, c) : 0,
+               left: c ? c.left : 0,
+               open: supplyOpen(g2, d) };
+    });
+  }
+  function signSupply(g2, key) {
+    const d = D.SUPPLIERS.filter(x => x.key === key)[0];
+    if (!d || !supplyOpen(g2, d)) return null;
+    g2.supply = g2.supply || [];
+    if (g2.supply.some(x => x.key === key)) return null;
+    if (g2.supply.length >= supplySlots(g2)) return null;
+    g2.supply.push({ key: key, since: g2.season || 1, left: d.years });
+    return d;
+  }
+  /* 途中で切る。残っている契約のぶんだけ違約金がいる */
+  function dropSupplyCost(g2, key) {
+    const c = (g2.supply || []).filter(x => x.key === key)[0];
+    const d = D.SUPPLIERS.filter(x => x.key === key)[0];
+    if (!c || !d) return 0;
+    return Math.round(d.fee * D.SUPPLY.breakFee * Math.max(1, c.left));
+  }
+  function dropSupply(g2, key) {
+    const cost = dropSupplyCost(g2, key);
+    if (g2.funds < cost) return null;
+    g2.funds -= cost;
+    g2.supply = (g2.supply || []).filter(x => x.key !== key);
+    return cost;
+  }
+  function supplyFee(g2) {
+    return (g2.supply || []).reduce((a, c) => {
+      const d = D.SUPPLIERS.filter(x => x.key === c.key)[0];
+      return a + (d ? d.fee : 0);
+    }, 0);
+  }
+  /* シーズンが変わったときに、契約の残りを1つ減らす */
+  function tickSupply(g2) {
+    const gone = [];
+    g2.supply = (g2.supply || []).filter(c => {
+      c.left = (c.left || 1) - 1;
+      if (c.left > 0) return true;
+      const d = D.SUPPLIERS.filter(x => x.key === c.key)[0];
+      if (d) gone.push(d);
+      return false;
+    });
+    return gone;
+  }
+
+  /* ---------- 装備の維持費 ----------
+     買った道具は、置いてあるだけで金を食う。
+     校正、消耗品、倉庫代。サプライヤーがいれば、そこが軽くなる    */
+  function gearUpkeep(g2) {
+    let raw = 0;
+    Object.keys(D.GEAR).forEach(fac => {
+      D.GEAR[fac].forEach(x => { if (hasGear(g2, fac, x.key)) raw += x.cost * D.UPKEEP.gear; });
+    });
+    D.RACEKIT.forEach(k => {
+      const t = k.tiers[kitLv(g2, k.key)];
+      if (t && t.cost) raw += t.cost * D.UPKEEP.kit;
+    });
+    return { raw: Math.round(raw), cut: perkCut(g2, 'up'),
+             net: Math.round(raw * (1 - perkCut(g2, 'up'))) };
   }
   /* 特典を効かせた値段 */
   function perkPrice(g2, target, amount) {
@@ -2269,7 +2378,10 @@ GP.state = (function () {
     const engine = g2.engine ? Math.round(g2.engine.fee / raceWeek(0)) : 0;
     const other = 150;
     const estate = estateUpkeep(g2);            // 持っている事業の維持費
-    const raw = staff + mgrs + drivers + youth + facilities + engine + estate + other;
+    const gearUp = gearUpkeep(g2).net;          // 買った装備の維持費
+    const supply = supplyFee(g2);               // サプライヤーへの契約料
+    const raw = staff + mgrs + drivers + youth + facilities + engine
+              + estate + gearUp + supply + other;
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
     const cut = Math.min(0.45, mgr(g2, 'logistics') * 0.010 + osk(g2, 'money') * 0.03);
@@ -2294,7 +2406,8 @@ GP.state = (function () {
     const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
     return {
       staff: staff, managers: mgrs, drivers: drivers, youth: youth,
-      facilities: facilities, engine: engine, estate: estate, other: other, cut: cut,
+      facilities: facilities, engine: engine, estate: estate,
+      gearUp: gearUp, supply: supply, other: other, cut: cut,
       weekly: weekly,
       sponsorPerRace: perRace,
       sponsorRpPerRace: rpRace,
@@ -2971,7 +3084,9 @@ GP.state = (function () {
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
     supplierPower, tickEngine,
-    hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
+    hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
+    supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
+    supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

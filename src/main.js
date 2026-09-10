@@ -2030,6 +2030,8 @@ window.GP = window.GP || {};
           '<span class="pb-cost">受ける</span></button></div>';
       }
     }
+    body += supplyBoxHTML();
+
     // ---- タイトルスポンサー ----
     const cur = S.titleOf(g);
     body += '<div class="sub">👑 タイトルスポンサー</div>';
@@ -2100,6 +2102,7 @@ window.GP = window.GP || {};
         cmdSponsor();
       };
     });
+    bindSupply();
   }
   /* ---- いま効いているサプライヤー特典 ----
      契約の値打ちは、毎戦の入金だけでは測れない                  */
@@ -2549,7 +2552,8 @@ window.GP = window.GP || {};
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
       '<div class="pick gearpick">';
     list.forEach(x => {
-      const can = !x.owned && x.open && g.funds >= x.cost;
+      const can = !x.owned && x.open && g.funds >= x.price;
+      const off = x.price < x.cost;
       h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-gear="' + fac + ':' + x.key + '"' +
         (can ? '' : ' disabled') + '>' +
         '<span class="pb-ic">' + x.icon + '</span>' +
@@ -2557,10 +2561,19 @@ window.GP = window.GP || {};
           (x.owned ? '<em class="gowned">導入済み</em>'
                    : !x.open ? '<em class="warn">Lv.' + x.need + ' から</em>' : '') + '</b>' +
         '<small><b>' + esc(x.eff) + '</b>' + (x.env ? '　働きやすさ +' + x.env : '') +
+        '　維持 💰' + money(x.up) + '万/週' +
         '<br><em class="pnote">' + esc(x.note) + '</em></small></span>' +
-        '<span class="pb-cost">' + (x.owned ? '—' : '💰' + money(x.cost)) + '</span></button>';
+        '<span class="pb-cost">' + (x.owned ? '—'
+          : (off ? '<s>' + money(x.cost) + '</s><br>' : '') + '💰' + money(x.price)) +
+        '</span></button>';
     });
-    return h + '</div>';
+    const up = S.gearUpkeep(g);
+    h += '</div><p class="note">🔧 いま持っている装備の維持費は <b>💰' + money(up.net) +
+      '万／週</b>です' + (up.cut > 0
+        ? '（サプライヤーの割引 <b>-' + Math.round(up.cut * 100) + '%</b> 込み。定価なら ' +
+          money(up.raw) + '万）'
+        : '（サプライヤーと組むと下げられます）') + '。買った道具は、置いてあるだけで金を食います。</p>';
+    return h;
   }
   /* ---- 事業 ----
      本拠地の外に持つもの。レースで勝つための設備ではなく、
@@ -5603,6 +5616,11 @@ window.GP = window.GP || {};
                '万、来季の風洞時間も削られる。', 'bad');
       U.toast('🧾 予算超過の罰金 -' + money(capRes.fine) + '万', 'bad');
     }
+    S.tickSupply(g).forEach(d => {
+      U.log(g, '🏭 ' + d.name + ' とのサプライヤー契約が満了した。' +
+               '装備の値段と維持費が元に戻る。', 'warn');
+      U.toast('🏭 ' + d.name + ' との契約が満了', 'warn');
+    });
     const goneTitle = S.tickTitle(g);
     if (goneTitle) {
       U.log(g, '👑 ' + goneTitle.name + ' とのタイトルスポンサー契約が満了した。', 'warn');
@@ -7714,7 +7732,8 @@ window.GP = window.GP || {};
       '一度買えば残ります。</p><div class="pick gearpick">';
     S.kitList(g).forEach(k => {
       const d = k.def, t = k.tier, nx = k.next;
-      const can = nx && g.funds >= nx.cost;
+      const pr = S.kitPrice(g, d.key);
+      const can = nx && pr && g.funds >= pr.price;
       h += '<button class="pickbtn kitrow" data-kit="' + d.key + '"' + (can ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#5a6270">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + d.icon + ' ' + d.name +
@@ -7727,7 +7746,10 @@ window.GP = window.GP || {};
               : '<span class="devup">これ以上はありません</span>') +
           '<br><em class="pnote">' + esc(d.what) + '</em>' +
         '</small></span>' +
-        '<span class="pb-cost">' + (nx ? '💰' + money(nx.cost) : '—') + '</span></button>';
+        '<span class="pb-cost">' + (nx && pr
+          ? (pr.price < pr.list ? '<s>' + money(pr.list) + '</s><br>' : '') +
+            '💰' + money(pr.price) + '<br><i class="tyuse">維持 ' + money(pr.up) + '/週</i>'
+          : '—') + '</span></button>';
     });
     return h + '</div>';
   }
@@ -8242,6 +8264,88 @@ window.GP = window.GP || {};
       h += '<p class="note">📌 どの部門も上位です。この形を保ちましょう。</p>';
     }
     return h;
+  }
+
+  /* =======================================================
+     サプライヤー
+     看板を貼って金を出すスポンサーとは別に、
+     道具そのものを卸してくれる相手がいる。
+     効くのは「買うとき」と「持ち続けるあいだ」の両方。
+     長く付き合うほど、値引きは深くなる。
+     ======================================================= */
+  function supplyBoxHTML() {
+    const list = S.supplyList(g);
+    const slots = S.supplySlots(g);
+    const on = list.filter(x => x.on);
+    const up = S.gearUpkeep(g);
+    let h = '<div class="sub">🏭 サプライヤー</div>' +
+      '<p class="desc">スポンサーが「看板を貼って金を出す相手」なら、サプライヤーは' +
+      '<b>道具そのものを卸してくれる相手</b>です。毎週いくらか払う代わりに、' +
+      '<b>装備の値段</b>と<b>維持費</b>がまとめて下がります。' +
+      '付き合いが長くなるほど、値引きは深くなります。<br>' +
+      '契約枠 <b>' + on.length + ' / ' + slots + '</b>（物流倉庫がLv.4になると1つ増えます）</p>';
+    h += '<div class="upbox"><span>🔧 いまの維持費 <b>💰' + money(up.net) + '万／週</b></span>' +
+      '<span>割引 <b>' + (up.cut > 0 ? '-' + Math.round(up.cut * 100) + '%' : 'なし') + '</b></span>' +
+      '<span>契約料 <b>💰' + money(S.supplyFee(g)) + '万／週</b></span></div>';
+    h += '<div class="pick">';
+    list.forEach(x => {
+      const d = x.def;
+      const field = d.field === 'gear' ? '備品' : d.field === 'kit' ? '週末の機材' : '備品と機材';
+      const deepPct = Math.round(x.deep * 100);
+      const can = x.on || (x.open && on.length < slots);
+      h += '<button class="pickbtn' + (x.on ? ' offer' : can ? '' : ' done') +
+        '" data-sup="' + d.key + '"' + (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#5f7a4a">' + d.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) +
+          (x.on ? '<em class="gowned">契約中 あと' + x.left + '季</em>' : '') + '</b>' +
+        '<small>' + esc(d.desc) +
+        '<br>' + field + 'の購入 <b>-' + Math.round(d.buy * 100) + '%</b>' +
+        '／維持費 <b>-' + Math.round(d.keep * 100) + '%</b>' +
+        '　契約料 <b>💰' + money(d.fee) + '万/週</b>　' + d.years + 'シーズン' +
+        (x.on && deepPct > 0 ? '<br><em class="free">付き合いの深さで、いまは <b>+' +
+          deepPct + '%</b> 上乗せして効いています</em>' : '') +
+        (!x.on && !x.open ? '<br><em class="warn">条件：ファン ' + money(d.fans) +
+          ' 以上・注目度 ' + d.hype + ' 以上</em>' : '') +
+        (!x.on && x.open && on.length >= slots ? '<br><em class="warn">契約枠が空いていません</em>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (x.on ? '解約' : can ? '契約' : '—') + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
+  function bindSupply() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-sup]'), b => {
+      b.onclick = () => {
+        const key = b.dataset.sup;
+        const cur = (g.supply || []).filter(x => x.key === key)[0];
+        const d = D.SUPPLIERS.filter(x => x.key === key)[0];
+        if (!d) return;
+        if (cur) {
+          const fee = S.dropSupplyCost(g, key);
+          U.modal('🏭 ' + esc(d.name) + ' との契約を切る',
+            '<p class="desc">残り <b>' + cur.left + 'シーズン</b>ぶんの違約金として ' +
+            '<b>💰' + money(fee) + '万</b> がいります。<br>' +
+            '切ると、装備の値段と維持費はもとの言い値に戻ります。</p>', [
+              { label: '💰' + money(fee) + '万 払って切る', cls: 'primary',
+                fn: () => {
+                  if (S.dropSupply(g, key) == null) { U.toast('資金が足りません', 'bad'); return; }
+                  U.log(g, '🏭 ' + d.name + ' との契約を解消した（違約金 -' + money(fee) + '万）', 'warn');
+                  U.toast('🏭 ' + d.name + ' と解約', 'warn');
+                  GP.sound.play('no');
+                  S.save(g); render(); cmdSponsor();
+                } },
+              { label: 'やめておく', fn: cmdSponsor }
+            ]);
+          return;
+        }
+        if (!S.signSupply(g, key)) return U.toast('いまは契約できません', 'bad');
+        U.log(g, '🏭 ' + d.name + ' とサプライヤー契約を結んだ（購入 -' +
+          Math.round(d.buy * 100) + '%／維持費 -' + Math.round(d.keep * 100) + '%）', 'good');
+        U.toast('🏭 ' + d.name + ' と契約！', 'good');
+        GP.sound.play('buy');
+        S.save(g); render(); cmdSponsor();
+      };
+    });
   }
 
   /* ---- タイトルスポンサーと契約する（週は消費しない）---- */

@@ -601,6 +601,8 @@ GP.ui = (function () {
       ['🏗️ 施設の維持費', f.facilities],
     ].concat(f.engine ? [['🔌 PU供給料', f.engine]] : [])
      .concat(f.estate ? [['🏪 事業の維持費', f.estate]] : [])
+     .concat(f.gearUp ? [['🔧 装備の維持費', f.gearUp]] : [])
+     .concat(f.supply ? [['🏭 サプライヤー契約料', f.supply]] : [])
      .concat([['📋 その他', f.other]]);
     const raw = rows.reduce((a, r) => a + r[1], 0);
     let h = '<div class="sub">💹 収支</div>' +

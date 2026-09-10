@@ -922,9 +922,57 @@ GP.data = (function () {
     'improve':     { icon: '🔩', name: 'パーツの開発費' },
     'pu':          { icon: '⚙️', name: '新品パワーユニットの代金' },
     'logi':        { icon: '🚚', name: '輸送費' },
-    'legal':       { icon: '⚖️', name: '提訴の費用' }
+    'legal':       { icon: '⚖️', name: '提訴の費用' },
+    'gear':        { icon: '🧰', name: '備品の導入費' },
+    'kit':         { icon: '🎙️', name: '週末に持ち込む機材' },
+    'up':          { icon: '🔧', name: '装備の維持費' }
   };
   const PERK_CAP = 0.60;      // 同じ費目への割引は、合わせてここまで
+
+  /* ---------- 装備の維持費 ----------
+     道具は買ったら終わりではない。校正に出し、部品を替え、
+     使わない週も倉庫代がかかる。買値に対する週あたりの割合で持つ。
+     良い道具を並べるほど、毎週の固定費が静かに重くなっていく      */
+  const UPKEEP = {
+    gear: 0.0045,     // 備品：買値のこれだけが毎週かかる
+    kit:  0.0050      // 週末に持ち込む機材
+  };
+
+  /* ---------- サプライヤー ----------
+     スポンサーは看板を貼って金を出す相手。サプライヤーは違う。
+     道具そのものを卸し、面倒を見てくれる相手で、
+     効くのは「買うとき」と「持ち続けるあいだ」の両方。
+     毎週いくらか払う代わりに、装備の値段と維持費がまとめて下がる。
+     付き合いが長くなるほど、値引きは深くなる                     */
+  const SUPPLIERS = [
+    { key: 'nejiya', name: 'ネジヤ商会', icon: '🔩', field: 'gear',
+      buy: 0.10, keep: 0.20, fee: 16, fans: 0, hype: 0, years: 2,
+      desc: '町の資材屋。品揃えは並だが、すぐ持ってきてくれるし請求書がやさしい' },
+    { key: 'minato', name: 'ミナト機材', icon: '🧰', field: 'gear',
+      buy: 0.18, keep: 0.28, fee: 38, fans: 1500, hype: 12, years: 2,
+      desc: '工場の設備をまとめて面倒みる。保守の人が週に一度、当たり前の顔で入ってくる' },
+    { key: 'denpa', name: 'デンパ電子', icon: '📡', field: 'kit',
+      buy: 0.20, keep: 0.30, fee: 40, fans: 2500, hype: 16, years: 2,
+      desc: '無線と計測の週末機材。現場に技術者を出してくれるので、壊れても止まらない' },
+    { key: 'seimitsu', name: 'セイミツ計測', icon: '📏', field: 'gear',
+      buy: 0.26, keep: 0.36, fee: 66, fans: 5000, hype: 26, years: 3,
+      desc: '測る道具はここが一番。校正まで込みで引き取っていく' },
+    { key: 'sorami', name: 'ソラミ気象通信', icon: '🌦️', field: 'kit',
+      buy: 0.28, keep: 0.38, fee: 76, fans: 9000, hype: 34, years: 3,
+      desc: '気象と通信をまとめて。週末に持ち込むものが、ひとつ上の世代になる' },
+    { key: 'lease', name: '全国産業リース', icon: '🏢', field: 'both',
+      buy: 0.12, keep: 0.46, fee: 108, fans: 13000, hype: 40, years: 3,
+      desc: '装備をぜんぶ借り物に切り替える。買値はさほど下がらないが、持ち続ける金が大きく減る' },
+    { key: 'tenma', name: 'テンマ重電', icon: '⚡', field: 'both',
+      buy: 0.30, keep: 0.40, fee: 172, fans: 32000, hype: 58, years: 3,
+      desc: '一流の総合サプライヤー。ここと組めれば、装備の話で困ることはなくなる' }
+  ];
+  const SUPPLY = {
+    slots: 2,        // 同時に結べる本数（マーケ室ではなく、物流倉庫の規模で増える）
+    deep: 0.10,      // 付き合いが1シーズン延びるごとに、値引きがこれだけ深くなる
+    deepCap: 0.45,   // 深まりの上限
+    breakFee: 6      // 途中で切ると、残り契約1シーズンにつき週あたり契約料の何週ぶんか
+  };
 
   /* ---------- タイトルスポンサー ----------
      チーム名に冠がつく、いちばん大きな契約。
@@ -2169,5 +2217,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
