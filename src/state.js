@@ -1873,11 +1873,31 @@ GP.state = (function () {
   /* パワーユニットは「基の残量」で語る。ほかのパーツの
      「コンディション」とは戻しかたが違うので、名前も分けておく */
   function condLabel(key) { return key === 'pu' ? '残量' : 'コンディション'; }
+  /* ---- パワーユニットの耐久（0〜1）----
+     世代を重ねたPUほど、そして熟成させたPUほど、走っても減りにくい。
+     開発で伸ばせるのはここで、消耗そのものとへたりの痛みの両方に効く */
+  function puDur(g2) {
+    const p = (g2.equipped && g2.equipped.pu) || null;
+    if (!p) return 0;
+    const N = D.PU_NURSE;
+    const gen = (p.gen || 0) * N.durGen;
+    const pol = ((p.rarity || 1) - 1) / Math.max(1, D.RARITY.length - 1) * N.durPol;
+    return clamp(gen + pol, 0, 1);
+  }
+  /* 二度と戻らない摩耗（%）。整備の天井はここで決まる */
+  function puHard(g2) {
+    const p = (g2.equipped && g2.equipped.pu) || null;
+    return p ? clamp(p.worn || 0, 0, 100) : 0;
+  }
+  /* 整備でどこまで戻せるか（%） */
+  function puCeil(g2) { return 100 - puHard(g2); }
   /* へたり具合（0=新品、1=使い切り）。
-     残りが PU_TIRED_FROM を割ってから効きはじめる                    */
+     残りが PU_TIRED_FROM を割ってから効きはじめる。
+     耐久のあるPUは、同じ残量でも痛みかたが小さい                   */
   function puTired(g2) {
     const pu = puOf(g2);
-    return clamp((D.PU_TIRED_FROM - pu.life) / D.PU_TIRED_FROM, 0, 1);
+    const raw = clamp((D.PU_TIRED_FROM - pu.life) / D.PU_TIRED_FROM, 0, 1);
+    return raw * (1 - D.PU_NURSE.dropCut * puDur(g2));
   }
   /* いま選んでいる出力モード */
   function puMode(g2) {
@@ -1902,16 +1922,20 @@ GP.state = (function () {
     return perkPrice(g2, 'pu', Math.round(D.PU_FRESH_COST * (1 + (g2.carGen || 0) * 0.20)));
   }
   /* いま載せているユニットを降ろして保管する（残量があれば） */
-  function stowPU(pu) {
-    if (pu.life >= D.PU_KEEP_MIN) pu.pool.push({ n: pu.n, life: pu.life });
+  function stowPU(pu, part) {
+    if (pu.life >= D.PU_KEEP_MIN) {
+      pu.pool.push({ n: pu.n, life: pu.life, worn: (part && part.worn) || 0 });
+    }
     pu.pool.sort((a, b) => b.life - a.life);
     if (pu.pool.length > 6) pu.pool.length = 6;
   }
   /* 新品を投入する。基数を1つ使い、上限を超えていればグリッド降格 */
   function fitFreshPU(g2) {
     const pu = puOf(g2);
-    stowPU(pu);
+    stowPU(pu, g2.equipped && g2.equipped.pu);
     pu.used++; pu.n = pu.used; pu.life = 100;
+    // 下ろしたてのユニットは、摩耗もまっさらから
+    if (g2.equipped && g2.equipped.pu) g2.equipped.pu.worn = 0;
     const out = { used: pu.used, over: false, grid: 0, fresh: true };
     if (pu.used > puLimit(g2)) {
       pu.over++; pu.grid += D.PU_PENALTY;
@@ -1925,9 +1949,10 @@ GP.state = (function () {
     const u = pu.pool[idx];
     if (!u) return null;
     pu.pool.splice(idx, 1);
-    stowPU(pu);
+    stowPU(pu, g2.equipped && g2.equipped.pu);
     const from = pu.n;
     pu.n = u.n; pu.life = u.life;
+    if (g2.equipped && g2.equipped.pu) g2.equipped.pu.worn = u.worn || 0;
     return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
@@ -1935,12 +1960,18 @@ GP.state = (function () {
     const laps = (track && track.laps) || 26;
     const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
     const care = 1 - Math.min(0.28, pitPower(g2) * 0.06 + g2.facilities.pit * 0.015);
-    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care * puMode(g2).wear;
+    const dur = 1 - D.PU_NURSE.durMax * puDur(g2);
+    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care
+         * puMode(g2).wear * dur;
   }
   /* レースを走り終えたときの処理。使い切ったら次の基数へ */
   function usePU(g2, track, pushMul) {
     const pu = puOf(g2);
-    pu.life = Math.max(0, pu.life - puWear(g2, track, pushMul));
+    const w = puWear(g2, track, pushMul);
+    pu.life = Math.max(0, pu.life - w);
+    /* 走ったぶんの一部は、もう戻らない。整備の天井がそのぶん下がる */
+    const part = g2.equipped && g2.equipped.pu;
+    if (part) part.worn = clamp((part.worn || 0) + w * D.PU_NURSE.hard, 0, 100);
     const out = { swapped: false, used: pu.used, over: false, grid: 0, reused: 0 };
     if (pu.life <= 0) {
       // 使い切ってしまった。取ってあるユニットが残っていればそれを積む
@@ -1959,7 +1990,8 @@ GP.state = (function () {
   function nursePU(g2, amount) {
     const pu = puOf(g2);
     const before = pu.life;
-    pu.life = clamp(pu.life + amount, 0, 100);
+    // 手を入れられるのは補機まわりだけ。芯の摩耗ぶんは戻せない
+    pu.life = clamp(pu.life + amount, 0, puCeil(g2));
     return Math.round(pu.life - before);
   }
   function puReset(g2) {
@@ -2278,7 +2310,11 @@ GP.state = (function () {
                wear: arr.filter(a => a > 0).reduce((a, b) => a + b, 0) };
     });
   }
-  function bankFresh(bank) { return bankRows(bank).reduce((a, r) => a + r.fresh, 0); }
+  /* 新品が何セット残っているか。銘柄を渡せばその銘柄だけ数える */
+  function bankFresh(bank, key) {
+    return bankRows(bank).filter(r => !key || r.key === key)
+                         .reduce((a, r) => a + r.fresh, 0);
+  }
   /* 中古で走るぶんの遅さ（秒／周）。皮むきの1周ぶんは差し引く */
   function usedLoss(age) {
     const A = D.TYRE_ALLOC;
@@ -3508,7 +3544,7 @@ GP.state = (function () {
     makeManager, mgr, finances, ersOf, ersFrom,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
-    puTired, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
+    puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,

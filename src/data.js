@@ -1528,6 +1528,27 @@ GP.data = (function () {
   const PU_PERF_DROP = 2.6;        // 同・走りの速さで失う量（グリッド2〜3台ぶん）
   const PU_KEEP_MIN = 8;           // これ未満まで使い切ったユニットは廃棄
 
+  /* ---------- パワーユニットの消耗 ----------
+     走らせて減ったぶんが、整備でそのまま戻ってしまうと、
+     残量はいつまでも100%のまま動かない。実際のパワーユニットは
+     そうではなく、走った距離ぶんは二度と戻らない。
+
+     そこで、1戦で減るぶんを二つに分ける。
+       芯の摩耗  … 燃焼室やクランクまわり。二度と戻らない
+       補機まわり … 冷却や配管。手を入れれば戻る
+     整備で上げられるのは補機のぶんだけで、
+     天井そのものが、走るたびに下がっていく。
+
+     エンジンを開発すると、この減りかた自体が緩くなり、
+     へたったときに失う速さも小さくなる。               */
+  const PU_NURSE = {
+    hard:    0.62,   // 1戦で減るぶんのうち、二度と戻らない割合
+    durGen:  0.055,  // PUの世代ひとつあたり、消耗が減る割合
+    durPol:  0.12,   // 熟成しきったPUで、さらに減る割合
+    durMax:  0.45,   // 耐久で減らせるのは、ここまで
+    dropCut: 0.50    // 耐久が満ちると、へたりで失う速さがこれだけ小さくなる
+  };
+
   /* ---------- 出力モード ----------
      同じユニットでも、どこまで回すかは自分で決められる。
      全開なら速いが一気に寿命を食う。温存すれば遅いが基数を守れる。
@@ -1671,6 +1692,27 @@ GP.data = (function () {
      ・evo   …… 路面が仕上がっていく割合。走るほどタイムは伸びる
      ・spread …… その一本の出来のばらつき。落とされる側ほど攻めるので、
                   後のセッションほど小さく（＝実力どおりに）なる     */
+  /* ---------- 速さの差を、1周のタイム差に変える ----------
+     車の力（perf）は、シーズンを重ねるほど大きくなっていく。
+     開発が積み上がり、たまに掘り当てるものもあるので、
+     10年もやれば最初の何倍にもなる。
+     この差を「1点あたり何秒」で秒に換算してしまうと、
+     抜け出した1台だけが1周20秒速い、という絵になってしまう。
+     （実際、頭打ちに当たって同じタイムが2台並ぶことがあった）
+
+     なので、差そのものではなく「その週の顔ぶれの中でどのあたりに居るか」
+     という割合で見る。そのうえで、離れるほど効きを鈍らせる。
+     こうしておけば、何倍の車を作っても1周3秒ぶんまでで頭打ちになり、
+     速い車はきちんと速いまま、絵は壊れない。                        */
+  const PACE = {
+    k:    0.0393,   // 顔ぶれの端から端まででどれだけ動くか
+    soft: 2.00,     // これに近づくほど、差の効きが鈍る
+    /* 年を追うごとの、全体の底上げ。
+       いくら開発しても青天井にはならないよう、対数で効かせる */
+    era:  0.010,
+    ref0: 42
+  };
+
   const QUALI = {
     // 実際の予選と同じで、各セッションで一定の台数が落ちる
     cut: 0.23, cutMin: 2, cutMax: 6, minQ2: 6, minQ3: 4,
@@ -1679,7 +1721,8 @@ GP.data = (function () {
        速さの差より小さく抑え、番狂わせは下の Q_EVENTS に任せる */
     spread: [0.018, 0.015, 0.013],
     nerve: [0.30, 0.55, 0.85],          // 精神力がものを言う度合い
-    base: 0.020                          // 予選アタックぶんの上乗せ
+    base: 0.020,                         // 予選アタックぶんの上乗せ
+    off:  0.0879                         // 先頭の車が、コース基準からどれだけ離れているか
   };
 
   /* 予選のあいだに起きること。sec は1周あたりの増減（マイナスは得） */
@@ -2160,7 +2203,7 @@ GP.data = (function () {
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
     { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
-      pace: 0.986, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
+      pace: 0.992, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
       band: '乾き〜わずかな湿り',
       desc: 'いちばん速いが、あっという間に摩耗する。湿りにはいちばん弱い' },
     { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
@@ -2168,7 +2211,7 @@ GP.data = (function () {
       band: '乾き〜湿りはじめ',
       desc: '速さと保ちのバランス型' },
     { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
-      pace: 1.014, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
+      pace: 1.009, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
       band: '乾き〜湿りはじめ',
       desc: '遅いが長く保つ。ストップを減らせる' },
     { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
@@ -2215,19 +2258,30 @@ GP.data = (function () {
 
      pace はその週末の一発の速さへの手応え、deg はタイヤの持ちへの手応え。
      deg は「読み」の材料になり、読める人がいてはじめて数字になる。   */
+  /* ---------- 金曜の走らせ方 ----------
+     ちがいは「ソフトを何本使うか」に出る。
+     ソフトは一発が速いぶん、走らせても長い距離のことは分からない。
+     ハードを履くのは、長い距離を走る週だけ。短い走りで履いても
+     ちゃんと働く温度まで持っていけず、何も分からずに1セット減るだけ。 */
   const FP_TYRE = [
-    { key: 'soft', name: 'ソフト中心', icon: '🔴',
+    { key: 'soft', name: '予選重視', icon: '🔴',
       sets: ['soft', 'soft', 'soft', 'soft'],
       pace: 0.95, deg: 0.20, qBoost: 1.008, rBoost: 0.996,
-      desc: '一発の速さを見る。予選の狙いは絞れるが、決勝の読みは粗いまま' },
-    { key: 'mix',  name: 'ひととおり', icon: '🟡',
-      sets: ['soft', 'medium', 'soft', 'hard', 'medium'],
-      pace: 0.60, deg: 0.62, qBoost: 1.003, rBoost: 1.002,
-      desc: '全銘柄に触れる。どちらも半端だが、大きくは外さない' },
-    { key: 'race', name: '決勝用を読む', icon: '⚪',
+      longRun: false,
+      desc: 'ソフトばかりで一発を詰める。土曜の狙いは絞れるが、'
+          + '長い距離のことは何も分からないまま日曜を迎える' },
+    { key: 'mix',  name: 'バランス', icon: '🟡',
+      sets: ['soft', 'medium', 'soft', 'medium', 'soft'],
+      pace: 0.62, deg: 0.60, qBoost: 1.004, rBoost: 1.001,
+      longRun: false,
+      desc: 'ソフトとミディアムを半々に。どちらも決め手には欠けるが、'
+          + '大きく外すこともない' },
+    { key: 'race', name: 'レース重視', icon: '⚪',
       sets: ['medium', 'hard', 'medium', 'hard', 'medium', 'soft'],
       pace: 0.28, deg: 1.00, qBoost: 0.997, rBoost: 1.012,
-      desc: '決勝で履く銘柄を走り込む。ストップの読みが決まるが、日曜は中古ばかり' }
+      longRun: true,
+      desc: '長い距離を走り込む。ハードを履けるのはこの走らせ方だけで、'
+          + 'ストップの読みは決まる。ただし日曜に残るソフトは中古ばかり' }
   ];
   /* 「走らずに残す」を選んだ週は、どの銘柄を選んでも2セットで済む */
   const FP_SAVE_SETS = 2;
@@ -2261,7 +2315,7 @@ GP.data = (function () {
       desc: 'Q1・Q2は中古。予選の並びは捨てるが、日曜のタイヤは厚い' }
   ];
   /* ライバルが金曜に何を履くか（作戦の性格ごと）。
-     攻めるチームはソフトで一発を狙い、堅実なチームは決勝用を読む。
+     攻めるチームはソフトで一発を狙い、堅実なチームは長い距離を走り込む。
      日曜に新品が何本残るかは、この選択の結果として決まる            */
   const RIVAL_RUN = {
     aggressive: 'soft',
@@ -2461,5 +2515,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

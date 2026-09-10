@@ -2775,6 +2775,31 @@ body[data-skin="hd"]{
   color:var(--faceTx)}
 .lf-row>b{font-size:12px;min-width:88px;color:var(--faceTx)}
 .lf-row>span{color:var(--faceSub)}
+/* ---- タイヤの持ちの表 ---- */
+.degtab{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px;
+  border:1px solid var(--faceEdge);border-radius:9px;overflow:hidden}
+.dg-h,.dg-r{display:grid;grid-template-columns:5.2em repeat(4,1fr);align-items:center;
+  gap:6px;padding:5px 9px;font-size:11px}
+.dg-h{background:var(--face2);color:var(--faceSub);font-weight:700}
+.dg-r{background:var(--face);color:var(--faceTx)}
+.dg-r+.dg-r{border-top:1px solid var(--faceEdge)}
+.dg-h>span:not(:first-child),.dg-r>span:not(:first-child){text-align:right}
+.dg-n{display:inline-flex;align-items:center;justify-content:center;height:19px;
+  border-radius:9px;font-weight:700;font-size:10px;text-align:center}
+.dg-w{color:var(--ngTx);font-weight:700}
+.dg-ok{color:var(--okTx);font-weight:700}
+/* せまい画面では、列を畳むと見出しとの対応が消えてしまう。
+   表はそのままの形で、横に流して読ませる                       */
+.degwrap{overflow-x:auto;margin:4px 0 8px}
+.degtab{margin:0;min-width:23em}
+/* ---- 金曜のタイヤ計画 ---- */
+.lrtag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;
+  background:var(--faceEdge);color:var(--faceTx);
+  font-style:normal;font-weight:700;font-size:9px;vertical-align:1px}
+.fptyre .lo{display:inline-flex;align-items:center;justify-content:center;
+  min-width:22px;height:16px;margin-right:3px;padding:0 4px;border-radius:8px;
+  font-style:normal;font-weight:700;font-size:9px}
+.fptyre .lo.zero{opacity:.42}
 .tybank .tb-wet{display:inline-flex;gap:4px;margin-left:6px;padding-left:8px;
   border-left:1px dashed var(--faceEdge)}
 .tybank .tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;

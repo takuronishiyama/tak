@@ -592,6 +592,21 @@ GP.screens.weekend = function (A) {
      「何を作業するか」とは別の選択。ソフトばかり走れば一発の速さは掴めるが、
      決勝で履く銘柄のことは何も分からないまま日曜を迎える。
      逆に決勝用を走り込めば読みは決まるが、日曜に出てくるのは中古ばかり。 */
+  /* その走らせ方で金曜を終えたとき、日曜に新品が何本残るか。
+     数字を手で書かず、実際の棚から引き算して出す                 */
+  function leftoverHTML(p) {
+    const bank = S.newTyreBank();
+    S.scrubBank(bank, p.sets, () => D.TYRE_ALLOC.fpLaps);
+    // 予選でソフトを3セット使う前提（Q1・Q2・Q3で1本ずつ）
+    for (let i = 0; i < 3; i++) S.runSet(bank, 'soft', true, D.TYRE_ALLOC.qLaps);
+    return ['soft', 'medium', 'hard'].map(k => {
+      const ty = D.TYRES.find(x => x.key === k);
+      const n = S.bankFresh(bank, k);
+      return '<i class="lo' + (n === 0 ? ' zero' : '') + '" style="background:' +
+        ty.color + ';color:' + ty.text + '">' + ty.name.charAt(0) + n + '</i>';
+    }).join('');
+  }
+
   function fpTyreHTML() {
     const cur = pendingStrategy.fpt || 'mix';
     const crew = S.readCrew(g);
@@ -601,6 +616,10 @@ GP.screens.weekend = function (A) {
       '／ソフト' + D.TYRE_ALLOC.sets.soft + '）。' +
       '雨用はインター' + D.TYRE_ALLOC.wet.inter + '・ウェット' + D.TYRE_ALLOC.wet.wet +
       'の別枠です。走行で使った本数は戻ってきません。<br>' +
+      '<b>ちがいはソフトを何本使うかです。</b>' +
+      'ソフトは一発が速いぶん、走らせても長い距離のことは分かりません。' +
+      '<b>ハードを履けるのは、長い距離を走り込む「レース重視」だけ</b>で、' +
+      '短い走りでは働く温度まで持っていけません。<br>' +
       '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
       'ただし、データは読める人がいてはじめて数字になります' +
       '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
@@ -609,9 +628,11 @@ GP.screens.weekend = function (A) {
       const read = S.tyreRead(g, p.key, 1);
       h += '<button class="pickbtn' + (p.key === cur ? ' on' : '') + '" data-v="' + p.key + '">' +
         '<span class="pb-ic" style="background:#8a4a3a">' + p.icon + '</span>' +
-        '<span class="pb-body"><b>' + p.name + '</b><small>' + esc(p.desc) +
+        '<span class="pb-body"><b>' + p.name + '</b>' +
+        (p.longRun ? '<i class="lrtag">ロングラン</i>' : '') + '<small>' + esc(p.desc) +
         '<br>一発の速さの手応え <b>' + Math.round(p.pace * 100) + '%</b>' +
         '／タイヤの読み <b>' + Math.round(read * 100) + '%</b>' +
+        '<br>日曜に残る新品 ' + leftoverHTML(p) +
         '</small></span>' +
         '<span class="pb-cost">🛞' + p.sets.length + '本<br>' +
         '<i class="tyuse">' + p.sets.filter(k => k === 'soft').length + 'S ' +
@@ -879,6 +900,7 @@ GP.screens.weekend = function (A) {
       'チャーターで先乗りしたチームはセットアップが進んでおり、' +
       '船便のチームは荷が遅れることがあります（⏳）。</p>';
     body += fpLearnHTML(res);
+    body += tyreLifeHTML(res);
     body += bankHTML(res, 'フリー走行で使ったぶんが引かれています。' +
                           '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
@@ -1283,6 +1305,100 @@ GP.screens.weekend = function (A) {
      何を履いて走ったか（データ）と、それを読める人（ストラテジストと
      エンジニア）の積が「読み」になる。読みが深いほど、
      タイヤの持ちの見立てが細く、ストップ数の判断も外れなくなる。   */
+  /* ---------- タイヤの持ち ----------
+     銘柄ごとに、1周でどれだけ落ちていくか。数字を手で書くと
+     式を触ったときに嘘になるので、決勝と同じ式をそのまま呼んで引く。
+
+     決勝の1周は
+       t  = 基準 * ty.pace
+       t += 基準 * 走った周回 * 0.0014 * コース負荷 * 腕 * 作戦 * ty.wear
+       寿命を過ぎたら t += 基準 * 超過^2 * 0.0011 * 腕
+     という形をしている。ここではその増えぶんだけを取り出して並べる。 */
+  function degOf(ty, track, age, wear) {
+    const base = track.base;
+    let v = base * (ty.pace - 1);
+    v += base * age * 0.0014 * track.tyre * wear * ty.wear;
+    const over = age - ty.life;
+    if (over > 0) v += base * over * over * 0.0011;
+    return v;
+  }
+
+  function tyreLifeHTML(res) {
+    const t = res && res.track
+      || D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
+    const d = (g.drivers || [])[0];
+    const wear = d ? S.tyreWear(d) * S.tyreKind(g) : 1;
+    const A = D.TYRE_ALLOC;
+    // 金曜に1セット走らせると、これだけ古くなって日曜に出てくる
+    const carry = A.fpLaps * A.carry;
+    const pit = (t.pitLane || 18) + 2.6;
+
+    let h = '<div class="sub small">🛞 タイヤの持ち</div>' +
+      '<p class="desc">' + esc(t.name) + '（基準 ' + t.base + '秒／タイヤ負荷 ×' +
+      t.tyre + '）で、いまのドライバーとマシン（タイヤへの当たり ×' +
+      wear.toFixed(2) + '）が走ったときの落ち方です。' +
+      '<b>寿命を過ぎると、そこから加速度的に落ちます。</b></p>' +
+      '<div class="degwrap"><div class="degtab"><div class="dg-h"><span>銘柄</span>' +
+      '<span>出だし</span><span>1周あたり</span><span>寿命</span>' +
+      '<span>寿命+5周</span></div>';
+
+    const s0 = degOf(D.TYRES[0], t, 0, wear);
+    D.DRY_TYRES.forEach(k => {
+      const ty = D.TYRES.find(x => x.key === k);
+      const slope = t.base * 0.0014 * t.tyre * wear * ty.wear;
+      const over5 = degOf(ty, t, ty.life + 5, wear) - degOf(ty, t, ty.life, wear);
+      h += '<div class="dg-r"><span class="dg-n" style="background:' + ty.color +
+        ';color:' + ty.text + '">' + ty.name + '</span>' +
+        '<span>' + (degOf(ty, t, 0, wear) - s0 >= 0 ? '+' : '') +
+        (degOf(ty, t, 0, wear) - s0).toFixed(2) + '秒</span>' +
+        '<span>+' + slope.toFixed(3) + '秒</span>' +
+        '<span><b>' + Math.round(ty.life / Math.max(0.35, t.tyre * wear)) + '周</b></span>' +
+        '<span class="dg-w">+' + over5.toFixed(2) + '秒</span></div>';
+    });
+    h += '</div></div>';
+
+    /* ---- ユーズドは実際に使えるのか ----
+       ここがいちばん知りたいところなので、
+       「ピット1回ぶんを失うまでに何周走れるか」に直して見せる      */
+    h += '<div class="sub small">ユーズドは使えるのか</div>' +
+      '<p class="desc">金曜に1セット走らせると ' + A.fpLaps + '周ぶん減り、' +
+      'そのうち ' + Math.round(A.carry * 100) + '% を日曜まで引きずります' +
+      '（＝出だしから約 ' + carry.toFixed(1) + '周ぶん古い状態）。' +
+      'このコースのピット1回は約 <b>' + pit.toFixed(1) + '秒</b>です。</p>' +
+      '<div class="degwrap"><div class="degtab"><div class="dg-h"><span>銘柄</span>' +
+      '<span>新品なら</span><span>中古なら</span><span>出だしの差</span>' +
+      '<span>1スティント</span></div>';
+    /* 1スティントの長さ。「中古で走れるか」は、
+       レース全体ではなく、次に止まるまでを走りきれるかで決まる      */
+    const laps0 = Math.max(4, Math.round(t.laps *
+      (raceCtx.special ? raceCtx.special.lapMul : 1)));
+    const stint = Math.round(laps0 / (S.naturalStops(t, laps0, t.tyre * wear) + 1));
+    D.DRY_TYRES.forEach(k => {
+      const ty = D.TYRES.find(x => x.key === k);
+      const real = ty.life / Math.max(0.35, t.tyre * wear);
+      const used = real - carry;
+      const loss = degOf(ty, t, carry, wear) - degOf(ty, t, 0, wear);
+      // その中古で1スティント走ったとき、新品に対してどれだけ損をするか
+      const cost = loss * Math.min(used, stint);
+      const ok = used >= stint && cost < pit;
+      h += '<div class="dg-r"><span class="dg-n" style="background:' + ty.color +
+        ';color:' + ty.text + '">' + ty.name + '</span>' +
+        '<span>' + Math.round(real) + '周</span>' +
+        '<span>' + Math.round(used) + '周</span>' +
+        '<span>+' + loss.toFixed(2) + '秒/周</span>' +
+        '<span class="' + (ok ? 'dg-ok' : 'dg-w') + '">' +
+        (used < stint ? Math.round(used) + '周で力尽きる'
+         : cost >= pit ? '損が ' + cost.toFixed(1) + '秒' : '走りきれる') +
+        '</span></div>';
+    });
+    h += '</div></div>' +
+      '<p class="desc">このコースの1スティントは <b>約' + stint + '周</b>です' +
+      '（' + laps0 + '周を ' + (S.naturalStops(t, laps0, t.tyre * wear) + 1) + '回に分けた場合）。' +
+      '中古でもそこまで届き、失う時間がピット1回ぶん（' + pit.toFixed(1) + '秒）に' +
+      '満たないなら、<b>新品を待つより中古で出たほうが速い</b>ということになります。</p>';
+    return h;
+  }
+
   function fpLearnHTML(res) {
     const t = res.track || D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
     const plan = S.fpTyrePlan(pendingStrategy.fpt || 'mix');

@@ -339,6 +339,37 @@ GP.race = (function () {
               '「わかりました。まずは生き残ります」',
               '「はい。とにかく最後まで持って帰ります」'],
     /* --- ピット → ドライバー --- */
+    /* ---- 棚に何が残っているか ----
+       金曜に走らせたぶんだけ、日曜の棚は薄くなる。
+       「履きたいもの」と「残っているもの」が食い違ったときの、
+       ピットウォールとドライバーのやりとり                       */
+    stockNone: ['「{T}は、もうユーズドしかないぞ」',
+                '「{T}の新品は残っていない。金曜に使ったぶんが返ってきているだけだ」',
+                '「悪い、{T}は金曜で使い切った。あるのは中古だけだ」',
+                '「{T}、新品なし。{U}周ぶん走ったやつならある」'],
+    stockAsk:  ['「なら{A}でもいい、新品が履きたい！」',
+                '「中古はいやだ。新品が残っているやつにしてくれ」',
+                '「硬くてもいい。とにかく新しいのを頼む」',
+                '「終盤まで持たせるなら、新品じゃないと無理だ」'],
+    /* 頼みが通らなかったときは、ドライバーも銘柄を指定しない */
+    stockAskB: ['「中古はいやだ。新品が残っているやつにしてくれ」',
+                '「硬くてもいい。とにかく新しいのを頼む」',
+                '「終盤まで持たせるなら、新品じゃないと無理だ」'],
+    stockSwap: ['「わかった、{A}の新品を用意する」',
+                '「{A}に変える。新品だ、それで行こう」',
+                '「了解。{A}の新品を出す。持たせてくれ」'],
+    stockKeep: ['「それでも{T}だ。ユーズドでも、こっちのほうが速い」',
+                '「新品が残っているのは、ここまで持たない銘柄だけだ。{T}で行く」',
+                '「他に新品がない。{T}のまま行くぞ」'],
+    stockThx:  ['「助かる。それで行こう」',
+                '「よし、それなら戦える」',
+                '「了解、そっちのほうがいい」'],
+    stockOk:   ['「……了解。持たせる」',
+                '「わかった、大事に使う」',
+                '「しかたない、なんとかする」'],
+    stockNg:   ['「本気か。あれじゃ最後まで持たないぞ」',
+                '「聞いてないぞ、そんなの」',
+                '「……勝手にしてくれ」'],
     box: ['「ボックス、ボックス。{T} に行く」',
           '「今周ピットだ。{T} を用意してある」',
           '「入れ。{T}、準備できている」',
@@ -590,6 +621,25 @@ GP.race = (function () {
       const beat = lap + (e.num || 0);      // 2台の無線が重ならないようにずらす
       // ---- 起きたことに応じて、優先度の高いものから ----
       if (e.pitPlan.indexOf(lap + 1) >= 0) {           // 次の周にピット
+        /* 棚が薄くて、履きたいものが新品で残っていなかった週は、
+           指示の前にひとやりとりある                              */
+        const nx = e.stints[Math.min(e.stints.length - 1, e.stintIdx + 1)];
+        if (nx && nx.ask && !nx.askSaid) {
+          nx.askSaid = true;
+          const a = nx.ask;
+          V.T = tyreOf(a.want).name;
+          V.U = a.usedAge;
+          V.A = a.alt ? tyreOf(a.alt).name : '';
+          push(RADIO.stockNone, 'pit', true);
+          push(a.swap ? RADIO.stockAsk : RADIO.stockAskB, 'drv', true);
+          push(a.swap ? RADIO.stockSwap : RADIO.stockKeep, 'pit', true);
+          /* 頼みが通れば素直に喜ぶ。通らなかったときの返事は、
+             ピットへの信頼で変わる。積み上がっていなければ食ってかかる */
+          push(a.swap ? RADIO.stockThx
+             : ((e.trust == null ? 60 : e.trust) < D.TRUST.ignoreFrom
+                ? RADIO.stockNg : RADIO.stockOk), 'drv', true);
+          V.T = tyreOf(e.pitTyre || e.tyreKey).name;
+        }
         push(RADIO.box, 'pit', true);
         push(RADIO.roger, 'drv', true);
         e.radioCool = 2;
@@ -1025,6 +1075,25 @@ GP.race = (function () {
     return out;
   }
 
+  /* ---------- 速さの差 → 1周のタイム差 ----------
+     ref は「その週いちばん速い車」。そこから何割落ちるかで見るので、
+     車の力そのものが何倍になっても、絵が壊れない。
+     戻り値は、コース基準タイムに対する割合。                       */
+  function paceGap(perf, ref) {
+    const P = D.PACE;
+    const rel = (ref - perf) / Math.max(1, ref);
+    return P.k * P.soft * Math.tanh(rel / P.soft);
+  }
+  /* 年を追うごとの底上げ。全体の水準が上がったぶんだけ、少しずつ速くなる */
+  function paceEra(ref) {
+    const P = D.PACE;
+    return P.era * Math.log(1 + Math.max(0, ref - P.ref0) / P.ref0);
+  }
+  /* その週の基準。予選も決勝も同じ物差しを使う */
+  function perfRef(entries) {
+    return Math.max.apply(null, entries.map(e => e.perf)) + 4;
+  }
+
   /* 予選のタイヤ方針。段階予選では、セッションごとの指定が上書きする */
   function qPlanOf(strategy) {
     const k = (strategy && strategy.qplan) || 'all';
@@ -1061,6 +1130,10 @@ GP.race = (function () {
       e.qTyre = [null, null, null]; e.qOut = null;
     });
     return { si: 0, sizes: [n, q2n, q3n], q2n: q2n, q3n: q3n, n: n,
+             // 物差しは Q1 の顔ぶれで決めて、最後まで変えない。
+             // セッションごとに決め直すと、速い車が落ちていくたびに
+             // 残った全員のタイムが動いてしまう
+             ref: perfRef(entries),
              field: entries.slice(), sessions: [] };
   }
 
@@ -1079,7 +1152,9 @@ GP.race = (function () {
       q *= (1 - sp + Math.random() * sp * 2) * weather.grip;
       // 落とすか落とされるかの場面ほど、気持ちの強さがタイムに出る
       q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08 * (1 + Q.nerve[si]));
-      let t = track.base * (1 + (Q.base + (140 - q) * 0.0009)) * Q.evo[si];
+      const ref = qs.ref || perfRef(field);
+      let t = track.base * (1 + Q.base + Q.off
+                              + paceGap(q, ref) - paceEra(ref)) * Q.evo[si];
       /* ---- 何を履いて出るか ----
          雨なら本数に関係なく雨用を履く。乾いていれば棚から1セット出し、
          走ったぶんだけ古くして戻す。中古は、そのぶん食いつかない      */
@@ -1183,9 +1258,11 @@ GP.race = (function () {
     // 走り込んだ週ほど、出てくる並びが本当の力に近づく
     const deep = strategy && (strategy.fp === 'long' || strategy.fp === 'tyre');
     const spread = deep ? 0.055 : 0.105;
+    const fpRef = perfRef(entries);
     entries.forEach(e => {
       e.fpScore = e.perf * (1 - spread + Math.random() * spread * 2);
-      e.qTime = track.base * (1 + (0.026 + (140 - e.fpScore) * 0.0009));
+      e.qTime = track.base * (1 + 0.026 + D.QUALI.off
+                                + paceGap(e.fpScore, fpRef) - paceEra(fpRef));
     });
     const grid = entries.slice().sort((a, b) => a.qTime - b.qTime);
     grid.forEach((e, i) => { e.grid = i + 1; });
@@ -1512,7 +1589,8 @@ GP.race = (function () {
     const E = D.ERS;
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
-    const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
+    const refPerf = perfRef(entries);
+    const refEra = paceEra(refPerf);
     /* 1周の中で、どの区間にどれだけ時間を使うか。
        基準の車の時間配分に、その車の区間ごとの力を掛けて割り出す。
        ダウンフォースが厚ければ曲がりどころの区間が短くなり、
@@ -1521,7 +1599,7 @@ GP.race = (function () {
       const sh0 = GP.geom.sectorWeights(track).share0;
       entries.forEach(e => {
         if (!e.secPerf) return;
-        const w = e.secPerf.map((v, k) => sh0[k] * (1 + (refPerf - v) * 0.00092));
+        const w = e.secPerf.map((v, k) => sh0[k] * (1 + paceGap(v, refPerf)));
         const sum = w[0] + w[1] + w[2];
         e.secShare = sum > 0 ? w.map(v => v / sum) : sh0.slice();
       });
@@ -1690,7 +1768,28 @@ GP.race = (function () {
          走り込んだ週末ほど、日曜に出てくるのは古いタイヤになる。
          新品が尽きていれば、前に走ったぶんを引きずったまま走り出す   */
       if (!weather.wetTyres && e.bank) {
-        e.stints.forEach(st2 => {
+        e.stints.forEach((st2, si2) => {
+          /* ---- 履きたいものが、新品で残っているか ----
+             残っていなければ、ドライバーは「他の銘柄でもいいから新品を」
+             と言ってくる。ピットウォールは、その銘柄でこのスティントを
+             走りきれるかどうかで判断する。走りきれないなら、
+             中古でも速いほうを選ぶ。ここでのやりとりは控えておいて、
+             実際にピットに入る周に無線で流す                        */
+          if (e.isPlayer && si2 > 0 && S.bankFresh(e.bank, st2.key) === 0) {
+            const want = st2.key;
+            const usedAge = Math.min.apply(null, e.bank[want] || [99]);
+            // 新品が残っていて、このスティントを走りきれる銘柄を探す
+            /* 代わりに出すのは、もともと履きたかったものにいちばん近い銘柄。
+               速いものに飛びつくと、持たずに結局もう一度止まることになる */
+            const wl = tyreOf(want).life;
+            const alt = D.DRY_TYRES.filter(k => k !== want && S.bankFresh(e.bank, k) > 0)
+              .map(k => tyreOf(k))
+              .filter(t => t.life >= st2.laps * 0.85)
+              .sort((a, b) => Math.abs(a.life - wl) - Math.abs(b.life - wl))[0];
+            st2.ask = { want: want, usedAge: Math.round(usedAge * 10) / 10,
+                        alt: alt ? alt.key : null, swap: !!alt };
+            if (alt) st2.key = alt.key;
+          }
           const set = S.drawSet(e.bank, st2.key, true);
           st2.key = set.key;
           st2.age0 = Math.round(set.age * D.TYRE_ALLOC.carry * 10) / 10;
@@ -1908,7 +2007,7 @@ GP.race = (function () {
         if (e.dnf) return;
 
         // 基準ラップタイム
-        let t = track.base * (1 + (refPerf - e.perf) * 0.00092);
+        let t = track.base * (1 + paceGap(e.perf, refPerf) - refEra);
         t *= (1 - e.st.pace);
         t /= wx.grip;
 
@@ -1999,9 +2098,12 @@ GP.race = (function () {
         e.tyreAge += (e.wearCar || 1);
         // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
         if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
+        /* 走った周回ぶんの落ち。ここが浅いと、中古のタイヤも
+           寿命を過ぎたタイヤも「ちょっと遅いだけ」になってしまう。
+           1スティントぶん走ると2秒前後を失う傾きにしてある      */
+        t += track.base * e.tyreAge * 0.0014 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
+        if (over > 0) t += track.base * over * over * 0.0011 * e.tyreSkill;   // 落ちきってからは加速度的に
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
