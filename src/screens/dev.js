@@ -48,13 +48,13 @@ GP.screens.dev = function (A) {
       mechMapHTML(g) + mechReadHTML(g) +
       '<div class="sub">何をしますか</div>' +
       '<p class="desc">どれも1週ぶんのコマンドです。' +
-      '<b>改良</b>は積んでいるものを煮詰め、<b>開発</b>は新しいパーツと技術を作り、' +
+      '<b>改良</b>は積んでいるものを煮詰め、<b>開発</b>は新しいパーツと素材を作り、' +
       '<b>研究</b>はその一段手前で「何が効くか」を探します。</p>' +
       '<div class="pick">' +
       carPickHTML('🔧', '改良', 'いま積んでいるパーツを煮詰める',
-        '性能が伸び、熟成が溜まると格（レアリティ）が上がって上限そのものが伸びる', 'imp') +
-      carPickHTML('📐', '開発', '新しいパーツを作り、技術を伸ばす',
-        'チームの技術（タグ）はどのパーツにも乗る。新型を設計して載せ替える', 'des') +
+        '性能が上限へ近づく。上限はその個体の品質で決まっていて、ここでは動かない', 'imp') +
+      carPickHTML('📐', '開発', '新しいパーツを作り、素材と技術を伸ばす',
+        '出来のいい個体を引き当てる。作るほど扇に勘所が貯まり、素材を上げられる', 'des') +
       carPickHTML('🔬', '研究', 'まだ図面になっていないものを探す',
         '知見が溜まり、改良1回ぶんの伸びが大きくなる。開発の一段手前', 'res') +
       '</div>';
@@ -64,6 +64,71 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
   }
+  /* ---- 素材 ----
+     扇ごとに、いま何で作れるか。
+     パーツを作り、煮詰めるたびに、その扇に「勘所」が貯まる。
+     溜まったぶんを使うと素材が一段上がり、
+     以後その扇で<b>作るパーツ</b>の出来が底上げされる。
+     すでに載っているものは変わらない（作り直しが要る）        */
+  function matBoxHTML() {
+    let h = '<div class="sub">素材</div>' +
+      '<p class="desc">扇ごとに、いま何で作れるか。' +
+      '手を動かすほど勘所が貯まり、溜まったぶんで一段上げられます。' +
+      '上がるのは<b>これから作るパーツ</b>で、いま載っているものは変わりません。' +
+      U.helpLink('car') + '</p><div class="pick matpick">';
+    D.PART_GROUPS.forEach(gr => {
+      const now = S.matDef(g, gr.key);
+      const nx = S.matNext(g, gr.key);
+      const pt = S.matPoints(g, gr.key);
+      const ok = !!nx && pt >= nx.cost;
+      const pct = nx ? Math.min(100, Math.round(pt / nx.cost * 100)) : 100;
+      h += '<button class="pickbtn matrow" data-mat="' + gr.key + '"' +
+        (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:' + gr.color + '">' + gr.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(gr.name) +
+        '<em class="matnow">' + now.icon + ' ' + esc(now.name) + '</em></b>' +
+        '<small>' + esc(now.note) +
+        (nx
+          ? '<br><b>次は ' + nx.icon + ' ' + esc(nx.name) + '</b>' +
+            '（品質の真ん中が ' + now.mid.toFixed(2) + ' → ' + nx.mid.toFixed(2) +
+            '／作るときの性能 ×' + nx.mul.toFixed(2) + '）' +
+            '<span class="skbar"><i style="width:' + pct + '%;background:' + gr.color + '"></i></span>' +
+            '<span class="devnow">勘所 ' + pt + ' / ' + nx.cost + '</span>'
+          : '<br><b>これ以上の素材はありません</b>') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (nx ? (ok ? '🔨 上げる' : 'あと ' + (nx.cost - pt)) : '—') +
+        '</span></button>';
+    });
+    return h + '</div>';
+  }
+
+  function bindMat() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mat]'), b => {
+      b.onclick = () => {
+        const k = b.dataset.mat;
+        const up = S.matUp(g, k);
+        if (!up) return;
+        const gr = D.PART_GROUPS.filter(x => x.key === k)[0];
+        GP.sound.play('levelup');
+        U.log(g, up.icon + ' ' + gr.name + ' を ' + up.name + 'で作れるようになった' +
+          '（これから作るパーツの出来が上がる）', 'good');
+        U.toast(up.icon + ' ' + gr.name + ' → ' + up.name + '！', 'good');
+        S.save(g);
+        render();
+        cmdDesign();
+      };
+    });
+  }
+
+  /* パーツの出来を、ひと目の札にする */
+  function qualChip(p) {
+    const q = S.qualOf(p), t = S.qualTier(q);
+    const m = D.MATERIALS[p.mat || 0] || D.MATERIALS[0];
+    return '<b class="qchip" style="border-color:' + t.color + ';color:' + t.color + '"' +
+      ' title="' + esc(t.note) + '">' + t.name + ' ' + q.toFixed(2) + '</b>' +
+      '<b class="mchip" title="' + esc(m.note) + '">' + m.icon + ' ' + m.name + '</b>';
+  }
+
   function carPickHTML(icon, name, sub, note, key) {
     return '<button class="pickbtn" data-car="' + key + '">' +
       '<span class="pb-ic" style="font-size:19px">' + icon + '</span>' +
@@ -216,12 +281,13 @@ GP.screens.dev = function (A) {
         .map(x => x[0] + ' ' + num(x[1])).join('／');
       body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
         '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
-        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, p.rarity) + '</span>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' +
+          U.partIcon(c.key, 26, S.qualStars(S.qualOf(p))) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) +
         (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') +
         // 研究で溜めた知見。この部位を改良すると、1つ使って大きく伸びる
         (S.findingsOf(g, c.key)
-          ? '<em class="findchip" title="🔬 研究の知見。改良1回に乗って、伸びと熟成が ×' +
+          ? '<em class="findchip" title="🔬 研究の知見。改良1回の伸びが ×' +
             D.RESEARCH.polMul.toFixed(2) + ' になります">🔬 知見 ' +
             S.findingsOf(g, c.key) + '</em>' : '') + '</b>' +
         '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
@@ -236,12 +302,14 @@ GP.screens.dev = function (A) {
           '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
           secGainLine(pv) +
           (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
-        // 熟成。手を入れ続けると、このパーツの「格」そのものが上がる
-        (locked ? '' : (p.rarity >= D.RARITY.length
-          ? '<span class="devpol">✨ 【' + D.RARITY[p.rarity - 1].name + '】これ以上の格はありません</span>'
-          : '<span class="devpol">熟成 <span class="polbar"><i style="width:' +
-            Math.round((p.polish || 0) * 100) + '%"></i></span>' +
-            'あと ' + S.polishLeft(g, p) + '回で【' + D.RARITY[p.rarity].name + '】へ格上げ</span>')) +
+        /* 品質。上限がどこで止まるかは、この個体の出来で決まっている。
+           改良では動かないので、これ以上を望むなら作り直すしかない */
+        (locked ? '' :
+          '<span class="devpol">' + qualChip(p) +
+          '　この個体の上限は <b>' + cap + '</b>（世代 ' +
+          D.CAR_GENS[g.carGen].cap + ' × 品質 ' + S.qualOf(p).toFixed(2) + '）' +
+          (capped ? '　<b class="warn">作り直せば、もっと良い個体が出るかもしれません</b>' : '') +
+          '</span>') +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
@@ -366,6 +434,9 @@ GP.screens.dev = function (A) {
         '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
     }
 
+    // ---- 素材 ----
+    body += matBoxHTML();
+
     // ---- 技術開発 ----
     body += '<div class="sub">技術の開発</div>' +
       '<p class="desc">ここで積み上げるのは<b>チームの技術</b>です。' +
@@ -428,6 +499,7 @@ GP.screens.dev = function (A) {
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
     });
+    bindMat();
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -909,12 +981,12 @@ GP.screens.dev = function (A) {
     const pkAll = Math.round(S.packScore(g2) * 100);
     return '<div class="ringmap">' + h +
       '<div class="rg-leg">' + gl +
-      '<span class="rg-sum">パッケージング <b>' + pkAll + '%</b>' +
+      '<span class="rg-sum">継ぎ目のインテグレート <b>' + pkAll + '%</b>' +
       '　噛み合っている組 <b>' + live + '</b>/' + syn.length + '</span>' +
       '</div>' +
-      '<p class="desc">内から外へ、<b>部品 → 馴染み方 → コンセプト</b>。' +
+      '<p class="desc">内から外へ、<b>部品 → インテグレート → コンセプト</b>。' +
       '節が<b>いちばん外の線</b>に貼りついていたら、その項目はもう限界です。' +
-      '扇形どうしの橋が<b>パッケージング</b>で、細い橋は車をまとめさせません。' +
+      '扇どうしの橋が<b>継ぎ目のインテグレート</b>で、細い橋は車をまとめさせません。' +
       U.helpLink('car') + '</p>' +
       '</div>';
   }
@@ -1159,21 +1231,10 @@ GP.screens.dev = function (A) {
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
        掘り当てると、熟成が一気に進む                                */
     const brk = S.rollBreakthrough(g);
-    let upTo = null;
-    let polGain = S.polishStep(g, p) * (found ? D.RESEARCH.polMul : 1);
-    if (brk) {
-      gain *= D.INNOV.playerGain; crit = true;
-      polGain += 0.55;                 // 掘り当てたぶん、格に近づく
-    }
-    /* ---- 熟成 ----
-       手を入れるたびに、そのパーツは少しずつ「良いもの」になっていく。
-       満ちたところで格が上がり、到達できる上限そのものが伸びる      */
-    if (p.rarity < D.RARITY.length) {
-      p.polish = (p.polish || 0) + polGain;
-      if (p.polish >= 1) { p.polish = 0; upTo = p.rarity + 1; }
-    } else {
-      p.polish = 0;
-    }
+    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
+    /* 手を動かせば、その扇の作りかたも分かってくる。
+       ここで貯まったぶんが、あとで素材を上げる元手になる */
+    S.addMatPoint(g, key, D.MAT.perImprove * (brk ? 3 : 1));
     if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     // 来季に回したぶんは今季に乗らない
     const toNext = gain * fc.next;
@@ -1185,17 +1246,9 @@ GP.screens.dev = function (A) {
     if (brk) {
       // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
       g.concepts = (g.concepts || []).concat([{
-        cat: key, what: brk, rarUp: !!upTo, gain: gain, at: S.weekStamp(g)
+        cat: key, what: brk, rarUp: false, gain: gain, at: S.weekStamp(g)
       }]);
       S.pushNews(g, 'brk', brk);
-    }
-    if (upTo) {
-      p.rarity = upTo;
-      const rr = D.RARITY[upTo - 1];
-      U.log(g, (brk ? '🔬 ' + brk + '！ ' : '✨ 熟成が実った！ ') + p.name +
-        ' が【' + rr.name + '】に格上げ（上限も伸びた）', 'good');
-      U.toast('✨ ' + rr.name + ' へ格上げ！', 'good');
-      GP.sound.play('levelup');
     }
 
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
@@ -1204,14 +1257,18 @@ GP.screens.dev = function (A) {
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
     GP.sound.play(crit ? 'crit' : 'confirm');
-    if (p.power >= cap) U.toast('このパーツは限界です。残りも仕上げれば、マシンが次の世代へ進みます。', 'warn');
+    /* 上限で止まったら、そこから先は「作り直す」しかない。
+       この個体の器は、作った日に決まっている                */
+    if (p.power >= cap) {
+      U.toast('この個体はここまでです（品質 ' + S.qualOf(p).toFixed(2) +
+        '）。もっと良い出来を狙うなら、📐開発で作り直します。', 'warn');
+    }
     // 手を入れた実感が出るように、伸びを見せてから週を進める
     showDevResult({
-      icon: U.partIcon(c.key, 44, p.rarity), color: c.color,
+      icon: U.partIcon(c.key, 44, S.qualStars(S.qualOf(p))), color: c.color,
       title: p.name,
-      sub: upTo ? (brk ? '🔬 ' + brk + ' — ' : '✨ 熟成 — ') + '【' + D.RARITY[upTo - 1].name + '】へ'
-         : brk ? '🔬 ' + brk : c.name,
-      from: p.power - gain, to: p.power, cap: upTo ? S.partCap(g, p) : cap, gain: gain, crit: crit,
+      sub: brk ? '🔬 ' + brk : c.name,
+      from: p.power - gain, to: p.power, cap: cap, gain: gain, crit: crit,
       next: toNext > 0.05 ? toNext : 0
     }, endWeek);
   }
@@ -1272,26 +1329,35 @@ GP.screens.dev = function (A) {
     }
 
     const hinted = (g.designEdge || 0) > 0;
-    const rarity = S.rollRarity(g);
+    /* ---- 出来 ----
+       素材が底を決め、工作機械と設計陣がそこへ積み、最後に運が乗る。
+       同じ図面でも毎回ちがう出来になるのは、この最後のひと振りのため */
+    const quality = S.rollQuality(g, key);
     if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
     const ws = S.workshopOf(g);
-    const part = S.makePart(key, g.carGen, rarity);
+    const grp = S.groupOfPart(key);
+    const part = S.makePart(key, g.carGen, quality, { mat: S.matOf(g, grp) });
+    // 作れば作るほど、その扇の勘所が溜まる
+    S.addMatPoint(g, key, D.MAT.perDesign);
     /* 同じ図面でも、どの機械で削ったかで出来が変わる。
        そしてその図面そのものの質が、基本設計能力で決まる。
        （人事の噛み合わせ × 開発責任者とコンセプトの相性）      */
     const dm = S.designMul(g);
-    part.power = Math.round(part.power * ws.prec * dm * 10) / 10;
+    const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
+    part.power = Math.round(part.power * ws.prec * dm * mm * 10) / 10;
     g.inventory.push(part);
 
-    const rr = D.RARITY[rarity - 1];
+    const qt = S.qualTier(quality);
+    const star = S.qualStars(quality);
     U.closeModal();
-    U.log(g, '📐 ' + ws.icon + ' ' + ws.name + 'で ' + part.name + '（' + rr.name +
-      '）が完成！ 性能 ' + Math.round(part.power), rarity >= 3 ? 'good' : '');
-    GP.sound.play(rarity >= 4 ? 'crit' : 'confirm');
+    U.log(g, '📐 ' + ws.icon + ' ' + ws.name + 'で ' + part.name + '（' + qt.name +
+      ' ' + quality.toFixed(2) + '）が完成！ 性能 ' + Math.round(part.power),
+      star >= 3 ? 'good' : '');
+    GP.sound.play(star >= 4 ? 'crit' : 'confirm');
     staffExp('designer', 14); staffExp('engineer', 3);
-    if (rarity >= 4) U.toast('🎉 ' + rr.name + 'パーツ「' + part.name + '」が完成！', 'good');
-    else U.toast('📐 ' + part.name + '（' + rr.name + '）が完成', rarity >= 3 ? 'good' : '');
-    U.pop(U.stars(rarity), rarity >= 4 ? 'crit' : 'good');
+    if (star >= 4) U.toast('🎉 ' + qt.name + 'の出来！「' + part.name + '」', 'good');
+    else U.toast('📐 ' + part.name + '（' + qt.name + '）が完成', star >= 3 ? 'good' : '');
+    U.pop(qt.name + ' ' + quality.toFixed(2), star >= 4 ? 'crit' : 'good');
 
     // 装着中より強ければすすめる
     const cur = g.equipped[key];

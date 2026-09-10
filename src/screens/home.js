@@ -292,8 +292,17 @@ GP.screens.home = function (A) {
 
     const gain = Math.round(m.power * 0.45 * 10) / 10;
     base.power = Math.round((base.power + gain) * 10) / 10;
+    /* ---- 合成で器そのものが少し広がることがある ----
+       ばらした側の出来が良いほど、拾えるものが多い。
+       ただし品質は「作った日に決まる」ものなので、
+       ここで広がるのは、あくまで削り出しの手直しぶんに留める      */
     let up = false;
-    if (base.rarity < 5 && Math.random() < 0.22 + m.rarity * 0.08) { base.rarity++; up = true; }
+    const mq = S.qualOf(m);
+    if (Math.random() < 0.18 + Math.max(0, mq - 1) * 0.30) {
+      base.quality = Math.min(D.QUAL.max, S.qualOf(base) + S.rnd(0.03, 0.07));
+      base.quality = Math.round(base.quality * 1000) / 1000;
+      up = true;
+    }
     // 素材の追加効果を引き継ぐことがある
     let inherited = null;
     (m.traits || []).forEach(t => {
@@ -305,14 +314,16 @@ GP.screens.home = function (A) {
     g.inventory = g.inventory.filter(x => x.id !== materialId);
 
     let msg = '⚗️ ' + base.name + ' に ' + m.name + ' を合成！ 性能 +' + gain.toFixed(1);
-    if (up) msg += '  ⭐レアリティが ' + D.RARITY[base.rarity - 1].name + ' に上がった！';
+    if (up) msg += '  ⭐品質が ' + S.qualOf(base).toFixed(2) +
+                   '（' + S.qualTier(S.qualOf(base)).name + '）に上がった！';
     if (inherited) {
       const t = D.PART_TRAITS.find(x => x.key === inherited);
       if (t) msg += '  ' + t.icon + t.name + ' を引き継いだ！';
     }
     U.log(g, msg, up ? 'good' : '');
     GP.sound.play(up ? 'crit' : 'upgrade');
-    U.toast(up ? '⭐ ' + D.RARITY[base.rarity - 1].name + ' に進化！' : '⚗️ 合成成功！ 性能 +' + gain.toFixed(1), up ? 'good' : '');
+    U.toast(up ? '⭐ 品質 ' + S.qualOf(base).toFixed(2) + ' へ！'
+               : '⚗️ 合成成功！ 性能 +' + gain.toFixed(1), up ? 'good' : '');
     U.pop('+' + gain.toFixed(1), up ? 'crit' : 'good');
     S.save(g); render(); cmdGarage();
   }

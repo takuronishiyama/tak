@@ -348,13 +348,54 @@ GP.data = (function () {
 
   /* ---------- パーツのレアリティ ----------
      mult は製作時のベース性能、capMult は改良の上限に効く          */
-  const RARITY = [
-    { n: 1, name: 'ノーマル',     color: '#a89878', mult: 1.00, capMult: 1.00 },
-    { n: 2, name: 'レア',         color: '#4ea63f', mult: 1.22, capMult: 1.11 },
-    { n: 3, name: 'スーパーレア', color: '#3a7ad9', mult: 1.50, capMult: 1.22 },
-    { n: 4, name: 'ウルトラレア', color: '#b06fd0', mult: 1.85, capMult: 1.34 },
-    { n: 5, name: 'レジェンド',   color: '#f0a020', mult: 2.30, capMult: 1.48 }
+  /* ---------- パーツの品質 ----------
+     同じ図面から作っても、出来上がりの質は毎回ちがう。
+     旋盤の癖、その日の温度、仕上げた人の腕。
+     質は<b>作った瞬間に決まり、あとから改良しても変わらない</b>。
+     改良で伸びるのは power のほうで、
+     品質は「その個体がどこまで伸びるか」という器の大きさを決める。
+
+     数字（0.8〜1.5あたり）がそのまま到達できる上限の倍率になる。
+     下の並びは、その数字をどう呼ぶかの目盛り。            */
+  const QUALITY = [
+    { at: 0.00, name: '並',     short: '並', color: '#a89878',
+      note: '図面どおり。悪くはないが、それだけ' },
+    { at: 1.03, name: '良品',   short: '良', color: '#4ea63f',
+      note: '手が入っている。数字にも出る' },
+    { at: 1.15, name: '上物',   short: '上', color: '#3a7ad9',
+      note: '狙って作れる範囲の、上のほう' },
+    { at: 1.29, name: '特上',   short: '特', color: '#b06fd0',
+      note: 'ここまで来ると、載せ替えたくなくなる' },
+    { at: 1.43, name: '会心作', short: '会', color: '#f0a020',
+      note: '同じものをもう一度作れる保証はない' }
   ];
+  /* 品質の振れかた。
+     rig  … 工作機械の世代ぶん   eng … 設計陣の腕ぶん
+     spread … 運の幅（ここがあるから「当たりを引く」が起きる） */
+  const QUAL = { min: 0.74, max: 1.52, rig: 0.030, eng: 0.0014, spread: 0.13 };
+
+  /* ---------- 素材 ----------
+     扇（空気と足／骨と制動／動力）ごとに、いま何で作れるか。
+     パーツを作るたびにその扇へポイントが貯まり、
+     溜まったぶんをファクトリーで使うと、素材が一段上がる。
+     上がると、その扇で<b>これから作るパーツ</b>の質が底上げされる。
+     mid はその素材で作ったときの品質の真ん中で、そこから運で上下する。
+     すでに載っているパーツは作り直さないと変わらない。      */
+  const MATERIALS = [
+    { n: 0, name: 'スチール',   icon: '🔩', mid: 0.94, mul: 1.00, cost: 0,
+      note: '重いが安い。曲げも溶接も、どこの町工場でもできる' },
+    { n: 1, name: 'アルミ合金', icon: '🥈', mid: 1.02, mul: 1.07, cost: 70,
+      note: '同じ強さなら軽い。削りかたに癖があり、慣れが要る' },
+    { n: 2, name: 'チタン',     icon: '⚙️', mid: 1.10, mul: 1.15, cost: 170,
+      note: '強くて軽い。そのぶん刃物がすぐ駄目になる' },
+    { n: 3, name: 'カーボン',   icon: '🕸️', mid: 1.18, mul: 1.25, cost: 340,
+      note: '積層の向きで性質が変わる。焼く釜と、焼ける人が要る' },
+    { n: 4, name: '複合材',     icon: '💠', mid: 1.26, mul: 1.36, cost: 560,
+      note: '金属と樹脂を使い分ける。設計から作りかたまでが一続きになる' }
+  ];
+  /* パーツを1つ作ると、その扇にこれだけ貯まる。
+     素材を1段上げるのに要るポイントは MATERIALS[n].cost   */
+  const MAT = { perDesign: 14, perImprove: 3 };
 
   /* ---------- 開発技術（タグ）----------
      以前は、パーツを作るたびに運で付いてくる「追加効果」だった。
@@ -388,12 +429,6 @@ GP.data = (function () {
     factory:  0.020              // ファクトリーのレベルぶん
   };
   /* 改良（🔧 改良コマンド）で溜まる「熟成」。満ちるとレアリティが上がる */
-  const POLISH = {
-    step: 0.16,                  // 1回ぶんの基本
-    eng: 0.012,                  // エンジニアの腕ぶん
-    factory: 0.010,              // ファクトリーのレベルぶん
-    rarStep: r => 1 / (0.5 + r * 0.55)   // 格が上がるほど、次は遠い
-  };
 
   /* ---------- 車体（マシン本体）----------
      パーツとは別に、車体そのものを1年かけて熟成させる。
@@ -2794,7 +2829,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

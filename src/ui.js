@@ -195,13 +195,21 @@ GP.ui = (function () {
   function partRow(g, p, opts) {
     opts = opts || {};
     const c = D.PART_CATS.find(x => x.key === p.cat);
-    const rr = D.RARITY[p.rarity - 1];
+    const q = S.qualOf(p);
+    const qt = S.qualTier(q);
+    const mt = D.MATERIALS[p.mat || 0] || D.MATERIALS[0];
     const cap = S.partCap(g, p);
     const pct = Math.min(100, p.power / cap * 100);
+    /* 星の数ではなく、品質と素材を出す。
+       「同じパーツでも出来がちがう」ことを、その場で読ませたい */
     return '<div class="part">' +
-      '<span class="p-ic ic-art" style="background:' + c.color + '">' + partIcon(c.key, 18, p.rarity) + '</span>' +
+      '<span class="p-ic ic-art" style="background:' + c.color + '">' +
+        partIcon(c.key, 18, S.qualStars(q)) + '</span>' +
       '<span class="p-nm">' + esc(p.name) +
-        '<small><span class="p-rar" style="color:' + rr.color + '">' + stars(p.rarity) + '</span> ' + c.name + '</small></span>' +
+        '<small><span class="p-rar" style="color:' + qt.color + '"' +
+        ' title="品質 ' + q.toFixed(2) + '。作った時に決まり、改良しても変わりません">' +
+        qt.name + ' ' + q.toFixed(2) + '</span> ' +
+        '<span class="p-mat" title="' + esc(mt.note) + '">' + mt.icon + mt.name + '</span></small></span>' +
       '<span class="p-lv">' + Math.round(p.power) + '<small>/' + cap + '</small></span>' +
       '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '"' +
@@ -264,7 +272,8 @@ GP.ui = (function () {
       '<em>放電 <b>' + ers.deploy + '</b>/周</em></div>' +
       '<div class="rel">信頼性 <b class="' + (rel < 55 ? 'bad' : rel < 75 ? 'warn' : 'good') + '">' + Math.round(rel) + '%</b>' +
       '<small>低いとリタイアしやすい。「整備」で回復。</small></div>' +
-      '<div class="sub small">車体の熟成</div><div class="bodyattrs">' + bodyRows + '</div>' +
+      '<div class="sub small">インテグレート（扇の中）</div>' +
+      '<div class="bodyattrs">' + bodyRows + '</div>' +
       '<div class="sub small">装着パーツ</div>' +
       '<div class="parts">' + parts + '</div>' +
       (g.inventory.length ? '<div class="invnote">📦 保管パーツ ' + g.inventory.length + ' 個（「マシン」で装着・合成）</div>' : '') +
