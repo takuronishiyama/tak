@@ -3210,3 +3210,37 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .tb-next{font-size:11px;padding:3px 9px;white-space:normal;min-width:0}
   .tb-team{flex:1 1 auto;min-width:0}
 }
+
+/* ---- 施設の画面のタブ ----
+   「広げる（レベル）」「備品」「事業」は別のもの。
+   ひと続きに積むと 1,700px になり、どれを見ているのか分からなくなる。
+   肩に今の状態（Lv.1／2/9／3件）を出しておき、
+   開かなくても、どこに手を入れる余地があるか分かるようにする   */
+.tabs.bastabs{margin-bottom:7px}
+.tabs.bastabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;
+                   min-height:44px;font-size:12.5px}
+.tabs.bastabs .tab em{font-style:normal;font-size:10px;font-weight:bold;
+                      padding:1px 6px;border-radius:999px;
+                      background:rgba(74,47,26,.16);color:inherit;opacity:.9}
+.tabs.bastabs .tab.on em{background:rgba(74,47,26,.22)}
+[data-skin="hd"] .tabs.bastabs .tab em{background:rgba(255,238,196,.18)}
+@media (orientation:landscape) and (max-height:560px){
+  .tabs.bastabs .tab{min-height:38px;font-size:11.5px}
+}
+
+/* ---- 施設の画面を、横向きの高さに収める ----
+   この画面での絵は「いまどの建物の話をしているか」を示すための
+   添え物なので、高さの3分の2を占めてはいけない。
+   選ぶ並びと、その建物の中身が同時に見えるところまで小さくする  */
+@media (orientation:landscape) and (max-height:560px){
+  #baseCv{max-height:118px;width:auto;max-width:100%}
+  /* 絵は小さくするので、額縁も絵の大きさに合わせる。
+     幅いっぱいのままだと、両脇が芝生で埋まってしまう      */
+  .basewrap:has(#baseCv){display:flex;justify-content:center;
+                         width:fit-content;max-width:100%;margin:0 auto}
+  .baseinfo{padding:3px 8px;font-size:10.5px;margin-bottom:5px}
+  .baseinfo span:last-child{display:none}   /* 添え書きはヘルプにある */
+  /* あとから入った .pick の縦積みに負けていたので、ここで横へ戻す */
+  .basepick{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .basepick .pickbtn{flex:1 1 30%;min-width:0;font-size:10px;min-height:40px}
+}

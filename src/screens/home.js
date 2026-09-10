@@ -321,6 +321,7 @@ GP.screens.home = function (A) {
      フリーメニュー：施設
      ======================================================= */
   let baseSel = 'factory';
+  let baseTab = 'fac';   // 広げる／備品／事業
 
   function facilityCost(key) {
     const f = D.FACILITIES.find(x => x.key === key);
@@ -344,7 +345,13 @@ GP.screens.home = function (A) {
       const x = (ev.clientX - r.left) * (GP.base.W / r.width);
       const y = (ev.clientY - r.top) * (GP.base.H / r.height);
       const k = GP.base.hit(x, y);
-      if (k) { baseSel = k; GP.sound.play('tap'); drawBase(); }
+      if (k) {
+        baseSel = k;
+        // 事業を見ている最中に建物を押したら、その施設の話へ戻す
+        if (baseTab === 'est') baseTab = 'fac';
+        GP.sound.play('tap');
+        drawBase();
+      }
     };
   }
 
@@ -676,32 +683,10 @@ GP.screens.home = function (A) {
     });
   }
 
-  function drawBase() {
-    const cv = $('baseCv');
-    if (!cv) return;
-    GP.base.render(cv, g, baseSel);
-    const f = D.FACILITIES.find(x => x.key === baseSel);
-    const lv = g.facilities[baseSel];
-    const cost = facilityCost(baseSel);
-    const facCut = S.perkCut(g, 'fac:' + baseSel);
-    const max = lv >= 10;
-    let h = '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
-      '<p class="desc">' + f.desc + '</p>' +
-      rigBoxHTML(baseSel) +
-      '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
-    for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
-    h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
-      '<div class="basebtns">' +
-      '<button class="btn primary" id="baseUp"' + ((max || g.funds < cost) ? ' disabled' : '') + '>' +
-      (max ? '最大まで拡張済み'
-           : '🔨 拡張する　' + (facCut > 0
-               ? '<s>💰' + money(Math.round(cost / (1 - facCut))) + '</s> 💰' + money(cost) + '万'
-               : '💰' + money(cost) + '万')) + '</button></div>' +
-      (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
-        Math.round(facCut * 100) + '%</b> になっています。</p>' : '') +
-      gearBoxHTML(baseSel) +
-      estateBoxHTML() +
-      '<div class="pick basepick">';
+  /* 施設を選ぶ並び。以前は1,700pxの最下段にあったので、
+     「選ぶ → 見る」の順になるよう、いちばん上へ持ってきた */
+  function facPickHTML() {
+    let h = '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
       const gn = (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length;
@@ -711,8 +696,70 @@ GP.screens.home = function (A) {
         (gt ? ' <i class="gearn' + (gn === gt ? ' full' : '') + '">備品 ' + gn + '/' + gt + '</i>' : '') +
         (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
     });
-    h += '</div>';
+    return h + '</div>';
+  }
+
+  function drawBase() {
+    const cv = $('baseCv');
+    if (!cv) return;
+    GP.base.render(cv, g, baseSel);
+    const f = D.FACILITIES.find(x => x.key === baseSel);
+    const lv = g.facilities[baseSel];
+    const cost = facilityCost(baseSel);
+    const facCut = S.perkCut(g, 'fac:' + baseSel);
+    const max = lv >= 10;
+    const owned = S.estateList(g).filter(x => x.owned).length;
+    const gearAll = D.FACILITIES.reduce((a, x) => a + (D.GEAR[x.key] || []).length, 0);
+    const gearGot = D.FACILITIES.reduce((a, x) =>
+      a + (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length, 0);
+    /* ---- 種類ごとに分ける ----
+       広げる（レベル）／備品（施設に据える道具）／事業（外に持つ店）は
+       別のもの。ひと続きに積むと、どれを見ているのか分からなくなる  */
+    const TABS = [
+      ['fac',  '🏗️', '広げる', 'Lv.' + lv],
+      ['gear', '🧰', '備品',   gearGot + '/' + gearAll],
+      ['est',  '💼', '事業',   owned ? owned + '件' : '']
+    ];
+    let h = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
+      '<button class="tab' + (baseTab === t[0] ? ' on' : '') + '" data-btab="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    if (baseTab === 'est') {
+      h += estateBoxHTML();
+    } else {
+      h += facPickHTML() +
+        '<div class="sub">' + f.icon + ' ' + f.name + '</div>';
+      if (baseTab === 'gear') {
+        h += gearBoxHTML(baseSel) ||
+             '<p class="desc">この施設に据えられる備品はありません。</p>';
+      } else {
+        h += '<p class="desc">' + f.desc + '</p>' +
+          rigBoxHTML(baseSel) +
+          '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
+        for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
+        h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>' +
+          '<div class="basebtns">' +
+          '<button class="btn primary" id="baseUp"' + ((max || g.funds < cost) ? ' disabled' : '') + '>' +
+          (max ? '最大まで拡張済み'
+               : '🔨 拡張する　' + (facCut > 0
+                   ? '<s>💰' + money(Math.round(cost / (1 - facCut))) + '</s> 💰' + money(cost) + '万'
+                   : '💰' + money(cost) + '万')) + '</button></div>' +
+          (facCut > 0 ? '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
+            Math.round(facCut * 100) + '%</b> になっています。</p>' : '');
+      }
+    }
     $('baseDetail').innerHTML = h;
+    /* 事業は本拠地の外に持つもの。敷地の絵は関係がないので引っ込める。
+       狭い横画面では、絵が出ているだけで一覧が2件しか見えなくなる  */
+    /* モーダルの中のものを掴む。ホームの本拠地カードにも
+       同じ .basewrap があるので、範囲を絞らないとそちらを消してしまう */
+    const bw = document.querySelector('#modalBody .basewrap');
+    const bi = document.querySelector('#modalBody .baseinfo');
+    if (bw) bw.style.display = baseTab === 'est' ? 'none' : '';
+    if (bi) bi.style.display = baseTab === 'est' ? 'none' : '';
+    Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-btab]'), b => {
+      b.onclick = () => { baseTab = b.dataset.btab; GP.sound.play('tap'); drawBase(); };
+    });
     bindGear();
     bindEstate();
 
