@@ -2885,7 +2885,11 @@ GP.race = (function () {
     // グッズと入場料。ファンがそのままチームの収入になる
     const merch = Math.round(S.fanIncome(g) * (sp ? 0.5 : 1));
     if (merch > 0) notes.push('🎫 グッズ・入場料 +' + merch + '万（' + S.fanTier(g).icon + S.fanTier(g).name + '）');
-    g.funds += prize + sponsorIncome + merch;
+    // よそへ配っているパワーユニットの供給料。走らせてもらった1戦ぶん
+    const puFee = Math.round(S.customerFee(g) * (sp ? 0.5 : 1));
+    if (puFee > 0) notes.push('🔌 パワーユニットの供給料 +' + puFee + '万（' +
+      (g.customers || []).map(c => c.team).join('・') + '）');
+    g.funds += prize + sponsorIncome + merch + puFee;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
     if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
                                             * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1)
@@ -2897,7 +2901,7 @@ GP.race = (function () {
     g.fans = Math.max(120, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.analystPower(g) * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, puFee, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,

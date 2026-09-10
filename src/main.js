@@ -47,6 +47,16 @@ window.GP = window.GP || {};
     g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
+    // こちらが配っているなら、渡したぶんが毎週相手に届く
+    const gave = S.tickCustomers(g);
+    if (gave.length) {
+      const big = gave.filter(x => x.step >= 1.0);
+      if (big.length) {
+        U.log(g, '🔌 ' + big.map(x => x.team).join('・') +
+          ' に回した最新仕様が仕上がった（先方の直線 +' +
+          big.map(x => x.step.toFixed(1)).join('／') + '）', 'warn');
+      }
+    }
     // 供給を受けているなら、供給元が伸ばしたぶんが降りてくる
     const eng = S.tickEngine(g);
     if (eng > 0) {
@@ -1356,6 +1366,7 @@ window.GP = window.GP || {};
     const engBonus = 1 + S.devPower(g) * 0.14;
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     let gain = 4.5 * facBonus * engBonus * drvBonus * planMul(c.gain) * S.devRate(g);
+    if (c.key === 'pu') gain *= S.puDevMul(g);      // よそに配っているぶん、手が回らない
     if (p.power >= cap) gain *= 0.30;
     const now = gain * fc.cur, next = gain * fc.next;
     // 伸びたぶんが、車の速さにどう出るか
@@ -1407,6 +1418,7 @@ window.GP = window.GP || {};
     const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0);
     const fc = S.focusOf(g);
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c.gain) * crunchMul() * S.devRate(g);
+    if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
     let crit = false;
     // 研究で溜めた知見があれば、ここで1つ使う。何を直せばいいか分かっている
     const found = S.useFinding(g, key);
@@ -1687,6 +1699,8 @@ window.GP = window.GP || {};
       }
     }
 
+    body += customerBoxHTML();
+
     U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
@@ -1694,7 +1708,106 @@ window.GP = window.GP || {};
       if (k.indexOf('res:') === 0) return doResearch(k.slice(4));
       if (k === '__engoff') return doEngineOff();
       if (k.indexOf('__eng:') === 0) return doEngineOn(k.slice(6));
+      if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
+      if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
     });
+  }
+
+  /* =======================================================
+     こちらが供給する側になる
+     自前のパワーユニットが業界の上位に立つと、
+     分けてほしいという話が来る。金とデータが入るが、
+     渡した相手はその日から速くなっていく。
+     ======================================================= */
+  function customerBoxHTML() {
+    const P2 = D.PU_SUPPLY;
+    const cus = g.customers || [];
+    let h = '<div class="sub">よそへ供給する</div>';
+    if (g.engine) {
+      return h + '<p class="desc">いまは供給を<b>受けている</b>側です。' +
+        '人に配るには、まず自前のパワーユニットに戻す必要があります。</p>';
+    }
+    const rank = S.puRank01(g);
+    h += '<div class="purank"><span>🔌 自前のパワーユニット <b>' +
+      Math.round(S.myPuPower(g)) + '</b></span>' +
+      '<span>業界での位置 <b>上位 ' + Math.max(1, Math.round((1 - rank) * 100)) + '%</b></span>' +
+      '<span>客に回す仕様 <b>' + Math.round(S.myPuPower(g) * P2.detune) + '</b></span></div>';
+
+    if (cus.length) {
+      h += '<div class="cuslist">' + cus.map(c => {
+        const r = (g.rivals || []).filter(x => x.name === c.team)[0];
+        return '<div class="cus-row">' +
+          '<i style="background:' + (r ? r.color : '#888') + '"></i>' +
+          '<b>' + esc(c.team) + '</b>' +
+          '<span>毎戦 💰' + money(c.fee) + '万</span>' +
+          '<span>渡したぶん <em class="warn">+' + (c.given || 0).toFixed(1) + '</em></span>' +
+          '<span>あと' + c.left + '季</span></div>';
+      }).join('') + '</div>' +
+      '<p class="note warn">🔌 供給料は毎戦 <b>💰' + money(S.customerFee(g)) +
+      '万</b>。そのかわり、うちが伸ばした最新仕様は<b>毎週そのまま先方に届いて</b>います。' +
+      '自分のパワーユニット開発は <b>×' + S.puDevMul(g).toFixed(2) + '</b> に落ちます' +
+      (g.puLearn ? '／客の壊れ方が分かるぶん、信頼性 <b>+' + (g.puLearn).toFixed(1) + '</b>' : '') +
+      '。</p>';
+      h += '<div class="pick">' + cus.map(c =>
+        '<button class="pickbtn" data-k="__cusoff:' + esc(c.team) + '">' +
+        '<span class="pb-ic engic">✂️</span>' +
+        '<span class="pb-body"><b>' + esc(c.team) + ' への供給を切る</b>' +
+        '<small>残り' + c.left + 'シーズンぶんの違約金がいります</small></span>' +
+        '<span class="pb-cost">💰' + money(S.dropCustomerFee(g, c.team)) + '</span></button>').join('') +
+        '</div>';
+    }
+
+    if (cus.length >= P2.max) {
+      return h + '<p class="desc">これ以上は面倒を見きれません（上限 ' + P2.max + 'チーム）。</p>';
+    }
+    if (!S.canSupplyPU(g)) {
+      return h + '<p class="desc">分けてほしいと言われるのは、' +
+        '<b>自前のパワーユニットが業界の上位 ' +
+        Math.round((1 - P2.needRank) * 100) + '% に入ってから</b>です。' +
+        'いまはまだ、よそが欲しがる水準ではありません。</p>';
+    }
+    const offers = S.customerOffers(g);
+    if (!offers.length) {
+      return h + '<p class="desc">いまのところ、うちのパワーユニットを' +
+        '欲しがっているチームはありません。</p>';
+    }
+    h += '<p class="desc">一時金と毎戦の供給料が入り、客が走らせたデータも戻ってきます' +
+      '（研究P・信頼性）。<br>' +
+      '<b class="warn">そのかわり、渡した相手はその日から速くなります。</b>' +
+      'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。' +
+      '何年もかけて開いた差が、契約書一枚で埋まっていくということです。</p><div class="pick">';
+    offers.forEach(o => {
+      h += '<button class="pickbtn" data-k="__cus:' + esc(o.team) + '">' +
+        '<span class="pb-ic engic" style="border-color:' + o.color + '">🔌</span>' +
+        '<span class="pb-body"><b>' + esc(o.team) + ' に供給する</b>' +
+        '<small>先方の自前 ' + o.own + ' → うちの仕様 <b>' + o.give + '</b>' +
+        '（<em class="warn">+' + Math.round(o.gap) + '</em> 押し上げます）' +
+        '<br>毎戦 💰' + money(o.fee) + '万　契約 ' + D.PU_SUPPLY.years + 'シーズン</small></span>' +
+        '<span class="pb-cost">一時金<br>+' + money(o.upfront) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
+  function doCustomerOn(team) {
+    const o = S.signCustomer(g, team);
+    if (!o) return U.toast('いまは供給できません', 'bad');
+    U.closeModal();
+    U.log(g, '🔌 ' + team + ' にパワーユニットを供給することにした（一時金 +' +
+      money(o.upfront) + '万／毎戦 ' + money(o.fee) + '万）。' +
+      '先方の直線は、これから毎週こちらへ近づいてくる。', 'warn');
+    U.toast('🔌 ' + team + ' へ供給開始', 'good');
+    GP.sound.play('buy');
+    S.save(g); render();
+  }
+
+  function doCustomerOff(team) {
+    const fee = S.dropCustomerFee(g, team);
+    if (S.dropCustomer(g, team) == null) return U.toast('違約金が払えません', 'bad');
+    U.closeModal();
+    U.log(g, '✂️ ' + team + ' への供給を打ち切った（違約金 -' + money(fee) + '万）。' +
+      'すでに渡したものは、先方のマシンに残ったままだ。', 'warn');
+    GP.sound.play('no');
+    S.save(g); render();
   }
 
   /* ---- 研究テーマを1週進める ---- */
@@ -5616,6 +5729,10 @@ window.GP = window.GP || {};
                '万、来季の風洞時間も削られる。', 'bad');
       U.toast('🧾 予算超過の罰金 -' + money(capRes.fine) + '万', 'bad');
     }
+    S.tickCustomerYears(g).forEach(name => {
+      U.log(g, '🔌 ' + name + ' へのパワーユニット供給契約が満了した。', 'warn');
+      U.toast('🔌 ' + name + ' への供給が満了', 'warn');
+    });
     S.tickSupply(g).forEach(d => {
       U.log(g, '🏭 ' + d.name + ' とのサプライヤー契約が満了した。' +
                '装備の値段と維持費が元に戻る。', 'warn');

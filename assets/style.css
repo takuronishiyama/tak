@@ -2616,3 +2616,16 @@ body[data-skin="hd"]{
 .upbox span{font-size:11px;color:#4c5a3c}
 .upbox b{font-size:12px;color:#2f4020}
 .pickbtn .pb-cost s{opacity:.5;font-size:10px}
+
+/* ---- パワーユニットを配る側 ---- */
+.purank{display:flex;gap:10px;flex-wrap:wrap;background:#eef3fa;border:1px solid #c9d8ea;
+  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.purank span{font-size:11px;color:#3d556e}
+.purank b{font-size:12px;color:#1f3c58}
+.cuslist{display:flex;flex-direction:column;gap:4px;margin:4px 0 8px}
+.cus-row{display:flex;align-items:center;gap:8px;background:#fffaf0;border:1px solid #e6d9bd;
+  border-radius:8px;padding:5px 8px;font-size:11px;flex-wrap:wrap}
+.cus-row>i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.cus-row>b{font-size:12px;min-width:96px}
+.cus-row>span{color:#6b6152}
+.cus-row em.warn{font-style:normal;color:#b4522a;font-weight:700}

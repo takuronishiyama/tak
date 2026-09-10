@@ -1477,6 +1477,7 @@ GP.state = (function () {
          + bodyRatio(g, 'service') * 6
          + g.facilities.pit * 2.5 + pitPower(g) * 1.4
          + (g.engine ? D.ENGINE.relBonus : 0)
+         + (g.puLearn || 0)
          - crewPenalty(g).rel - puRelDrop(g);
   }
   /* 強みが「危うさ」を何割潰せるか。34 でちょうど半分、最大 86% */
@@ -1980,6 +1981,142 @@ GP.state = (function () {
     return Math.round(step * 10) / 10;
   }
 
+  /* =======================================================
+     こちらが供給する側になる
+     自前のパワーユニットが業界の上位に立つと、
+     分けてほしいという話が来るようになる。
+     一時金と毎戦の供給料が入り、客が走らせたデータも戻ってくる。
+     そのかわり、渡した相手はその日から速くなっていく。
+     何年もかけて開いた差が、契約書一枚で埋まっていく。
+     ======================================================= */
+  function myPuPower(g2) {
+    return (g2.equipped && g2.equipped.pu) ? g2.equipped.pu.power : 0;
+  }
+  /* ライバルが自前でどれだけのパワーユニットを持っているか。
+     ライバルのパーツ内訳は持っていないので、直線の速さから逆算する。
+     全パーツが同じくらい仕上がっているとすれば、
+     直線の速さ ＝ パーツ出力 × 各パーツの効きの合計、になる       */
+  function rivalPuOf(g2, r) {
+    if (!r || !r.stats) return 0;
+    return Math.max(0, r.stats.speed / D.PU_SUPPLY.speedTotal);
+  }
+  /* 自前のパワーユニットが、業界のどのあたりにあるか（0..1） */
+  function puRank01(g2) {
+    const rivals = g2.rivals || [];
+    if (!rivals.length) return 0.5;
+    const my = myPuPower(g2);
+    const above = rivals.filter(r => rivalPuOf(g2, r) >= my).length;
+    return 1 - above / rivals.length;
+  }
+  /* 供給できる状態かどうか。
+     供給を受けている身では、人に配ることはできない            */
+  function canSupplyPU(g2) {
+    if (g2.engine) return false;
+    return puRank01(g2) >= D.PU_SUPPLY.needRank;
+  }
+  function isCustomer(g2, name) {
+    return (g2.customers || []).some(c => c.team === name);
+  }
+  /* 実際に押し上げられる幅。シャシーは相手のものなので、
+     パワーユニットを渡しただけで別のチームにはならない          */
+  function puLiftFor(own, give) {
+    return Math.max(0, Math.min(give - own, own * D.PU_SUPPLY.maxLift));
+  }
+  /* 「分けてほしい」と言ってくるチーム。
+     自前が明らかに劣っている相手ほど、強く欲しがる            */
+  function customerOffers(g2) {
+    if (!canSupplyPU(g2)) return [];
+    const P2 = D.PU_SUPPLY;
+    const my = myPuPower(g2);
+    const give = my * P2.detune;
+    return (g2.rivals || []).filter(r => !isCustomer(g2, r.name))
+      .map(r => {
+        const own = rivalPuOf(g2, r);
+        const gap = puLiftFor(own, give);
+        return { team: r.name, color: r.color, own: Math.round(own),
+                 give: Math.round(own + gap), gap: gap,
+                 // 押し上げる幅が大きいほど、相手も高く払う
+                 upfront: Math.round(P2.upfront + give * P2.upfrontPer + gap * 90),
+                 fee: Math.round(P2.feeBase + give * P2.feePer + gap * 12) };
+      })
+      .filter(o => o.gap >= P2.gapMin)
+      .sort((a, b) => b.gap - a.gap)
+      .slice(0, 4);
+  }
+  function signCustomer(g2, name) {
+    const P2 = D.PU_SUPPLY;
+    if ((g2.customers || []).length >= P2.max) return null;
+    const o = customerOffers(g2).filter(x => x.team === name)[0];
+    if (!o) return null;
+    g2.funds += o.upfront;
+    g2.customers = (g2.customers || []).concat([{
+      team: name, fee: o.fee, since: g2.season || 1, left: P2.years,
+      given: 0, from: o.own
+    }]);
+    return o;
+  }
+  function dropCustomerFee(g2, name) {
+    const c = (g2.customers || []).filter(x => x.team === name)[0];
+    return c ? Math.round(c.fee * D.PU_SUPPLY.breakFee) : 0;
+  }
+  function dropCustomer(g2, name) {
+    const fee = dropCustomerFee(g2, name);
+    if (g2.funds < fee) return null;
+    g2.funds -= fee;
+    g2.customers = (g2.customers || []).filter(x => x.team !== name);
+    return fee;
+  }
+  /* 1戦あたりに入ってくる供給料の合計 */
+  function customerFee(g2) {
+    return (g2.customers || []).reduce((a, c) => a + (c.fee || 0), 0);
+  }
+  /* 毎週、渡したぶんが相手に届く。
+     ここが「一気に迫られる」ところ。自分が伸ばした最新型が、
+     一段落としただけの形で、そのまま相手のマシンに乗っていく    */
+  function tickCustomers(g2) {
+    const P2 = D.PU_SUPPLY;
+    const give = myPuPower(g2) * P2.detune;
+    const PU = D.PART_CATS.filter(c => c.key === 'pu')[0];
+    const moved = [];
+    (g2.customers || []).forEach(c => {
+      const r = (g2.rivals || []).filter(x => x.name === c.team)[0];
+      if (!r || !r.stats) return;
+      /* 押し上げられるのは「うちの仕様 − 相手が自前で持っていた分」まで。
+         うちが伸ばせば的も動くので、客はいつまでも近づいてくる      */
+      const target = puLiftFor(c.from || 0, give);
+      const have = c.given || 0;
+      if (have >= target - 0.05) return;
+      const step = Math.min(target - have, Math.max(0.30, (target - have) * P2.catch));
+      // パワーユニットが効くのは直線と立ち上がり。曲がりどころには効かない
+      r.stats.speed += step * PU.gain.speed;
+      r.stats.accel += step * PU.gain.accel;
+      c.given = Math.round((have + step) * 10) / 10;
+      moved.push({ team: c.team, step: Math.round(step * 10) / 10 });
+    });
+    if (moved.length) {
+      // 客が走らせたぶんのデータが、こちらへ戻ってくる
+      g2.rp += Math.round(P2.rp * moved.length);
+      g2.puLearn = Math.min(P2.relCap, (g2.puLearn || 0) + P2.relGain * moved.length);
+    }
+    return moved;
+  }
+  /* シーズン越しに、供給契約の残りを1つ減らす */
+  function tickCustomerYears(g2) {
+    const gone = [];
+    g2.customers = (g2.customers || []).filter(c => {
+      c.left = (c.left || 1) - 1;
+      if (c.left > 0) return true;
+      gone.push(c.team);
+      return false;
+    });
+    return gone;
+  }
+  /* 客のぶんも作るので、自分のパワーユニット開発は少し遅くなる */
+  function puDevMul(g2) {
+    const n = (g2.customers || []).length;
+    return n ? Math.pow(D.PU_SUPPLY.devCost, Math.min(3, n)) : 1;
+  }
+
   /* ---------- 修理費 ----------
      スピン、コースアウト、クラッシュ。壊したぶんは自分で払う。
      世代の進んだマシンほど部品が高い。難易度でも変わる          */
@@ -2398,6 +2535,7 @@ GP.state = (function () {
     const perRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.per || 0), 0)
                                 + (ts ? ts.per : 0)) * scale);
     const merch = fanIncome(g2);           // グッズ・入場料
+    const puSupply = customerFee(g2);      // よそに配っているパワーユニットの供給料
     const rpRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.rp || 0), 0)
                                + (ts ? ts.rp : 0)) * scale);
 
@@ -2414,9 +2552,10 @@ GP.state = (function () {
       // レース1回ぶん（準備週＋レース週）の収支
       shipping: shipping,
       merch: merch,
+      puSupply: puSupply,
       cycleCost: weekly * PREP + shipping,
-      cycleIncome: perRace + merch,
-      net: perRace + merch - weekly * PREP - shipping
+      cycleIncome: perRace + merch + puSupply,
+      net: perRace + merch + puSupply - weekly * PREP - shipping
     };
   }
 
@@ -3083,7 +3222,9 @@ GP.state = (function () {
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating,
-    supplierPower, tickEngine,
+    supplierPower, tickEngine, myPuPower, puRank01, canSupplyPU, customerOffers,
+    signCustomer, dropCustomer, dropCustomerFee, customerFee, tickCustomers, rivalPuOf,
+    tickCustomerYears, puDevMul, isCustomer,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,

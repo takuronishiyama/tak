@@ -619,6 +619,7 @@ GP.ui = (function () {
       '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
       '<div class="fin-row"><span>' + S.fanTier(g).icon + ' グッズ・入場料（' + S.fanTier(g).name + '）</span><b class="good">+' + money(f.merch) + '</b></div>' +
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
+      (f.puSupply ? '<div class="fin-row"><span>🔌 PUの供給料（よそへ）</span><b class="good">+' + money(f.puSupply) + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost - f.shipping) + '</b></div>' +
       '<div class="fin-row"><span>' + S.logiPlan(g).icon + ' 次戦への輸送費（' + S.logiPlan(g).name + '）</span><b class="bad">-' + money(f.shipping) + '</b></div>' +
       ((g.repairPaid || 0) > 0
