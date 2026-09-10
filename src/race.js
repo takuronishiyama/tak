@@ -871,19 +871,35 @@ GP.race = (function () {
   }
 
   /* 審査の裁定。持ち時間に5秒足され、結果は順位に効く */
+  /* 裁く側に元うちの人間がいるかどうか。1レースのあいだ変わらないので、
+     決勝を回しはじめるところで一度だけ読んでおく                    */
+  let fiaFav = 0;
+
   function givePenalty(e, key, lap, events, laps) {
     const P = D.PENALTIES.find(x => x.key === key) || D.PENALTIES[0];
-    e.penalty = (e.penalty || 0) + P.sec;
-    e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: P.sec }]);
+    /* 同じ場面でも、見る人によって見え方は変わる。
+       こっそり流してもらえることもあれば、ことさら厳しく取られることもある */
+    let sec = P.sec;
+    if (e.isPlayer && fiaFav !== 0) {
+      if (fiaFav > 0) {
+        if (Math.random() < fiaFav * D.FIA.pen) return;      // 照会のまま流れた
+      } else if (Math.random() < -fiaFav * D.FIA.pen) {
+        sec = Math.round(sec * 1.6 * 10) / 10;               // 重く取られた
+        e.penHarsh = (e.penHarsh || 0) + 1;
+      }
+    }
+    e.penalty = (e.penalty || 0) + sec;
+    e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: sec }]);
     // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
     if (e.cum[lap - 1] != null) {
-      e.cum[lap - 1] += P.sec;
-      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + P.sec;
-    } else e.penPending = (e.penPending || 0) + P.sec;
+      e.cum[lap - 1] += sec;
+      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + sec;
+    } else e.penPending = (e.penPending || 0) + sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
-        text: P.icon + ' ' + e.driver.name + ' に' + P.sec + '秒加算 — ' + P.text });
+        text: P.icon + ' ' + e.driver.name + ' に' + sec + '秒加算 — ' + P.text +
+              (sec > P.sec ? '（重く取られた）' : '') });
     }
   }
 
@@ -1317,6 +1333,7 @@ GP.race = (function () {
 
   /* ---------- 決勝シミュレーション ---------- */
   function simulate(g, trackIndex, strategy, special, pre) {
+    fiaFav = S.fiaFavor(g);      // 今日の車検場に、どんな顔が並んでいるか
     const track = D.TRACKS[trackIndex];
     // 予選を先に走らせてあれば、そのグリッドをそのまま使う
     const weather = pre ? pre.weather : Object.assign({}, special && special.force

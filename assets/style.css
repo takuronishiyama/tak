@@ -2629,3 +2629,34 @@ body[data-skin="hd"]{
 .cus-row>b{font-size:12px;min-width:96px}
 .cus-row>span{color:#6b6152}
 .cus-row em.warn{font-style:normal;color:#b4522a;font-weight:700}
+
+/* ---- エグゼクティブ講習 ---- */
+.schoolgo{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
+.sg-row{display:flex;align-items:center;gap:8px;background:#f6f2fb;border:1px solid #ded3ee;
+  border-radius:8px;padding:6px 9px;font-size:11px;flex-wrap:wrap}
+.sg-row>i{font-style:normal;font-size:15px}
+.sg-row>b{font-size:12px;min-width:88px}
+.sg-row>span{color:#6a6076}
+.sg-row>em{font-style:normal;color:#6a5aa8;font-weight:700}
+.sg-row .skbar{flex:1 1 120px;min-width:80px}
+.schoolwho{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}
+.swbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:#fff;
+  border:1px solid #ddd2bb;border-radius:9px;padding:5px 9px;cursor:pointer;font:inherit;
+  color:#4a3720;min-width:118px}
+.swbtn>b{font-size:12px}
+.swbtn>small{font-size:10px;color:#877b66}
+.swbtn.on{border-color:#6a5aa8;background:#f4f0fc;box-shadow:0 0 0 1px #6a5aa8 inset}
+
+/* ---- 競技団体にいる、かつての仲間 ---- */
+.fiabox{display:flex;gap:10px;flex-wrap:wrap;background:#eef4f7;border:1px solid #c8dae2;
+  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.fiabox span{font-size:11px;color:#3f5c68}
+.fiabox b{font-size:12px}
+.fialist{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+.fia-row{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #dfe6ea;
+  border-radius:8px;padding:5px 9px;font-size:11px;flex-wrap:wrap}
+.fia-row>i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.fia-row>b{font-size:12px;min-width:92px}
+.fia-row>span{color:#6b7680}
+.fia-row>em{font-style:normal;font-weight:700}
+.fia-row>small{color:#98a2aa;flex:1 1 100%}

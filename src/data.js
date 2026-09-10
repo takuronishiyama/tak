@@ -1105,6 +1105,52 @@ GP.data = (function () {
       effect: '固定費 -1.0%／技能1（最大35%）' }
   ];
 
+  /* ---------- エグゼクティブ講習 ----------
+     人は現場でしか育たない、というのは半分だけ本当で、
+     残りの半分は、いちど現場を離れないと身につかない。
+     出しているあいだ、その人はチームにほとんど居ない。
+     戻ってきたときに何を持ち帰るかで、出した意味が決まる          */
+  const COURSES = [
+    { key: 'basic', name: '現場マネジメント講座', icon: '📘', weeks: 2, cost: 900,
+      skill: [3, 6], net: 1, need: 0,
+      desc: '段取り、引き継ぎ、記録の残し方。誰に出しても無駄にはならない' },
+    { key: 'lead',  name: 'リーダーシップ研修',   icon: '🎯', weeks: 3, cost: 2600,
+      skill: [6, 11], net: 2, trait: 'mentor', need: 22,
+      desc: '人を動かす側の話。戻ってくると、まわりが育つようになる' },
+    { key: 'exec',  name: 'エグゼクティブ・プログラム', icon: '🏛️', weeks: 5, cost: 7600,
+      skill: [10, 18], net: 5, need: 46, exp: 900,
+      desc: '経営の言葉を覚えて帰ってくる。首脳陣への道がひらける' },
+    { key: 'fia',   name: '国際モータースポーツ課程', icon: '🌐', weeks: 4, cost: 5600,
+      skill: [5, 9], net: 8, fia: 16, need: 34,
+      desc: '規則を作る側の考え方を学ぶ。同じ教室に、競技団体の人間が座っている' }
+  ];
+  const SCHOOL = {
+    awayMul: 0.30,     // 講習に出ているあいだ、その人の力はこれだけしか出ない
+    slots: 2           // 同時に出せる人数
+  };
+
+  /* ---------- FIA に移った人たち ----------
+     うちを離れた人が、そのまま業界から消えるとは限らない。
+     何人かは競技団体に入り、規則を作る側、裁く側に回る。
+     どう送り出したかが、何年かあとの車検場で返ってくる           */
+  const FIA = {
+    joinOdds: 0.34,     // うちを離れた人が、競技団体に入る確率
+    warmKeep: 24,       // 引き止めようとしたうえで去った人の温かさ
+    warmCold: -20,      // 何もせず送り出した人の冷たさ
+    warmEnv: 0.9,       // 働きやすい職場だったぶん（働きやすさ1につき）
+    drift: 0.35,        // 毎シーズン、気持ちはこれだけ0へ寄る（風化）
+    perPerson: 55,      // 好意ひとりぶんを 1.0 と数える基準
+    cap: 3,             // 好意として数えるのは、多くてもこの人数ぶん
+    tdRisk: 0.40,       // 好意が満点なら、照会が来る確率はこれだけ下がる
+    dismiss: 0.20,      // 不問に付される確率への上乗せ
+    appeal: 0.16,       // 提訴が通る確率への上乗せ
+    pen: 0.28,          // レース中の裁定の出やすさへの効き
+    visitCost: 1400,    // 顔を出しに行く費用
+    visitWarm: 7,       // 1回あたり、どれだけ温まるか
+    ROLES: ['技術代表', '審査委員', 'レースディレクター', '規則委員',
+            '車両検査長', '競技副委員長', 'スチュワード']
+  };
+
   /* ---------- ERS（バッテリー）----------
      エレクトロニクスの性能から容量と回生量が決まる。
      直線で放電して速さに変え、前車に迫るときは多めに使う             */
@@ -2244,5 +2290,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

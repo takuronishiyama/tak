@@ -2645,6 +2645,37 @@ body[data-skin="hd"]{
 .cus-row>span{color:#6b6152}
 .cus-row em.warn{font-style:normal;color:#b4522a;font-weight:700}
 
+/* ---- エグゼクティブ講習 ---- */
+.schoolgo{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
+.sg-row{display:flex;align-items:center;gap:8px;background:#f6f2fb;border:1px solid #ded3ee;
+  border-radius:8px;padding:6px 9px;font-size:11px;flex-wrap:wrap}
+.sg-row>i{font-style:normal;font-size:15px}
+.sg-row>b{font-size:12px;min-width:88px}
+.sg-row>span{color:#6a6076}
+.sg-row>em{font-style:normal;color:#6a5aa8;font-weight:700}
+.sg-row .skbar{flex:1 1 120px;min-width:80px}
+.schoolwho{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}
+.swbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:#fff;
+  border:1px solid #ddd2bb;border-radius:9px;padding:5px 9px;cursor:pointer;font:inherit;
+  color:#4a3720;min-width:118px}
+.swbtn>b{font-size:12px}
+.swbtn>small{font-size:10px;color:#877b66}
+.swbtn.on{border-color:#6a5aa8;background:#f4f0fc;box-shadow:0 0 0 1px #6a5aa8 inset}
+
+/* ---- 競技団体にいる、かつての仲間 ---- */
+.fiabox{display:flex;gap:10px;flex-wrap:wrap;background:#eef4f7;border:1px solid #c8dae2;
+  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.fiabox span{font-size:11px;color:#3f5c68}
+.fiabox b{font-size:12px}
+.fialist{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+.fia-row{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #dfe6ea;
+  border-radius:8px;padding:5px 9px;font-size:11px;flex-wrap:wrap}
+.fia-row>i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.fia-row>b{font-size:12px;min-width:92px}
+.fia-row>span{color:#6b7680}
+.fia-row>em{font-style:normal;font-weight:700}
+.fia-row>small{color:#98a2aa;flex:1 1 100%}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -4313,6 +4344,52 @@ GP.data = (function () {
       effect: '固定費 -1.0%／技能1（最大35%）' }
   ];
 
+  /* ---------- エグゼクティブ講習 ----------
+     人は現場でしか育たない、というのは半分だけ本当で、
+     残りの半分は、いちど現場を離れないと身につかない。
+     出しているあいだ、その人はチームにほとんど居ない。
+     戻ってきたときに何を持ち帰るかで、出した意味が決まる          */
+  const COURSES = [
+    { key: 'basic', name: '現場マネジメント講座', icon: '📘', weeks: 2, cost: 900,
+      skill: [3, 6], net: 1, need: 0,
+      desc: '段取り、引き継ぎ、記録の残し方。誰に出しても無駄にはならない' },
+    { key: 'lead',  name: 'リーダーシップ研修',   icon: '🎯', weeks: 3, cost: 2600,
+      skill: [6, 11], net: 2, trait: 'mentor', need: 22,
+      desc: '人を動かす側の話。戻ってくると、まわりが育つようになる' },
+    { key: 'exec',  name: 'エグゼクティブ・プログラム', icon: '🏛️', weeks: 5, cost: 7600,
+      skill: [10, 18], net: 5, need: 46, exp: 900,
+      desc: '経営の言葉を覚えて帰ってくる。首脳陣への道がひらける' },
+    { key: 'fia',   name: '国際モータースポーツ課程', icon: '🌐', weeks: 4, cost: 5600,
+      skill: [5, 9], net: 8, fia: 16, need: 34,
+      desc: '規則を作る側の考え方を学ぶ。同じ教室に、競技団体の人間が座っている' }
+  ];
+  const SCHOOL = {
+    awayMul: 0.30,     // 講習に出ているあいだ、その人の力はこれだけしか出ない
+    slots: 2           // 同時に出せる人数
+  };
+
+  /* ---------- FIA に移った人たち ----------
+     うちを離れた人が、そのまま業界から消えるとは限らない。
+     何人かは競技団体に入り、規則を作る側、裁く側に回る。
+     どう送り出したかが、何年かあとの車検場で返ってくる           */
+  const FIA = {
+    joinOdds: 0.34,     // うちを離れた人が、競技団体に入る確率
+    warmKeep: 24,       // 引き止めようとしたうえで去った人の温かさ
+    warmCold: -20,      // 何もせず送り出した人の冷たさ
+    warmEnv: 0.9,       // 働きやすい職場だったぶん（働きやすさ1につき）
+    drift: 0.35,        // 毎シーズン、気持ちはこれだけ0へ寄る（風化）
+    perPerson: 55,      // 好意ひとりぶんを 1.0 と数える基準
+    cap: 3,             // 好意として数えるのは、多くてもこの人数ぶん
+    tdRisk: 0.40,       // 好意が満点なら、照会が来る確率はこれだけ下がる
+    dismiss: 0.20,      // 不問に付される確率への上乗せ
+    appeal: 0.16,       // 提訴が通る確率への上乗せ
+    pen: 0.28,          // レース中の裁定の出やすさへの効き
+    visitCost: 1400,    // 顔を出しに行く費用
+    visitWarm: 7,       // 1回あたり、どれだけ温まるか
+    ROLES: ['技術代表', '審査委員', 'レースディレクター', '規則委員',
+            '車両検査長', '競技副委員長', 'スチュワード']
+  };
+
   /* ---------- ERS（バッテリー）----------
      エレクトロニクスの性能から容量と回生量が決まる。
      直線で放電して速さに変え、前車に迫るときは多めに使う             */
@@ -5452,7 +5529,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -7066,6 +7143,8 @@ GP.state = (function () {
     let r = D.TD.weekChance * tdFresh(g2);
     if (isTop) r *= D.TD.protestTop;
     if (shielded) r /= (1 + analystPower(g2) * D.TD.readShield);
+    // 裁く側に元うちの人間がいるかどうか。こっそり庇うことも、厳しく見ることもある
+    if (shielded) r *= 1 - fiaFavor(g2) * D.FIA.tdRisk;
     return r;
   }
   function rollDirectives(g2) {
@@ -7118,13 +7197,15 @@ GP.state = (function () {
   /* 照会が不問に付される確率。オーナーの顔がそのまま効く */
   function tdDismiss(g2) {
     return clamp(D.TD.dismissBase + osk(g2, 'nego') * D.TD.dismissNego
-               + osk(g2, 'fame') * D.TD.dismissFame, 0, D.TD.dismissMax);
+               + osk(g2, 'fame') * D.TD.dismissFame
+               + fiaFavor(g2) * D.FIA.dismiss, 0, D.TD.dismissMax);
   }
   /* 提訴が通る確率。交渉と技術の裏づけ、両方が要る */
   function tdAppeal(g2) {
     return clamp(D.TD.appealBase + osk(g2, 'nego') * D.TD.appealNego
                + osk(g2, 'eye') * D.TD.appealEye
-               + analystPower(g2) * D.TD.appealAnalyst, D.TD.appealMin, D.TD.appealMax);
+               + analystPower(g2) * D.TD.appealAnalyst
+               + fiaFavor(g2) * D.FIA.appeal, D.TD.appealMin, D.TD.appealMax);
   }
   /* そのコンセプトを失うと、いくら性能が減るか */
   function tdLoss(g2, c) {
@@ -7996,7 +8077,7 @@ GP.state = (function () {
     let sum = 0;
     g.staff.forEach(s => {
       // 段位が上がるほど、同じ技能でもチームへの効き方が大きくなる
-      const w = s.skill * staffRank(s).mul;
+      const w = s.skill * staffRank(s).mul * (s.away > 0 ? D.SCHOOL.awayMul : 1);
       if (s.type === key) { sum += w; return; }
       // 「肩書きは違うが、あの人はそこも見られる」ぶん
       (s.traits || []).forEach(tk => {
@@ -8103,7 +8184,8 @@ GP.state = (function () {
   /* 役職に就いている人の技能。空席なら0 */
   function mgr(g2, key) {
     const m = g2.managers && g2.managers[key];
-    return m ? m.skill : 0;
+    if (!m) return 0;
+    return m.away > 0 ? m.skill * D.SCHOOL.awayMul : m.skill;
   }
 
   /* ---------- サプライヤーの特典 ----------
@@ -8627,6 +8709,114 @@ GP.state = (function () {
   }
 
   /* =======================================================
+     エグゼクティブ講習
+     人は現場でしか育たない、というのは半分だけ本当で、
+     残りの半分は、いちど現場を離れないと身につかない。
+     出しているあいだ、その人はチームにほとんど居ない。
+     ======================================================= */
+  function schoolList(g2) { return g2.school || []; }
+  function schoolOpen(g2) { return (g2.school || []).length < D.SCHOOL.slots; }
+  function personOf(g2, who, id) {
+    if (who === 'mgr') return (g2.managers || {})[id] || null;
+    return (g2.staff || []).filter(x => x.id === id)[0] || null;
+  }
+  /* その人を、その講習に出せるか */
+  function courseOpen(g2, who, id, key) {
+    const c = D.COURSES.filter(x => x.key === key)[0];
+    const p = personOf(g2, who, id);
+    if (!c || !p || p.away > 0) return false;
+    if ((p.skill || 0) < c.need) return false;
+    return (p.courses || []).indexOf(key) < 0;
+  }
+  function enrol(g2, who, id, key) {
+    const c = D.COURSES.filter(x => x.key === key)[0];
+    if (!c || !schoolOpen(g2) || !courseOpen(g2, who, id, key)) return null;
+    if (g2.funds < c.cost) return null;
+    const p = personOf(g2, who, id);
+    g2.funds -= c.cost;
+    p.away = c.weeks;
+    g2.school = (g2.school || []).concat([{
+      who: who, id: id, name: p.name, course: key, left: c.weeks, weeks: c.weeks
+    }]);
+    return { course: c, person: p };
+  }
+  /* 毎週1つ減らし、終わった人を帰す */
+  function tickSchool(g2) {
+    const done = [];
+    g2.school = (g2.school || []).filter(e => {
+      const p = personOf(g2, e.who, e.id);
+      e.left -= 1;
+      if (p && p.away > 0) p.away -= 1;
+      if (e.left > 0) return true;
+      const c = D.COURSES.filter(x => x.key === e.course)[0];
+      if (!p || !c) return false;
+      p.away = 0;
+      const up = rnd(c.skill[0], c.skill[1]);
+      p.skill = Math.round((p.skill + up) * 10) / 10;
+      p.courses = (p.courses || []).concat([c.key]);
+      p.net = Math.round(((p.net || 0) + (c.net || 0)) * 10) / 10;
+      let gotTrait = null;
+      if (c.trait && (p.traits || []).indexOf(c.trait) < 0) {
+        p.traits = (p.traits || []).concat([c.trait]);
+        gotTrait = D.STAFF_TRAITS.filter(x => x.key === c.trait)[0] || null;
+      }
+      if (c.exp) p.exp = (p.exp || 0) + c.exp;
+      if (c.fia) fiaWarmAll(g2, c.fia);      // 同じ教室に、裁く側の人間が座っている
+      if (p.salary != null && staffSalary) p.salary = staffSalary(p);
+      done.push({ name: p.name, course: c, up: Math.round(up * 10) / 10,
+                  trait: gotTrait, fia: c.fia || 0 });
+      return false;
+    });
+    return done;
+  }
+
+  /* =======================================================
+     FIA に移った人たち
+     うちを離れた人が、そのまま業界から消えるとは限らない。
+     何人かは競技団体に入り、規則を作る側、裁く側に回る。
+     どう送り出したかが、何年かあとの車検場で返ってくる。
+     ======================================================= */
+  function joinFIA(g2, person, warm, why) {
+    if (Math.random() >= D.FIA.joinOdds) return null;
+    const rec = {
+      name: person.name, role: pick(D.FIA.ROLES),
+      warm: Math.round(clamp(warm + envScore(g2) * D.FIA.warmEnv, -100, 100)),
+      since: g2.season || 1, why: why || '',
+      type: person.type || null
+    };
+    g2.fia = (g2.fia || []).concat([rec]);
+    return rec;
+  }
+  /* いま、裁く側にどれだけ味方（あるいは敵）がいるか（-1..1） */
+  function fiaFavor(g2) {
+    const list = (g2.fia || []).slice()
+      .sort((a, b) => Math.abs(b.warm) - Math.abs(a.warm))
+      .slice(0, D.FIA.cap);
+    if (!list.length) return 0;
+    const sum = list.reduce((a, x) => a + x.warm, 0);
+    return clamp(sum / (D.FIA.perPerson * D.FIA.cap), -1, 1);
+  }
+  function fiaWarmAll(g2, amount) {
+    (g2.fia || []).forEach(x => { x.warm = Math.round(clamp(x.warm + amount, -100, 100)); });
+    return (g2.fia || []).length;
+  }
+  /* 顔を出しに行く。金と1週ではなく、金だけで少し温まる */
+  function fiaVisit(g2) {
+    if (!(g2.fia || []).length) return null;
+    if (g2.funds < D.FIA.visitCost) return null;
+    g2.funds -= D.FIA.visitCost;
+    const gain = D.FIA.visitWarm * (1 + osk(g2, 'nego') * 0.10);
+    fiaWarmAll(g2, gain);
+    return Math.round(gain * 10) / 10;
+  }
+  /* 気持ちは風化する。恩も恨みも、そのままでは続かない */
+  function fiaDrift(g2) {
+    (g2.fia || []).forEach(x => {
+      x.warm = Math.round(x.warm * (1 - D.FIA.drift));
+    });
+  }
+
+  /* =======================================================
      下部組織（ユースアカデミー）
      ======================================================= */
   function makeYouth(level) {
@@ -8949,6 +9139,8 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
+    joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
@@ -9863,19 +10055,35 @@ GP.race = (function () {
   }
 
   /* 審査の裁定。持ち時間に5秒足され、結果は順位に効く */
+  /* 裁く側に元うちの人間がいるかどうか。1レースのあいだ変わらないので、
+     決勝を回しはじめるところで一度だけ読んでおく                    */
+  let fiaFav = 0;
+
   function givePenalty(e, key, lap, events, laps) {
     const P = D.PENALTIES.find(x => x.key === key) || D.PENALTIES[0];
-    e.penalty = (e.penalty || 0) + P.sec;
-    e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: P.sec }]);
+    /* 同じ場面でも、見る人によって見え方は変わる。
+       こっそり流してもらえることもあれば、ことさら厳しく取られることもある */
+    let sec = P.sec;
+    if (e.isPlayer && fiaFav !== 0) {
+      if (fiaFav > 0) {
+        if (Math.random() < fiaFav * D.FIA.pen) return;      // 照会のまま流れた
+      } else if (Math.random() < -fiaFav * D.FIA.pen) {
+        sec = Math.round(sec * 1.6 * 10) / 10;               // 重く取られた
+        e.penHarsh = (e.penHarsh || 0) + 1;
+      }
+    }
+    e.penalty = (e.penalty || 0) + sec;
+    e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: sec }]);
     // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
     if (e.cum[lap - 1] != null) {
-      e.cum[lap - 1] += P.sec;
-      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + P.sec;
-    } else e.penPending = (e.penPending || 0) + P.sec;
+      e.cum[lap - 1] += sec;
+      e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + sec;
+    } else e.penPending = (e.penPending || 0) + sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
       events.push({ lap: lap, type: 'penalty', car: e,
-        text: P.icon + ' ' + e.driver.name + ' に' + P.sec + '秒加算 — ' + P.text });
+        text: P.icon + ' ' + e.driver.name + ' に' + sec + '秒加算 — ' + P.text +
+              (sec > P.sec ? '（重く取られた）' : '') });
     }
   }
 
@@ -10309,6 +10517,7 @@ GP.race = (function () {
 
   /* ---------- 決勝シミュレーション ---------- */
   function simulate(g, trackIndex, strategy, special, pre) {
+    fiaFav = S.fiaFavor(g);      // 今日の車検場に、どんな顔が並んでいるか
     const track = D.TRACKS[trackIndex];
     // 予選を先に走らせてあれば、そのグリッドをそのまま使う
     const weather = pre ? pre.weather : Object.assign({}, special && special.force
@@ -17177,6 +17386,13 @@ window.GP = window.GP || {};
     g.rp += 2 + Math.round(S.analystPower(g));
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
+    // 講習に出している人が、そろそろ戻ってくる
+    S.tickSchool(g).forEach(d => {
+      U.log(g, d.course.icon + ' ' + d.name + ' が「' + d.course.name + '」から戻った（技能 +' +
+        d.up + (d.trait ? '／' + d.trait.icon + d.trait.name + ' を身につけた' : '') +
+        (d.fia ? '／競技団体との関係 +' + d.fia : '') + '）', 'good');
+      U.toast(d.course.icon + ' ' + d.name + ' が戻った（技能 +' + d.up + '）', 'good');
+    });
     // こちらが配っているなら、渡したぶんが毎週相手に届く
     const gave = S.tickCustomers(g);
     if (gave.length) {
@@ -20272,7 +20488,8 @@ window.GP = window.GP || {};
   function cmdStaff() {
     refreshMarkets(false);
     const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
-                  ['staff', '👥 グループ'], ['mgmt', '👔 首脳陣']];
+                  ['staff', '👥 グループ'], ['mgmt', '👔 首脳陣'],
+                  ['school', '🏛️ 講習'], ['fia', '🌐 FIA']];
     let body = '<div class="hrtabs">' +
       tabs.map(t => '<button class="hrtab' + (hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
       '</div>';
@@ -20280,6 +20497,8 @@ window.GP = window.GP || {};
     if (hrTab === 'drivers') body += hrDrivers();
     else if (hrTab === 'youth') body += hrYouth();
     else if (hrTab === 'staff') body += hrStaff();
+    else if (hrTab === 'school') body += hrSchool();
+    else if (hrTab === 'fia') body += hrFIA();
     else body += hrManagement();
 
     U.modal('👥 人事', body, [
@@ -20293,6 +20512,174 @@ window.GP = window.GP || {};
     });
     bindPick(k => hrPick(k));
     bindHrActions();
+    bindSchool();
+  }
+
+  /* =======================================================
+     エグゼクティブ講習
+     人は現場でしか育たない、というのは半分だけ本当で、
+     残りの半分は、いちど現場を離れないと身につかない。
+     出しているあいだ、その人はチームにほとんど居ない。
+     ======================================================= */
+  let schoolPick = null;      // いま選んでいる人（'staff:id' か 'mgr:key'）
+
+  function schoolPeople() {
+    const out = [];
+    D.MANAGERS.forEach(m => {
+      const p = g.managers && g.managers[m.key];
+      if (p) out.push({ who: 'mgr', id: m.key, p: p, icon: m.icon, role: m.name });
+    });
+    (g.staff || []).slice().sort((a, b) => b.skill - a.skill).forEach(st => {
+      const t = D.STAFF_TYPES.filter(x => x.key === st.type)[0] || {};
+      out.push({ who: 'staff', id: st.id, p: st, icon: t.icon || '👤', role: t.name || '' });
+    });
+    return out;
+  }
+
+  function hrSchool() {
+    const going = S.schoolList(g);
+    let h = '<div class="sub">🏛️ エグゼクティブ講習</div>' +
+      '<p class="desc">現場を離れないと身につかないものがあります。' +
+      '出しているあいだ、その人の力は <b>' + Math.round(D.SCHOOL.awayMul * 100) +
+      '%</b> しか出ません。戻ってきたときに何を持ち帰るかで、出した意味が決まります。<br>' +
+      '同時に出せるのは <b>' + D.SCHOOL.slots + '人</b>までです。</p>';
+
+    if (going.length) {
+      h += '<div class="schoolgo">' + going.map(e => {
+        const c = D.COURSES.filter(x => x.key === e.course)[0] || {};
+        return '<div class="sg-row"><i>' + (c.icon || '📘') + '</i>' +
+          '<b>' + esc(e.name) + '</b><span>' + esc(c.name || '') + '</span>' +
+          '<em>あと' + e.left + '週</em>' +
+          '<span class="skbar"><i style="width:' +
+          Math.round(100 * (e.weeks - e.left) / Math.max(1, e.weeks)) + '%"></i></span></div>';
+      }).join('') + '</div>';
+    }
+
+    // 誰を出すか
+    const people = schoolPeople().filter(x => !(x.p.away > 0));
+    if (!S.schoolOpen(g)) {
+      return h + '<p class="note">いまは席が埋まっています。誰かが戻るまで待ちましょう。</p>';
+    }
+    if (!people.length) {
+      return h + '<p class="note">出せる人がいません。</p>';
+    }
+    if (!schoolPick || !people.some(x => x.who + ':' + x.id === schoolPick)) {
+      schoolPick = people[0].who + ':' + people[0].id;
+    }
+    h += '<div class="sub small">誰を出すか</div><div class="schoolwho" data-swho="1">' +
+      people.map(x => {
+        const key = x.who + ':' + x.id;
+        return '<button class="swbtn' + (key === schoolPick ? ' on' : '') + '" data-v="' + key + '">' +
+          x.icon + '<b>' + esc(x.p.name) + '</b><small>' + esc(x.role) +
+          '／技能 ' + Math.round(x.p.skill) + (x.p.net ? '／人脈 ' + x.p.net : '') + '</small></button>';
+      }).join('') + '</div>';
+
+    const sel = people.filter(x => x.who + ':' + x.id === schoolPick)[0];
+    h += '<div class="sub small">どの講習に出すか</div><div class="pick">';
+    D.COURSES.forEach(c => {
+      const ok = sel && S.courseOpen(g, sel.who, sel.id, c.key) && g.funds >= c.cost;
+      const done = sel && (sel.p.courses || []).indexOf(c.key) >= 0;
+      const short = sel && (sel.p.skill || 0) < c.need;
+      h += '<button class="pickbtn' + (done ? ' done' : '') + '" data-k="sch:' + c.key + '"' +
+        (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#6a5aa8">' + c.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(c.name) +
+          (done ? '<em class="gowned">受講済み</em>' : '') + '</b>' +
+        '<small>' + esc(c.desc) +
+        '<br>技能 <b>+' + c.skill[0] + '〜' + c.skill[1] + '</b>' +
+        '／人脈 <b>+' + c.net + '</b>' +
+        (c.trait ? '／<b>指導者</b>になることがある' : '') +
+        (c.fia ? '／<b>競技団体との関係 +' + c.fia + '</b>' : '') +
+        (c.exp ? '／昇進の経験 +' + c.exp : '') +
+        '　<b>' + c.weeks + '週</b>不在' +
+        (short ? '<br><em class="warn">技能 ' + c.need + ' から受けられます</em>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">💰' + money(c.cost) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
+  function bindSchool() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-swho]'), wrap => {
+      Array.prototype.forEach.call(wrap.children, b => {
+        b.onclick = () => { schoolPick = b.dataset.v; GP.sound.play('tap'); cmdStaff(); };
+      });
+    });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-fia]'), b => {
+      b.onclick = () => {
+        const gain = S.fiaVisit(g);
+        if (gain == null) return U.toast('資金が足りません', 'bad');
+        U.log(g, '🌐 かつての仲間を訪ねて、競技団体に顔を出した（関係 +' + gain + '）', 'good');
+        U.toast('🌐 顔を出してきた', 'good');
+        GP.sound.play('confirm');
+        S.save(g); render(); cmdStaff();
+      };
+    });
+  }
+
+  function doEnrol(key) {
+    if (!schoolPick) return;
+    const [who, id] = schoolPick.split(':');
+    const r = S.enrol(g, who, who === 'mgr' ? id : +id, key);
+    if (!r) return U.toast('いまは出せません', 'bad');
+    U.log(g, r.course.icon + ' ' + r.person.name + ' を「' + r.course.name +
+      '」へ送り出した（' + r.course.weeks + '週不在）', 'good');
+    U.toast(r.course.icon + ' ' + r.person.name + ' が講習へ', 'good');
+    GP.sound.play('buy');
+    S.save(g); render(); cmdStaff();
+  }
+
+  /* =======================================================
+     FIA に移った人たち
+     うちを離れた人が、そのまま業界から消えるとは限らない。
+     何人かは規則を作る側、裁く側に回る。
+     どう送り出したかが、何年かあとの車検場で返ってくる。
+     ======================================================= */
+  function warmLabel(w) {
+    if (w >= 40) return { t: 'こっそり味方', c: '#2f7a3a' };
+    if (w >= 12) return { t: '好意的', c: '#4f8a45' };
+    if (w > -12) return { t: '中立', c: '#7a7264' };
+    if (w > -40) return { t: '冷やか', c: '#a86a2a' };
+    return { t: '厳しい', c: '#b03a2a' };
+  }
+
+  function hrFIA() {
+    const list = g.fia || [];
+    const fav = S.fiaFavor(g);
+    const lb = warmLabel(Math.round(fav * D.FIA.perPerson));
+    let h = '<div class="sub">🌐 競技団体にいる、かつての仲間</div>' +
+      '<p class="desc">うちを離れた人が、そのまま業界から消えるとは限りません。' +
+      '何人かは競技団体に入り、<b>規則を作る側、裁く側</b>に回ります。' +
+      'どう送り出したかが、何年かあとの車検場で返ってきます。</p>';
+    if (!list.length) {
+      return h + '<p class="note">いまのところ、向こうに知った顔はいません。</p>';
+    }
+    h += '<div class="fiabox"><span>いまの間柄 <b style="color:' + lb.c + '">' + lb.t + '</b></span>' +
+      '<span>照会の来やすさ <b>' + (fav > 0 ? '-' : '+') +
+        Math.round(Math.abs(fav) * D.FIA.tdRisk * 100) + '%</b></span>' +
+      '<span>不問になる確率 <b>' + (fav >= 0 ? '+' : '') +
+        Math.round(fav * D.FIA.dismiss * 100) + '%</b></span>' +
+      '<span>提訴の通りやすさ <b>' + (fav >= 0 ? '+' : '') +
+        Math.round(fav * D.FIA.appeal * 100) + '%</b></span>' +
+      '<span>レース中の裁定 <b>' + (fav > 0 ? '-' : '+') +
+        Math.round(Math.abs(fav) * D.FIA.pen * 100) + '%</b></span></div>';
+    h += '<div class="fialist">' + list.slice().sort((a, b) => b.warm - a.warm).map(x => {
+      const w = warmLabel(x.warm);
+      return '<div class="fia-row"><i style="background:' + w.c + '"></i>' +
+        '<b>' + esc(x.name) + '</b><span>' + esc(x.role) + '</span>' +
+        '<em style="color:' + w.c + '">' + w.t + '</em>' +
+        '<small>' + esc(x.why || '') + '（S' + x.since + '〜）</small></div>';
+    }).join('') + '</div>';
+    h += '<p class="desc">恩も恨みも、そのままでは続きません。毎シーズン、気持ちは中立へ戻っていきます。<br>' +
+      '「国際モータースポーツ課程」に人を出すと、同じ教室で顔を合わせるぶん関係が温まります。</p>' +
+      '<div class="pick"><button class="pickbtn" data-fia="1"' +
+      (g.funds >= D.FIA.visitCost ? '' : ' disabled') + '>' +
+      '<span class="pb-ic" style="background:#3f6f8a">🤝</span>' +
+      '<span class="pb-body"><b>顔を出しに行く</b><small>' +
+      'かつての仲間を訪ねる。全員との関係が <b>+' + D.FIA.visitWarm + '</b> 温まります' +
+      '（週は使いません）</small></span>' +
+      '<span class="pb-cost">💰' + money(D.FIA.visitCost) + '</span></button></div>';
+    return h;
   }
 
   /* ---- ドライバー ---- */
@@ -21070,6 +21457,7 @@ window.GP = window.GP || {};
 
   /* ---- 操作 ---- */
   function hrPick(k) {
+    if (k.indexOf('sch:') === 0) return doEnrol(k.slice(4));
     const parts = k.split(':');
     const kind = parts[0], idx = +parts[1];
     if (kind === 'dm') {
@@ -22603,20 +22991,40 @@ window.GP = window.GP || {};
           GP.sound.play('confirm');
           U.log(g, '🤝 ' + raid.name + ' を引き止めた（支度金 ' + money(raid.keep) + '万）。', 'good');
           U.toast('🤝 ' + raid.name + ' は残ってくれた', 'good');
+          const st2 = (g.staff || []).filter(x => x.id === raid.id)[0];
+          if (st2) st2.wasKept = (st2.wasKept || 0) + 1;   // 引き止められた記憶は残る
         }) },
       { label: '送り出す', fn: () => finish(() => {
+          const who = (g.staff || []).filter(x => x.id === raid.id)[0];
           S.loseStaff(g, raid.id);
           GP.sound.play('dnf');
           U.log(g, '👋 ' + raid.name + ' が ' + raid.from + ' へ移籍した…', 'bad');
           U.toast('👋 ' + raid.name + ' が去った', 'bad');
+          noteFIA(who || { name: raid.name, type: raid.type }, D.FIA.warmCold,
+                  '引き止めてもらえなかった');
         }) }
     ]);
     // ✕で閉じたときも「送り出す」と同じ扱いにする（週が飛ばないように）
     prevClose = $('modalClose').onclick;
     $('modalClose').onclick = () => finish(() => {
+      const who = (g.staff || []).filter(x => x.id === raid.id)[0];
       S.loseStaff(g, raid.id);
       U.log(g, '👋 ' + raid.name + ' が ' + raid.from + ' へ移籍した…', 'bad');
+      noteFIA(who || { name: raid.name, type: raid.type }, D.FIA.warmCold,
+              '引き止めてもらえなかった');
     });
+  }
+
+  /* 去っていった人が、何年かして裁く側に現れることがある。
+     どう送り出したかが、そのときの目つきになる               */
+  function noteFIA(person, warm, why) {
+    if (!person) return;
+    const rec = S.joinFIA(g, person, warm, why);
+    if (!rec) return;
+    U.log(g, '🌐 ' + rec.name + ' が競技団体に入ったらしい（' + rec.role + '）。' +
+      (rec.warm >= 12 ? 'こちらには、まだ悪くない顔を向けてくれている。'
+       : rec.warm <= -12 ? 'あの別れ方では、甘くは見てもらえないだろう。'
+       : '仕事は仕事、という顔をしている。'), rec.warm >= 12 ? 'good' : 'warn');
   }
 
   /* =======================================================
@@ -22859,6 +23267,7 @@ window.GP = window.GP || {};
                '万、来季の風洞時間も削られる。', 'bad');
       U.toast('🧾 予算超過の罰金 -' + money(capRes.fine) + '万', 'bad');
     }
+    S.fiaDrift(g);
     S.tickCustomerYears(g).forEach(name => {
       U.log(g, '🔌 ' + name + ' へのパワーユニット供給契約が満了した。', 'warn');
       U.toast('🔌 ' + name + ' への供給が満了', 'warn');

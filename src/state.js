@@ -1331,6 +1331,8 @@ GP.state = (function () {
     let r = D.TD.weekChance * tdFresh(g2);
     if (isTop) r *= D.TD.protestTop;
     if (shielded) r /= (1 + analystPower(g2) * D.TD.readShield);
+    // 裁く側に元うちの人間がいるかどうか。こっそり庇うことも、厳しく見ることもある
+    if (shielded) r *= 1 - fiaFavor(g2) * D.FIA.tdRisk;
     return r;
   }
   function rollDirectives(g2) {
@@ -1383,13 +1385,15 @@ GP.state = (function () {
   /* 照会が不問に付される確率。オーナーの顔がそのまま効く */
   function tdDismiss(g2) {
     return clamp(D.TD.dismissBase + osk(g2, 'nego') * D.TD.dismissNego
-               + osk(g2, 'fame') * D.TD.dismissFame, 0, D.TD.dismissMax);
+               + osk(g2, 'fame') * D.TD.dismissFame
+               + fiaFavor(g2) * D.FIA.dismiss, 0, D.TD.dismissMax);
   }
   /* 提訴が通る確率。交渉と技術の裏づけ、両方が要る */
   function tdAppeal(g2) {
     return clamp(D.TD.appealBase + osk(g2, 'nego') * D.TD.appealNego
                + osk(g2, 'eye') * D.TD.appealEye
-               + analystPower(g2) * D.TD.appealAnalyst, D.TD.appealMin, D.TD.appealMax);
+               + analystPower(g2) * D.TD.appealAnalyst
+               + fiaFavor(g2) * D.FIA.appeal, D.TD.appealMin, D.TD.appealMax);
   }
   /* そのコンセプトを失うと、いくら性能が減るか */
   function tdLoss(g2, c) {
@@ -2261,7 +2265,7 @@ GP.state = (function () {
     let sum = 0;
     g.staff.forEach(s => {
       // 段位が上がるほど、同じ技能でもチームへの効き方が大きくなる
-      const w = s.skill * staffRank(s).mul;
+      const w = s.skill * staffRank(s).mul * (s.away > 0 ? D.SCHOOL.awayMul : 1);
       if (s.type === key) { sum += w; return; }
       // 「肩書きは違うが、あの人はそこも見られる」ぶん
       (s.traits || []).forEach(tk => {
@@ -2368,7 +2372,8 @@ GP.state = (function () {
   /* 役職に就いている人の技能。空席なら0 */
   function mgr(g2, key) {
     const m = g2.managers && g2.managers[key];
-    return m ? m.skill : 0;
+    if (!m) return 0;
+    return m.away > 0 ? m.skill * D.SCHOOL.awayMul : m.skill;
   }
 
   /* ---------- サプライヤーの特典 ----------
@@ -2892,6 +2897,114 @@ GP.state = (function () {
   }
 
   /* =======================================================
+     エグゼクティブ講習
+     人は現場でしか育たない、というのは半分だけ本当で、
+     残りの半分は、いちど現場を離れないと身につかない。
+     出しているあいだ、その人はチームにほとんど居ない。
+     ======================================================= */
+  function schoolList(g2) { return g2.school || []; }
+  function schoolOpen(g2) { return (g2.school || []).length < D.SCHOOL.slots; }
+  function personOf(g2, who, id) {
+    if (who === 'mgr') return (g2.managers || {})[id] || null;
+    return (g2.staff || []).filter(x => x.id === id)[0] || null;
+  }
+  /* その人を、その講習に出せるか */
+  function courseOpen(g2, who, id, key) {
+    const c = D.COURSES.filter(x => x.key === key)[0];
+    const p = personOf(g2, who, id);
+    if (!c || !p || p.away > 0) return false;
+    if ((p.skill || 0) < c.need) return false;
+    return (p.courses || []).indexOf(key) < 0;
+  }
+  function enrol(g2, who, id, key) {
+    const c = D.COURSES.filter(x => x.key === key)[0];
+    if (!c || !schoolOpen(g2) || !courseOpen(g2, who, id, key)) return null;
+    if (g2.funds < c.cost) return null;
+    const p = personOf(g2, who, id);
+    g2.funds -= c.cost;
+    p.away = c.weeks;
+    g2.school = (g2.school || []).concat([{
+      who: who, id: id, name: p.name, course: key, left: c.weeks, weeks: c.weeks
+    }]);
+    return { course: c, person: p };
+  }
+  /* 毎週1つ減らし、終わった人を帰す */
+  function tickSchool(g2) {
+    const done = [];
+    g2.school = (g2.school || []).filter(e => {
+      const p = personOf(g2, e.who, e.id);
+      e.left -= 1;
+      if (p && p.away > 0) p.away -= 1;
+      if (e.left > 0) return true;
+      const c = D.COURSES.filter(x => x.key === e.course)[0];
+      if (!p || !c) return false;
+      p.away = 0;
+      const up = rnd(c.skill[0], c.skill[1]);
+      p.skill = Math.round((p.skill + up) * 10) / 10;
+      p.courses = (p.courses || []).concat([c.key]);
+      p.net = Math.round(((p.net || 0) + (c.net || 0)) * 10) / 10;
+      let gotTrait = null;
+      if (c.trait && (p.traits || []).indexOf(c.trait) < 0) {
+        p.traits = (p.traits || []).concat([c.trait]);
+        gotTrait = D.STAFF_TRAITS.filter(x => x.key === c.trait)[0] || null;
+      }
+      if (c.exp) p.exp = (p.exp || 0) + c.exp;
+      if (c.fia) fiaWarmAll(g2, c.fia);      // 同じ教室に、裁く側の人間が座っている
+      if (p.salary != null && staffSalary) p.salary = staffSalary(p);
+      done.push({ name: p.name, course: c, up: Math.round(up * 10) / 10,
+                  trait: gotTrait, fia: c.fia || 0 });
+      return false;
+    });
+    return done;
+  }
+
+  /* =======================================================
+     FIA に移った人たち
+     うちを離れた人が、そのまま業界から消えるとは限らない。
+     何人かは競技団体に入り、規則を作る側、裁く側に回る。
+     どう送り出したかが、何年かあとの車検場で返ってくる。
+     ======================================================= */
+  function joinFIA(g2, person, warm, why) {
+    if (Math.random() >= D.FIA.joinOdds) return null;
+    const rec = {
+      name: person.name, role: pick(D.FIA.ROLES),
+      warm: Math.round(clamp(warm + envScore(g2) * D.FIA.warmEnv, -100, 100)),
+      since: g2.season || 1, why: why || '',
+      type: person.type || null
+    };
+    g2.fia = (g2.fia || []).concat([rec]);
+    return rec;
+  }
+  /* いま、裁く側にどれだけ味方（あるいは敵）がいるか（-1..1） */
+  function fiaFavor(g2) {
+    const list = (g2.fia || []).slice()
+      .sort((a, b) => Math.abs(b.warm) - Math.abs(a.warm))
+      .slice(0, D.FIA.cap);
+    if (!list.length) return 0;
+    const sum = list.reduce((a, x) => a + x.warm, 0);
+    return clamp(sum / (D.FIA.perPerson * D.FIA.cap), -1, 1);
+  }
+  function fiaWarmAll(g2, amount) {
+    (g2.fia || []).forEach(x => { x.warm = Math.round(clamp(x.warm + amount, -100, 100)); });
+    return (g2.fia || []).length;
+  }
+  /* 顔を出しに行く。金と1週ではなく、金だけで少し温まる */
+  function fiaVisit(g2) {
+    if (!(g2.fia || []).length) return null;
+    if (g2.funds < D.FIA.visitCost) return null;
+    g2.funds -= D.FIA.visitCost;
+    const gain = D.FIA.visitWarm * (1 + osk(g2, 'nego') * 0.10);
+    fiaWarmAll(g2, gain);
+    return Math.round(gain * 10) / 10;
+  }
+  /* 気持ちは風化する。恩も恨みも、そのままでは続かない */
+  function fiaDrift(g2) {
+    (g2.fia || []).forEach(x => {
+      x.warm = Math.round(x.warm * (1 - D.FIA.drift));
+    });
+  }
+
+  /* =======================================================
      下部組織（ユースアカデミー）
      ======================================================= */
   function makeYouth(level) {
@@ -3214,6 +3327,8 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
+    joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
     makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
