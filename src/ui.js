@@ -99,7 +99,9 @@ GP.ui = (function () {
     const sc = S.carScore(g, t);
     const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
-    return '<div class="card"><div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) + '</div>' +
+    return '<div class="card foldable" data-fold="race">' +
+      '<div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) +
+      '<b class="foldnote">あと' + left + '週</b></div>' +
       '<div class="pad">' +
       '<div class="countdown' + (left === 0 ? ' now' : '') + '">' +
       (left === 0
@@ -245,7 +247,15 @@ GP.ui = (function () {
         '<i><b style="width:' + pct + '%;background:' + a.color + '"></b></i>' +
         '<em>' + (Math.round(v * 10) / 10) + '<small>/' + cap + '</small></em></div>';
     });
-    return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
+    return '<div class="card foldable" data-fold="car">' +
+      '<div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b>' +
+      /* 畳んだときも、開く価値があるかどうかは見出しで分かるようにする。
+         「総合」は次のコースでの評価。コースがない週は素の平均で出す  */
+      '<b class="foldnote">総合 ' +
+      Math.round(g.nextRace < D.RACES
+                 ? S.carScore(g, S.trackAt(g, g.nextRace))
+                 : (st.speed + st.corner + st.accel) / 3) +
+      '／信頼 ' + Math.round(rel) + '%</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
       '<span>🔋 バッテリー</span>' +
@@ -731,6 +741,7 @@ GP.ui = (function () {
   function renderAll(g, special) {
     renderTop(g);
     $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
+    applyFolds($('viewPanel'));
     if (g.nextRace < D.RACES) drawMini(S.trackAt(g, g.nextRace));
     renderSide(g);
   }
@@ -754,7 +765,8 @@ GP.ui = (function () {
        操作は下のタイルで完結する（建物を押しても同じところへ行く） */
     return '<div class="card hub">' + head +
       '<div class="pad">' +
-      '<div class="basewrap"><canvas id="hubCv" width="' + map.W + '" height="' + map.H + '"></canvas></div>' +
+      '<div class="basewrap"><canvas id="hubCv" width="' + map.W + '" height="' + map.H + '"></canvas>' +
+      '<div class="maptags" id="hubTags"></div></div>' +
       '<div class="hublist" id="hubList"></div>' +
       '</div></div>';
   }
@@ -918,6 +930,38 @@ GP.ui = (function () {
          '" text-anchor="middle">' + esc(o.bName) + '</text>';
     return h + '</svg>';
   }
+
+  /* ---- ホームの長いカードを畳む ----
+     横向きのスマートフォンでは、ホームの左の列は 243px しか見えないのに
+     中身は 1,610px あった。大きなカードは畳んでおいて、
+     見たい人が見出しを押したときだけ開く。
+     どれを開いていたかは端末に覚えておく（毎回たたみ直させない） */
+  const FOLD_KEY = 'gp-open-cards';
+  let openCards = null;
+  function foldState() {
+    if (openCards) return openCards;
+    try { openCards = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; }
+    catch (e) { openCards = {}; }
+    return openCards;
+  }
+  function applyFolds(root) {
+    const st = foldState();
+    (root || document).querySelectorAll('.card.foldable').forEach(c => {
+      const k = c.getAttribute('data-fold');
+      c.classList.toggle('open', !!st[k]);
+    });
+  }
+  document.addEventListener('click', function (e) {
+    const h = e.target && e.target.closest ? e.target.closest('.card.foldable > .card-h') : null;
+    if (!h) return;
+    const c = h.parentElement;
+    const k = c.getAttribute('data-fold');
+    const st = foldState();
+    st[k] = !st[k];
+    c.classList.toggle('open', !!st[k]);
+    try { localStorage.setItem(FOLD_KEY, JSON.stringify(st)); } catch (e2) {}
+    if (GP.sound) GP.sound.play('tap');
+  });
 
   function closeModal() { $('modal').className = ''; }
 

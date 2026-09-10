@@ -1800,11 +1800,11 @@ GP.screens.home = function (A) {
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
-    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
+    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる', short: '倉庫',
                fn: () => openFacility('depot') },
-    mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
+    mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
                fn: () => openFacility('mission') },
-    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる',
+    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる', short: '会議室',
                fn: () => openFacility('meeting') }
   };
 
@@ -1962,7 +1962,104 @@ GP.screens.home = function (A) {
     return { place: '場所', job: '人・用事' };
   }
 
+  /* ---- 絵の上に出す札 ----
+     建物や人のところから引き出し線を出して、名前と用事を置く。
+     一覧を別に並べるのをやめて、絵そのものを一覧にする。
+
+     置きかたに一手間いる。札は建物の真上に出したいが、
+     隣どうしが近いと重なって読めなくなる。
+     いったん全部並べてから、実際の大きさを測って
+     重なっているものを上へ逃がす（重ねたまま出すより、
+     少し離れていても読めるほうがいい）                        */
+  function renderMapTags() {
+    const box = $('hubTags');
+    if (!box) return;
+    const mp = hubMap();
+    const doors = hubDoors();
+    const anchor = k => {
+      if (mp.plotAnchor) { const a = mp.plotAnchor(k, g); if (a) return a; }
+      return mp.doorPos ? mp.doorPos(k, g) : null;
+    };
+    /* 札を出すのは「まだ済ませていない、その週だけの用事」だけ。
+       建物には絵の中に看板が立っているので、札は要らない。
+       済んだ相手も絵の中には立っているので、押せば入れる      */
+    const list = [];
+    Object.keys(doors).forEach(k => {
+      if (doors[k].done !== false) return;
+      const p = anchor(k);
+      if (!p) return;
+      // 端の札が絵からはみ出さないよう、少し内側へ寄せる
+      const x = Math.max(9, Math.min(91, p.x / mp.W * 100));
+      list.push({ k: k, d: doors[k], x: x, y: p.y / mp.H * 100 });
+    });
+    if (!list.length) { box.innerHTML = ''; box.classList.remove('on'); return; }
+    box.innerHTML = list.map(t =>
+      '<button class="mtag" data-hub="' + esc(t.k) + '"' +
+      ' style="left:' + t.x.toFixed(2) + '%;top:' + t.y.toFixed(2) + '%">' +
+      '<span class="mt-pill"><i>' + (t.d.icon || '•') + '</i>' +
+      '<b>' + esc(t.d.label || t.k) + '</b>' +
+      '<em>' + esc(t.d.to || '入る') + '</em>' +
+      '</span>' +
+      '<span class="mt-stem"></span></button>').join('');
+    box.classList.add('on');
+    spreadTags(box);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
+      b.onclick = () => {
+        batchStop();
+        const k = b.getAttribute('data-hub');
+        hubSel = k;
+        const cv = $('hubCv');
+        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        GP.sound.play('tap');
+        hubEnter(k);
+      };
+    });
+  }
+
+  /* 重なった札を上へ逃がす。
+     下にあるものほど手前（＝絵の中で近い）なので、そちらを優先して残し、
+     奥のものから順に持ち上げる                                  */
+  function spreadTags(box) {
+    const wrap = box.getBoundingClientRect();
+    if (!wrap.height) return;
+    const tags = Array.prototype.slice.call(box.querySelectorAll('.mtag'));
+    const boxes = tags.map(el => {
+      const p = el.querySelector('.mt-pill').getBoundingClientRect();
+      return { el: el, lift: 0,
+               l: p.left - wrap.left, r: p.right - wrap.left,
+               t: p.top - wrap.top, b: p.bottom - wrap.top, h: p.height };
+    });
+    boxes.sort((a, b2) => b2.b - a.b);        // 手前（下）から決めていく
+    const done = [];
+    boxes.forEach(q => {
+      for (let i = 0; i < 9; i++) {
+        const hit = done.some(o =>
+          q.l < o.r + 4 && q.r > o.l - 4 && q.t < o.b + 3 && q.b > o.t - 3);
+        if (!hit) break;
+        const d = q.h + 4;
+        q.t -= d; q.b -= d; q.lift += d;
+      }
+      // 上へ逃がしすぎて絵から出るくらいなら、その札は畳んで印だけにする
+      if (q.t < 2) { q.el.classList.add('mini'); q.lift = 0; q.t = 0; q.b = 16; }
+      /* 左右も絵の中へ入れる。
+         札は足もとの真上に出すので、名前が長いと端で外へ出てしまう。
+         はみ出したぶんだけ横へずらす（引き出し線は足もとに残す）  */
+      let sx = 0;
+      if (q.l < 2) sx = 2 - q.l;
+      else if (q.r > wrap.width - 2) sx = (wrap.width - 2) - q.r;
+      if (sx) { q.l += sx; q.r += sx; }
+      done.push(q);
+      if (q.lift) {
+        q.el.style.setProperty('--lift', q.lift + 'px');
+        const stem = q.el.querySelector('.mt-stem');
+        if (stem) stem.style.height = q.lift + 'px';
+      }
+      if (sx) q.el.style.setProperty('--shift', Math.round(sx) + 'px');
+    });
+  }
+
   function renderHubList() {
+    renderMapTags();
     const box = $('hubList');
     if (!box) return;
     const doors = hubDoors();
@@ -1987,15 +2084,30 @@ GP.screens.home = function (A) {
     // グリッドとオフの「場所」は、ここから先へ進むための一枚。
     // 用事を済ませる前に押してしまわないよう、いちばん下に置いて形も変える
     const gate = g.offseason || g.onGrid;
+    /* 建物は札を2段に積まず、絵の下の一列に畳む。
+       名前は絵の中の看板が言っているので、ここでは
+       絵柄と用事だけあれば足りる                            */
+    const chip = k => {
+      const d = doors[k];
+      return '<button class="hlchip' + (d.done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+        ' title="' + esc((d.label || k) + '／' + (d.to || '入る')) + '">' +
+        '<i>' + (d.icon || '•') + '</i><b>' +
+        esc(d.short || d.to || d.label || k) + '</b></button>';
+    };
+    /* 「まとめて回る」も一列に混ぜる。
+       行をもう1段作ると、そのぶん絵が痩せてしまう              */
+    const allChip = (!gate && rest >= 2)
+      ? '<button class="hlchip all" data-all="1" title="まだ済ませていない用事を順に開く">' +
+        '<i>🗣️</i><b>まとめて</b><u>' + rest + '</u></button>' : '';
     const placeHTML = !places.length ? '' :
-      '<b class="hl-h">' + (jobs.length ? ti.place : 'ここでできること') + '</b>' +
-      '<div class="hlgrid' + (gate ? ' gate' : '') + '">' +
-      places.map(k => tile(k, gate ? ' wide go' : '')).join('') + '</div>';
-    const jobHTML = !jobs.length ? '' :
-      '<b class="hl-h">' + ti.job +
-      (rest ? '<span>あと ' + rest + ' 件</span>' : '<span class="ok">ひと回り済み</span>') + '</b>' +
-      (rest >= 2 ? '<button class="hlbtn allbtn" data-all="1">' +
-        '<i>🗣️</i><b>まとめて回る</b><em>あと ' + rest + ' 件</em></button>' : '') +
+      (gate
+        ? '<b class="hl-h">' + (jobs.length ? ti.place : 'ここでできること') + '</b>' +
+          '<div class="hlgrid gate">' + places.map(k => tile(k, ' wide go')).join('') + '</div>'
+        : '<div class="hlrow">' + allChip + places.map(chip).join('') + '</div>');
+    /* 用事は絵の上に札で出ている。歩けない場面だけ、札の一覧も出す */
+    const jobHTML = !jobs.length || !gate ? '' :
+      '<button class="hlbtn allbtn" data-all="1"><i>🗣️</i><b>まとめて回る</b>' +
+      '<em>あと ' + rest + ' 件</em></button>' +
       '<div class="hlgrid">' + jobs.map(k => tile(k, '')).join('') + '</div>';
 
     box.innerHTML = gate ? jobHTML + placeHTML : placeHTML + jobHTML;

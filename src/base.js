@@ -87,8 +87,18 @@ GP.base = (function () {
 
   /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
   const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516, 584, 652];
+  let yardX = [];
   let yard = [];             // [{key,label,color,hair,face,hat,done}]
-  function setYard(list) { yard = (list || []).slice(0, YARD_X.length); }
+  /* 人が3人でも10人でも、通路いっぱいに等間隔で立たせる。
+     前から順に詰めると左端に固まってしまい、
+     絵としても、そこから出す札としても具合が悪い        */
+  function setYard(list) {
+    yard = (list || []).slice(0, YARD_X.length);
+    const n = yard.length;
+    yardX = yard.map((_, i) =>
+      n <= 1 ? (YARD_X[0] + YARD_X[YARD_X.length - 1]) / 2
+             : YARD_X[0] + (YARD_X[YARD_X.length - 1] - YARD_X[0]) * (i / (n - 1)));
+  }
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
@@ -119,8 +129,9 @@ GP.base = (function () {
     // 敷地に出ている人。手前寄りに立っているので、下側にいるときだけ拾う
     if (y > WALK.y0 + 20) {
       yard.forEach((q, i) => {
-        const d = Math.abs(x - YARD_X[i]);
-        if (d < 22 && d < bd) { bd = d; best = { key: q.key, x: YARD_X[i] }; }
+        const qx = yardX[i] != null ? yardX[i] : YARD_X[i];
+        const d = Math.abs(x - qx);
+        if (d < 22 && d < bd) { bd = d; best = { key: q.key, x: qx }; }
       });
       if (best) return best;
     }
@@ -134,6 +145,17 @@ GP.base = (function () {
     return best;
   }
 
+  /* 建物の立っている場所（札を出す足もと）。
+     doorPos は「歩いて行く先」なので通路まで下りてくる。
+     札は建物のそばに出したいので、こちらを使う             */
+  function plotAnchor(key, g2) {
+    const p = PLOTS.find(q => q.key === key);
+    if (!p) return null;
+    const sp = plotSpot(g2 ? { key: key, ang: p.ang } : p, g2);
+    const s = tierOf((g2 && g2.facilities[key]) || 1);
+    return { x: sp.x + s.w * sp.sc / 2, y: sp.y - s.h * sp.sc };
+  }
+
   /* 入口の位置（キャラをそこへ歩かせるのに使う）*/
   function doorPos(key, g2) {
     if (key && key.indexOf('off:') === 0) {
@@ -141,7 +163,7 @@ GP.base = (function () {
       return s2 ? { x: s2.x, y: WALK.y1 - 6 } : null;
     }
     const yi = yard.findIndex(q => q.key === key);
-    if (yi >= 0) return { x: YARD_X[yi], y: WALK.y1 - 6 };
+    if (yi >= 0) return { x: yardX[yi] != null ? yardX[yi] : YARD_X[yi], y: WALK.y1 - 6 };
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const sp = plotSpot(g2 ? { key: key, ang: p.ang } : p, g2);
@@ -865,7 +887,7 @@ GP.base = (function () {
     if (!off && yard.length) {
       const py = WALK.y1 - 2;
       yard.forEach((q, i) => {
-        const x = YARD_X[i];
+        const x = yardX[i] != null ? yardX[i] : YARD_X[i];
         if (q.prop === 'brief') { briefStand(bg, x, py, q.color, q.done); }
         else person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
@@ -1099,5 +1121,5 @@ GP.base = (function () {
   }
 
   return { render, scene, drawWith, invalidate, hit, scale, setYard,
-           drawActor, doneMark, doorOf, doorPos, clampWalk, WALK, W, H };
+           drawActor, doneMark, doorOf, doorPos, plotAnchor, clampWalk, WALK, W, H };
 })();

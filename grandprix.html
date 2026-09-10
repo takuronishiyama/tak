@@ -298,8 +298,68 @@ table.rank.grid td.dim{opacity:.35}
 .baseinfo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
           background:var(--ink);color:#ffeec4;border-radius:8px;padding:5px 10px;margin-bottom:8px;font-size:11px}
 .baseinfo b{font-size:14px;color:var(--yellow)}
-.basewrap{border:3px solid var(--ink);border-radius:10px;overflow:hidden;background:#8fbf62;
-          box-shadow:0 3px 0 rgba(74,47,26,.5)}
+.basewrap{position:relative;border:3px solid var(--ink);border-radius:10px;overflow:hidden;
+          background:#8fbf62;box-shadow:0 3px 0 rgba(74,47,26,.5)}
+
+/* ---- 絵の上に出す札 ----
+   建物や人のところから引き出し線を伸ばして、名前と用事を置く。
+   一覧を別に並べるのをやめて、絵そのものが一覧になる       */
+.maptags{position:absolute;inset:0;pointer-events:none}
+/* ---- 建物の一列 ----
+   名前は絵の中の看板が言っているので、ここは絵柄と用事だけ  */
+/* 折り返さず横に送る。2段に折れると下の段が箱から出て切れていた */
+.hlrow{display:flex;flex-wrap:nowrap;gap:4px;margin-top:6px;
+       overflow-x:auto;scrollbar-width:none}
+.hlrow::-webkit-scrollbar{display:none}
+.hlchip{flex:1 0 auto;min-width:62px;min-height:44px;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+        border:2px solid var(--ink);border-radius:7px;color:var(--ink);
+        background:linear-gradient(180deg,#fffdf2,#ffedc2);
+        font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35);cursor:pointer}
+.hlchip i{font-style:normal;font-size:17px;line-height:1.1}
+.hlchip b{font-size:10px;font-weight:bold}
+.hlchip:active{transform:translateY(2px);box-shadow:0 0 0 rgba(74,47,26,.35)}
+.hlchip.done{opacity:.72}
+/* 「まとめて回る」。残り件数を肩に出す */
+.hlchip.all{position:relative;background:linear-gradient(180deg,#ffe9a8,#ffcf5e)}
+.hlchip.all u{position:absolute;top:-5px;right:-5px;text-decoration:none;
+  width:17px;height:17px;font-size:10px;line-height:13px;border-radius:50%;
+  background:var(--red);color:#fff;border:2px solid var(--ink)}
+[data-skin="hd"] .hlchip.all{background:linear-gradient(180deg,#5a4620,#3d2f16);color:#ffe9a8}
+[data-skin="hd"] .hlchip{background:linear-gradient(180deg,#2f2545,#241c38);
+                         color:#f2e4c4;border-color:var(--gold)}
+.maptags.on{pointer-events:none}
+.mtag{position:absolute;
+      transform:translate(-50%,-100%) translateY(calc(-1 * var(--lift,0px)))
+                translateX(var(--shift,0px));
+      display:flex;flex-direction:column;align-items:center;gap:0;
+      background:none;border:0;padding:0;font-family:inherit;pointer-events:auto;
+      cursor:pointer;white-space:nowrap;z-index:2}
+.mtag:active{transform:translate(-50%,-100%) translateY(calc(-1 * var(--lift,0px) - 2px))
+                        translateX(var(--shift,0px))}
+/* 横へずらしたぶん、引き出し線は足もとへ戻す */
+.mt-stem{transform:translateX(calc(-1 * var(--shift,0px)))}
+.mt-pill{display:flex;align-items:center;gap:4px;
+         padding:2px 7px 2px 5px;border-radius:6px;
+         border:2px solid var(--ink);background:rgba(255,250,236,.94);color:#33240f;
+         box-shadow:0 2px 0 rgba(74,47,26,.45);line-height:1.25}
+.mt-pill i{font-style:normal;font-size:14px;line-height:1}
+/* 名前が絵より長いと、どうずらしても外へ出る。そこは詰める */
+.mt-pill{max-width:min(94%,250px)}
+.mt-pill b{font-size:11px;font-weight:bold;min-width:0;
+           overflow:hidden;text-overflow:ellipsis}
+.mt-pill em{font-style:normal;font-size:9.5px;font-weight:bold;color:#6b4a12;
+            background:#f0dca6;border-radius:999px;padding:0 5px}
+.mt-pill u{text-decoration:none;font-size:10px;color:#2c6a33}
+/* 引き出し線。持ち上げたぶんだけ伸びる */
+.mt-stem{width:2px;height:6px;background:var(--ink);opacity:.75;flex-shrink:0}
+/* 逃がしきれなかった札は、印だけにして場所を空ける */
+.mtag.mini .mt-pill b,.mtag.mini .mt-pill em{display:none}
+.mtag.mini .mt-pill{padding:2px 5px}
+[data-skin="hd"] .mt-pill{background:rgba(38,28,54,.92);color:#f4e8cf;border-color:var(--gold)}
+[data-skin="hd"] .mt-pill em{background:#4b3d68;color:#efe4cf}
+[data-skin="hd"] .mt-stem{background:var(--gold);opacity:.85}
+
 #baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
@@ -2818,10 +2878,24 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .basewrap{max-height:38vh}
   /* 拠点は、絵と行き先を横に並べる。
      横長の画面では、縦に積むと絵だけで一画面を使ってしまう */
-  .card.hub .pad{display:flex;gap:7px;align-items:flex-start}
-  .card.hub .basewrap{flex:0 0 37%;max-height:none;margin-bottom:0}
-  .card.hub #hubCv{width:100%;height:auto;max-width:none;max-height:none}
-  .card.hub .hublist{flex:1 1 0;min-width:0;margin-top:0}
+  /* ---- 本拠地の絵を主役にする ----
+     絵を小さく置いて、その横に同じ場所への札を並べていた。
+     同じものへの入口が二重にあり、しかも一覧のほうが場所を食っていた。
+     絵を幅いっぱいにして、札は絵の上に直接出す。
+     一覧は畳んでおき、見たい人だけが開く                        */
+  .card.hub .pad{display:block;min-height:0}
+  /* 絵は、箱に収まる高さまでで止める。
+     幅いっぱいに伸ばすと縦があふれて、上下の札が切れていた   */
+  .card.hub .basewrap{max-height:none;margin-bottom:0;
+                      display:grid;justify-content:center;align-content:center}
+  .card.hub #hubCv{grid-area:1/1;width:auto;height:auto;
+                   max-width:100%;max-height:calc(100vh - 262px)}
+  /* 札は絵そのものに重ねる。額縁に重ねると、
+     絵を letterbox したぶんだけ割合の位置がずれる       */
+  .card.hub .maptags{grid-area:1/1;position:relative;inset:auto;
+                     width:100%;height:100%}
+  .card.hub .hublist{margin-top:6px}
+  .card.hub.folded .hublist{display:none}
   /* 札は小ぶりに。1画面に収まる数を増やす */
   .hlgrid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:4px}
   .hlbtn{min-height:0;padding:3px 3px 2px;gap:0;border-radius:6px;box-shadow:0 2px 0 rgba(74,47,26,.35)}
@@ -3125,6 +3199,31 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .hp-h{font-size:12px}
   .hp-p{font-size:11.5px;line-height:1.55}
   .hp-sec{margin-bottom:9px}
+}
+
+/* ---- 畳めるカード ----
+   ホームの「第◯戦」と「マシン」は、それぞれ 1,100px を超える。
+   横向きのスマートフォンでは列が 243px しか見えないので、
+   置いてあっても誰も届かない。既定では畳み、見出しを押すと開く。
+   （広い画面では今までどおり開いたまま）                       */
+.card.foldable > .card-h{cursor:pointer;user-select:none}
+.card.foldable > .card-h::after{content:'▾';margin-left:6px;opacity:.75;font-size:11px}
+.card.foldable.open > .card-h::after{content:'▴'}
+.foldnote{margin-left:auto;font-size:10.5px;opacity:.85;font-weight:normal;white-space:nowrap}
+@media (max-height:560px) and (orientation:landscape),
+       (max-width:560px) and (orientation:portrait){
+  .card.foldable:not(.open) > .pad{display:none}
+  .card.foldable:not(.open) > .card-h{margin-bottom:0}
+}
+
+/* ---- 狭い横画面の上部バー ----
+   ❓を足したぶん、iPhone SE の横（667px）で
+   右端の🎨と🔊が画面の外へ出ていた。
+   右寄せをやめて、入らないぶんは素直に次の段へ送る       */
+@media (max-width:760px){
+  .tb-stats{margin-left:0;flex:1 1 auto;min-width:0}
+  .tb-next{font-size:11px;padding:3px 9px;white-space:normal;min-width:0}
+  .tb-team{flex:1 1 auto;min-width:0}
 }
 
 </style>
@@ -15843,8 +15942,18 @@ GP.base = (function () {
 
   /* 平常週に敷地へ出ている人の立ち位置。建物のあいだの空きに立たせる */
   const YARD_X = [40, 108, 176, 244, 312, 380, 448, 516, 584, 652];
+  let yardX = [];
   let yard = [];             // [{key,label,color,hair,face,hat,done}]
-  function setYard(list) { yard = (list || []).slice(0, YARD_X.length); }
+  /* 人が3人でも10人でも、通路いっぱいに等間隔で立たせる。
+     前から順に詰めると左端に固まってしまい、
+     絵としても、そこから出す札としても具合が悪い        */
+  function setYard(list) {
+    yard = (list || []).slice(0, YARD_X.length);
+    const n = yard.length;
+    yardX = yard.map((_, i) =>
+      n <= 1 ? (YARD_X[0] + YARD_X[YARD_X.length - 1]) / 2
+             : YARD_X[0] + (YARD_X[YARD_X.length - 1] - YARD_X[0]) * (i / (n - 1)));
+  }
 
   /* オフ期間に敷地へ出ている人。x は立っている位置 */
   const OFF_SPOTS = [
@@ -15875,8 +15984,9 @@ GP.base = (function () {
     // 敷地に出ている人。手前寄りに立っているので、下側にいるときだけ拾う
     if (y > WALK.y0 + 20) {
       yard.forEach((q, i) => {
-        const d = Math.abs(x - YARD_X[i]);
-        if (d < 22 && d < bd) { bd = d; best = { key: q.key, x: YARD_X[i] }; }
+        const qx = yardX[i] != null ? yardX[i] : YARD_X[i];
+        const d = Math.abs(x - qx);
+        if (d < 22 && d < bd) { bd = d; best = { key: q.key, x: qx }; }
       });
       if (best) return best;
     }
@@ -15890,6 +16000,17 @@ GP.base = (function () {
     return best;
   }
 
+  /* 建物の立っている場所（札を出す足もと）。
+     doorPos は「歩いて行く先」なので通路まで下りてくる。
+     札は建物のそばに出したいので、こちらを使う             */
+  function plotAnchor(key, g2) {
+    const p = PLOTS.find(q => q.key === key);
+    if (!p) return null;
+    const sp = plotSpot(g2 ? { key: key, ang: p.ang } : p, g2);
+    const s = tierOf((g2 && g2.facilities[key]) || 1);
+    return { x: sp.x + s.w * sp.sc / 2, y: sp.y - s.h * sp.sc };
+  }
+
   /* 入口の位置（キャラをそこへ歩かせるのに使う）*/
   function doorPos(key, g2) {
     if (key && key.indexOf('off:') === 0) {
@@ -15897,7 +16018,7 @@ GP.base = (function () {
       return s2 ? { x: s2.x, y: WALK.y1 - 6 } : null;
     }
     const yi = yard.findIndex(q => q.key === key);
-    if (yi >= 0) return { x: YARD_X[yi], y: WALK.y1 - 6 };
+    if (yi >= 0) return { x: yardX[yi] != null ? yardX[yi] : YARD_X[yi], y: WALK.y1 - 6 };
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
     const sp = plotSpot(g2 ? { key: key, ang: p.ang } : p, g2);
@@ -16621,7 +16742,7 @@ GP.base = (function () {
     if (!off && yard.length) {
       const py = WALK.y1 - 2;
       yard.forEach((q, i) => {
-        const x = YARD_X[i];
+        const x = yardX[i] != null ? yardX[i] : YARD_X[i];
         if (q.prop === 'brief') { briefStand(bg, x, py, q.color, q.done); }
         else person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
@@ -16855,7 +16976,7 @@ GP.base = (function () {
   }
 
   return { render, scene, drawWith, invalidate, hit, scale, setYard,
-           drawActor, doneMark, doorOf, doorPos, clampWalk, WALK, W, H };
+           drawActor, doneMark, doorOf, doorPos, plotAnchor, clampWalk, WALK, W, H };
 })();
 
 </script>
@@ -25644,11 +25765,11 @@ GP.screens.home = function (A) {
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
-    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
+    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる', short: '倉庫',
                fn: () => openFacility('depot') },
-    mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
+    mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
                fn: () => openFacility('mission') },
-    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる',
+    meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる', short: '会議室',
                fn: () => openFacility('meeting') }
   };
 
@@ -25806,7 +25927,104 @@ GP.screens.home = function (A) {
     return { place: '場所', job: '人・用事' };
   }
 
+  /* ---- 絵の上に出す札 ----
+     建物や人のところから引き出し線を出して、名前と用事を置く。
+     一覧を別に並べるのをやめて、絵そのものを一覧にする。
+
+     置きかたに一手間いる。札は建物の真上に出したいが、
+     隣どうしが近いと重なって読めなくなる。
+     いったん全部並べてから、実際の大きさを測って
+     重なっているものを上へ逃がす（重ねたまま出すより、
+     少し離れていても読めるほうがいい）                        */
+  function renderMapTags() {
+    const box = $('hubTags');
+    if (!box) return;
+    const mp = hubMap();
+    const doors = hubDoors();
+    const anchor = k => {
+      if (mp.plotAnchor) { const a = mp.plotAnchor(k, g); if (a) return a; }
+      return mp.doorPos ? mp.doorPos(k, g) : null;
+    };
+    /* 札を出すのは「まだ済ませていない、その週だけの用事」だけ。
+       建物には絵の中に看板が立っているので、札は要らない。
+       済んだ相手も絵の中には立っているので、押せば入れる      */
+    const list = [];
+    Object.keys(doors).forEach(k => {
+      if (doors[k].done !== false) return;
+      const p = anchor(k);
+      if (!p) return;
+      // 端の札が絵からはみ出さないよう、少し内側へ寄せる
+      const x = Math.max(9, Math.min(91, p.x / mp.W * 100));
+      list.push({ k: k, d: doors[k], x: x, y: p.y / mp.H * 100 });
+    });
+    if (!list.length) { box.innerHTML = ''; box.classList.remove('on'); return; }
+    box.innerHTML = list.map(t =>
+      '<button class="mtag" data-hub="' + esc(t.k) + '"' +
+      ' style="left:' + t.x.toFixed(2) + '%;top:' + t.y.toFixed(2) + '%">' +
+      '<span class="mt-pill"><i>' + (t.d.icon || '•') + '</i>' +
+      '<b>' + esc(t.d.label || t.k) + '</b>' +
+      '<em>' + esc(t.d.to || '入る') + '</em>' +
+      '</span>' +
+      '<span class="mt-stem"></span></button>').join('');
+    box.classList.add('on');
+    spreadTags(box);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
+      b.onclick = () => {
+        batchStop();
+        const k = b.getAttribute('data-hub');
+        hubSel = k;
+        const cv = $('hubCv');
+        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        GP.sound.play('tap');
+        hubEnter(k);
+      };
+    });
+  }
+
+  /* 重なった札を上へ逃がす。
+     下にあるものほど手前（＝絵の中で近い）なので、そちらを優先して残し、
+     奥のものから順に持ち上げる                                  */
+  function spreadTags(box) {
+    const wrap = box.getBoundingClientRect();
+    if (!wrap.height) return;
+    const tags = Array.prototype.slice.call(box.querySelectorAll('.mtag'));
+    const boxes = tags.map(el => {
+      const p = el.querySelector('.mt-pill').getBoundingClientRect();
+      return { el: el, lift: 0,
+               l: p.left - wrap.left, r: p.right - wrap.left,
+               t: p.top - wrap.top, b: p.bottom - wrap.top, h: p.height };
+    });
+    boxes.sort((a, b2) => b2.b - a.b);        // 手前（下）から決めていく
+    const done = [];
+    boxes.forEach(q => {
+      for (let i = 0; i < 9; i++) {
+        const hit = done.some(o =>
+          q.l < o.r + 4 && q.r > o.l - 4 && q.t < o.b + 3 && q.b > o.t - 3);
+        if (!hit) break;
+        const d = q.h + 4;
+        q.t -= d; q.b -= d; q.lift += d;
+      }
+      // 上へ逃がしすぎて絵から出るくらいなら、その札は畳んで印だけにする
+      if (q.t < 2) { q.el.classList.add('mini'); q.lift = 0; q.t = 0; q.b = 16; }
+      /* 左右も絵の中へ入れる。
+         札は足もとの真上に出すので、名前が長いと端で外へ出てしまう。
+         はみ出したぶんだけ横へずらす（引き出し線は足もとに残す）  */
+      let sx = 0;
+      if (q.l < 2) sx = 2 - q.l;
+      else if (q.r > wrap.width - 2) sx = (wrap.width - 2) - q.r;
+      if (sx) { q.l += sx; q.r += sx; }
+      done.push(q);
+      if (q.lift) {
+        q.el.style.setProperty('--lift', q.lift + 'px');
+        const stem = q.el.querySelector('.mt-stem');
+        if (stem) stem.style.height = q.lift + 'px';
+      }
+      if (sx) q.el.style.setProperty('--shift', Math.round(sx) + 'px');
+    });
+  }
+
   function renderHubList() {
+    renderMapTags();
     const box = $('hubList');
     if (!box) return;
     const doors = hubDoors();
@@ -25831,15 +26049,30 @@ GP.screens.home = function (A) {
     // グリッドとオフの「場所」は、ここから先へ進むための一枚。
     // 用事を済ませる前に押してしまわないよう、いちばん下に置いて形も変える
     const gate = g.offseason || g.onGrid;
+    /* 建物は札を2段に積まず、絵の下の一列に畳む。
+       名前は絵の中の看板が言っているので、ここでは
+       絵柄と用事だけあれば足りる                            */
+    const chip = k => {
+      const d = doors[k];
+      return '<button class="hlchip' + (d.done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+        ' title="' + esc((d.label || k) + '／' + (d.to || '入る')) + '">' +
+        '<i>' + (d.icon || '•') + '</i><b>' +
+        esc(d.short || d.to || d.label || k) + '</b></button>';
+    };
+    /* 「まとめて回る」も一列に混ぜる。
+       行をもう1段作ると、そのぶん絵が痩せてしまう              */
+    const allChip = (!gate && rest >= 2)
+      ? '<button class="hlchip all" data-all="1" title="まだ済ませていない用事を順に開く">' +
+        '<i>🗣️</i><b>まとめて</b><u>' + rest + '</u></button>' : '';
     const placeHTML = !places.length ? '' :
-      '<b class="hl-h">' + (jobs.length ? ti.place : 'ここでできること') + '</b>' +
-      '<div class="hlgrid' + (gate ? ' gate' : '') + '">' +
-      places.map(k => tile(k, gate ? ' wide go' : '')).join('') + '</div>';
-    const jobHTML = !jobs.length ? '' :
-      '<b class="hl-h">' + ti.job +
-      (rest ? '<span>あと ' + rest + ' 件</span>' : '<span class="ok">ひと回り済み</span>') + '</b>' +
-      (rest >= 2 ? '<button class="hlbtn allbtn" data-all="1">' +
-        '<i>🗣️</i><b>まとめて回る</b><em>あと ' + rest + ' 件</em></button>' : '') +
+      (gate
+        ? '<b class="hl-h">' + (jobs.length ? ti.place : 'ここでできること') + '</b>' +
+          '<div class="hlgrid gate">' + places.map(k => tile(k, ' wide go')).join('') + '</div>'
+        : '<div class="hlrow">' + allChip + places.map(chip).join('') + '</div>');
+    /* 用事は絵の上に札で出ている。歩けない場面だけ、札の一覧も出す */
+    const jobHTML = !jobs.length || !gate ? '' :
+      '<button class="hlbtn allbtn" data-all="1"><i>🗣️</i><b>まとめて回る</b>' +
+      '<em>あと ' + rest + ' 件</em></button>' +
       '<div class="hlgrid">' + jobs.map(k => tile(k, '')).join('') + '</div>';
 
     box.innerHTML = gate ? jobHTML + placeHTML : placeHTML + jobHTML;
@@ -27805,7 +28038,9 @@ GP.ui = (function () {
     const sc = S.carScore(g, t);
     const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
-    return '<div class="card"><div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) + '</div>' +
+    return '<div class="card foldable" data-fold="race">' +
+      '<div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) +
+      '<b class="foldnote">あと' + left + '週</b></div>' +
       '<div class="pad">' +
       '<div class="countdown' + (left === 0 ? ' now' : '') + '">' +
       (left === 0
@@ -27951,7 +28186,15 @@ GP.ui = (function () {
         '<i><b style="width:' + pct + '%;background:' + a.color + '"></b></i>' +
         '<em>' + (Math.round(v * 10) / 10) + '<small>/' + cap + '</small></em></div>';
     });
-    return '<div class="card"><div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b></div><div class="pad">' +
+    return '<div class="card foldable" data-fold="car">' +
+      '<div class="card-h">🏎️ マシン <b class="gen">' + gen.name + '</b>' +
+      /* 畳んだときも、開く価値があるかどうかは見出しで分かるようにする。
+         「総合」は次のコースでの評価。コースがない週は素の平均で出す  */
+      '<b class="foldnote">総合 ' +
+      Math.round(g.nextRace < D.RACES
+                 ? S.carScore(g, S.trackAt(g, g.nextRace))
+                 : (st.speed + st.corner + st.accel) / 3) +
+      '／信頼 ' + Math.round(rel) + '%</b></div><div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
       '<span>🔋 バッテリー</span>' +
@@ -28437,6 +28680,7 @@ GP.ui = (function () {
   function renderAll(g, special) {
     renderTop(g);
     $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
+    applyFolds($('viewPanel'));
     if (g.nextRace < D.RACES) drawMini(S.trackAt(g, g.nextRace));
     renderSide(g);
   }
@@ -28460,7 +28704,8 @@ GP.ui = (function () {
        操作は下のタイルで完結する（建物を押しても同じところへ行く） */
     return '<div class="card hub">' + head +
       '<div class="pad">' +
-      '<div class="basewrap"><canvas id="hubCv" width="' + map.W + '" height="' + map.H + '"></canvas></div>' +
+      '<div class="basewrap"><canvas id="hubCv" width="' + map.W + '" height="' + map.H + '"></canvas>' +
+      '<div class="maptags" id="hubTags"></div></div>' +
       '<div class="hublist" id="hubList"></div>' +
       '</div></div>';
   }
@@ -28624,6 +28869,38 @@ GP.ui = (function () {
          '" text-anchor="middle">' + esc(o.bName) + '</text>';
     return h + '</svg>';
   }
+
+  /* ---- ホームの長いカードを畳む ----
+     横向きのスマートフォンでは、ホームの左の列は 243px しか見えないのに
+     中身は 1,610px あった。大きなカードは畳んでおいて、
+     見たい人が見出しを押したときだけ開く。
+     どれを開いていたかは端末に覚えておく（毎回たたみ直させない） */
+  const FOLD_KEY = 'gp-open-cards';
+  let openCards = null;
+  function foldState() {
+    if (openCards) return openCards;
+    try { openCards = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; }
+    catch (e) { openCards = {}; }
+    return openCards;
+  }
+  function applyFolds(root) {
+    const st = foldState();
+    (root || document).querySelectorAll('.card.foldable').forEach(c => {
+      const k = c.getAttribute('data-fold');
+      c.classList.toggle('open', !!st[k]);
+    });
+  }
+  document.addEventListener('click', function (e) {
+    const h = e.target && e.target.closest ? e.target.closest('.card.foldable > .card-h') : null;
+    if (!h) return;
+    const c = h.parentElement;
+    const k = c.getAttribute('data-fold');
+    const st = foldState();
+    st[k] = !st[k];
+    c.classList.toggle('open', !!st[k]);
+    try { localStorage.setItem(FOLD_KEY, JSON.stringify(st)); } catch (e2) {}
+    if (GP.sound) GP.sound.play('tap');
+  });
 
   function closeModal() { $('modal').className = ''; }
 
