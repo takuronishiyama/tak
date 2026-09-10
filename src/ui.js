@@ -691,19 +691,22 @@ GP.ui = (function () {
      建物を押すと、その設備の画面が開く。何が開くかは main.js が決める。 */
   function hubCard(g) {
     const sc = GP.base.scale(g);
-    // レースウィークは、本拠地ではなくサーキットのパドックを歩く
+    // レースウィークは、本拠地ではなくサーキットのパドックにいる
     const race = g.nextRace < D.TRACKS.length && g.week === GP.state.raceWeek(g.nextRace);
-    const head = race
-      ? '<div class="card-h">🏁 パドック <b class="hubrank">' + esc(D.TRACKS[g.nextRace].name) + '</b></div>'
-      : '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>';
+    const track = g.nextRace < D.TRACKS.length ? D.TRACKS[g.nextRace] : null;
+    const head =
+      g.onGrid ? '<div class="card-h">🏁 スターティンググリッド <b class="hubrank">' +
+                   esc(track ? track.name : '') + '</b></div>'
+    : g.offseason ? '<div class="card-h">🌱 シーズンオフ <b class="hubrank">S' + g.season + ' 終了</b></div>'
+    : race ? '<div class="card-h">🏁 パドック <b class="hubrank">' + esc(track.name) + '</b></div>'
+           : '<div class="card-h">🏠 チーム本拠地 <b class="hubrank">' + esc(sc.rank) + '</b></div>';
+    // 絵の広さは場所によって違う。合わせておかないと右側が空く
+    const map = g.onGrid ? GP.grid : (race && !g.offseason ? GP.paddock : GP.base);
+    /* 絵は「いまどこに居るか」を見せるためのもの。
+       操作は下のタイルで完結する（建物を押しても同じところへ行く） */
     return '<div class="card hub">' + head +
       '<div class="pad">' +
-      '<div class="basewrap"><canvas id="hubCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
-      '<div class="hubbar">' +
-      '<div class="hubhint" id="hubHint">矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」</div>' +
-      '<button class="btn hubenter" id="hubEnter" disabled>▲ 入る</button>' +
-      '</div>' +
-      // 歩かなくても、ここに出ている用事はそのまま選べる
+      '<div class="basewrap"><canvas id="hubCv" width="' + map.W + '" height="' + map.H + '"></canvas></div>' +
       '<div class="hublist" id="hubList"></div>' +
       '</div></div>';
   }

@@ -1085,16 +1085,9 @@ body[data-skin="hd"]{
 [data-skin="hd"] .cmd.sub{color:#f2e4c4}
 
 /* ---------- 本拠地ハブ（メイン画面の入口） ---------- */
-.card.hub .basewrap{margin-bottom:6px}
-#hubCv{display:block;width:100%;height:auto;
+.card.hub .basewrap{margin-bottom:6px;display:flex;justify-content:center;align-items:center}
+#hubCv{display:block;width:100%;height:auto;cursor:pointer;
        image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
-.hubhint{font-size:11px;text-align:center;padding:4px 8px;border-radius:6px;
-         background:var(--trough);border:2px solid var(--ink);transition:background .15s}
-.hubhint.on{background:linear-gradient(#fff4c0,#ffe88a);font-weight:bold}
-[data-skin="hd"] .hubhint{background:var(--trough);border-color:rgba(214,178,106,.34);color:#b9a98f}
-[data-skin="hd"] .hubhint.on{background:linear-gradient(180deg,#6a5220,#3d2e12);
-                             border-color:var(--gold);color:#ffeec0;
-                             box-shadow:0 0 14px rgba(214,178,106,.40)}
 
 /* パーツのアイコンは自前のドット絵。下地の色は薄く敷いて、絵を主役にする */
 .ic-art{overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center}
@@ -1102,16 +1095,6 @@ body[data-skin="hd"]{
 .p-ic.ic-art{filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
 [data-skin="hd"] .ic-art{box-shadow:inset 0 0 0 1px rgba(0,0,0,.45)}
 
-/* 拠点の操作バー（案内文＋入るボタン） */
-.hubbar{display:flex;gap:8px;align-items:stretch}
-.hubbar .hubhint{flex:1;display:flex;align-items:center;justify-content:center}
-.btn.hubenter{flex:0 0 auto;min-width:112px;font-size:12px;padding:4px 12px}
-.btn.hubenter:disabled{opacity:.45}
-#hubCv{cursor:pointer}
-@media (max-width:760px){
-  .hubbar{flex-direction:column}
-  .btn.hubenter{min-width:0;width:100%;padding:8px}
-}
 
 /* 作戦画面：小さめのボタンと、ライバルの傾向 */
 .stratbtn.small{font-size:11px;padding:3px 6px;line-height:1.25}
@@ -1478,24 +1461,47 @@ body[data-skin="hd"]{
 [data-skin="hd"] .hirechip{background:#8a5a2a;color:#ffe9b0}
 [data-skin="hd"] .mgmtrow.up{border-color:#5aa85a}
 
-/* いまの場所でできること（歩かずに選ぶための一覧） */
-.hublist{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:stretch}
-.hl-h{width:100%;font-size:10px;color:var(--ink2);margin:0 0 1px}
-.hlbtn{display:flex;align-items:center;gap:5px;flex:1 1 186px;min-width:168px;
-       padding:5px 8px;cursor:pointer;text-align:left;line-height:1.35;
-       border:2px solid var(--ink);border-radius:6px;background:#fff8e3;color:var(--ink);
-       font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35)}
-.hlbtn i{font-style:normal;font-size:13px;flex:none}
-.hlbtn b{flex:1;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hlbtn em{font-style:normal;font-size:9px;color:#3a2611;flex:none;font-weight:bold;
-          background:#ecd9a4;border-radius:3px;padding:1px 5px}
-.hlbtn:hover:not([disabled]){background:#ffe9a8;transform:translateY(1px);box-shadow:0 1px 0 rgba(74,47,26,.35)}
+/* ---- ここでできること（行き先のタイル） ----
+   人を歩かせるのはやめたので、ここが本体。
+   絵札のように並べて、アイコン・場所の名前・そこで何をするかを一枚に載せる。 */
+.hublist{margin-top:7px}
+.hl-h{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink2);margin:7px 0 3px}
+.hl-h:first-child{margin-top:0}
+.hl-h::after{content:"";flex:1;height:2px;border-radius:2px;background:rgba(74,47,26,.16)}
+.hl-h span{order:3;font-size:9px;font-weight:bold;color:#7a4a12;
+           background:#ffe08a;border:2px solid var(--ink);border-radius:999px;padding:0 6px}
+.hl-h span.ok{color:#2c6a33;background:#cdeccd}
+.hlgrid{display:grid;gap:5px;grid-template-columns:repeat(auto-fill,minmax(94px,1fr))}
+.hlbtn{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;
+       padding:7px 4px 6px;cursor:pointer;text-align:center;line-height:1.25;
+       border:2px solid var(--ink);border-radius:8px;color:var(--ink);
+       background:linear-gradient(180deg,#fffdf2,#ffedc2);
+       font-family:inherit;box-shadow:0 3px 0 rgba(74,47,26,.35)}
+.hlbtn i{font-style:normal;font-size:21px;line-height:1.15;
+         filter:drop-shadow(0 1px 0 rgba(0,0,0,.20))}
+.hlbtn b{font-size:10.5px;overflow:hidden;word-break:break-word;
+         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.hlbtn em{font-style:normal;font-size:9px;color:#3a2611;font-weight:bold;
+          background:#ecd9a4;border-radius:999px;padding:0 6px;margin-top:2px;
+          max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 済んだ用事の印。角に小さく付けて、札そのものは薄くする */
+.hlbtn u{position:absolute;top:-5px;right:-5px;text-decoration:none;
+         width:17px;height:17px;font-size:10px;line-height:13px;border-radius:50%;
+         background:#3f9a4c;color:#fff;border:2px solid var(--ink)}
+.hlbtn.done{background:linear-gradient(180deg,#f4efe2,#e3dbc9);opacity:.72}
+.hlbtn.done i{filter:grayscale(.6)}
+.hlbtn:hover:not([disabled]){background:linear-gradient(180deg,#fff6d2,#ffe19a)}
+.hlbtn:active:not([disabled]){transform:translateY(2px);box-shadow:0 1px 0 rgba(74,47,26,.35)}
 .hlbtn[disabled]{opacity:.45;cursor:default;box-shadow:none}
 [data-skin="hd"] .hl-h{color:#cbbb9a}
-[data-skin="hd"] .hlbtn{background:#2f2540;border-color:#5b4a74;color:#efe4cf;
-                        box-shadow:0 2px 0 rgba(0,0,0,.45)}
+[data-skin="hd"] .hl-h::after{background:rgba(214,178,106,.22)}
+[data-skin="hd"] .hl-h span{background:#5b4a20;border-color:var(--gold);color:#ffeec0}
+[data-skin="hd"] .hl-h span.ok{background:#27502c;color:#c8ecc8}
+[data-skin="hd"] .hlbtn{background:linear-gradient(180deg,#392d4c,#241c33);
+                        border-color:#5b4a74;color:#efe4cf;box-shadow:0 3px 0 rgba(0,0,0,.45)}
 [data-skin="hd"] .hlbtn em{color:#efe4cf;background:#4b3d68}
-[data-skin="hd"] .hlbtn:hover:not([disabled]){background:#3c3054}
+[data-skin="hd"] .hlbtn.done{background:linear-gradient(180deg,#2b2635,#201c29)}
+[data-skin="hd"] .hlbtn:hover:not([disabled]){background:linear-gradient(180deg,#48395f,#2e2442)}
 
 /* 路面を読む力と、ドライバーの適性 */
 .stratbox{margin:6px 0 10px;padding:8px 10px;border:2px solid var(--ink);border-radius:6px;
@@ -1806,11 +1812,26 @@ body[data-skin="hd"]{
 .cmd.big.go { background: linear-gradient(180deg,#2fa04a,#1d7a36); }
 .cmd.big.go { background-color: #26913f; border-color: #16582a; }
 
-/* ---- 歩く場面の「まとめて回る」 ---- */
+/* ---- 横一本の札（「まとめて回る」と、先へ進む一枚） ---- */
+.hlgrid.gate { grid-template-columns: 1fr; }
+.hlbtn.wide { flex-direction: row; justify-content: center; gap: 8px; padding: 7px 10px; }
+.hlbtn.wide i { font-size: 18px; }
+.hlbtn.wide b { font-size: 12px; }
+.hlbtn.wide em { margin-top: 0; }
+.hlbtn.go { background: linear-gradient(180deg,#2fa04a,#1d7a36); }
+.hlbtn.go { background-color: #26913f; border-color: #16582a; color: #fff; }
+.hlbtn.go b, .hlbtn.go i { color: #fff; }
+.hlbtn.go em { color: #14421f; background: #d5f0d5; }
+.hlbtn.go:hover:not([disabled]) { background: linear-gradient(180deg,#38b455,#23913f); }
+[data-skin="hd"] .hlbtn.go { background: linear-gradient(180deg,#2c8a44,#1a5e2c); border-color: #6ec27f; }
+.hlbtn.allbtn { flex-direction: row; justify-content: center; gap: 8px;
+                width: 100%; margin-bottom: 5px; padding: 6px 10px; }
 .hlbtn.allbtn { background: linear-gradient(180deg,#3b6ea8,#2a5386); }
 .hlbtn.allbtn { background-color: #33608f; border-color: #1e3f68; color: #fff; }
 .hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
-.hlbtn.allbtn em { opacity: .85; }
+.hlbtn.allbtn i { font-size: 16px; }
+.hlbtn.allbtn b { font-size: 11.5px; }
+.hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
 /* ---- パワーユニット供給の比較 ---- */
 .engcmp{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 8px;margin:6px 0}
@@ -1896,9 +1917,11 @@ body[data-skin="hd"]{
    （iOS のヒューマンインターフェイスガイドラインに合わせる）
    ========================================================= */
 @media (max-width:520px), (hover:none) and (pointer:coarse){
-  /* 歩く場面の用事ボタン。指で押せる高さにする */
-  .hlbtn{min-height:44px;padding:6px 8px}
-  .hlbtn i{font-size:16px}
+  /* 行き先の札。指で押せる大きさにする */
+  .hlgrid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+  .hlbtn{min-height:62px}
+  .hlbtn i{font-size:23px}
+  .hlbtn.allbtn{min-height:44px}
   /* 上部バーの小さなボタン（音・スキン）*/
   .stat.sound{min-width:44px;min-height:44px;justify-content:center;font-size:17px}
   /* 選択肢・タブ・小ボタンも指のサイズに合わせる */
@@ -1918,7 +1941,8 @@ body[data-skin="hd"]{
   .tb-row.tb-head{font-size:10px}
 
   /* 個別に小さいまま残っていたもの */
-  .hlbtn em{font-size:11px}
+  .hlbtn em{font-size:10px}
+  .hlbtn b{font-size:11px}
   .battr em small,.part .p-lv small,.p-lv small{font-size:10px}
   .drv-sal{font-size:11px}
   .tb-team .rank,.tb-team .mode,.hl-h,.countdown span,.seclegend em,
@@ -2318,6 +2342,21 @@ body[data-skin="hd"]{
   .pickbtn{padding:5px 7px;min-height:44px}
   .pick{gap:5px}
   .basewrap{max-height:38vh}
+  /* 拠点は、絵と行き先を横に並べる。
+     横長の画面では、縦に積むと絵だけで一画面を使ってしまう */
+  .card.hub .pad{display:flex;gap:7px;align-items:flex-start}
+  .card.hub .basewrap{flex:0 0 42%;max-height:none;margin-bottom:0}
+  .card.hub #hubCv{width:100%;height:auto;max-width:none;max-height:none}
+  .card.hub .hublist{flex:1 1 0;min-width:0;margin-top:0}
+  /* 札は小ぶりに。1画面に収まる数を増やす */
+  .hlgrid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:4px}
+  .hlbtn{min-height:0;padding:3px 3px 2px;gap:0;border-radius:6px;box-shadow:0 2px 0 rgba(74,47,26,.35)}
+  .hlbtn i{font-size:15px}
+  .hlbtn b{font-size:9.5px}
+  .hlbtn em{font-size:8.5px;padding:0 5px;margin-top:1px}
+  .hlbtn u{width:14px;height:14px;font-size:9px;line-height:10px;top:-4px;right:-4px}
+  .hlbtn.allbtn{min-height:0;padding:4px 8px}
+  .hl-h{margin:5px 0 2px}
   .drvwrap{grid-template-columns:1fr 1fr}
 }
 

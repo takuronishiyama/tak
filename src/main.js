@@ -4861,10 +4861,9 @@ window.GP = window.GP || {};
     }));
     GP.grid.setPeople(gridPeople());
     GP.grid.invalidate();
-    const p = GP.grid.clampWalk(60, GP.grid.WALK.y1 - 6);
-    actor.x = p.x; actor.y = p.y;
+    hubSel = null;
     render();
-    U.toast('🏁 グリッドを歩けます。マシンやスタッフに近づいて「入る」', 'good');
+    U.toast('🏁 グリッドに降りました。マシンやスタッフを押して回れます', 'good');
   }
 
   function refreshGrid() {
@@ -5246,9 +5245,18 @@ window.GP = window.GP || {};
 
   function offDoors() {
     const m = {};
-    Object.keys(OFF_DOORS).forEach(k => { m[k] = OFF_DOORS[k]; });
+    // オフの用事も、済んだものにはチェックが付くようにする
+    Object.keys(OFF_DOORS).forEach(k => {
+      const d = OFF_DOORS[k];
+      const tag = k.slice(4);
+      m[k] = k === 'off:next' ? d
+           : Object.assign({}, d, { done: offDone(tag),
+                                    to: offDone(tag) ? '済んだ' : d.to });
+    });
     (g.drivers || []).slice(0, 2).forEach((d, i) => {
-      if (m['off:drv' + i]) m['off:drv' + i] = { icon: '🧑‍✈️', label: d.name, to: '話す',
+      const dn = offDone('drv' + i);
+      if (m['off:drv' + i]) m['off:drv' + i] = { icon: '🧑‍✈️', label: d.name, done: dn,
+                                                 to: dn ? '話した' : '話す',
                                                  fn: () => doOffDriver(i) };
     });
     return m;
@@ -5411,9 +5419,10 @@ window.GP = window.GP || {};
       // ガレージの並びは i=4 が自チーム。ライバルはそこを飛ばして詰める
       const gi = ri < GP.paddock.MINE_AT ? ri : ri + 1;
       const done = (g.scouted || []).indexOf(r.name) >= 0;
+      // 札は狭い。チーム名だけ出して、何をするかは下の一言に任せる
       map['scout' + gi] = {
-        icon: done ? '✓' : '👀', label: r.name + ' のガレージ', done: done,
-        to: done ? '確認済み' : '覗く',
+        icon: '👀', label: r.name, done: done,
+        to: done ? '確認済み' : 'ガレージを覗く',
         fn: () => doScout(r)
       };
     });
@@ -5429,8 +5438,8 @@ window.GP = window.GP || {};
     GP.paddock.visitors(g).forEach(v => {
       const dn = spoke('poach:' + v.team.name + ':' + v.driver.name);
       map[v.spot.key] = {
-        icon: '🤝', label: v.driver.name + '（' + v.team.name + '）', done: dn,
-        to: dn ? '接触済み' : '接触', fn: () => doPoach(v.driver, v.team)
+        icon: '🤝', label: v.driver.name, done: dn,
+        to: dn ? '接触済み' : v.team.name, fn: () => doPoach(v.driver, v.team)
       };
     });
     return map;
@@ -6246,134 +6255,41 @@ window.GP = window.GP || {};
     S.save(g); render();
   }
 
+  const openFacility = key => { baseSel = key; cmdFacility(); };
+
   const HUB_DOORS = {
+    pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
     factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
+    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる',
+               fn: () => openFacility('depot') },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
-    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
+    mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる',
+               fn: () => openFacility('mission') },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { hrTab = 'youth'; cmdStaff(); } },
-    pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() }
+    market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() }
   };
 
-  /* ---------- 拠点を歩く ----------
-     プレイヤー（チームプリンシパル）が敷地を左右に歩き、
-     建物の入口に立つと、その設備へ入れる。
-     操作は 矢印キー／WASD と、画面のタップ（そこまで歩いていく）。   */
-  const actor = { x: 264, y: 300, dir: 'down', frame: 0, moving: false, color: '#e04a3f' };
-  let hubRaf = null, hubLast = 0, hubGoal = null, hubKeys = {}, hubDoor = null, hubBusy = false;
-  let hubAutoEnter = null;     // 建物を押して向かっているとき、その入口の名前
-  const WALK_SPEED = 62;            // 1秒あたりに進むドット数
+  /* ---------- 拠点の画面 ----------
+     以前はチームプリンシパルを歩かせていたが、
+     小さい画面では「目的の建物の前に立つ」だけで手間がかかる。
+     いまは絵を「いまどこに居るか」を見せるためのものとして残し、
+     建物や人を直接押すか、下のタイルを押すかで入る。       */
+  let hubSel = null, hubBusy = false;
 
-  function stopHub() {
-    if (hubRaf) cancelAnimationFrame(hubRaf);
-    hubRaf = null; hubGoal = null; hubKeys = {};
-  }
+  function stopHub() { hubSel = null; }
 
-  function hubStep(ts) {
-    const cv = $('hubCv');
-    // 画面から消えた／レース中は止める（後処理の裏画面を奪い合わないように）
-    const rs = $('raceScreen');
-    if (!cv || !document.body.contains(cv) || !rs || /\bshow\b/.test(rs.className)) {
-      hubRaf = null; return;
-    }
-    const dt = Math.min(0.05, (ts - hubLast) / 1000 || 0.016);
-    hubLast = ts;
-
-    // 画面（モーダル）が開いているあいだは操作を受けず、描画もしない。
-    // ここで止めてしまうと、閉じたときに再開できないのでループ自体は回し続ける。
-    const mo = $('modal');
-    if (mo && /\bshow\b/.test(mo.className)) {
-      hubKeys = {}; hubGoal = null; hubAutoEnter = null;
-      hubRaf = requestAnimationFrame(hubStep);
-      return;
-    }
-
-    let dx = 0, dy = 0;
-    if (hubKeys.left) dx -= 1;
-    if (hubKeys.right) dx += 1;
-    if (hubKeys.up) dy -= 1;
-    if (hubKeys.down) dy += 1;
-    if (dx || dy) { hubGoal = null; hubAutoEnter = null; }   // キー操作が入ったら目的地を捨てる
-    else if (hubGoal) {                              // タップした場所へ向かう
-      const gx = hubGoal.x - actor.x, gy = hubGoal.y - actor.y;
-      const d = Math.hypot(gx, gy);
-      // 目的地にぴったり着けなくても、その入口が反応する所まで来ていれば着いたとみなす。
-      // （壁ぎわなど、座標にわずかでも届かないと永久に入れない場所があった）
-      const nearDoor = hubAutoEnter && d < 14 &&
-        ((hubMap().doorOf(actor.x, actor.y, g) || {}).key === hubAutoEnter);
-      if (d < 3.0 || nearDoor) {
-        hubGoal = null;
-        // 建物を押して向かってきた場合は、着いたらそのまま入る。
-        // 「押したのに入れない」と感じさせないための扱い。
-        if (hubAutoEnter) {
-          const want = hubAutoEnter;
-          hubAutoEnter = null;
-          actor.moving = false;
-          hubDoor = want;
-          hubMap().drawWith(cv, g, hubDoor, actor);
-          // 着いた先の入口をそのまま開ける。
-          // ここで hubDoor を照合していたため、判定の縁に立ったときに
-          // 入口が別のものに切り替わってしまい、入れないことがあった
-          setTimeout(() => {
-            if (hubKeys.left || hubKeys.right || hubKeys.up || hubKeys.down) return;
-            hubDoor = want;
-            hubEnter();
-          }, 120);
-          hubRaf = requestAnimationFrame(hubStep);
-          return;
-        }
-      } else { dx = gx / d; dy = gy / d; }
-    }
-
-    const len = Math.hypot(dx, dy) || 1;
-    actor.moving = !!(dx || dy);
-    if (actor.moving) {
-      const p = hubMap().clampWalk(actor.x + (dx / len) * WALK_SPEED * dt,
-                                   actor.y + (dy / len) * WALK_SPEED * dt);
-      actor.x = p.x; actor.y = p.y;
-      actor.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right')
-                                              : (dy < 0 ? 'up' : 'down');
-      actor.frame += dt * 8;
-    } else {
-      actor.frame = 0;
-    }
-
-    // 入口の判定と案内
-    const door = hubMap().doorOf(actor.x, actor.y, g);
-    const key = door ? door.key : null;
-    if (key !== hubDoor) {
-      hubDoor = key;
-      const d = key && hubDoors()[key];
-      const hint = $('hubHint');
-      if (hint) {
-        hint.textContent = d ? d.icon + ' ' + d.label + ' — ここで「入る」'
-                             : (g.onGrid ? GRID_IDLE_HINT
-                                : isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT);
-        hint.classList.toggle('on', !!d);
-      }
-      const btn = $('hubEnter');
-      if (btn) { btn.disabled = !key; btn.textContent = key ? '▲ ' + hubDoors()[key].to + 'へ' : '▲ 入る'; }
-      if (key) GP.sound.play('tap', 30);
-    }
-
-    hubMap().drawWith(cv, g, hubDoor, actor);
-    hubRaf = requestAnimationFrame(hubStep);
-  }
-
-  function hubEnter() {
-    if (!hubDoor || hubBusy) return;
-    const d = hubDoors()[hubDoor];
-    if (!d) return;
+  /* 入口を一つ開ける。絵を押してもタイルを押してもここへ来る */
+  function hubEnter(key) {
+    const k = key || hubSel;
+    const d = k && hubDoors()[k];
+    if (!d || hubBusy) return;
     hubBusy = true;
+    hubSel = k;
     GP.sound.play('click');
-    hubGoal = null; hubKeys = {}; hubAutoEnter = null;
     d.fn();
     hubBusy = false;
   }
-
-  const GRID_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。マシンや人の下で「入る」';
-  const HUB_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。建物の下で「入る」';
-  const PADDOCK_IDLE_HINT = '矢印キーで歩く／画面をタップでそこへ移動。ガレージや出口の下で「入る」';
 
   function bindHub() {
     const cv = $('hubCv');
@@ -6382,17 +6298,12 @@ window.GP = window.GP || {};
     GP.base.setYard((isRaceWeek() || g.offseason) ? [] : yardPeople());
     GP.base.invalidate();          // 施設を広げた直後などに背景を作り直す
     GP.paddock.invalidate();
-    actor.color = g.color || '#e04a3f';
-    // 場所が変われば、足元の案内も切り替える
-    const hint0 = $('hubHint');
-    if (hint0) {
-      hint0.textContent = g.onGrid ? GRID_IDLE_HINT
-                     : isRaceWeek() ? PADDOCK_IDLE_HINT : HUB_IDLE_HINT;
-      hint0.classList.remove('on');
-    }
-    const p = hubMap().clampWalk(actor.x, actor.y);
-    actor.x = p.x; actor.y = p.y;
-    hubDoor = null;
+    // 前に選んだ場所がいまもあれば、そこを光らせたままにしておく
+    if (hubSel && !hubDoors()[hubSel]) hubSel = null;
+    // 本拠地とパドックでは絵の広さが違う。合わせておかないと右側が空く
+    const mp = hubMap();
+    if (cv.width !== mp.W || cv.height !== mp.H) { cv.width = mp.W; cv.height = mp.H; }
+    mp.drawWith(cv, g, hubSel, null);
 
     // 画面上の座標をキャンバスの座標へ直す
     const at = ev => {
@@ -6401,27 +6312,33 @@ window.GP = window.GP || {};
       return { x: (t.clientX - r.left) * (hubMap().W / r.width),
                y: (t.clientY - r.top) * (hubMap().H / r.height) };
     };
-
-    // 建物を押したら、その入口まで歩いていく。地面を押したらそこへ歩く
-    cv.onclick = ev => {
+    const keyAt = ev => {
       const q = at(ev);
       const k = hubMap().hit(q.x, q.y);
-      if (k && hubDoors()[k]) {
-        const dp = hubMap().doorPos(k, g);
-        if (dp) { hubGoal = dp; hubAutoEnter = k; return; }
-      }
-      // 地面を押したときは、そこへ歩くだけ
-      hubAutoEnter = null;
-      hubGoal = hubMap().clampWalk(q.x, q.y);
+      return k && hubDoors()[k] ? k : null;
     };
-    cv.ondblclick = () => hubEnter();
 
-    const btn = $('hubEnter');
-    if (btn) btn.onclick = hubEnter;
+    // 建物や人を押したら、そのままそこへ入る
+    cv.onclick = ev => {
+      const k = keyAt(ev);
+      if (!k) return;
+      batchStop();
+      hubSel = k;
+      hubMap().drawWith(cv, g, hubSel, null);
+      hubEnter(k);
+    };
+    // 押せるところの上では指の形にする（どこが押せるか分かるように）
+    cv.onmousemove = ev => {
+      const k = keyAt(ev);
+      cv.style.cursor = k ? 'pointer' : 'default';
+      if (k !== hubSel) { hubSel = k; hubMap().drawWith(cv, g, hubSel, null); }
+    };
+    cv.onmouseleave = () => {
+      cv.style.cursor = 'default';
+      if (hubSel) { hubSel = null; hubMap().drawWith(cv, g, null, null); }
+    };
 
     renderHubList();
-
-    if (!hubRaf) { hubLast = performance.now(); hubRaf = requestAnimationFrame(hubStep); }
   }
 
   /* ---- いまの場所でできることを、そのままボタンにする ----
@@ -6492,68 +6409,72 @@ window.GP = window.GP || {};
     render();
   }
 
+  /* ---- ここでできることを、並べたタイルにする ----
+     場所（建物や画面への入口）と、用事（一度きりのやりとり）を分けて並べる。
+     用事は済むとチェックが付くので、残りがひと目で分かる。        */
+  function hubKind(d) { return d.kind || (d.done === undefined ? 'place' : 'errand'); }
+
+  /* 見出しは場所によって変える。同じ「場所」でも、
+     グリッドとオフでは並んでいるものの意味がちがう */
+  function hubTitles() {
+    if (g.offseason) return { place: '進む', job: 'オフの用事' };
+    if (g.onGrid)    return { place: '進む', job: 'グリッドで' };
+    if (isRaceWeek()) return { place: 'パドック', job: '人・用事' };
+    return { place: '場所', job: '人・用事' };
+  }
+
   function renderHubList() {
     const box = $('hubList');
     if (!box) return;
     const doors = hubDoors();
     const keys = Object.keys(doors);
     if (!keys.length) { box.innerHTML = ''; return; }
+    const places = keys.filter(k => hubKind(doors[k]) === 'place');
+    const jobs   = keys.filter(k => hubKind(doors[k]) === 'errand');
     const rest = batchable().length;
-    box.innerHTML = '<b class="hl-h">ここでできること</b>' +
+
+    const tile = (k, cls) => {
+      const d = doors[k];
+      const done = !!d.done;
+      return '<button class="hlbtn' + (cls || '') + (done ? ' done' : '') +
+        '" data-hub="' + esc(k) + '">' +
+        '<i>' + (d.icon || '•') + '</i>' +
+        '<b>' + esc(d.label || k) + '</b>' +
+        '<em>' + esc(d.to || '入る') + '</em>' +
+        (done ? '<u>✓</u>' : '') + '</button>';
+    };
+
+    const ti = hubTitles();
+    // グリッドとオフの「場所」は、ここから先へ進むための一枚。
+    // 用事を済ませる前に押してしまわないよう、いちばん下に置いて形も変える
+    const gate = g.offseason || g.onGrid;
+    const placeHTML = !places.length ? '' :
+      '<b class="hl-h">' + (jobs.length ? ti.place : 'ここでできること') + '</b>' +
+      '<div class="hlgrid' + (gate ? ' gate' : '') + '">' +
+      places.map(k => tile(k, gate ? ' wide go' : '')).join('') + '</div>';
+    const jobHTML = !jobs.length ? '' :
+      '<b class="hl-h">' + ti.job +
+      (rest ? '<span>あと ' + rest + ' 件</span>' : '<span class="ok">ひと回り済み</span>') + '</b>' +
       (rest >= 2 ? '<button class="hlbtn allbtn" data-all="1">' +
         '<i>🗣️</i><b>まとめて回る</b><em>あと ' + rest + ' 件</em></button>' : '') +
-      keys.map(k => {
-        const d = doors[k];
-        const done = !!d.done;
-        // 済んだ用事はチェックを付けて、まだのものだけが目に入るようにする
-        return '<button class="hlbtn' + (done ? ' done' : '') + '" data-hub="' + esc(k) + '">' +
-          '<i>' + (done ? '✓' : (d.icon || '•')) + '</i>' +
-          '<b>' + esc(d.label || k) + '</b>' +
-          '<em>' + esc(d.to || '入る') + '</em></button>';
-      }).join('');
+      '<div class="hlgrid">' + jobs.map(k => tile(k, '')).join('') + '</div>';
+
+    box.innerHTML = gate ? jobHTML + placeHTML : placeHTML + jobHTML;
+
     const allb = box.querySelector('[data-all]');
     if (allb) allb.onclick = batchStart;
     Array.prototype.forEach.call(box.querySelectorAll('[data-hub]'), b => {
       b.onclick = () => {
         batchStop();
         const k = b.getAttribute('data-hub');
-        const map = hubMap();
-        // 押した先へ立たせてから開く。歩いて行ったのと同じ状態にする
-        const dp = map.doorPos ? map.doorPos(k, g) : null;
-        if (dp) { const c = map.clampWalk(dp.x, dp.y); actor.x = c.x; actor.y = c.y; }
-        hubGoal = null; hubAutoEnter = null;
-        hubDoor = k;
+        // 押した先を絵の中でも光らせてから開く
+        hubSel = k;
+        const cv = $('hubCv');
+        if (cv) hubMap().drawWith(cv, g, hubSel, null);
         GP.sound.play('tap');
-        hubEnter();
+        hubEnter(k);
       };
     });
-  }
-
-  /* キーボード操作。入力欄に文字を打っているときは邪魔しない */
-  function bindHubKeys() {
-    const MAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
-                  a: 'left', d: 'right', w: 'up', s: 'down',
-                  A: 'left', D: 'right', W: 'up', S: 'down' };
-    const typing = () => {
-      const t = document.activeElement;
-      return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
-    };
-    document.addEventListener('keydown', ev => {
-      if (typing() || !$('hubCv')) return;
-      const m2 = $('modal');
-      if (m2 && /\bshow\b/.test(m2.className)) return;
-      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hubEnter(); return; }
-      const k = MAP[ev.key];
-      if (!k) return;
-      ev.preventDefault();
-      hubKeys[k] = true;
-    });
-    document.addEventListener('keyup', ev => {
-      const k = MAP[ev.key];
-      if (k) hubKeys[k] = false;
-    });
-    // 画面から離れたときにキーが押しっぱなしにならないように
-    window.addEventListener('blur', () => { hubKeys = {}; });
   }
 
   function render() {
@@ -7370,7 +7291,6 @@ window.GP = window.GP || {};
   window.addEventListener('DOMContentLoaded', () => {
     registerSW();
     bindSkin();
-    bindHubKeys();
     bindSound();
     bindCommands();
     document.body.classList.add('preboot');
