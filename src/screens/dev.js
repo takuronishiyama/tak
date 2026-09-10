@@ -45,7 +45,7 @@ GP.screens.dev = function (A) {
     let body =
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
-      mechMapSVG(g) + mechReadHTML(g) +
+      mechMapHTML(g) + mechReadHTML(g) +
       '<div class="sub">何をしますか</div>' +
       '<p class="desc">どれも1週ぶんのコマンドです。' +
       '<b>改良</b>は積んでいるものを煮詰め、<b>開発</b>は新しいパーツと技術を作り、' +
@@ -187,7 +187,7 @@ GP.screens.dev = function (A) {
       '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
       '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
       '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
-      mechMapSVG(g) + mechReadHTML(g);
+      mechMapHTML(g) + mechReadHTML(g);
 
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
@@ -641,137 +641,80 @@ GP.screens.dev = function (A) {
      線の太さがそのまま「いま効いている量」で、細い線が伸びしろ。
      人の組織図と同じ読みかたができるようにしてある。
      ======================================================= */
-  /* 輪は二重。内は「車体の熟成」、外は「装着パーツ」。
-     噛み合う相手が同じ角度に来るよう、並び順は手で決めてある。
-     いちばん外の弧はチームの技術で、これは全パーツに乗る。      */
-  const MECH_INNER = [
-    { b: 'aeroBody', s: '空力' }, { b: 'drive', s: '乗り味' }, { b: 'rigidity', s: '剛性' },
-    { b: 'light', s: '軽量' }, { b: 'cooling', s: '冷却' }, { b: 'service', s: '整備' },
-    { b: 'battery', s: '電池' }
-  ];
-  const MECH_OUTER = [
-    { p: 'aero', s: 'エアロ' }, { p: 'susp', s: 'サス' }, { p: 'chas', s: 'シャシー' },
-    { p: 'gear', s: 'ギア' }, { p: 'pu', s: 'パワー' }, { p: 'brake', s: 'ブレーキ' },
-    { p: 'elec', s: '電装' }
-  ];
+  /* どちらが部品でどちらが車体の作り込みかは mechName が知っている。
+     輪に並べる順の表は、輪をやめたので要らなくなった               */
   const mechKey = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
 
-  function mechMapSVG(g2) {
-    const syn = S.mechSynergy(g2);
-    const CX = 240, CY = 238;
-    // 内の輪の名前は輪の内側へ。外へ出すと、外の輪の節とぶつかる
-    const R1 = 82, R2 = 152, L1 = 51, L2 = 186, R3 = 214;
+  /* =======================================================
+     噛み合いの図（描き直し）
 
-    const place = (list, R, RL) => {
-      const N = list.length;
-      return list.map((m, i) => {
-        const a2 = -Math.PI / 2 + i / N * Math.PI * 2;
-        return { m: m, a: a2, x: CX + Math.cos(a2) * R, y: CY + Math.sin(a2) * R,
-                 lx: CX + Math.cos(a2) * RL, ly: CY + Math.sin(a2) * RL };
-      });
-    };
-    const inner = place(MECH_INNER, R1, L1);
-    const outer = place(MECH_OUTER, R2, L2);
-    const pos = {};
-    inner.forEach(q => { pos[mechKey(q.m)] = q; });
-    outer.forEach(q => { pos[mechKey(q.m)] = q; });
+     もとは全部位を一つの輪に並べていたが、
+     「どれとどれが噛み合うのか」「なぜ噛み合っていないのか」が
+     輪の中では読み取れなかった。線が交差し、札が重なり、
+     矢印がないので、どちらが原因でどちらが結果なのかも分からない。
 
-    // ---- 輪そのもの（うっすら円を敷いて、層があることを見せる）----
-    let rings = '';
-    [R1, R2].forEach(r => {
-      rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + r +
-        '" class="mm-ring"></circle>';
+     組ごとに一行にして、左右に相手を置き、あいだを継手でつなぐ。
+     ・丸の大きさが、そのままその部位の充実ぶり
+     ・小さいほうが、噛み合いを止めている当人
+     ・継手の詰まりぐあいが、いま出ている効き
+     数字を読まなくても、絵の大小だけで犯人が分かるようにしてある。
+     ======================================================= */
+  function couplingSVG(x) {
+    const A = S.mechName(x.def.a), B = S.mechName(x.def.b);
+    const nm = o => o.short || o.name;
+    return U.coupling({
+      aIcon: A.icon, aName: nm(A), aColor: A.color, aFill: x.aScore,
+      bIcon: B.icon, bName: nm(B), bColor: B.color, bFill: x.bScore,
+      ratio: x.ratio, on: x.on, aWeak: x.weak === x.def.a
     });
-    rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R3 + '" class="mm-ring dash"></circle>';
+  }
 
-    // ---- 線（噛み合い）----
-    let lines = '';
-    syn.forEach(x => {
-      const A = pos[mechKey(x.def.a)], B = pos[mechKey(x.def.b)];
-      if (!A || !B) return;
-      const r = x.ratio;
-      lines += '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) +
-        '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) +
-        '" stroke="' + (x.on ? '#4ea63f' : '#8a8578') + '" stroke-width="' + (1.2 + r * 5.0).toFixed(2) +
-        '" stroke-linecap="round" opacity="' + (0.20 + r * 0.7).toFixed(2) + '"></line>';
-      if (x.on) {
-        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
-          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
-          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) +
-          '" class="mm-pct">' + Math.round(x.ratio * 100) + '</text>';
-      }
-    });
+  /* 何に効くのか。数字ではなく、矢の本数で見せる */
+  const EFF_NM = { speed: '最高速', corner: 'コーナー', accel: '加速',
+                   wear: 'タイヤ持ち', rel: '信頼性' };
+  function effChips(def, gain) {
+    return Object.keys(def.eff).map(k => {
+      const n = Math.max(1, Math.round(def.eff[k] * 3));
+      return '<i class="ef ' + k + '">' + EFF_NM[k] +
+        '<b>' + '▲'.repeat(n) + '</b></i>';
+    }).join('');
+  }
 
-    // ---- 節 ----
-    const nodeOf = (q, rr) => {
-      const def = S.mechName(q.m);
-      const sc = Math.min(1, S.mechScore(g2, q.m));
-      const isP = !!q.m.p;
-      const find = isP ? S.findingsOf(g2, q.m.p) : 0;
-      let arc = '';
-      if (sc > 0.001) {
-        const a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
-        const RR = rr + 3.5;
-        if (sc >= 0.999) {
-          arc = '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + RR +
-            '" fill="none" stroke="' + def.color + '" stroke-width="3"></circle>';
-        } else {
-          const x0 = q.x + Math.cos(a0) * RR, y0 = q.y + Math.sin(a0) * RR;
-          const x1 = q.x + Math.cos(a1) * RR, y1 = q.y + Math.sin(a1) * RR;
-          arc = '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + RR + ' ' + RR +
-            ' 0 ' + (sc > 0.5 ? 1 : 0) + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
-            '" fill="none" stroke="' + def.color + '" stroke-width="3" stroke-linecap="round"></path>';
-        }
-      }
-      return '<g>' + arc +
-        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
-        '" class="mm-node ' + (isP ? 'part' : 'body') + '"></circle>' +
-        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' +
-        def.icon + '</text>' +
-        (find ? '<circle cx="' + (q.x + rr * 0.72).toFixed(1) + '" cy="' + (q.y - rr * 0.72).toFixed(1) +
-                '" r="6.5" fill="#3a7ad9" stroke="#0e0b14" stroke-width="1.5"></circle>' +
-                '<text x="' + (q.x + rr * 0.72).toFixed(1) + '" y="' + (q.y - rr * 0.72 + 3).toFixed(1) +
-                '" class="mm-find">' + find + '</text>' : '') +
-        '<text x="' + q.lx.toFixed(1) + '" y="' + (q.ly + 3).toFixed(1) +
-        '" class="mm-lb' + (isP ? '' : ' in') + '" ' +
-        'text-anchor="' + (isP ? (Math.abs(Math.cos(q.a)) < 0.25 ? 'middle'
-                          : (Math.cos(q.a) > 0 ? 'start' : 'end')) : 'middle') + '">' +
-        esc(q.m.s) + '</text></g>';
-    };
-    const nodes = inner.map(q => nodeOf(q, 15)).join('') + outer.map(q => nodeOf(q, 17)).join('');
-
-    // ---- 中心：マシンそのもの ----
-    const st = S.carStats(g2);
+  function mechMapHTML(g2) {
+    const syn = GP.state.mechSynergy(g2).slice()
+      .sort((a, b) => (b.on - a.on) || (b.ratio - a.ratio));
+    const st = GP.state.carStats(g2);
     const gen = D.CAR_GENS[g2.carGen];
-    const core = '<circle cx="' + CX + '" cy="' + CY + '" r="34" class="mm-core"></circle>' +
-      '<text x="' + CX + '" y="' + (CY - 5) + '" class="mm-core-t">' + esc(gen.name) + '</text>' +
-      '<text x="' + CX + '" y="' + (CY + 9) + '" class="mm-core-s">速' + Math.round(st.speed) +
-      '／曲' + Math.round(st.corner) + '／加' + Math.round(st.accel) + '</text>';
+    const live = syn.filter(x => x.on).length;
 
-    // ---- いちばん外の弧：チームの技術（全パーツに乗る）----
-    let tech = '';
-    D.PART_TRAITS.forEach((t, i) => {
-      const lv = S.techLv(g2, t.key);
-      const a2 = -Math.PI / 2 + (i + 0.5) / D.PART_TRAITS.length * Math.PI * 2;
-      const x = CX + Math.cos(a2) * R3, y = CY + Math.sin(a2) * R3;
-      tech += '<g opacity="' + (lv ? 1 : 0.42) + '">' +
-        '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="12" class="mm-tech"' +
-        (lv ? ' style="fill:' + t.color + '"' : '') + '></circle>' +
-        '<text x="' + x.toFixed(1) + '" y="' + (y + 4.5).toFixed(1) + '" class="mm-ic sm">' + t.icon + '</text>' +
-        '<text x="' + x.toFixed(1) + '" y="' + (y + 25).toFixed(1) + '" class="mm-lb sm" text-anchor="middle">' +
-        esc(t.name) + (lv ? ' ' + lv : '') + '</text></g>';
+    let h = '<div class="mechlist">' +
+      '<div class="ml-head"><b>' + esc(gen.name) + '</b>' +
+      '<span>速' + Math.round(st.speed) + '／曲' + Math.round(st.corner) +
+      '／加' + Math.round(st.accel) + '</span>' +
+      '<em>噛み合っている組 <b>' + live + '</b> / ' + syn.length + '</em></div>' +
+      '<p class="desc">部品は、単体ではなく<b>組で効きます</b>。' +
+      '下の図は、その組がいま噛み合っているかどうかです。' +
+      '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
+      'そこを厚くすると、継手が詰まって効きはじめます。</p>';
+
+    syn.forEach(x => {
+      const W = GP.state.mechName(x.weak);
+      h += '<div class="mlrow' + (x.on ? ' on' : '') + '">' +
+        '<div class="ml-t"><span class="ml-ic">' + x.def.icon + '</span>' +
+        '<b>' + esc(x.def.name) + '</b>' +
+        '<em class="ml-pct' + (x.on ? ' on' : '') + '">' +
+        Math.round(x.ratio * 100) + '%</em></div>' +
+        '<div class="ml-body">' + couplingSVG(x) +
+        '<div class="ml-side">' +
+        '<small>' + esc(x.def.desc) + '</small>' +
+        '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
+        '<div class="ml-weak">' + (x.ratio >= 0.97
+          ? '<span class="ok">✔ もう伸びしろはありません</span>'
+          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が細い。'
+            + 'ここを厚くすると効きます</span>') + '</div>' +
+        '</div></div></div>';
     });
-
-    return '<div class="mechmap"><svg viewBox="0 0 480 500" role="img">' +
-      rings + lines + core + nodes + tech + '</svg>' +
-      '<div class="mm-leg">' +
-      '<span><i class="body"></i>内の輪：車体の熟成</span>' +
-      '<span><i class="part"></i>外の輪：装着パーツ</span>' +
-      '<span><i class="edge"></i>太い線ほど噛み合っている</span>' +
-      '<span><i class="tech"></i>いちばん外：チームの技術（全パーツに乗る）</span>' +
-      '<span><i class="find"></i>🔬 は研究の知見</span>' +
-      '</div></div>';
+    return h + '</div>';
   }
 
   /* ---- 見立てと、これからの方向 ----

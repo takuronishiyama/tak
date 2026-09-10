@@ -85,7 +85,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .stat.danger{background:#ffdede;animation:blink .8s steps(2,end) infinite}
 .stat .ic{font-size:14px}
 .stat b{font-size:15px}
-.stat small{font-size:10px;opacity:.7}
+.stat small{font-size:10px;opacity:.9}
 .tb-next{
   background:var(--headbg2);color:var(--headfg);border-radius:6px;padding:4px 12px;
   font-size:13px;white-space:nowrap;
@@ -192,7 +192,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
           background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
           box-shadow:0 3px 0 rgba(74,47,26,.5);padding:4px 7px;line-height:1.3;text-align:left}
 .focusbtn b{font-size:12px}
-.focusbtn small{font-size:9px;opacity:.75}
+.focusbtn small{font-size:9px;opacity:.9}
 .focusbtn.on{background:linear-gradient(#ffd76a,var(--yellow));background-color:#ffcf4d;transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .nextcar{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:10px;
          background:#f0fbe8;border:2px solid var(--ink);border-radius:7px;padding:4px 9px}
@@ -209,7 +209,7 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .battr i{flex:1;height:8px;background:var(--trough);border:1px solid var(--ink);border-radius:4px;overflow:hidden}
 .battr i b{display:block;height:100%;transition:width .35s}
 .battr em{font-style:normal;width:44px;text-align:right;font-weight:bold}
-.battr em small{font-weight:normal;opacity:.6;font-size:8px}
+.battr em small{font-weight:normal;opacity:.88;font-size:8px}
 
 /* ---------- ERS ---------- */
 .ersrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;margin:6px 0;
@@ -264,7 +264,7 @@ table.rank.grid td.dim{opacity:.35}
          background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
          box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 8px;text-align:left;line-height:1.3}
 .diffbtn b{font-size:13px}
-.diffbtn small{font-size:9px;opacity:.75}
+.diffbtn small{font-size:9px;opacity:.9}
 .diffbtn.on{background:var(--dc);color:#fff;transform:translateY(3px);box-shadow:0 0 0 var(--ink);
             text-shadow:1px 1px 0 rgba(0,0,0,.35)}
 .diffbtn.on small{opacity:.95}
@@ -273,7 +273,7 @@ table.rank.grid td.dim{opacity:.35}
 .ticketbar.on{background:linear-gradient(#fff4c0,#ffe88a);border-style:solid;border-color:var(--ink)}
 .tk-ic{font-size:20px}
 .tk-body{flex:1;display:flex;flex-direction:column;line-height:1.3;font-size:12px}
-.tk-body small{font-size:10px;opacity:.75}
+.tk-body small{font-size:10px;opacity:.9}
 .tk-sw{font-size:11px;font-weight:bold;background:var(--ink);color:#ffeec4;border-radius:5px;padding:2px 8px}
 .ticketbar.on .tk-sw{background:var(--red);color:#fff}
 .pb-cost b.free{color:#2e8b30;font-size:12px}
@@ -336,7 +336,7 @@ table.rank.grid td.dim{opacity:.35}
 .sb em{width:34px;text-align:right;font-style:normal;font-weight:bold}
 .rel{font-size:12px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rel b{font-size:17px}
-.rel small{font-size:10px;opacity:.75}
+.rel small{font-size:10px;opacity:.9}
 /* 明るい紙の上に置くので、少し濃いめにしてある（暗い皮では別に上書きする）*/
 .good{color:#237023}.warn{color:#a86600}.bad{color:#b81a1a}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
@@ -347,16 +347,16 @@ table.rank.grid td.dim{opacity:.35}
       border:2px solid var(--ink);border-radius:5px;font-size:11px}
 .p-nm{width:132px;display:flex;flex-direction:column;line-height:1.2;min-width:0;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.p-nm small{font-size:9px;opacity:.75;font-weight:normal}
+.p-nm small{font-size:9px;opacity:.9;font-weight:normal}
 .p-rar{letter-spacing:-1px;font-size:9px}
 .p-lv{width:56px;font-weight:bold;text-align:right}
-.p-lv small{font-size:9px;opacity:.6;font-weight:normal}
+.p-lv small{font-size:9px;opacity:.88;font-weight:normal}
 .p-bar{flex:1;min-width:60px;height:10px;background:var(--trough);border:2px solid var(--ink);
        border-radius:5px;overflow:hidden}
 .p-bar i{display:block;height:100%;transition:width .35s}
 .p-cond{width:38px;text-align:right}
 .p-act{display:flex;gap:3px;align-items:center}
-.p-act small{font-size:9px;opacity:.6}
+.p-act small{font-size:9px;opacity:.88}
 .p-trs{display:flex;gap:3px;flex-wrap:wrap;width:100%;padding-left:26px}
 .ptr{font-size:9px;background:var(--yellow);border:2px solid var(--ink);border-radius:4px;padding:0 4px}
 .invnote{margin-top:8px;font-size:11px;background:#f0fbe8;border:2px dashed var(--ink2);
@@ -397,7 +397,7 @@ table.rank.grid td.dim{opacity:.35}
 .mst i b{display:block;height:100%;background:linear-gradient(var(--green),#3a8030)}
 .mst em{width:22px;text-align:right;font-style:normal}
 .drv-foot{display:flex;justify-content:space-between;font-size:10px;border-top:1px dashed var(--ink2);padding-top:3px}
-.drv-sal{font-size:9px;opacity:.6;text-align:right}
+.drv-sal{font-size:9px;opacity:.88;text-align:right}
 
 /* ---------- サイドパネル ---------- */
 .col-right{background:var(--paper);border:3px solid var(--ink);border-radius:10px;
@@ -488,7 +488,8 @@ body.preboot .topbar{visibility:hidden}
      padding:7px;font-size:13px;font-weight:bold}
 .btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .btn.primary{background:linear-gradient(#ffd76a,var(--yellow))}
-.btn.danger{background:linear-gradient(#e2705f,#b8302a);color:#fff}
+/* 白文字を乗せるので、上端の色も十分に暗くしておく */
+.btn.danger{background:linear-gradient(#c9422f,#96241f);color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
 /* ---------- 選択リスト ---------- */
@@ -508,7 +509,8 @@ body.preboot .topbar{visibility:hidden}
 .pb-ic.face-ic{border:none;padding:0;width:auto;height:auto}
 .pb-ic.face-ic .face{width:30px;height:30px}
 .pb-body{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
-.pb-body small{font-size:10px;opacity:.72;font-weight:normal}
+/* 控えめさは字の小ささで出す。薄さは、どの面でも読める範囲までに留める */
+.pb-body small{font-size:10px;opacity:.91;font-weight:normal}
 .pb-body small b.warn{color:#8f1f16;opacity:1;font-weight:bold}
 [data-skin="hd"] .pb-body small b.warn{color:#ffb3a4}
 .pb-cost{font-size:11px;text-align:right;white-space:nowrap;line-height:1.3}
@@ -1128,7 +1130,7 @@ body[data-skin="hd"]{
 
 /* 作戦画面：小さめのボタンと、ライバルの傾向 */
 .stratbtn.small{font-size:11px;padding:3px 6px;line-height:1.25}
-.stratbtn.small small{font-size:9px;opacity:.72}
+.stratbtn.small small{font-size:9px;opacity:.9}
 .sub.small{font-size:11px}
 .stylelist{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
 .stylechip{display:inline-flex;align-items:center;gap:4px;font-size:10px;
@@ -1510,7 +1512,10 @@ body[data-skin="hd"]{
 .hlbtn i{font-style:normal;font-size:21px;line-height:1.15;
          filter:drop-shadow(0 1px 0 rgba(0,0,0,.20))}
 .hlbtn b{font-size:10.5px;overflow:hidden;word-break:break-word;
-         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+         /* 2行ぶんの場所をいつも空けておく。
+            そうしないと、名前の長い札だけ背が高くなって段がずれる */
+         min-height:2.5em}
 .hlbtn em{font-style:normal;font-size:9px;color:#3a2611;font-weight:bold;
           background:#ecd9a4;border-radius:999px;padding:0 6px;margin-top:2px;
           max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1588,11 +1593,12 @@ body[data-skin="hd"]{
 .wsbox>b em{font-style:normal;font-size:9.5px;font-weight:normal;opacity:.75;margin-left:6px}
 .wsbox small{display:block;margin-top:3px;font-size:10px;line-height:1.6;color:var(--ink2)}
 .wsline{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:6px}
-.wsline u{text-decoration:none;opacity:.45;font-size:10px}
+.wsline u{text-decoration:none;opacity:.7;font-size:10px}
+/* まだ届いていない段は控えめに。ただし読めなくなるほど薄くはしない */
 .wsx{display:flex;align-items:center;gap:3px;padding:2px 6px;font-size:12px;
-     border:2px solid var(--ink);border-radius:5px;background:#dccfae;opacity:.55}
+     border:2px solid var(--ink);border-radius:5px;background:#dccfae;opacity:.78}
 .wsx i{font-style:normal;font-size:8.5px;font-weight:bold}
-.wsx.past{opacity:.8}
+.wsx.past{opacity:.94}
 .wsx.on{opacity:1;background:#ffd76a;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
 [data-skin="hd"] .wsbox{background:#241c30;color:#efe4cf;border-color:#5b4a74}
 [data-skin="hd"] .wsbox small{color:#cbbb9a}
@@ -1861,7 +1867,7 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b, .hlbtn.allbtn em, .hlbtn.allbtn i { color: #fff; }
 .hlbtn.allbtn i { font-size: 16px; }
 .hlbtn.allbtn b { font-size: 11.5px; }
-.hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
+.hlbtn.allbtn em { opacity: 1; background: rgba(0,0,0,.26); margin-top: 0; }
 
 /* 難易度の付け替え（調整用） */
 .diffpick .pickbtn.on{background:linear-gradient(#ffd76a,var(--yellow));opacity:1}
@@ -1900,6 +1906,93 @@ body[data-skin="hd"]{
 [data-skin="hd"] .osk-eff.now span{background:#28502c;color:#c8ecc8}
 
 /* ---- 機構の噛み合い図 ---- */
+/* ---- 人 → 部門 → 効き目 ----
+   左から右へ一直線に読ませる。棒の長さが、そのまま出ている力 */
+.chain{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+.chrow{display:grid;
+  grid-template-columns:auto 12px auto 12px 3.4em minmax(48px,1fr) 2.6em 12px minmax(90px,1.6fr);
+  align-items:center;gap:5px;
+  background:var(--face);border:1px solid var(--faceEdge);border-radius:9px;
+  padding:5px 9px;font-size:11px;color:var(--faceTx)}
+.chrow.empty{opacity:.55}
+.chrow.thin{border-color:var(--ngTx);border-width:2px}
+.ch-who{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.ch-who b{font-size:12px}
+.ch-who i{font-style:normal;font-size:9.5px;color:var(--faceSub)}
+.ch-who i.ng{color:var(--ngTx);font-weight:700}
+.ch-ar{color:var(--faceEdge);text-align:center;font-size:11px}
+.ch-boss{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;opacity:.5}
+.ch-boss.on{opacity:1}
+.ch-boss i{font-style:normal;font-size:9.5px;color:var(--faceSub)}
+.ch-boss.on i{color:var(--okTx);font-weight:700}
+.ch-nm{white-space:nowrap;font-weight:700}
+.ch-bar{display:block;height:9px;border-radius:5px;background:var(--face2);
+  border:1px solid var(--faceEdge);overflow:hidden}
+.ch-bar>i{display:block;height:100%;background:var(--okTx);opacity:.85}
+.chrow.empty .ch-bar>i{background:var(--faceSub)}
+.ch-out{font-size:12px;text-align:right;white-space:nowrap}
+.ch-to{font-size:10px;color:var(--faceSub);line-height:1.4}
+/* せまい画面では、右の「効き目」を次の行に落とす */
+@media (max-width:560px){
+  .chrow{grid-template-columns:auto 10px auto 10px 3.2em minmax(40px,1fr) 2.4em;
+    row-gap:3px}
+  .chrow>.ch-ar.tail{display:none}
+  .ch-to{grid-column:1 / -1;padding-left:2px}
+}
+
+/* ---- 噛み合いの図（組ごとに一行）----
+   丸の大小と、継手の詰まりぐあいだけで読めるようにしてある */
+.mechlist{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+.ml-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--face2);border:1px solid var(--faceEdge);border-radius:9px;
+  padding:6px 10px}
+.ml-head>b{font-size:14px;color:var(--faceTx)}
+.ml-head>span{font-size:11px;color:var(--faceSub)}
+.ml-head>em{margin-left:auto;font-style:normal;font-size:11px;color:var(--faceSub)}
+.ml-head>em b{font-size:14px;color:var(--okTx)}
+
+.mlrow{background:var(--face);border:1px solid var(--faceEdge);border-radius:10px;
+  padding:7px 10px;opacity:.93}
+.mlrow.on{opacity:1;border-color:var(--okTx)}
+.ml-t{display:flex;align-items:center;gap:7px}
+.ml-ic{font-size:15px}
+.ml-t>b{font-size:12.5px;color:var(--faceTx);line-height:1.3}
+.ml-pct{margin-left:auto;font-style:normal;font-size:12px;font-weight:700;
+  color:var(--faceSub);white-space:nowrap}
+.ml-pct.on{color:var(--okTx)}
+.ml-body{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:2px}
+.ml-side{flex:1 1 210px;min-width:0}
+.ml-side>small{display:block;font-size:10.5px;line-height:1.55;color:var(--faceSub)}
+.ml-eff{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ml-eff .ef{display:inline-flex;align-items:center;gap:3px;font-style:normal;
+  font-size:9.5px;padding:1px 6px;border-radius:8px;
+  background:var(--face2);border:1px solid var(--faceEdge);color:var(--faceSub)}
+.ml-eff .ef b{font-size:8px;letter-spacing:-.5px}
+.ml-eff .ef.speed b{color:#d1452f}
+.ml-eff .ef.corner b{color:#2f6bd1}
+.ml-eff .ef.accel b{color:#1f8a52}
+.ml-eff .ef.wear b{color:#9a6a12}
+.ml-eff .ef.rel b{color:#7a4fc0}
+.ml-weak{margin-top:4px;font-size:10.5px;line-height:1.5}
+.ml-weak .ok{color:var(--okTx);font-weight:700}
+.ml-weak .ng{color:var(--ngTx)}
+.ml-weak .ng b{color:var(--ngTx)}
+
+/* 継手そのもの */
+svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
+.cpl-gs{fill:var(--face2);stroke:var(--faceEdge);stroke-width:1}
+.cpl-gf{fill:var(--faceSub);opacity:.7}
+.cpl-gf.weak{fill:var(--ngTx);opacity:1}
+.cpl-lb.weak{fill:var(--ngTx);font-weight:700}
+.cpl-slot{fill:var(--face2);stroke:var(--faceEdge);stroke-width:1}
+.cpl-fill{fill:var(--faceSub);opacity:.55}
+.cpl-fill.on{fill:var(--okTx);opacity:1}
+.cpl-cut{stroke:var(--ngTx);stroke-width:2;stroke-linecap:round;stroke-dasharray:3 3}
+.cpl-d{stroke:var(--faceEdge);stroke-width:2}
+.cpl-d.weak{stroke:var(--ngTx);stroke-width:2.5;stroke-dasharray:4 3}
+.cpl-ic{font-size:12px;text-anchor:middle}
+.cpl-lb{font-size:9.5px;fill:var(--faceSub)}
+
 .mechmap{background:var(--paper3);border:3px solid var(--ink);border-radius:10px;
   padding:4px;margin-bottom:6px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
 .mechmap svg{display:block;width:100%;height:auto;max-height:60vh}
@@ -2062,7 +2155,8 @@ body[data-skin="hd"]{
 
 /* ---- 備品と職場環境 ---- */
 .envbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:5px 9px;margin:4px 0 6px}
-.envbox b{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+/* 直下の見出しだけ。文中の <b> まで巻き込むと、強調が行から切り出されてしまう */
+.envbox>b{display:flex;justify-content:space-between;gap:8px;font-size:13px}
 .envbox b em{font-style:normal;font-size:10px;background:var(--ink);color:#ffeec4;
              border-radius:4px;padding:0 7px}
 .envbox small{display:block;font-size:10px;opacity:.85;margin-top:2px}
@@ -2308,7 +2402,7 @@ body[data-skin="hd"]{
 .kitx.past{opacity:.7;filter:grayscale(.4)}
 .kitx.on{opacity:1;filter:none;text-shadow:0 0 6px rgba(255,201,60,.9)}
 .forebox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);padding:6px 9px;margin:4px 0 8px}
-.forebox b{display:flex;align-items:center;font-size:13px}
+.forebox>b{display:flex;align-items:center;font-size:13px}
 .forebox b em{font-style:normal;margin-left:auto;font-size:15px;color:#2e8b30}
 [data-skin="hd"] .forebox b em{color:#8ef08e}
 .forebox .grp-bar{margin:4px 0}

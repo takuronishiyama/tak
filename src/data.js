@@ -100,7 +100,7 @@ GP.data = (function () {
   /* names は世代ごとの型式名、notes はその世代で「何が変わったのか」。
      前の世代との差だけを、現場の言葉で書いてある                    */
   const PART_CATS = [
-    { key: 'pu',    name: 'パワーユニット', icon: '⚙️', color: '#e04a3f',
+    { key: 'pu',    name: 'パワーユニット', short: 'パワー', icon: '⚙️', color: '#e04a3f',
       gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6,
       names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'],
       notes: [
@@ -111,7 +111,7 @@ GP.data = (function () {
         '合成燃料へ全面移行。燃焼温度が上がったぶん、冷却レイアウトが性能そのものを決めるようになった',
         '電動過給と可変圧縮比。回転域ごとに別のエンジンのように振る舞い、どこを踏んでも谷がない'
       ] },
-    { key: 'aero',  name: 'エアロダイナミクス', icon: '🪽', color: '#3a7ad9',
+    { key: 'aero',  name: 'エアロダイナミクス', short: 'エアロ', icon: '🪽', color: '#3a7ad9',
       gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6,
       names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'],
       notes: [
@@ -122,7 +122,7 @@ GP.data = (function () {
         '前後の翼を走行中に動かす。直線では寝かせて抵抗を捨て、コーナーで起こして押しつける',
         '境界層を能動的に制御。剥離が起きないので、抵抗を増やさずに押しつけ量だけを積める'
       ] },
-    { key: 'brake', name: 'ブレーキ', icon: '🛑', color: '#c0392b',
+    { key: 'brake', name: 'ブレーキ', short: 'ブレーキ', icon: '🛑', color: '#c0392b',
       gain: { speed: 0.05, corner: 0.55, accel: 0.40 }, cost: 250, rp: 5, wear: 1.30,
       names: ['ドラムブレーキ', 'ソリッドディスク', 'ベンチレーテッドディスク',
               'カーボンディスク', 'ブレーキ・バイ・ワイヤ', 'アクティブ熱制御ブレーキ'],
@@ -134,7 +134,7 @@ GP.data = (function () {
         '踏力を電気信号で送り、回生と摩擦を自動で配分する。ペダルの感触が常に一定になった',
         'ダクトと圧を走行中に制御。1コーナーも最終ラップも、まったく同じところで止まれる'
       ] },
-    { key: 'chas',  name: 'シャシー', icon: '🧱', color: '#4ea63f',
+    { key: 'chas',  name: 'シャシー', short: 'シャシー', icon: '🧱', color: '#4ea63f',
       gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
       names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'],
       notes: [
@@ -145,7 +145,7 @@ GP.data = (function () {
         '繊維をナノ単位で配向。荷重のかかる向きにだけ硬く、それ以外はしなやかに作り分けられる',
         'グラフェン積層の一体成型。もはや部品ではなく、車体そのものが一枚の構造材になった'
       ] },
-    { key: 'susp',  name: 'サスペンション', icon: '🌀', color: '#b06fd0',
+    { key: 'susp',  name: 'サスペンション', short: 'サス', icon: '🌀', color: '#b06fd0',
       gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5,
       names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'],
       notes: [
@@ -156,7 +156,7 @@ GP.data = (function () {
         '磁性流体で減衰力を可変に。路面の入力ごとに、1ミリ秒単位で硬さを切り替える',
         'リニアアクチュエータで4輪を独立制御。もはや「ばね」ではなく、姿勢そのものを作りにいく'
       ] },
-    { key: 'gear',  name: 'ギアボックス', icon: '🔀', color: '#2ea6a0',
+    { key: 'gear',  name: 'ギアボックス', short: 'ギア', icon: '🔀', color: '#2ea6a0',
       gain: { speed: 0.20, corner: 0.05, accel: 0.75 }, cost: 270, rp: 5, wear: 1.45,
       names: ['5速マニュアル', '6速ドグミッション', 'セミオートマ', 'シームレスシフト', '電動シームレスAT', '無段変速ドライブ'],
       notes: [
@@ -167,7 +167,7 @@ GP.data = (function () {
         'モーターで段間のトルクを埋める。変速中も後輪は押し続け、加速の線が折れない',
         '段という概念を捨てた。エンジンは最良の回転を保ったまま、車速だけが伸びていく'
       ] },
-    { key: 'elec',  name: 'エレクトロニクス', icon: '💡', color: '#f0a020',
+    { key: 'elec',  name: 'エレクトロニクス', short: '電装', icon: '💡', color: '#f0a020',
       gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'],
       notes: [
@@ -363,7 +363,7 @@ GP.data = (function () {
       desc: '最高速と加速がわずかに上がる',
       eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -15%）',
       gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
-    { key: 'aeroBody', name: '空力コンセプト', icon: '🌬️', color: '#3a7ad9',
+    { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3a7ad9',
       desc: 'コーナー性能がわずかに上がる',
       eff: 'エアロパーツの効きが増し、前車を追いやすくなる（追い抜き +11%）',
       gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
@@ -371,11 +371,11 @@ GP.data = (function () {
       desc: '加速がごくわずかに上がる',
       eff: '信頼性 +7、バッテリーの回生が増え、終盤のタレが小さくなる',
       gain: { speed: 0.00, corner: 0.00, accel: 0.06 } },
-    { key: 'battery',  name: 'バッテリー',   icon: '🔋', color: '#f0a020',
+    { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#f0a020',
       desc: '最高速と加速がわずかに上がる',
       eff: '電気の容量と放電量が増え、直線で伸びる',
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
-    { key: 'drive',    name: 'ドライバビリティ', icon: '🎯', color: '#e0644a',
+    { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0644a',
       desc: 'マシンそのものの速さは変わらない',
       eff: '素直で乗りやすくなり、腕をそのまま出せる。合わないタイヤでも唐突に失いにくい（ドライバー評価 +12%／ミス -25%／スピンしにくい）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
@@ -1346,21 +1346,21 @@ GP.data = (function () {
     { key: 'track',   name: 'トラックサイド', icon: '🏁', desc: '週末に現地で戦う' }
   ];
   const GROUPS = [
-    { key: 'design',  name: '設計グループ',   icon: '🎨', place: 'factory', of: 'designer',
+    { key: 'design',  name: '設計グループ',   short: '設計', icon: '🎨', place: 'factory', of: 'designer',
       desc: '図面を引く。作るパーツの格が決まる' },
-    { key: 'develop', name: '開発グループ',   icon: '👷', place: 'factory', of: 'engineer',
+    { key: 'develop', name: '開発グループ',   short: '開発', icon: '👷', place: 'factory', of: 'engineer',
       desc: '風洞と工作機械を回す。改良の伸びが決まる' },
-    { key: 'data',    name: '解析グループ',   icon: '📊', place: 'factory', of: 'analyst',
+    { key: 'data',    name: '解析グループ',   short: '解析', icon: '📊', place: 'factory', of: 'analyst',
       desc: '数字を回す。ここが厚いと、ほかの全部が底上げされる' },
-    { key: 'crew',    name: 'ピットクルー',   icon: '🔩', place: 'track',   of: 'mechanic',
+    { key: 'crew',    name: 'ピットクルー',   short: 'クルー', icon: '🔩', place: 'track',   of: 'mechanic',
       desc: '週末を走らせる。静止時間と信頼性' },
-    { key: 'pitwall', name: 'ピットウォール', icon: '🧠', place: 'track',   of: 'strategist',
+    { key: 'pitwall', name: 'ピットウォール', short: '作戦', icon: '🧠', place: 'track',   of: 'strategist',
       desc: 'いつ入るかを決める。路面の読み' },
-    { key: 'human',   name: 'ヒューマンパフォーマンス', icon: '💪', place: 'track', of: 'trainer',
+    { key: 'human',   name: 'ヒューマンパフォーマンス', short: '鍛錬', icon: '💪', place: 'track', of: 'trainer',
       desc: 'ドライバーを鍛える' },
-    { key: 'research', name: '研究グループ', icon: '🔬', place: 'factory', of: 'researcher',
+    { key: 'research', name: '研究グループ', short: '研究', icon: '🔬', place: 'factory', of: 'researcher',
       desc: 'まだ図面になっていないものを探す。開発の一段手前' },
-    { key: 'logi', name: '物流グループ', icon: '📦', place: 'track', of: 'logi',
+    { key: 'logi', name: '物流グループ', short: '物流', icon: '📦', place: 'track', of: 'logi',
       desc: '機材を運び、組み、片づける。週末が始まる前の勝負どころ' }
   ];
   /* グループ同士の相補作用。両方が育っているときだけ効く。

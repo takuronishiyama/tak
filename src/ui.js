@@ -855,8 +855,65 @@ GP.ui = (function () {
     });
     body.insertBefore(nav, secs[0]);
   }
+  /* =======================================================
+     継手（噛み合いの一組）
+
+     車の部位どうしも、人のグループどうしも、
+     「両方が育っていて初めて効く」という同じ形をしている。
+     どちらか一方をいくら厚くしても、細いほうで止まる。
+
+     それを絵で言うために、左右に相手を置き、あいだを継手でつなぐ。
+       ・丸の大きさ … その側の充実ぶり
+       ・下の目盛り … 同じ物差しに載せた比較（丸だけでは差が潰れるため）
+       ・継手の詰まり … いま出ている効き
+       ・切れ目 … まだ届いていないぶん
+     細いほうを警告色にしてあるので、犯人は読まなくても分かる。
+     ======================================================= */
+  function coupling(o) {
+    const W = 196, H = 76, CY = 23;
+    const ax = 26, bx = W - 26;
+    const ratio = Math.max(0, Math.min(1, o.ratio || 0));
+    const rOf = v => 8 + Math.max(0, Math.min(1, v)) * 11;
+    const ra = rOf(o.aFill), rb = rOf(o.bFill);
+    const aWeak = !!o.aWeak;
+
+    const x0 = ax + ra + 4, x1 = bx - rb - 4;
+    const span = Math.max(8, x1 - x0);
+    const fill = span * Math.max(0.03, ratio);
+    let h = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="cpl" role="img">';
+    h += '<rect x="' + x0.toFixed(1) + '" y="' + (CY - 5) + '" width="' + span.toFixed(1) +
+         '" height="10" rx="5" class="cpl-slot"></rect>';
+    h += '<rect x="' + x0.toFixed(1) + '" y="' + (CY - 5) + '" width="' + fill.toFixed(1) +
+         '" height="10" rx="5" class="cpl-fill' + (o.on ? ' on' : '') + '"></rect>';
+    if (ratio < 0.97) {
+      const gx = x0 + fill;
+      h += '<path d="M' + gx.toFixed(1) + ' ' + (CY - 9) + 'L' + gx.toFixed(1) + ' ' + (CY + 9) +
+           '" class="cpl-cut"></path>';
+    }
+    const disc = (cx, r, ic, weak, col) =>
+      '<circle cx="' + cx + '" cy="' + CY + '" r="' + r.toFixed(1) + '" class="cpl-d' +
+        (weak ? ' weak' : '') + '" style="fill:' + col + '"></circle>' +
+      '<text x="' + cx + '" y="' + (CY + 4.5) + '" class="cpl-ic">' + ic + '</text>';
+    h += disc(ax, ra, o.aIcon, aWeak, o.aColor) + disc(bx, rb, o.bIcon, !aWeak, o.bColor);
+
+    const GW = 44, GY = 48;
+    const gauge = (cx, v, weak) => {
+      const gx = cx - GW / 2;
+      const w = GW * Math.max(0.02, Math.min(1, v));
+      return '<rect x="' + gx + '" y="' + GY + '" width="' + GW + '" height="6" rx="3" class="cpl-gs"></rect>' +
+        '<rect x="' + gx + '" y="' + GY + '" width="' + w.toFixed(1) + '" height="6" rx="3" class="cpl-gf' +
+        (weak ? ' weak' : '') + '"></rect>';
+    };
+    h += gauge(ax, o.aFill, aWeak) + gauge(bx, o.bFill, !aWeak);
+    h += '<text x="' + ax + '" y="' + (H - 4) + '" class="cpl-lb' + (aWeak ? ' weak' : '') +
+         '" text-anchor="middle">' + esc(o.aName) + '</text>' +
+         '<text x="' + bx + '" y="' + (H - 4) + '" class="cpl-lb' + (!aWeak ? ' weak' : '') +
+         '" text-anchor="middle">' + esc(o.bName) + '</text>';
+    return h + '</svg>';
+  }
+
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
