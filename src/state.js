@@ -1973,6 +1973,22 @@ GP.state = (function () {
   }
   function carScore(g, track) { return carScoreOf(carStats(g), track); }
 
+  /* ---------- ダウンフォースとタイヤの持ち ----------
+     曲がる力にどれだけ振ってあるか。押しつける力が大きいほど
+     タイヤは滑らず、1周あたりの摩耗が小さくなる。            */
+  const RIVAL_BODY_REF = 0.40;          // ライバルの車体の仕上がり（基準）
+  function dfBiasOf(s) {
+    return s.corner / Math.max(1, s.speed + s.corner + s.accel);
+  }
+  /* タイヤの減りやすさ。1.00 がライバルの標準で、小さいほど長持ちする */
+  function wearCarOf(s, lightRatio) {
+    return Math.max(0.55, (1 - lightRatio * 0.22) / (1 - RIVAL_BODY_REF * 0.22)
+                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF));
+  }
+  function tyreKind(g2) {
+    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'));
+  }
+
   /* ---------- スタッフ効果 ---------- */
   function staffBonus(g, key) {
     let sum = 0;
@@ -2843,7 +2859,7 @@ GP.state = (function () {
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
-    carStats, carScore, carScoreOf, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe

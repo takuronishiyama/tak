@@ -136,10 +136,46 @@ GP.geom = (function () {
       { from: bound[1], to: N }
     ];
 
+    /* ---- セクターごとの地形 ----
+       同じコースでも区間によって求められるものが違う。
+       S1 は立ち上がりの連続、S2 は曲がりどころ、S3 は長い直線……というように。
+       曲がっている割合・直線の割合・立ち上がりの数を数えておく。     */
+    const secGeo = sectors.map(sc => {
+      let dist = 0, cornerLen = 0, exits = 0, prevC = null, longStr = 0, run2 = 0;
+      const to = Math.min(N, sc.to);
+      for (let idx = sc.from; idx < to; idx++) {
+        const isC = norm[idx] > CORNER;
+        dist += poly.ds[idx];
+        if (isC) { cornerLen += poly.ds[idx]; run2 = 0; }
+        else { run2 += poly.ds[idx]; if (run2 > longStr) longStr = run2; }
+        if (prevC === true && !isC) exits++;      // コーナーから立ち上がった回数
+        prevC = isC;
+      }
+      return { dist: dist, cornerLen: cornerLen, exits: exits, longStr: longStr };
+    });
+
+    /* その地形から、区間ごとに何が要るかの重みを作る。
+       あとで「コース全体の重み」に合わせて割り戻すので、
+       ここでは互いの比だけが意味を持つ                        */
+    const gw = secGeo.map(sg => {
+      const d = Math.max(1e-6, sg.dist);
+      const cs = sg.cornerLen / d;                       // 曲がっている割合
+      const ss = 1 - cs;                                 // 直線の割合
+      const ls = sg.longStr / d;                         // いちばん長い直線の割合
+      const ex = sg.exits / Math.max(1e-6, d / (poly.len / 10));   // 立ち上がりの密度
+      const w = { speed:  0.10 + ss * 0.70 + ls * 1.15,
+                  corner: 0.10 + cs * 2.10,
+                  accel:  0.10 + Math.min(1.4, ex) * 0.85 };
+      const tot = w.speed + w.corner + w.accel;
+      return { speed: w.speed / tot, corner: w.corner / tot, accel: w.accel / tot };
+    });
+
     const info = {
       kappa: norm,
       n: N,
       sectors: sectors,
+      secGeo: secGeo,
+      gw: gw,
       bounds: bound,
       corners: corners,
       straights: straights,
@@ -197,5 +233,39 @@ GP.geom = (function () {
     return { cumT: cumT, v: v, n: N, vmax: vmax, share: share };
   }
 
-  return { buildPoly, polyOf, curvature, analyze, speedProfile };
+  /* ---------- 区間ごとのコース重み ----------
+     TRACKS が持っている weight は1周ぶんの性格。
+     それを、区間の地形の偏りに応じて振り分け直す。
+     基準の車（速さ・曲がり・加速が同じ）の時間配分で足し戻すと
+     元の weight に戻るので、コース全体の性格は変わらない。      */
+  const secWCache = {};
+  function sectorWeights(track) {
+    if (secWCache[track.name]) return secWCache[track.name];
+    const info = analyze(track);
+    const sh0 = speedProfile(track, { speed: 1, corner: 1, accel: 1 }).share;
+    const avg = { speed: 0, corner: 0, accel: 0 };
+    info.gw.forEach((w, k) => {
+      avg.speed += w.speed * sh0[k];
+      avg.corner += w.corner * sh0[k];
+      avg.accel += w.accel * sh0[k];
+    });
+    const tw = track.weight;
+    /* 区間の性格をどれだけ際立たせるか。
+       1 だと地形どおり。大きくするほど「ここは曲がりどころ」
+       「ここは直線勝負」の色が濃くなり、区間タイムに差が出る    */
+    const EX = 2.0;
+    const amp = (a, b) => Math.pow(a / Math.max(1e-6, b), EX);
+    const out = info.gw.map(w => {
+      const v = { speed:  tw.speed  * amp(w.speed,  avg.speed),
+                  corner: tw.corner * amp(w.corner, avg.corner),
+                  accel:  tw.accel  * amp(w.accel,  avg.accel) };
+      const tot = v.speed + v.corner + v.accel;
+      return { speed: v.speed / tot, corner: v.corner / tot, accel: v.accel / tot };
+    });
+    const res = { w: out, share0: sh0, geo: info.secGeo };
+    secWCache[track.name] = res;
+    return res;
+  }
+
+  return { buildPoly, polyOf, curvature, analyze, speedProfile, sectorWeights };
 })();

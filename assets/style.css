@@ -1833,6 +1833,41 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* 改良1回が、どの区間で返ってくるか */
+.secgain{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;
+  background:#d8e8ff;color:#1d3f6e;border:1px solid var(--ink);border-radius:4px;padding:0 5px}
+[data-skin="hd"] .secgain{background:#2b3d5c;color:#cfe0f8;border-color:#5b4a74}
+
+/* ---- 区間ごとの相性 ---- */
+.secfits{display:flex;flex-direction:column;gap:3px;margin-bottom:5px}
+.secfit{display:flex;align-items:center;gap:7px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.secfit i{font-style:normal;font-size:10px;font-weight:bold;color:#2a1c08;flex:none;
+  width:24px;text-align:center;border:2px solid var(--ink);border-radius:5px;
+  text-shadow:0 1px 0 rgba(255,255,255,.45)}
+.secfit span{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.secfit span b{font-size:11px}
+.secfit span small{font-size:9px;opacity:.7}
+.secfit em{font-style:normal;font-weight:bold;font-size:12px;flex:none;
+  font-variant-numeric:tabular-nums}
+.secfit.good{border-color:#2e8b30;box-shadow:inset 3px 0 0 #2e8b30}
+.secfit.good em{color:#2e8b30}
+.secfit.bad{border-color:#c0392b;box-shadow:inset 3px 0 0 #c0392b}
+.secfit.bad em{color:#c0392b}
+[data-skin="hd"] .secfit.good em{color:#8ef08e}
+[data-skin="hd"] .secfit.bad em{color:#ff9a8a}
+/* タイヤの持ち */
+.tyrekind{display:flex;align-items:center;gap:7px;font-size:11px;margin:4px 0 2px;
+  background:var(--paper3);border:2px dashed var(--ink2);border-radius:7px;padding:3px 8px}
+.tyrekind b{font-size:14px;font-variant-numeric:tabular-nums}
+.tyrekind small{font-size:9px;opacity:.72;flex:1;text-align:right;line-height:1.3}
+.tyrekind.good{border-style:solid;border-color:#2e8b30}
+.tyrekind.good b{color:#2e8b30}
+.tyrekind.bad{border-style:solid;border-color:#c0392b}
+.tyrekind.bad b{color:#c0392b}
+[data-skin="hd"] .tyrekind.good b{color:#8ef08e}
+[data-skin="hd"] .tyrekind.bad b{color:#ff9a8a}
+
 /* ---- 予選（Q1/Q2/Q3） ---- */
 /* 予選の表は、モーダルごと送って読む。中でもう一段スクロールさせない */
 .gridlist.qlist{max-height:none;overflow:visible}
@@ -1979,6 +2014,8 @@ body[data-skin="hd"]{
   .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
   .sc-row,.tb-row{font-size:11px}
   .tb-row.tb-head{font-size:10px}
+
+  .secfit span small,.tyrekind small{font-size:10px}
 
   /* 予選の表。狭い画面ではチーム名を詰めて、時計と印を残す */
   .gridrow .qsess{font-size:10px}

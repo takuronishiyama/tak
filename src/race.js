@@ -769,6 +769,10 @@ GP.race = (function () {
     };
     const evenBody = { rigid: RIVAL_BODY, light: RIVAL_BODY, aero: RIVAL_BODY,
                        cool: RIVAL_BODY, svc: RIVAL_BODY, drive: RIVAL_BODY };
+    /* 区間ごとに求められるものは違う。
+       同じ1周でも、曲がりどころの多い区間はダウンフォースが、
+       長い直線の区間はパワーがそのままタイムになる           */
+    const SW = GP.geom.sectorWeights(track);
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
@@ -796,6 +800,16 @@ GP.race = (function () {
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
+        const secPerf = SW.w.map(w =>
+          (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
+          + (t.isPlayer ? S.puPerf(g) : 0));
+        /* ダウンフォースの偏り。押しつける力が大きいほどタイヤは滑らず、
+           1周あたりの摩耗が小さくなる。釣り合った車で 0.33 前後になる */
+        const dfBias = S.dfBiasOf(stats);
+        /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
+           軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
+        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light);
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
@@ -804,7 +818,8 @@ GP.race = (function () {
           // このマシンがコース上でどう速度を出すか。区間タイムの配分もここから来る
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
-          perf: perf, pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
+          perf: perf, secPerf: secPerf, df: dfBias, wearCar: wearCar,
+          pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
           // あとで「何が効いて、その順位になったのか」を分解するために残す
           carScore: t.car, drvScore: drv, formMul: form[ti],
           bd: t.isPlayer ? myBody : evenBody,
@@ -1297,6 +1312,19 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
+    /* 1周の中で、どの区間にどれだけ時間を使うか。
+       基準の車の時間配分に、その車の区間ごとの力を掛けて割り出す。
+       ダウンフォースが厚ければ曲がりどころの区間が短くなり、
+       パワーがあれば直線の区間が短くなる。合計は1周ぶんのまま        */
+    {
+      const sh0 = GP.geom.sectorWeights(track).share0;
+      entries.forEach(e => {
+        if (!e.secPerf) return;
+        const w = e.secPerf.map((v, k) => sh0[k] * (1 + (refPerf - v) * 0.00092));
+        const sum = w[0] + w[1] + w[2];
+        e.secShare = sum > 0 ? w.map(v => v / sum) : sh0.slice();
+      });
+    }
     /* ---- ピットで失う時間 ----
        「ピットロードを制限速度で走り抜けるぶん」＋「止まって作業しているぶん」。
        前者はコースが決めていて、設備をいくら建てても1秒も縮まない。
@@ -1321,7 +1349,7 @@ GP.race = (function () {
         (e.stopPlan == null || e.stopPlan === 'auto'));
       if (mine.length === 2) {
         const nat = mine.map(e =>
-          S.naturalStops(track, laps, track.tyre * e.st.tyre * e.tyreSkill));
+          S.naturalStops(track, laps, track.tyre * e.st.tyre * e.tyreSkill * (e.wearCar || 1)));
         if (nat[0] === nat[1]) {
           const read = S.readPower(g);
           const p2 = read >= D.SPLIT.need
@@ -1346,7 +1374,8 @@ GP.race = (function () {
     }
 
     entries.forEach(e => {
-      const wear = track.tyre * e.st.tyre * e.tyreSkill;
+      // タイヤに優しい車ほど引っぱれるので、素直なストップ回数も減る
+      const wear = track.tyre * e.st.tyre * e.tyreSkill * (e.wearCar || 1);
       /* コースとマシンから決まる「素直な」ストップ回数。
          よけいに1回止まって失うのはピットロードのぶん。
          そのかわり区間が短くなり、やわらかくて速いタイヤを履ける。
@@ -1730,15 +1759,15 @@ GP.race = (function () {
           tb.laps = (tb.laps || 0) + 1;
         }
 
-        // タイヤ摩耗。寿命を超えると急激にタレる
-        e.tyreAge++;
+        /* タイヤ摩耗。寿命を超えると急激にタレる。
+           軽い車体とダウンフォースは、この「齢の進みかた」そのものを
+           遅くする。だから残量の表示も、実際に長く保つようになる     */
+        e.tyreAge += (e.wearCar || 1);
         // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
         if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
-        // 軽い車体はタイヤを痛めない（ライバル基準の 0.5 で ±0 になるように正規化する）
-        const wearMul = (1 - e.bd.light * 0.22) / (1 - RIVAL_BODY_REF * 0.22);
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear * wearMul;
+        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill * wearMul;
+        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
@@ -2275,7 +2304,7 @@ GP.race = (function () {
         const real = Math.max(0.1, e.cum[lap - 1] - prevC - (e.penSec[lap - 1] || 0));
         e.lapTimes[lap - 1] = real;
         const pitAdd = (e.pitTime || [])[lap - 1] || 0;
-        const sh = e.prof.share;
+        const sh = e.secShare || e.prof.share;
         const dr = Math.max(0.1, real - pitAdd);
         const sec = [dr * sh[0], dr * sh[1], dr * sh[2] + pitAdd];
         e.sectors[lap - 1] = sec;

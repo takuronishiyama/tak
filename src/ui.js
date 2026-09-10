@@ -120,8 +120,52 @@ GP.ui = (function () {
       '<div class="req">求められる性能：' +
       reqBar('最高速', t.weight.speed) + reqBar('コーナー', t.weight.corner) + reqBar('加速', t.weight.accel) +
       '</div>' +
+      sectorFitHTML(g, t) +
       '<div class="score">このコースでのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
       '</div></div>';
+  }
+
+  /* ---------- 区間ごとの相性 ----------
+     同じ1周でも、区間によって求められるものが違う。
+     曲がりどころの多い区間はダウンフォースが、長い直線の区間は
+     パワーがそのままタイムになる。うちのマシンがどこで稼いで
+     どこで失うのかを、秒数にして出す。                        */
+  function sectorFitHTML(g, t) {
+    const sw = GP.geom.sectorWeights(t);
+    const st = S.carStats(g);
+    const all = S.carScoreOf(st, t);
+    const rows = sw.w.map((w, k) => {
+      const my = S.carScoreOf(st, { weight: w });
+      /* 区間タイムの差。同じ力で性格だけ釣り合った車と比べて何秒ちがうか。
+         レースの中の計算（区間の時間配分）とまったく同じ式で出している  */
+      const d = -(my - all) * 0.60 * 0.00092 * t.base * sw.share0[k];
+      const gg = sw.geo[k];
+      const cs = Math.round(gg.cornerLen / Math.max(1, gg.dist) * 100);
+      /* その区間の性格は、コース全体と比べてどこが濃いかで決める。
+         全体が曲がりどころ寄りのコースでは、どの区間も
+         「コーナー」になってしまって役に立たない                  */
+      const rel = { speed: w.speed / t.weight.speed, corner: w.corner / t.weight.corner,
+                    accel: w.accel / t.weight.accel };
+      const kind = (rel.corner >= rel.speed && rel.corner >= rel.accel)
+        ? { i: '🌀', n: '曲がりどころ' }
+        : (rel.speed >= rel.accel ? { i: '➡️', n: '直線の伸び' } : { i: '⚡', n: '立ち上がり' });
+      const cls = d <= -0.02 ? ' good' : d >= 0.02 ? ' bad' : '';
+      return '<div class="secfit' + cls + '">' +
+        '<i style="background:' + SECTOR_COLORS[k] + '">S' + (k + 1) + '</i>' +
+        '<span><b>' + kind.i + kind.n + '</b>' +
+        '<small>曲がり ' + cs + '％ ／ 立ち上がり ' + gg.exits + '回</small></span>' +
+        '<em>' + (d > 0 ? '+' : '') + d.toFixed(2) + '秒</em></div>';
+    }).join('');
+    const kind = S.tyreKind(g);
+    const pct = Math.round((1 - kind) * 100);
+    return '<b class="sub small">区間ごとの相性</b>' +
+      '<div class="secfits">' + rows + '</div>' +
+      '<p class="desc">ダウンフォースが厚いほど曲がりどころの区間で稼ぎ、' +
+      'パワーがあるほど直線の区間で稼ぎます。</p>' +
+      '<div class="tyrekind' + (pct > 0 ? ' good' : pct < 0 ? ' bad' : '') + '">' +
+      '<span>🛞 タイヤの持ち</span>' +
+      '<b>' + (pct > 0 ? '+' : '') + pct + '%</b>' +
+      '<small>ダウンフォースと軽量化のぶん</small></div>';
   }
   function reqBar(name, v) {
     return '<div class="reqrow"><span>' + name + '</span><i><b style="width:' +

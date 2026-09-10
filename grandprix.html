@@ -1848,6 +1848,41 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* 改良1回が、どの区間で返ってくるか */
+.secgain{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;
+  background:#d8e8ff;color:#1d3f6e;border:1px solid var(--ink);border-radius:4px;padding:0 5px}
+[data-skin="hd"] .secgain{background:#2b3d5c;color:#cfe0f8;border-color:#5b4a74}
+
+/* ---- 区間ごとの相性 ---- */
+.secfits{display:flex;flex-direction:column;gap:3px;margin-bottom:5px}
+.secfit{display:flex;align-items:center;gap:7px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:3px 7px}
+.secfit i{font-style:normal;font-size:10px;font-weight:bold;color:#2a1c08;flex:none;
+  width:24px;text-align:center;border:2px solid var(--ink);border-radius:5px;
+  text-shadow:0 1px 0 rgba(255,255,255,.45)}
+.secfit span{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.secfit span b{font-size:11px}
+.secfit span small{font-size:9px;opacity:.7}
+.secfit em{font-style:normal;font-weight:bold;font-size:12px;flex:none;
+  font-variant-numeric:tabular-nums}
+.secfit.good{border-color:#2e8b30;box-shadow:inset 3px 0 0 #2e8b30}
+.secfit.good em{color:#2e8b30}
+.secfit.bad{border-color:#c0392b;box-shadow:inset 3px 0 0 #c0392b}
+.secfit.bad em{color:#c0392b}
+[data-skin="hd"] .secfit.good em{color:#8ef08e}
+[data-skin="hd"] .secfit.bad em{color:#ff9a8a}
+/* タイヤの持ち */
+.tyrekind{display:flex;align-items:center;gap:7px;font-size:11px;margin:4px 0 2px;
+  background:var(--paper3);border:2px dashed var(--ink2);border-radius:7px;padding:3px 8px}
+.tyrekind b{font-size:14px;font-variant-numeric:tabular-nums}
+.tyrekind small{font-size:9px;opacity:.72;flex:1;text-align:right;line-height:1.3}
+.tyrekind.good{border-style:solid;border-color:#2e8b30}
+.tyrekind.good b{color:#2e8b30}
+.tyrekind.bad{border-style:solid;border-color:#c0392b}
+.tyrekind.bad b{color:#c0392b}
+[data-skin="hd"] .tyrekind.good b{color:#8ef08e}
+[data-skin="hd"] .tyrekind.bad b{color:#ff9a8a}
+
 /* ---- 予選（Q1/Q2/Q3） ---- */
 /* 予選の表は、モーダルごと送って読む。中でもう一段スクロールさせない */
 .gridlist.qlist{max-height:none;overflow:visible}
@@ -1994,6 +2029,8 @@ body[data-skin="hd"]{
   .pb-cost em,.tk-body small,.focusbtn small,.diffbtn small{font-size:10px}
   .sc-row,.tb-row{font-size:11px}
   .tb-row.tb-head{font-size:10px}
+
+  .secfit span small,.tyrekind small{font-size:10px}
 
   /* 予選の表。狭い画面ではチーム名を詰めて、時計と印を残す */
   .gridrow .qsess{font-size:10px}
@@ -4380,6 +4417,13 @@ GP.data = (function () {
      そこに、信頼性の低さぶんが乗る（rel）                       */
   const TROUBLE_RATE = { base: 0.0016, rel: 0.020 };
 
+  /* ---------- ダウンフォースとタイヤ ----------
+     押しつける力が大きいほどタイヤは滑らず、1周あたりの摩耗が小さくなる。
+     DF_REF は「速さ・曲がり・加速が釣り合った車」のダウンフォース比。
+     そこからの差が、そのまま摩耗の増減になる                        */
+  const DF_REF = 0.335;
+  const WEAR_DF = 1.30;
+
   /* ---------- 予選（ノックアウト） ----------
      一本勝負ではなく Q1・Q2・Q3 の三段で並びを決める。
      ・cut1 / cut2 …… 次のセッションへ進める台数（全体に対する割合）
@@ -5061,7 +5105,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -5205,10 +5249,46 @@ GP.geom = (function () {
       { from: bound[1], to: N }
     ];
 
+    /* ---- セクターごとの地形 ----
+       同じコースでも区間によって求められるものが違う。
+       S1 は立ち上がりの連続、S2 は曲がりどころ、S3 は長い直線……というように。
+       曲がっている割合・直線の割合・立ち上がりの数を数えておく。     */
+    const secGeo = sectors.map(sc => {
+      let dist = 0, cornerLen = 0, exits = 0, prevC = null, longStr = 0, run2 = 0;
+      const to = Math.min(N, sc.to);
+      for (let idx = sc.from; idx < to; idx++) {
+        const isC = norm[idx] > CORNER;
+        dist += poly.ds[idx];
+        if (isC) { cornerLen += poly.ds[idx]; run2 = 0; }
+        else { run2 += poly.ds[idx]; if (run2 > longStr) longStr = run2; }
+        if (prevC === true && !isC) exits++;      // コーナーから立ち上がった回数
+        prevC = isC;
+      }
+      return { dist: dist, cornerLen: cornerLen, exits: exits, longStr: longStr };
+    });
+
+    /* その地形から、区間ごとに何が要るかの重みを作る。
+       あとで「コース全体の重み」に合わせて割り戻すので、
+       ここでは互いの比だけが意味を持つ                        */
+    const gw = secGeo.map(sg => {
+      const d = Math.max(1e-6, sg.dist);
+      const cs = sg.cornerLen / d;                       // 曲がっている割合
+      const ss = 1 - cs;                                 // 直線の割合
+      const ls = sg.longStr / d;                         // いちばん長い直線の割合
+      const ex = sg.exits / Math.max(1e-6, d / (poly.len / 10));   // 立ち上がりの密度
+      const w = { speed:  0.10 + ss * 0.70 + ls * 1.15,
+                  corner: 0.10 + cs * 2.10,
+                  accel:  0.10 + Math.min(1.4, ex) * 0.85 };
+      const tot = w.speed + w.corner + w.accel;
+      return { speed: w.speed / tot, corner: w.corner / tot, accel: w.accel / tot };
+    });
+
     const info = {
       kappa: norm,
       n: N,
       sectors: sectors,
+      secGeo: secGeo,
+      gw: gw,
       bounds: bound,
       corners: corners,
       straights: straights,
@@ -5266,7 +5346,41 @@ GP.geom = (function () {
     return { cumT: cumT, v: v, n: N, vmax: vmax, share: share };
   }
 
-  return { buildPoly, polyOf, curvature, analyze, speedProfile };
+  /* ---------- 区間ごとのコース重み ----------
+     TRACKS が持っている weight は1周ぶんの性格。
+     それを、区間の地形の偏りに応じて振り分け直す。
+     基準の車（速さ・曲がり・加速が同じ）の時間配分で足し戻すと
+     元の weight に戻るので、コース全体の性格は変わらない。      */
+  const secWCache = {};
+  function sectorWeights(track) {
+    if (secWCache[track.name]) return secWCache[track.name];
+    const info = analyze(track);
+    const sh0 = speedProfile(track, { speed: 1, corner: 1, accel: 1 }).share;
+    const avg = { speed: 0, corner: 0, accel: 0 };
+    info.gw.forEach((w, k) => {
+      avg.speed += w.speed * sh0[k];
+      avg.corner += w.corner * sh0[k];
+      avg.accel += w.accel * sh0[k];
+    });
+    const tw = track.weight;
+    /* 区間の性格をどれだけ際立たせるか。
+       1 だと地形どおり。大きくするほど「ここは曲がりどころ」
+       「ここは直線勝負」の色が濃くなり、区間タイムに差が出る    */
+    const EX = 2.0;
+    const amp = (a, b) => Math.pow(a / Math.max(1e-6, b), EX);
+    const out = info.gw.map(w => {
+      const v = { speed:  tw.speed  * amp(w.speed,  avg.speed),
+                  corner: tw.corner * amp(w.corner, avg.corner),
+                  accel:  tw.accel  * amp(w.accel,  avg.accel) };
+      const tot = v.speed + v.corner + v.accel;
+      return { speed: v.speed / tot, corner: v.corner / tot, accel: v.accel / tot };
+    });
+    const res = { w: out, share0: sh0, geo: info.secGeo };
+    secWCache[track.name] = res;
+    return res;
+  }
+
+  return { buildPoly, polyOf, curvature, analyze, speedProfile, sectorWeights };
 })();
 
 </script>
@@ -7247,6 +7361,22 @@ GP.state = (function () {
   }
   function carScore(g, track) { return carScoreOf(carStats(g), track); }
 
+  /* ---------- ダウンフォースとタイヤの持ち ----------
+     曲がる力にどれだけ振ってあるか。押しつける力が大きいほど
+     タイヤは滑らず、1周あたりの摩耗が小さくなる。            */
+  const RIVAL_BODY_REF = 0.40;          // ライバルの車体の仕上がり（基準）
+  function dfBiasOf(s) {
+    return s.corner / Math.max(1, s.speed + s.corner + s.accel);
+  }
+  /* タイヤの減りやすさ。1.00 がライバルの標準で、小さいほど長持ちする */
+  function wearCarOf(s, lightRatio) {
+    return Math.max(0.55, (1 - lightRatio * 0.22) / (1 - RIVAL_BODY_REF * 0.22)
+                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF));
+  }
+  function tyreKind(g2) {
+    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'));
+  }
+
   /* ---------- スタッフ効果 ---------- */
   function staffBonus(g, key) {
     let sum = 0;
@@ -8117,7 +8247,7 @@ GP.state = (function () {
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
-    carStats, carScore, carScoreOf, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe
@@ -8898,6 +9028,10 @@ GP.race = (function () {
     };
     const evenBody = { rigid: RIVAL_BODY, light: RIVAL_BODY, aero: RIVAL_BODY,
                        cool: RIVAL_BODY, svc: RIVAL_BODY, drive: RIVAL_BODY };
+    /* 区間ごとに求められるものは違う。
+       同じ1周でも、曲がりどころの多い区間はダウンフォースが、
+       長い直線の区間はパワーがそのままタイムになる           */
+    const SW = GP.geom.sectorWeights(track);
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
@@ -8925,6 +9059,16 @@ GP.race = (function () {
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
         const stats = t.stats || { speed: 1, corner: 1, accel: 1 };
+        // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
+        const secPerf = SW.w.map(w =>
+          (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
+          + (t.isPlayer ? S.puPerf(g) : 0));
+        /* ダウンフォースの偏り。押しつける力が大きいほどタイヤは滑らず、
+           1周あたりの摩耗が小さくなる。釣り合った車で 0.33 前後になる */
+        const dfBias = S.dfBiasOf(stats);
+        /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
+           軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
+        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light);
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
@@ -8933,7 +9077,8 @@ GP.race = (function () {
           // このマシンがコース上でどう速度を出すか。区間タイムの配分もここから来る
           prof: GP.geom.speedProfile(track, stats),
           gen: t.isPlayer ? g.carGen : Math.min(D.CAR_GENS.length - 1, Math.round((t.car - 12) / 26)),
-          perf: perf, pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
+          perf: perf, secPerf: secPerf, df: dfBias, wearCar: wearCar,
+          pmul: pmul, strat: strat, st: st, sk: sk, hot: ti === hot,
           // あとで「何が効いて、その順位になったのか」を分解するために残す
           carScore: t.car, drvScore: drv, formMul: form[ti],
           bd: t.isPlayer ? myBody : evenBody,
@@ -9426,6 +9571,19 @@ GP.race = (function () {
     // ストレートが長いコースほど、放電を速さに変えやすい
     const ersScale = 0.7 + geo.longestShare * 1.6;
     const refPerf = Math.max.apply(null, entries.map(e => e.perf)) + 4;
+    /* 1周の中で、どの区間にどれだけ時間を使うか。
+       基準の車の時間配分に、その車の区間ごとの力を掛けて割り出す。
+       ダウンフォースが厚ければ曲がりどころの区間が短くなり、
+       パワーがあれば直線の区間が短くなる。合計は1周ぶんのまま        */
+    {
+      const sh0 = GP.geom.sectorWeights(track).share0;
+      entries.forEach(e => {
+        if (!e.secPerf) return;
+        const w = e.secPerf.map((v, k) => sh0[k] * (1 + (refPerf - v) * 0.00092));
+        const sum = w[0] + w[1] + w[2];
+        e.secShare = sum > 0 ? w.map(v => v / sum) : sh0.slice();
+      });
+    }
     /* ---- ピットで失う時間 ----
        「ピットロードを制限速度で走り抜けるぶん」＋「止まって作業しているぶん」。
        前者はコースが決めていて、設備をいくら建てても1秒も縮まない。
@@ -9450,7 +9608,7 @@ GP.race = (function () {
         (e.stopPlan == null || e.stopPlan === 'auto'));
       if (mine.length === 2) {
         const nat = mine.map(e =>
-          S.naturalStops(track, laps, track.tyre * e.st.tyre * e.tyreSkill));
+          S.naturalStops(track, laps, track.tyre * e.st.tyre * e.tyreSkill * (e.wearCar || 1)));
         if (nat[0] === nat[1]) {
           const read = S.readPower(g);
           const p2 = read >= D.SPLIT.need
@@ -9475,7 +9633,8 @@ GP.race = (function () {
     }
 
     entries.forEach(e => {
-      const wear = track.tyre * e.st.tyre * e.tyreSkill;
+      // タイヤに優しい車ほど引っぱれるので、素直なストップ回数も減る
+      const wear = track.tyre * e.st.tyre * e.tyreSkill * (e.wearCar || 1);
       /* コースとマシンから決まる「素直な」ストップ回数。
          よけいに1回止まって失うのはピットロードのぶん。
          そのかわり区間が短くなり、やわらかくて速いタイヤを履ける。
@@ -9859,15 +10018,15 @@ GP.race = (function () {
           tb.laps = (tb.laps || 0) + 1;
         }
 
-        // タイヤ摩耗。寿命を超えると急激にタレる
-        e.tyreAge++;
+        /* タイヤ摩耗。寿命を超えると急激にタレる。
+           軽い車体とダウンフォースは、この「齢の進みかた」そのものを
+           遅くする。だから残量の表示も、実際に長く保つようになる     */
+        e.tyreAge += (e.wearCar || 1);
         // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
         if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
-        // 軽い車体はタイヤを痛めない（ライバル基準の 0.5 で ±0 になるように正規化する）
-        const wearMul = (1 - e.bd.light * 0.22) / (1 - RIVAL_BODY_REF * 0.22);
-        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear * wearMul;
+        t += track.base * e.tyreAge * 0.00075 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill * wearMul;
+        if (over > 0) t += track.base * over * over * 0.0006 * e.tyreSkill;
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
@@ -10404,7 +10563,7 @@ GP.race = (function () {
         const real = Math.max(0.1, e.cum[lap - 1] - prevC - (e.penSec[lap - 1] || 0));
         e.lapTimes[lap - 1] = real;
         const pitAdd = (e.pitTime || [])[lap - 1] || 0;
-        const sh = e.prof.share;
+        const sh = e.secShare || e.prof.share;
         const dr = Math.max(0.1, real - pitAdd);
         const sec = [dr * sh[0], dr * sh[1], dr * sh[2] + pitAdd];
         e.sectors[lap - 1] = sec;
@@ -15287,8 +15446,52 @@ GP.ui = (function () {
       '<div class="req">求められる性能：' +
       reqBar('最高速', t.weight.speed) + reqBar('コーナー', t.weight.corner) + reqBar('加速', t.weight.accel) +
       '</div>' +
+      sectorFitHTML(g, t) +
       '<div class="score">このコースでのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
       '</div></div>';
+  }
+
+  /* ---------- 区間ごとの相性 ----------
+     同じ1周でも、区間によって求められるものが違う。
+     曲がりどころの多い区間はダウンフォースが、長い直線の区間は
+     パワーがそのままタイムになる。うちのマシンがどこで稼いで
+     どこで失うのかを、秒数にして出す。                        */
+  function sectorFitHTML(g, t) {
+    const sw = GP.geom.sectorWeights(t);
+    const st = S.carStats(g);
+    const all = S.carScoreOf(st, t);
+    const rows = sw.w.map((w, k) => {
+      const my = S.carScoreOf(st, { weight: w });
+      /* 区間タイムの差。同じ力で性格だけ釣り合った車と比べて何秒ちがうか。
+         レースの中の計算（区間の時間配分）とまったく同じ式で出している  */
+      const d = -(my - all) * 0.60 * 0.00092 * t.base * sw.share0[k];
+      const gg = sw.geo[k];
+      const cs = Math.round(gg.cornerLen / Math.max(1, gg.dist) * 100);
+      /* その区間の性格は、コース全体と比べてどこが濃いかで決める。
+         全体が曲がりどころ寄りのコースでは、どの区間も
+         「コーナー」になってしまって役に立たない                  */
+      const rel = { speed: w.speed / t.weight.speed, corner: w.corner / t.weight.corner,
+                    accel: w.accel / t.weight.accel };
+      const kind = (rel.corner >= rel.speed && rel.corner >= rel.accel)
+        ? { i: '🌀', n: '曲がりどころ' }
+        : (rel.speed >= rel.accel ? { i: '➡️', n: '直線の伸び' } : { i: '⚡', n: '立ち上がり' });
+      const cls = d <= -0.02 ? ' good' : d >= 0.02 ? ' bad' : '';
+      return '<div class="secfit' + cls + '">' +
+        '<i style="background:' + SECTOR_COLORS[k] + '">S' + (k + 1) + '</i>' +
+        '<span><b>' + kind.i + kind.n + '</b>' +
+        '<small>曲がり ' + cs + '％ ／ 立ち上がり ' + gg.exits + '回</small></span>' +
+        '<em>' + (d > 0 ? '+' : '') + d.toFixed(2) + '秒</em></div>';
+    }).join('');
+    const kind = S.tyreKind(g);
+    const pct = Math.round((1 - kind) * 100);
+    return '<b class="sub small">区間ごとの相性</b>' +
+      '<div class="secfits">' + rows + '</div>' +
+      '<p class="desc">ダウンフォースが厚いほど曲がりどころの区間で稼ぎ、' +
+      'パワーがあるほど直線の区間で稼ぎます。</p>' +
+      '<div class="tyrekind' + (pct > 0 ? ' good' : pct < 0 ? ' bad' : '') + '">' +
+      '<span>🛞 タイヤの持ち</span>' +
+      '<b>' + (pct > 0 ? '+' : '') + pct + '%</b>' +
+      '<small>ダウンフォースと軽量化のぶん</small></div>';
   }
   function reqBar(name, v) {
     return '<div class="reqrow"><span>' + name + '</span><i><b style="width:' +
@@ -16478,6 +16681,7 @@ window.GP = window.GP || {};
           '<span class="devup">1回で 性能 +' + (Math.round(pv.gain * 10) / 10) +
           (upLine ? '　→　' + upLine : '') +
           '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
+          secGainLine(pv) +
           (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
         // 熟成。手を入れ続けると、このパーツの「格」そのものが上がる
         (locked ? '' : (p.rarity >= D.RARITY.length
@@ -16876,6 +17080,16 @@ window.GP = window.GP || {};
      金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
      判断できない。実際に使っている式から、平均的な伸びと、
      それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  /* 1回の改良が、次のコースのどの区間で返ってくるか。
+     いちばん効く区間だけを名指しする（3つ並べると読めない）   */
+  function secGainLine(pv) {
+    if (!pv.dSecs) return '';
+    let best = 0;
+    pv.dSecs.forEach((v, k) => { if (v > pv.dSecs[best]) best = k; });
+    if (pv.dSecs[best] < 0.0004) return '';
+    return '<em class="secgain">S' + (best + 1) + ' で -' + pv.dSecs[best].toFixed(3) + '秒</em>';
+  }
+
   function improvePreview(c) {
     const p = g.equipped[c.key];
     if (!p) return null;
@@ -16897,6 +17111,12 @@ window.GP = window.GP || {};
     const after = S.carStats(g);
     p.power = keep;
     const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
+    /* 区間ごとの効きかた。同じ1回でも、ダウンフォースは曲がりどころで、
+       パワーは直線で返ってくる。足すと1周ぶんのタイムになる        */
+    const sw = GP.geom.sectorWeights(t);
+    const dSecs = sw.w.map((w, k) =>
+      t.base * PERF_TO_SEC * 0.60 * sw.share0[k] *
+      (S.carScoreOf(after, { weight: w }) - S.carScoreOf(before, { weight: w })));
     return {
       cur: S.partStats(p, g), gain: now, toNext: next, cap: cap,
       ratio: Math.min(1, p.power / cap),
@@ -16904,6 +17124,7 @@ window.GP = window.GP || {};
       dCorner: after.corner - before.corner,
       dAccel: after.accel - before.accel,
       dCar: dCar,
+      dSecs: dSecs,
       // perf は 車 0.60 ぶん。1周のタイムに直す
       dSec: t.base * PERF_TO_SEC * 0.60 * dCar
     };

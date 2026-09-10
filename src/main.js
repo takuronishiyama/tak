@@ -493,6 +493,7 @@ window.GP = window.GP || {};
           '<span class="devup">1回で 性能 +' + (Math.round(pv.gain * 10) / 10) +
           (upLine ? '　→　' + upLine : '') +
           '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
+          secGainLine(pv) +
           (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
         // 熟成。手を入れ続けると、このパーツの「格」そのものが上がる
         (locked ? '' : (p.rarity >= D.RARITY.length
@@ -891,6 +892,16 @@ window.GP = window.GP || {};
      金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
      判断できない。実際に使っている式から、平均的な伸びと、
      それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  /* 1回の改良が、次のコースのどの区間で返ってくるか。
+     いちばん効く区間だけを名指しする（3つ並べると読めない）   */
+  function secGainLine(pv) {
+    if (!pv.dSecs) return '';
+    let best = 0;
+    pv.dSecs.forEach((v, k) => { if (v > pv.dSecs[best]) best = k; });
+    if (pv.dSecs[best] < 0.0004) return '';
+    return '<em class="secgain">S' + (best + 1) + ' で -' + pv.dSecs[best].toFixed(3) + '秒</em>';
+  }
+
   function improvePreview(c) {
     const p = g.equipped[c.key];
     if (!p) return null;
@@ -912,6 +923,12 @@ window.GP = window.GP || {};
     const after = S.carStats(g);
     p.power = keep;
     const dCar = S.carScoreOf(after, t) - S.carScoreOf(before, t);
+    /* 区間ごとの効きかた。同じ1回でも、ダウンフォースは曲がりどころで、
+       パワーは直線で返ってくる。足すと1周ぶんのタイムになる        */
+    const sw = GP.geom.sectorWeights(t);
+    const dSecs = sw.w.map((w, k) =>
+      t.base * PERF_TO_SEC * 0.60 * sw.share0[k] *
+      (S.carScoreOf(after, { weight: w }) - S.carScoreOf(before, { weight: w })));
     return {
       cur: S.partStats(p, g), gain: now, toNext: next, cap: cap,
       ratio: Math.min(1, p.power / cap),
@@ -919,6 +936,7 @@ window.GP = window.GP || {};
       dCorner: after.corner - before.corner,
       dAccel: after.accel - before.accel,
       dCar: dCar,
+      dSecs: dSecs,
       // perf は 車 0.60 ぶん。1周のタイムに直す
       dSec: t.base * PERF_TO_SEC * 0.60 * dCar
     };
