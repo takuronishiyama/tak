@@ -2684,6 +2684,18 @@ body[data-skin="hd"]{
 .tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#fffaf0;
   border:1px solid #e6d9bd;border-radius:8px;padding:4px 8px}
 
+/* ---- ペイドライバー ---- */
+.paidchip{display:inline-block;font-style:normal;font-size:10px;font-weight:700;color:#7a5a12;
+  background:#fdf3d8;border:1px solid #e2cd94;border-radius:6px;padding:1px 6px;margin-top:3px}
+.paidin{color:#2f6b33}
+.whybox{display:flex;flex-direction:column;gap:3px;background:#f6f9f3;border:1px solid #d5e3cc;
+  border-radius:9px;padding:8px 10px;margin:4px 0 8px}
+.whybox>b{font-size:12px;color:#31502c;margin-bottom:2px}
+.whybox>span{font-size:11px;color:#4d5c48;line-height:1.5}
+.whybox.alt{background:#fdf8ee;border-color:#e6d9bd}
+.whybox.alt>b{color:#7a5a12}
+.whybox.alt>span{color:#5f5541}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -4361,6 +4373,36 @@ GP.data = (function () {
       effect: '固定費 -1.0%／技能1（最大35%）' }
   ];
 
+  /* ---------- ペイドライバー ----------
+     腕で席を取る人ばかりではない。金を持ってくる人がいる。
+     家が出すのか、後援会が出すのか、地元の企業が出すのか。
+     速さは足りないが、契約した日に金が入り、毎戦も入ってくる。
+     資金が尽きかけているチームにとっては、これが命綱になる。
+     そのぶん、速さでは戦えない。                                  */
+  const PAID = {
+    odds: 0.34,        // 市場に出てくるドライバーが、持参金つきである確率
+    skill: 0.80,       // 腕はこれだけ落ちる（同じ席なら、速さで劣る）
+    dowryBase: 2600,   // 契約時の持参金
+    dowryPer: 700,     // 出どころの格1つあたりの上乗せ
+    perBase: 160,      // 毎戦の持ち込み
+    perPer: 210,
+    salaryCut: 0.55,   // 給料は安い（本人は席が買えれば良い）
+    hypeCut: 0.35,     // 実力で選ばれていないぶん、話題としては弱い
+    /* 出どころ。格が上がるほど持参金も持ち込みも大きい */
+    BACKERS: [
+      { key: 'family', rank: 1, icon: '🏠', name: '実家の会社',
+        line: '父親が地元で建材屋をやっている。息子の席は、その会社が買う' },
+      { key: 'local',  rank: 2, icon: '🏙️', name: '地元の後援会',
+        line: '出身の街が総出で送り出してきた。負けても、あの街だけは味方でいる' },
+      { key: 'brand',  rank: 3, icon: '🥤', name: '飲料メーカー',
+        line: '本人の顔がそのまま広告になる。缶に刷る絵が欲しいのだ' },
+      { key: 'bank',   rank: 4, icon: '🏦', name: '一族の資産',
+        line: '御曹司。金の話をすると、本人ではなく秘書が出てくる' },
+      { key: 'state',  rank: 5, icon: '🛢️', name: '産油国の基金',
+        line: '国が席を買う。数字ではなく、旗のために走らせている' }
+    ]
+  };
+
   /* ---------- ブリーフィング ----------
      走り終えたドライバーは、必ず何かを言う。
      その言い分は、実際にこのマシンがこのコースで足りていないところから出る。
@@ -5635,7 +5677,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -6376,8 +6418,29 @@ GP.state = (function () {
     };
     d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95
                           + careOf(d) * 0.10 + 18);
+    /* ---- 持参金つき ----
+       腕で席を取る人ばかりではない。金を持ってくる人がいる。
+       速さは足りないが、契約した日に金が入り、毎戦も入ってくる    */
+    if (opts.paid) {
+      const P2 = D.PAID;
+      const bk = opts.backer || pick(P2.BACKERS);
+      ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
+        d[k] = clamp(Math.round(d[k] * P2.skill), 5, 190);
+      });
+      d.paid = {
+        key: bk.key, icon: bk.icon, name: bk.name, line: bk.line, rank: bk.rank,
+        dowry: Math.round(P2.dowryBase + bk.rank * P2.dowryPer * (1 + level * 0.12)),
+        per: Math.round(P2.perBase + bk.rank * P2.perPer * (1 + level * 0.10))
+      };
+      d.salary = Math.round(d.salary * P2.salaryCut);
+    }
     return d;
   }
+  /* 持参金つきのドライバーが、いま毎戦いくら持ってきているか */
+  function paidIncome(g2) {
+    return (g2.drivers || []).reduce((a, d) => a + ((d.paid && d.paid.per) || 0), 0);
+  }
+  function isPaid(d) { return !!(d && d.paid); }
 
   /* ---------- 安定感 ----------
      クラッシュとミスの起きやすさを決める、その人の「まとめる力」。
@@ -8459,6 +8522,7 @@ GP.state = (function () {
                                 + (ts ? ts.per : 0)) * scale);
     const merch = fanIncome(g2);           // グッズ・入場料
     const puSupply = customerFee(g2);      // よそに配っているパワーユニットの供給料
+    const paid = paidIncome(g2);           // ドライバーが持ち込んでいるぶん
     const rpRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.rp || 0), 0)
                                + (ts ? ts.rp : 0)) * scale);
 
@@ -8476,9 +8540,10 @@ GP.state = (function () {
       shipping: shipping,
       merch: merch,
       puSupply: puSupply,
+      paid: paid,
       cycleCost: weekly * PREP + shipping,
-      cycleIncome: perRace + merch + puSupply,
-      net: perRace + merch + puSupply - weekly * PREP - shipping
+      cycleIncome: perRace + merch + puSupply + paid,
+      net: perRace + merch + puSupply + paid - weekly * PREP - shipping
     };
   }
 
@@ -9326,6 +9391,7 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    paidIncome, isPaid,
     meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
@@ -12123,6 +12189,11 @@ GP.race = (function () {
       if (gained > 0) hypeDelta += Math.min(6, gained * 0.4); // 追い上げも評価される
     });
     if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
+    // 席を買って乗っている人が上位に来ても、話題としては割り引かれる
+    {
+      const paidN = (g.drivers || []).filter(d => d.paid).length;
+      if (paidN && hypeDelta > 0) hypeDelta *= 1 - D.PAID.hypeCut * (paidN / 2);
+    }
     hypeDelta *= (1 + S.mgr(g, 'principal') * 0.004);          // 発信力のあるプリンシパルほど話題になる
     // ミュージアムがあると、勝てない週末でも語られるものが残る
     if (hypeDelta < 0 && S.hasEstate(g, 'museum')) hypeDelta *= 0.65;
@@ -12311,7 +12382,11 @@ GP.race = (function () {
     const puFee = Math.round(S.customerFee(g) * (sp ? 0.5 : 1));
     if (puFee > 0) notes.push('🔌 パワーユニットの供給料 +' + puFee + '万（' +
       (g.customers || []).map(c => c.team).join('・') + '）');
-    g.funds += prize + sponsorIncome + merch + puFee;
+    // ドライバーが持ち込んでいるぶん。走った週末だけ入る
+    const paidFee = Math.round(S.paidIncome(g) * (sp ? 0.5 : 1));
+    if (paidFee > 0) notes.push('💼 ドライバーの持ち込み +' + paidFee + '万（' +
+      (g.drivers || []).filter(d => d.paid).map(d => d.paid.icon + d.name).join('・') + '）');
+    g.funds += prize + sponsorIncome + merch + puFee + paidFee;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
     if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
                                             * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1)
@@ -12323,7 +12398,7 @@ GP.race = (function () {
     g.fans = Math.max(120, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.analystPower(g) * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, puFee, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, puFee, paidFee, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,
@@ -17384,6 +17459,7 @@ GP.ui = (function () {
       '<div class="fin-row"><span>' + S.fanTier(g).icon + ' グッズ・入場料（' + S.fanTier(g).name + '）</span><b class="good">+' + money(f.merch) + '</b></div>' +
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       (f.puSupply ? '<div class="fin-row"><span>🔌 PUの供給料（よそへ）</span><b class="good">+' + money(f.puSupply) + '</b></div>' : '') +
+      (f.paid ? '<div class="fin-row"><span>💼 ドライバーの持ち込み</span><b class="good">+' + money(f.paid) + '</b></div>' : '') +
       '<div class="fin-row"><span>💸 ' + cyc + '週ぶんの支出</span><b class="bad">-' + money(f.cycleCost - f.shipping) + '</b></div>' +
       '<div class="fin-row"><span>' + S.logiPlan(g).icon + ' 次戦への輸送費（' + S.logiPlan(g).name + '）</span><b class="bad">-' + money(f.shipping) + '</b></div>' +
       ((g.repairPaid || 0) > 0
@@ -20538,7 +20614,9 @@ window.GP = window.GP || {};
   function refreshMarkets(force) {
     const q = teamQuality();
     if (force || !staffMarket) staffMarket = [0, 1, 2, 3].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key, q));
-    if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
+    if (force || !driverMarket) driverMarket = [0, 1, 2].map(() =>
+      S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2),
+                   Math.random() < D.PAID.odds ? { paid: true } : {}));
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
@@ -21010,8 +21088,10 @@ window.GP = window.GP || {};
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
         Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
-        '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
+        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
+        '<span class="pb-cost">週' + money(d.salary) + '万' +
+        (d.paid ? '<br><b class="paidin">毎戦 +' + money(d.paid.per) + '</b>' : '') +
+        '<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div>';
     body += careLegendHTML();
@@ -21085,8 +21165,10 @@ window.GP = window.GP || {};
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
         Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
-        '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost">契約金<br>💰' + money(fee) +
+        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
+        '<span class="pb-cost">' +
+        (d.paid ? '<b class="paidin">持参金<br>+' + money(d.paid.dowry) + '</b><br>' : '') +
+        '契約金<br>💰' + money(fee) +
         (g.reserve ? '' : '<br><button class="mini" data-mktres="' + i + '">リザーブへ</button>') +
         '</span></button>';
     });
@@ -21099,7 +21181,20 @@ window.GP = window.GP || {};
     let body = careLegendHTML() +
       '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
-      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
+      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p>' +
+      '<div class="whybox"><b>🎓 自分で育てると、何が得なのか</b>' +
+      '<span>📈 <b>伸びる</b>　市場で買うドライバーはもう伸びません。若手だけが、毎週上がっていきます</span>' +
+      '<span>💴 <b>安い</b>　昇格しても給料は市場価格より低いままです。浮いたぶんは開発に回せます</span>' +
+      '<span>🤝 <b>離れにくい</b>　自分たちで育てた人は、よそから声がかかっても靡きにくい</span>' +
+      '<span>🛞 <b>金曜に乗せられる</b>　フリー走行の「ルーキーを走らせる」は、若手がいないと選べません</span>' +
+      '</div>' +
+      '<div class="whybox alt"><b>💼 逆に、金がないときは</b>' +
+      '<span>ドライバー市場には、<b>持参金つき</b>のドライバーが混じります。腕は' +
+      Math.round((1 - D.PAID.skill) * 100) + '%ほど落ちますが、契約した日にまとまった金が入り、' +
+      '毎戦も持ち込みがあります。給料も安い。<br>' +
+      'そのかわり、実力で選んでいないぶん<b>話題としては割り引かれ</b>、速さでは戦えません。' +
+      '席をひとつ金に換えて、その金でマシンを速くする、という選び方です。</span></div>' +
+      '<div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
     (g.youth || []).forEach(d => {
       body += youthRow(d,
@@ -21762,6 +21857,12 @@ window.GP = window.GP || {};
       if (g.drivers.length >= 2 || g.funds < fee) return;
       g.funds -= fee; d.team = g.team; g.drivers.push(d);
       driverMarket.splice(idx, 1);
+      if (d.paid) {
+        g.funds += d.paid.dowry;
+        U.log(g, '💼 ' + d.paid.icon + ' ' + d.paid.name + ' から持参金 +' +
+          money(d.paid.dowry) + '万。' + d.paid.line, 'good');
+        U.pop('💼 +' + money(d.paid.dowry), 'good');
+      }
       U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
       S.pushNews(g, 'drvIn', d.name);
       U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
@@ -22618,6 +22719,13 @@ window.GP = window.GP || {};
      どちらを選んでも、結果が出たかどうかで信頼が動く。
      ======================================================= */
   let briefState = null;
+
+  /* 席を買って乗っている人の札。何が後ろについているのかを出す */
+  function paidChip(d) {
+    if (!d || !d.paid) return '';
+    return '<em class="paidchip" title="' + esc(d.paid.line) + '">' +
+      d.paid.icon + ' ' + esc(d.paid.name) + '　毎戦 +' + money(d.paid.per) + '万</em>';
+  }
 
   function trustChip(d) {
     const v = S.trustOf(d), t = S.trustTier(v);

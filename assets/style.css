@@ -2668,3 +2668,15 @@ body[data-skin="hd"]{
 .trustrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
 .tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#fffaf0;
   border:1px solid #e6d9bd;border-radius:8px;padding:4px 8px}
+
+/* ---- ペイドライバー ---- */
+.paidchip{display:inline-block;font-style:normal;font-size:10px;font-weight:700;color:#7a5a12;
+  background:#fdf3d8;border:1px solid #e2cd94;border-radius:6px;padding:1px 6px;margin-top:3px}
+.paidin{color:#2f6b33}
+.whybox{display:flex;flex-direction:column;gap:3px;background:#f6f9f3;border:1px solid #d5e3cc;
+  border-radius:9px;padding:8px 10px;margin:4px 0 8px}
+.whybox>b{font-size:12px;color:#31502c;margin-bottom:2px}
+.whybox>span{font-size:11px;color:#4d5c48;line-height:1.5}
+.whybox.alt{background:#fdf8ee;border-color:#e6d9bd}
+.whybox.alt>b{color:#7a5a12}
+.whybox.alt>span{color:#5f5541}

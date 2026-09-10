@@ -2750,6 +2750,11 @@ GP.race = (function () {
       if (gained > 0) hypeDelta += Math.min(6, gained * 0.4); // 追い上げも評価される
     });
     if (sp) hypeDelta *= 0.6;                                  // 特別戦は選手権より扱いが小さい
+    // 席を買って乗っている人が上位に来ても、話題としては割り引かれる
+    {
+      const paidN = (g.drivers || []).filter(d => d.paid).length;
+      if (paidN && hypeDelta > 0) hypeDelta *= 1 - D.PAID.hypeCut * (paidN / 2);
+    }
     hypeDelta *= (1 + S.mgr(g, 'principal') * 0.004);          // 発信力のあるプリンシパルほど話題になる
     // ミュージアムがあると、勝てない週末でも語られるものが残る
     if (hypeDelta < 0 && S.hasEstate(g, 'museum')) hypeDelta *= 0.65;
@@ -2938,7 +2943,11 @@ GP.race = (function () {
     const puFee = Math.round(S.customerFee(g) * (sp ? 0.5 : 1));
     if (puFee > 0) notes.push('🔌 パワーユニットの供給料 +' + puFee + '万（' +
       (g.customers || []).map(c => c.team).join('・') + '）');
-    g.funds += prize + sponsorIncome + merch + puFee;
+    // ドライバーが持ち込んでいるぶん。走った週末だけ入る
+    const paidFee = Math.round(S.paidIncome(g) * (sp ? 0.5 : 1));
+    if (paidFee > 0) notes.push('💼 ドライバーの持ち込み +' + paidFee + '万（' +
+      (g.drivers || []).filter(d => d.paid).map(d => d.paid.icon + d.name).join('・') + '）');
+    g.funds += prize + sponsorIncome + merch + puFee + paidFee;
     // 知名度の高いオーナーのチームは、同じ結果でもファンが増えやすい
     if (fanDelta > 0) fanDelta = Math.round(fanDelta * (1 + S.osk(g, 'fame') * 0.08)
                                             * (S.hasGear(g, 'market', 'stud') ? 1.12 : 1)
@@ -2950,7 +2959,7 @@ GP.race = (function () {
     g.fans = Math.max(120, g.fans + fanDelta);
     g.rp += (sp ? sp.rp : 8) + Math.round(S.analystPower(g) * 2) + sponsorRp;
 
-    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, puFee, notes };
+    res.reward = { prize, sponsorIncome, sponsorRp, sponsorFans, fanDelta, merch, puFee, paidFee, notes };
     if (!sp) g.results.push({
       season: g.season, round: res.trackIndex + 1, track: res.track.name,
       weather: res.weather.name,

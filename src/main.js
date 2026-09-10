@@ -2909,7 +2909,9 @@ window.GP = window.GP || {};
   function refreshMarkets(force) {
     const q = teamQuality();
     if (force || !staffMarket) staffMarket = [0, 1, 2, 3].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key, q));
-    if (force || !driverMarket) driverMarket = [0, 1, 2].map(() => S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2)));
+    if (force || !driverMarket) driverMarket = [0, 1, 2].map(() =>
+      S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2),
+                   Math.random() < D.PAID.odds ? { paid: true } : {}));
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
@@ -3381,8 +3383,10 @@ window.GP = window.GP || {};
         '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
         Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
-        '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost">週' + money(d.salary) + '万<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
+        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
+        '<span class="pb-cost">週' + money(d.salary) + '万' +
+        (d.paid ? '<br><b class="paidin">毎戦 +' + money(d.paid.per) + '</b>' : '') +
+        '<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
     });
     body += '</div>';
     body += careLegendHTML();
@@ -3456,8 +3460,10 @@ window.GP = window.GP || {};
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
         Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
         '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
-        '<br>' + U.skillChips(d) + '</small></span>' +
-        '<span class="pb-cost">契約金<br>💰' + money(fee) +
+        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
+        '<span class="pb-cost">' +
+        (d.paid ? '<b class="paidin">持参金<br>+' + money(d.paid.dowry) + '</b><br>' : '') +
+        '契約金<br>💰' + money(fee) +
         (g.reserve ? '' : '<br><button class="mini" data-mktres="' + i + '">リザーブへ</button>') +
         '</span></button>';
     });
@@ -3470,7 +3476,20 @@ window.GP = window.GP || {};
     let body = careLegendHTML() +
       '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
       '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
-      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p><div class="pick">';
+      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p>' +
+      '<div class="whybox"><b>🎓 自分で育てると、何が得なのか</b>' +
+      '<span>📈 <b>伸びる</b>　市場で買うドライバーはもう伸びません。若手だけが、毎週上がっていきます</span>' +
+      '<span>💴 <b>安い</b>　昇格しても給料は市場価格より低いままです。浮いたぶんは開発に回せます</span>' +
+      '<span>🤝 <b>離れにくい</b>　自分たちで育てた人は、よそから声がかかっても靡きにくい</span>' +
+      '<span>🛞 <b>金曜に乗せられる</b>　フリー走行の「ルーキーを走らせる」は、若手がいないと選べません</span>' +
+      '</div>' +
+      '<div class="whybox alt"><b>💼 逆に、金がないときは</b>' +
+      '<span>ドライバー市場には、<b>持参金つき</b>のドライバーが混じります。腕は' +
+      Math.round((1 - D.PAID.skill) * 100) + '%ほど落ちますが、契約した日にまとまった金が入り、' +
+      '毎戦も持ち込みがあります。給料も安い。<br>' +
+      'そのかわり、実力で選んでいないぶん<b>話題としては割り引かれ</b>、速さでは戦えません。' +
+      '席をひとつ金に換えて、その金でマシンを速くする、という選び方です。</span></div>' +
+      '<div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
     (g.youth || []).forEach(d => {
       body += youthRow(d,
@@ -4133,6 +4152,12 @@ window.GP = window.GP || {};
       if (g.drivers.length >= 2 || g.funds < fee) return;
       g.funds -= fee; d.team = g.team; g.drivers.push(d);
       driverMarket.splice(idx, 1);
+      if (d.paid) {
+        g.funds += d.paid.dowry;
+        U.log(g, '💼 ' + d.paid.icon + ' ' + d.paid.name + ' から持参金 +' +
+          money(d.paid.dowry) + '万。' + d.paid.line, 'good');
+        U.pop('💼 +' + money(d.paid.dowry), 'good');
+      }
       U.log(g, '🧑‍✈️ ' + d.name + ' と契約した！', 'good');
       S.pushNews(g, 'drvIn', d.name);
       U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
@@ -4989,6 +5014,13 @@ window.GP = window.GP || {};
      どちらを選んでも、結果が出たかどうかで信頼が動く。
      ======================================================= */
   let briefState = null;
+
+  /* 席を買って乗っている人の札。何が後ろについているのかを出す */
+  function paidChip(d) {
+    if (!d || !d.paid) return '';
+    return '<em class="paidchip" title="' + esc(d.paid.line) + '">' +
+      d.paid.icon + ' ' + esc(d.paid.name) + '　毎戦 +' + money(d.paid.per) + '万</em>';
+  }
 
   function trustChip(d) {
     const v = S.trustOf(d), t = S.trustTier(v);

@@ -458,8 +458,29 @@ GP.state = (function () {
     };
     d.salary = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95
                           + careOf(d) * 0.10 + 18);
+    /* ---- 持参金つき ----
+       腕で席を取る人ばかりではない。金を持ってくる人がいる。
+       速さは足りないが、契約した日に金が入り、毎戦も入ってくる    */
+    if (opts.paid) {
+      const P2 = D.PAID;
+      const bk = opts.backer || pick(P2.BACKERS);
+      ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
+        d[k] = clamp(Math.round(d[k] * P2.skill), 5, 190);
+      });
+      d.paid = {
+        key: bk.key, icon: bk.icon, name: bk.name, line: bk.line, rank: bk.rank,
+        dowry: Math.round(P2.dowryBase + bk.rank * P2.dowryPer * (1 + level * 0.12)),
+        per: Math.round(P2.perBase + bk.rank * P2.perPer * (1 + level * 0.10))
+      };
+      d.salary = Math.round(d.salary * P2.salaryCut);
+    }
     return d;
   }
+  /* 持参金つきのドライバーが、いま毎戦いくら持ってきているか */
+  function paidIncome(g2) {
+    return (g2.drivers || []).reduce((a, d) => a + ((d.paid && d.paid.per) || 0), 0);
+  }
+  function isPaid(d) { return !!(d && d.paid); }
 
   /* ---------- 安定感 ----------
      クラッシュとミスの起きやすさを決める、その人の「まとめる力」。
@@ -2541,6 +2562,7 @@ GP.state = (function () {
                                 + (ts ? ts.per : 0)) * scale);
     const merch = fanIncome(g2);           // グッズ・入場料
     const puSupply = customerFee(g2);      // よそに配っているパワーユニットの供給料
+    const paid = paidIncome(g2);           // ドライバーが持ち込んでいるぶん
     const rpRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.rp || 0), 0)
                                + (ts ? ts.rp : 0)) * scale);
 
@@ -2558,9 +2580,10 @@ GP.state = (function () {
       shipping: shipping,
       merch: merch,
       puSupply: puSupply,
+      paid: paid,
       cycleCost: weekly * PREP + shipping,
-      cycleIncome: perRace + merch + puSupply,
-      net: perRace + merch + puSupply - weekly * PREP - shipping
+      cycleIncome: perRace + merch + puSupply + paid,
+      net: perRace + merch + puSupply + paid - weekly * PREP - shipping
     };
   }
 
@@ -3408,6 +3431,7 @@ GP.state = (function () {
     staffRank, nextStaffRank, staffTitle,
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
+    paidIncome, isPaid,
     meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
