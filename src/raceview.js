@@ -1781,9 +1781,21 @@ GP.raceview = (function () {
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
-    // 先頭との差を先に出しておく。前の車との差は、その引き算で出す
-    const behind = ord.map((o, i) => o.out ? null
-      : (i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p))));
+    /* ---- 先頭との差 ----
+       走っているあいだは「先頭が同じ地点を通った時刻」との差でよい。
+       ただしゴールしたあとは、時計（vt）だけが進んでいくので、
+       そのままだと着順が決まったあとも差が開きつづけてしまう。
+       着いた車どうしは、着いた時刻の差で止めておく。            */
+    const behind = ord.map((o, i) => {
+      if (o.out) return null;
+      if (i === 0) return 0;
+      if (o.fin && leader.fin) return Math.max(0, o.fin - leader.fin);
+      return Math.max(0, vt - timeAt(leader.e, o.p));
+    });
+    /* 何周遅れているか。1周以上離れたら、秒ではなく周で出す
+       （実際の中継と同じで、そのほうが差の大きさが伝わる）      */
+    const lapsDown = ord.map(o => Math.max(0,
+      Math.floor(leader.p + 1e-6) - Math.floor(o.p + 1e-6)));
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
@@ -1809,10 +1821,14 @@ GP.raceview = (function () {
           (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em></b></span>';
       }
+      const dLap = i === 0 ? 0 : lapsDown[i] - lapsDown[i - 1];
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
+                 : dLap > 0 ? '+' + dLap + '周'
                  : '+' + (behind[i] - behind[i - 1]).toFixed(1);
       const gapL = o.out ? 'DNF' : pitting ? 'PIT'
-                 : (i === 0 ? '先頭' : '+' + behind[i].toFixed(1));
+                 : i === 0 ? '先頭'
+                 : lapsDown[i] > 0 ? '+' + lapsDown[i] + '周'
+                 : '+' + behind[i].toFixed(1);
       let secs = '';
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];

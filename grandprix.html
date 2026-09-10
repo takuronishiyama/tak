@@ -352,7 +352,8 @@ table.rank.grid td.dim{opacity:.35}
 .rel{font-size:12px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rel b{font-size:17px}
 .rel small{font-size:10px;opacity:.75}
-.good{color:#2e8b30}.warn{color:#d08000}.bad{color:#d02020}
+/* 明るい紙の上に置くので、少し濃いめにしてある（暗い皮では別に上書きする）*/
+.good{color:#237023}.warn{color:#a86600}.bad{color:#b81a1a}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
       background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
@@ -392,6 +393,9 @@ table.rank.grid td.dim{opacity:.35}
 .drv-nm{font-size:13px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .drv-sub{font-size:9px;opacity:.8}
 .drv-sub b{background:var(--yellow);border:1px solid var(--ink);border-radius:3px;padding:0 3px}
+/* 安定感の札だけは、段階の色そのもので読ませるので下地を白く抜く
+   （黄色の上に赤や橙を置くと、色が近すぎて字が沈む）                */
+.drv-sub b.drv-care{background:#fffdf7}
 .drv-age{font-size:10px;opacity:.7}
 .quote{display:flex;gap:6px;align-items:flex-start;background:var(--paper3);border:2px solid var(--ink);
        border-radius:8px;padding:5px 7px;margin-top:6px;font-size:11px;line-height:1.5}
@@ -499,7 +503,7 @@ body.preboot .topbar{visibility:hidden}
      padding:7px;font-size:13px;font-weight:bold}
 .btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .btn.primary{background:linear-gradient(#ffd76a,var(--yellow))}
-.btn.danger{background:linear-gradient(#ff9a8a,var(--red));color:#fff}
+.btn.danger{background:linear-gradient(#e2705f,#b8302a);color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
 /* ---------- 選択リスト ---------- */
@@ -794,7 +798,28 @@ body.preboot .topbar{visibility:hidden}
    カイロ風の配色は :root にそのまま残してあるので、
    data-skin を外せばいつでも元に戻る。
    ========================================================= */
+/* ---------- あとから足した箱・札で使う色 ----------
+   じかに色を書くと、皮（スキン）を替えたときに
+   明るい面に明るい文字が乗って読めなくなる。
+   面と文字は必ずここを通す。                                  */
+:root{
+  --face:     #fffdf3;    /* いちばん明るい面 */
+  --face2:    #f6f4ec;    /* すこし色のついた面 */
+  --faceEdge: #e2d6bc;    /* 面のふち */
+  --faceTx:   #4a3720;    /* 面の上の文字 */
+  --faceSub:  #6b6152;    /* 面の上の、控えめな文字 */
+  --okTx:     #2f6b33;    /* 良い側 */
+  --ngTx:     #8a5a12;    /* 気をつける側 */
+}
+
 [data-skin="hd"]{
+  --face:     #2a2138;
+  --face2:    #241c30;
+  --faceEdge: rgba(214,178,106,.30);
+  --faceTx:   #efe4cf;
+  --faceSub:  #b9a98f;
+  --okTx:     #8ee08e;
+  --ngTx:     #ffc24a;
   --ink:#0e0b14;          /* 枠は黒に近い紫。金と組んで沈む */
   --ink2:#2a2038;
   --paper:#241c30;        /* パネルの面 */
@@ -922,6 +947,11 @@ body[data-skin="hd"]{
   color:#ffeec0;
   box-shadow:inset 0 1px 0 rgba(255,224,150,.55), 0 0 16px rgba(214,178,106,.42);
 }
+/* 金色の面の中に入る小さな文字は、地が濃いぶん明るいほうへ寄せる */
+[data-skin="hd"] .tab.on small,[data-skin="hd"] .tab.on b,[data-skin="hd"] .tab.on em,
+[data-skin="hd"] .hrtab.on small,[data-skin="hd"] .hrtab.on b,
+[data-skin="hd"] .pickbtn.on small,[data-skin="hd"] .pickbtn.on b,
+[data-skin="hd"] .pickbtn.on em,[data-skin="hd"] .pickbtn.on i{color:#ffeec0}
 
 /* ---- 明るい面を前提にしていた小さな部品を、暗い面に合わせる ---- */
 [data-skin="hd"] .part,
@@ -1549,7 +1579,7 @@ body[data-skin="hd"]{
 
 /* サプライヤーの現物支援 */
 .perk{display:inline-block;font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;
-      padding:1px 6px;border-radius:4px;background:#3a7ad9;color:#fff}
+      padding:1px 6px;border-radius:4px;background:#2f5cb0;color:#fff}
 .perkbox{margin:6px 0 8px;padding:7px 9px;border:2px solid var(--ink);border-radius:6px;
          background:#dfe8f4;color:var(--ink)}
 .perkbox>b{font-size:11.5px}
@@ -1560,7 +1590,7 @@ body[data-skin="hd"]{
 .perkrow>b{flex:1;font-size:10px}
 .perkrow em{font-style:normal;font-size:11px;font-weight:bold;color:#1f5fbf}
 .perkrow i{font-style:normal;font-size:8.5px;opacity:.7;flex:0 0 100%}
-[data-skin="hd"] .perk{background:#4a7ad9}
+[data-skin="hd"] .perk{background:#2f5cb0}
 [data-skin="hd"] .perkbox{background:#1e2740;border-color:#4a5f86;color:#e6eefb}
 [data-skin="hd"] .perkbox small{color:#b8c6dd}
 [data-skin="hd"] .perkrow{background:#2a3552;border-color:#4a5f86;color:#e6eefb}
@@ -2615,24 +2645,25 @@ body[data-skin="hd"]{
    ここの .tb-row は、レース中のタイミングモニターの .tb-row と
    名前がぶつかる。棚の中（.tybank）に限って効くように囲っておく    */
 .tybank{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
-.tybank .tb-row{display:flex;align-items:center;gap:8px;background:#fffaf0;
-  border:1px solid #e6d9bd;border-radius:8px;padding:5px 8px;color:#4a3720;font-size:11px}
-.tybank .tb-row>b{font-size:12px;min-width:74px;color:#4a3720}
+.tybank .tb-row{display:flex;align-items:center;gap:8px;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:5px 8px;
+  color:var(--faceTx);font-size:11px}
+.tybank .tb-row>b{font-size:12px;min-width:74px;color:var(--faceTx)}
 .tybank .tb-sets{display:flex;gap:6px;flex-wrap:wrap}
-.tybank .tb-set{display:inline-flex;align-items:center;gap:3px;background:#fff;
-  border:1px solid #e2d6bc;border-radius:7px;padding:2px 5px 2px 2px}
+.tybank .tb-set{display:inline-flex;align-items:center;gap:3px;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:7px;padding:2px 5px 2px 2px}
 .tybank .tb-set>i{display:inline-flex;align-items:center;justify-content:center;
   width:18px;height:18px;border-radius:50%;background:var(--tc);color:var(--tt);
   font-style:normal;font-weight:700;font-size:10px}
 .tybank .tb-set>em{font-style:normal;font-size:10px;padding:1px 3px;border-radius:4px;line-height:1.2}
-.tybank .tb-set>em.fresh{background:#e6f4e2;color:#2f6b33;font-weight:700}
-.tybank .tb-set>em.used{background:#f0ece2;color:#6b6152}
+.tybank .tb-set>em.fresh{background:rgba(60,150,70,.16);color:var(--okTx);font-weight:700}
+.tybank .tb-set>em.used{background:rgba(128,120,100,.16);color:var(--faceSub)}
 .tybank .tb-set>em.zero{opacity:.34}
 .qty{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;
   border-radius:50%;background:var(--tc);color:var(--tt);font-size:10px;font-weight:700;
   margin-right:4px;opacity:.62}
 .qty.new{opacity:1;box-shadow:0 0 0 2px #fff,0 0 0 3px #2f6b33}
-.tyuse{display:inline-block;font-style:normal;font-size:10px;color:#8a6a30}
+.tyuse{display:inline-block;font-style:normal;font-size:10px;color:var(--ngTx)}
 /* 選ばれている札は、下地を塗り替えず「縁と艶」で示す。
    下地を明るくすると、暗い皮のときに文字が読めなくなる          */
 .pick.qplan .pickbtn.on{outline:3px solid #c0392b;outline-offset:-3px}
@@ -2640,75 +2671,79 @@ body[data-skin="hd"]{
 .qpickrow .stratbtn{flex:1}
 
 /* ---- 装備の維持費とサプライヤー ---- */
-.upbox{display:flex;gap:10px;flex-wrap:wrap;background:#f4f7ee;border:1px solid #d7e0c6;
-  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
-.upbox span{font-size:11px;color:#4c5a3c}
-.upbox b{font-size:12px;color:#2f4020}
+.upbox{display:flex;gap:10px;flex-wrap:wrap;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.upbox span{font-size:11px;color:var(--faceSub)}
+.upbox b{font-size:12px;color:var(--faceTx)}
 .pickbtn .pb-cost s{opacity:.5;font-size:10px}
 
 /* ---- パワーユニットを配る側 ---- */
-.purank{display:flex;gap:10px;flex-wrap:wrap;background:#eef3fa;border:1px solid #c9d8ea;
-  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
-.purank span{font-size:11px;color:#3d556e}
-.purank b{font-size:12px;color:#1f3c58}
+.purank{display:flex;gap:10px;flex-wrap:wrap;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.purank span{font-size:11px;color:var(--faceSub)}
+.purank b{font-size:12px;color:var(--faceTx)}
 .cuslist{display:flex;flex-direction:column;gap:4px;margin:4px 0 8px}
-.cus-row{display:flex;align-items:center;gap:8px;background:#fffaf0;border:1px solid #e6d9bd;
-  border-radius:8px;padding:5px 8px;font-size:11px;flex-wrap:wrap}
+.cus-row{display:flex;align-items:center;gap:8px;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:5px 8px;font-size:11px;
+  flex-wrap:wrap;color:var(--faceTx)}
 .cus-row>i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
 .cus-row>b{font-size:12px;min-width:96px}
-.cus-row>span{color:#6b6152}
+.cus-row>span{color:var(--faceSub)}
 .cus-row em.warn{font-style:normal;color:#b4522a;font-weight:700}
 
 /* ---- エグゼクティブ講習 ---- */
 .schoolgo{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
-.sg-row{display:flex;align-items:center;gap:8px;background:#f6f2fb;border:1px solid #ded3ee;
-  border-radius:8px;padding:6px 9px;font-size:11px;flex-wrap:wrap}
+.sg-row{display:flex;align-items:center;gap:8px;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:6px 9px;font-size:11px;
+  flex-wrap:wrap;color:var(--faceTx)}
 .sg-row>i{font-style:normal;font-size:15px}
 .sg-row>b{font-size:12px;min-width:88px}
-.sg-row>span{color:#6a6076}
-.sg-row>em{font-style:normal;color:#6a5aa8;font-weight:700}
+.sg-row>span{color:var(--faceSub)}
+.sg-row>em{font-style:normal;color:var(--ngTx);font-weight:700}
 .sg-row .skbar{flex:1 1 120px;min-width:80px}
 .schoolwho{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}
-.swbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:#fff;
-  border:1px solid #ddd2bb;border-radius:9px;padding:5px 9px;cursor:pointer;font:inherit;
-  color:#4a3720;min-width:118px}
+.swbtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:5px 9px;cursor:pointer;font:inherit;
+  color:var(--faceTx);min-width:118px}
 .swbtn>b{font-size:12px}
-.swbtn>small{font-size:10px;color:#877b66}
-.swbtn.on{border-color:#6a5aa8;background:#f4f0fc;box-shadow:0 0 0 1px #6a5aa8 inset}
+.swbtn>small{font-size:10px;color:var(--faceSub)}
+.swbtn.on{border-color:#8f7ad0;background:var(--face2);box-shadow:0 0 0 2px #8f7ad0 inset}
 
 /* ---- 競技団体にいる、かつての仲間 ---- */
-.fiabox{display:flex;gap:10px;flex-wrap:wrap;background:#eef4f7;border:1px solid #c8dae2;
-  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
-.fiabox span{font-size:11px;color:#3f5c68}
-.fiabox b{font-size:12px}
+.fiabox{display:flex;gap:10px;flex-wrap:wrap;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.fiabox span{font-size:11px;color:var(--faceSub)}
+.fiabox b{font-size:12px;color:var(--faceTx)}
 .fialist{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
-.fia-row{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #dfe6ea;
-  border-radius:8px;padding:5px 9px;font-size:11px;flex-wrap:wrap}
+.fia-row{display:flex;align-items:center;gap:8px;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:5px 9px;font-size:11px;
+  flex-wrap:wrap;color:var(--faceTx)}
 .fia-row>i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 .fia-row>b{font-size:12px;min-width:92px}
-.fia-row>span{color:#6b7680}
+.fia-row>span{color:var(--faceSub)}
 .fia-row>em{font-style:normal;font-weight:700}
-.fia-row>small{color:#98a2aa;flex:1 1 100%}
+.fia-row>small{color:var(--faceSub);opacity:.85;flex:1 1 100%}
 
 /* ---- ピットへの信頼 ---- */
+/* 札そのものが色を持っているので、地は必ず暗くして文字を浮かせる */
 .trustchip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
   color:var(--tk);border:1px solid var(--tk);border-radius:999px;padding:1px 7px;
-  background:color-mix(in srgb, var(--tk) 10%, #fff)}
+  background:#fffdf7}   /* 明るい下地を持たせて、段階の色をそのまま読ませる */
 .trustrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
-.tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:#fffaf0;
-  border:1px solid #e6d9bd;border-radius:8px;padding:4px 8px}
+.tr-one{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:4px 8px;color:var(--faceTx)}
 
 /* ---- ペイドライバー ---- */
-.paidchip{display:inline-block;font-style:normal;font-size:10px;font-weight:700;color:#7a5a12;
-  background:#fdf3d8;border:1px solid #e2cd94;border-radius:6px;padding:1px 6px;margin-top:3px}
-.paidin{color:#2f6b33}
-.whybox{display:flex;flex-direction:column;gap:3px;background:#f6f9f3;border:1px solid #d5e3cc;
-  border-radius:9px;padding:8px 10px;margin:4px 0 8px}
-.whybox>b{font-size:12px;color:#31502c;margin-bottom:2px}
-.whybox>span{font-size:11px;color:#4d5c48;line-height:1.5}
-.whybox.alt{background:#fdf8ee;border-color:#e6d9bd}
-.whybox.alt>b{color:#7a5a12}
-.whybox.alt>span{color:#5f5541}
+/* 札そのものが明るい下地を持つので、文字は皮に関係なく濃いままにする */
+.paidchip{display:inline-block;font-style:normal;font-size:10px;font-weight:700;
+  color:#6b4e0e;background:#fdf3d8;border:1px solid #e2cd94;
+  border-radius:6px;padding:1px 6px;margin-top:3px}
+.paidin{color:var(--okTx)}
+.whybox{display:flex;flex-direction:column;gap:3px;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:8px 10px;margin:4px 0 8px}
+.whybox>b{font-size:12px;color:var(--okTx);margin-bottom:2px}
+.whybox>span{font-size:11px;color:var(--faceTx);line-height:1.5}
+.whybox.alt>b{color:var(--ngTx)}
 
 /* ---- カートのミニゲーム ---- */
 #kartScreen{display:none;position:fixed;inset:0;z-index:60;background:#141a12;
@@ -2745,17 +2780,18 @@ body[data-skin="hd"]{
 .pick.fptyre .pickbtn.on{outline:3px solid #e0894a;outline-offset:-3px}
 .pick.fptyre .pickbtn.on .pb-body>b::after{content:'　← いまこれ';font-size:10px;
   font-weight:400;color:#e0894a}
-.readbox{display:flex;gap:10px;flex-wrap:wrap;background:#f3f0fa;border:1px solid #ddd5ee;
-  border-radius:9px;padding:7px 10px;margin:4px 0 8px}
-.readbox span{font-size:11px;color:#4d4560}
-.readbox b{font-size:12px;color:#2f2848}
+.readbox{display:flex;gap:10px;flex-wrap:wrap;background:var(--face2);
+  border:1px solid var(--faceEdge);border-radius:9px;padding:7px 10px;margin:4px 0 8px}
+.readbox span{font-size:11px;color:var(--faceSub)}
+.readbox b{font-size:12px;color:var(--faceTx)}
 .lifelist{display:flex;flex-direction:column;gap:4px;margin:4px 0 8px}
-.lf-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fffaf0;
-  border:1px solid #e6d9bd;border-radius:8px;padding:5px 9px;font-size:11px}
-.lf-row>b{font-size:12px;min-width:88px;color:#4a3720}
-.lf-row>span{color:#6b6152}
+.lf-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--face);
+  border:1px solid var(--faceEdge);border-radius:8px;padding:5px 9px;font-size:11px;
+  color:var(--faceTx)}
+.lf-row>b{font-size:12px;min-width:88px;color:var(--faceTx)}
+.lf-row>span{color:var(--faceSub)}
 .tybank .tb-wet{display:inline-flex;gap:4px;margin-left:6px;padding-left:8px;
-  border-left:1px dashed #d8cbae}
+  border-left:1px dashed var(--faceEdge)}
 .tybank .tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;
   padding:0 5px;border-radius:9px;background:var(--tc);color:var(--tt);
   font-style:normal;font-weight:700;font-size:10px}
@@ -4161,15 +4197,15 @@ GP.data = (function () {
      その人の性質。素質の高い者ほど、この取引をしないで済む
      （速くて壊さない、が成立する）                              */
   const CARE_TIERS = [
-    { max:  45, name: '危うい',   icon: '💥', color: '#d0402a',
+    { max:  45, name: '危うい',   icon: '💥', color: '#b8291a',
       note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
-    { max:  75, name: '荒い',     icon: '⚡', color: '#d08a20',
+    { max:  75, name: '荒い',     icon: '⚡', color: '#96610a',
       note: '仕掛けはするが、そのぶん傷も作る' },
-    { max: 105, name: 'ふつう',   icon: '🙂', color: '#8a7a5a',
+    { max: 105, name: 'ふつう',   icon: '🙂', color: '#6a5c3f',
       note: '無理はしない。無茶もしない' },
-    { max: 135, name: '手堅い',   icon: '🛡️', color: '#3f8b3a',
+    { max: 135, name: '手堅い',   icon: '🛡️', color: '#2f7a2a',
       note: '車を持って帰ってくる。指示どおりに走れる' },
-    { max: 999, name: '完璧主義', icon: '💎', color: '#3a7ad9',
+    { max: 999, name: '完璧主義', icon: '💎', color: '#2a5fb5',
       note: '限界の手前で毎周ぴたりと止める。壊さない' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
@@ -4552,13 +4588,13 @@ GP.data = (function () {
   const TRUST = {
     start: 60,
     tiers: [
-      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2f7a3a',
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2b6b33',
         note: '言えば、そのとおりに走ってくれる' },
-      { at: 62, name: '信頼している', icon: '🙂', color: '#4f8a45',
+      { at: 62, name: '信頼している', icon: '🙂', color: '#41762f',
         note: 'おおむね指示どおりに動く' },
-      { at: 40, name: '半信半疑', icon: '😐', color: '#8a7a3a',
+      { at: 40, name: '半信半疑', icon: '😐', color: '#6d5f14',
         note: '納得のいかない指示は、うまく飲み込めていない' },
-      { at: 22, name: '不信', icon: '😠', color: '#b06a2a',
+      { at: 22, name: '不信', icon: '😠', color: '#9c5416',
         note: '無線を聞いても、自分の判断で走ることがある' },
       { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
         note: 'ここを出たがっている' }
@@ -14431,9 +14467,21 @@ GP.raceview = (function () {
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
-    // 先頭との差を先に出しておく。前の車との差は、その引き算で出す
-    const behind = ord.map((o, i) => o.out ? null
-      : (i === 0 ? 0 : Math.max(0, vt - timeAt(leader.e, o.p))));
+    /* ---- 先頭との差 ----
+       走っているあいだは「先頭が同じ地点を通った時刻」との差でよい。
+       ただしゴールしたあとは、時計（vt）だけが進んでいくので、
+       そのままだと着順が決まったあとも差が開きつづけてしまう。
+       着いた車どうしは、着いた時刻の差で止めておく。            */
+    const behind = ord.map((o, i) => {
+      if (o.out) return null;
+      if (i === 0) return 0;
+      if (o.fin && leader.fin) return Math.max(0, o.fin - leader.fin);
+      return Math.max(0, vt - timeAt(leader.e, o.p));
+    });
+    /* 何周遅れているか。1周以上離れたら、秒ではなく周で出す
+       （実際の中継と同じで、そのほうが差の大きさが伝わる）      */
+    const lapsDown = ord.map(o => Math.max(0,
+      Math.floor(leader.p + 1e-6) - Math.floor(o.p + 1e-6)));
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span><span class="tb-nm">ドライバー</span>' +
@@ -14459,10 +14507,14 @@ GP.raceview = (function () {
           (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em></b></span>';
       }
+      const dLap = i === 0 ? 0 : lapsDown[i] - lapsDown[i - 1];
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'
+                 : dLap > 0 ? '+' + dLap + '周'
                  : '+' + (behind[i] - behind[i - 1]).toFixed(1);
       const gapL = o.out ? 'DNF' : pitting ? 'PIT'
-                 : (i === 0 ? '先頭' : '+' + behind[i].toFixed(1));
+                 : i === 0 ? '先頭'
+                 : lapsDown[i] > 0 ? '+' + lapsDown[i] + '周'
+                 : '+' + behind[i].toFixed(1);
       let secs = '';
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];

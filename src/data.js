@@ -812,15 +812,15 @@ GP.data = (function () {
      その人の性質。素質の高い者ほど、この取引をしないで済む
      （速くて壊さない、が成立する）                              */
   const CARE_TIERS = [
-    { max:  45, name: '危うい',   icon: '💥', color: '#d0402a',
+    { max:  45, name: '危うい',   icon: '💥', color: '#b8291a',
       note: '限界の向こうまで踏んでしまう。速い日と、壊す日がある' },
-    { max:  75, name: '荒い',     icon: '⚡', color: '#d08a20',
+    { max:  75, name: '荒い',     icon: '⚡', color: '#96610a',
       note: '仕掛けはするが、そのぶん傷も作る' },
-    { max: 105, name: 'ふつう',   icon: '🙂', color: '#8a7a5a',
+    { max: 105, name: 'ふつう',   icon: '🙂', color: '#6a5c3f',
       note: '無理はしない。無茶もしない' },
-    { max: 135, name: '手堅い',   icon: '🛡️', color: '#3f8b3a',
+    { max: 135, name: '手堅い',   icon: '🛡️', color: '#2f7a2a',
       note: '車を持って帰ってくる。指示どおりに走れる' },
-    { max: 999, name: '完璧主義', icon: '💎', color: '#3a7ad9',
+    { max: 999, name: '完璧主義', icon: '💎', color: '#2a5fb5',
       note: '限界の手前で毎周ぴたりと止める。壊さない' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
@@ -1203,13 +1203,13 @@ GP.data = (function () {
   const TRUST = {
     start: 60,
     tiers: [
-      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2f7a3a',
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2b6b33',
         note: '言えば、そのとおりに走ってくれる' },
-      { at: 62, name: '信頼している', icon: '🙂', color: '#4f8a45',
+      { at: 62, name: '信頼している', icon: '🙂', color: '#41762f',
         note: 'おおむね指示どおりに動く' },
-      { at: 40, name: '半信半疑', icon: '😐', color: '#8a7a3a',
+      { at: 40, name: '半信半疑', icon: '😐', color: '#6d5f14',
         note: '納得のいかない指示は、うまく飲み込めていない' },
-      { at: 22, name: '不信', icon: '😠', color: '#b06a2a',
+      { at: 22, name: '不信', icon: '😠', color: '#9c5416',
         note: '無線を聞いても、自分の判断で走ることがある' },
       { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
         note: 'ここを出たがっている' }
