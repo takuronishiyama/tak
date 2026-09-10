@@ -2067,28 +2067,37 @@ body[data-skin="hd"]{
 
 /* ---- タイミングモニター（全車） ---- */
 .rv-sectors.board{max-height:230px;overflow-y:auto;padding:2px 4px}
-.tb-row{display:flex;align-items:center;gap:3px;font-size:10px;color:#e8dcc0;
-        font-variant-numeric:tabular-nums;padding:1px 0;border-bottom:1px solid rgba(255,238,196,.07)}
-.tb-row.tb-head{color:#cbbb9a;font-size:9px;border-bottom:1px dashed rgba(255,238,196,.28);
-                position:sticky;top:0;background:#241a12;z-index:2}
-.tb-row.me{background:rgba(255,242,196,.16);font-weight:bold}
-.tb-row.out{opacity:.38;text-decoration:line-through}
-.tb-row.pit{background:rgba(255,243,77,.14)}
+/* 数字を追う表なので、地の色より「読めること」を優先する。
+   1行ごとに薄く縞を入れ、自チームだけ金色の帯で示す        */
+.tb-row{display:flex;align-items:center;gap:3px;font-size:10px;color:#f2e8d2;
+        font-variant-numeric:tabular-nums;padding:2px 0 2px 3px;
+        border-bottom:1px solid rgba(255,238,196,.10);
+        border-left:3px solid transparent}
+.tb-row:nth-child(even){background:rgba(255,255,255,.045)}
+.tb-row.tb-head{color:#d8c8a4;font-size:9px;border-bottom:1px dashed rgba(255,238,196,.34);
+                position:sticky;top:0;background:#241a12;z-index:2;
+                background-clip:padding-box}
+.tb-row.me{background:rgba(255,216,90,.20);border-left-color:#ffd23a;font-weight:bold;
+           color:#fff6dc}
+.tb-row.out{opacity:.45;text-decoration:line-through}
+.tb-row.pit{background:rgba(255,243,77,.20);border-left-color:#ffe066}
 .tb-p{width:18px;text-align:right;flex-shrink:0}
 .tb-nm{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap}
 .tb-nm i{width:7px;height:7px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
-.tb-lap{width:20px;text-align:right;flex-shrink:0;opacity:.85}
+.tb-lap{width:20px;text-align:right;flex-shrink:0;color:#cfc0a0}
 .tb-ty{width:34px;text-align:center;flex-shrink:0}
 .tb-ty .rv-ty{min-width:0;padding:0 3px}
-.tb-g{width:44px;text-align:right;flex-shrink:0}
+.tb-g{width:44px;text-align:right;flex-shrink:0;color:#e6d8b8}
 .tb-g.lead{color:#ffd23a;font-weight:bold}
-.tb-s{width:50px;text-align:right;flex-shrink:0;color:#d8ccb0}
-.tb-s.green{color:#6cf06c;font-weight:bold}
-.tb-s.purple{color:#d88cff;font-weight:bold}
-.tb-s.old{opacity:.42;font-weight:normal}
+.tb-s{width:50px;text-align:right;flex-shrink:0;color:#e8dcc0}
+/* 緑＝自己ベスト、紫＝全体ベスト。実際の中継と同じ読み方にそろえてある */
+.tb-s.green{color:#7dff7d;font-weight:bold}
+.tb-s.purple{color:#e9a8ff;font-weight:bold}
+/* 前の周の記録は薄くするが、読めなくなるほどは落とさない */
+.tb-s.old{opacity:.62;font-weight:normal}
 .tb-t{width:62px;text-align:right;flex-shrink:0;color:#fff}
-.tb-t.purple{color:#d88cff;font-weight:bold}
+.tb-t.purple{color:#e9a8ff;font-weight:bold}
 @media (max-width:860px){
   .tb-s{width:42px}
   .tb-t{width:54px}
@@ -2602,20 +2611,23 @@ body[data-skin="hd"]{
 .fcbox .fc-arrow{font-size:16px;opacity:.6}
 .fcbox small{grid-column:1 / -1;font-size:11px;line-height:1.55}
 
-/* ---- 週末のタイヤ棚 ---- */
+/* ---- 週末のタイヤ棚 ----
+   ここの .tb-row は、レース中のタイミングモニターの .tb-row と
+   名前がぶつかる。棚の中（.tybank）に限って効くように囲っておく    */
 .tybank{display:flex;flex-direction:column;gap:5px;margin:6px 0 10px}
-.tb-row{display:flex;align-items:center;gap:8px;background:#fffaf0;border:1px solid #e6d9bd;
-  border-radius:8px;padding:5px 8px}
-.tb-row>b{font-size:12px;min-width:74px;color:#4a3720}
-.tb-sets{display:flex;gap:6px;flex-wrap:wrap}
-.tb-set{display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #e2d6bc;
-  border-radius:7px;padding:2px 5px 2px 2px}
-.tb-set>i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
-  border-radius:50%;background:var(--tc);color:var(--tt);font-style:normal;font-weight:700;font-size:10px}
-.tb-set>em{font-style:normal;font-size:10px;padding:1px 3px;border-radius:4px;line-height:1.2}
-.tb-set>em.fresh{background:#e6f4e2;color:#2f6b33;font-weight:700}
-.tb-set>em.used{background:#f0ece2;color:#6b6152}
-.tb-set>em.zero{opacity:.34}
+.tybank .tb-row{display:flex;align-items:center;gap:8px;background:#fffaf0;
+  border:1px solid #e6d9bd;border-radius:8px;padding:5px 8px;color:#4a3720;font-size:11px}
+.tybank .tb-row>b{font-size:12px;min-width:74px;color:#4a3720}
+.tybank .tb-sets{display:flex;gap:6px;flex-wrap:wrap}
+.tybank .tb-set{display:inline-flex;align-items:center;gap:3px;background:#fff;
+  border:1px solid #e2d6bc;border-radius:7px;padding:2px 5px 2px 2px}
+.tybank .tb-set>i{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;background:var(--tc);color:var(--tt);
+  font-style:normal;font-weight:700;font-size:10px}
+.tybank .tb-set>em{font-style:normal;font-size:10px;padding:1px 3px;border-radius:4px;line-height:1.2}
+.tybank .tb-set>em.fresh{background:#e6f4e2;color:#2f6b33;font-weight:700}
+.tybank .tb-set>em.used{background:#f0ece2;color:#6b6152}
+.tybank .tb-set>em.zero{opacity:.34}
 .qty{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;
   border-radius:50%;background:var(--tc);color:var(--tt);font-size:10px;font-weight:700;
   margin-right:4px;opacity:.62}
@@ -2742,9 +2754,11 @@ body[data-skin="hd"]{
   border:1px solid #e6d9bd;border-radius:8px;padding:5px 9px;font-size:11px}
 .lf-row>b{font-size:12px;min-width:88px;color:#4a3720}
 .lf-row>span{color:#6b6152}
-.tb-wet{display:inline-flex;gap:4px;margin-left:6px;padding-left:8px;border-left:1px dashed #d8cbae}
-.tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 5px;
-  border-radius:9px;background:var(--tc);color:var(--tt);font-style:normal;font-weight:700;font-size:10px}
+.tybank .tb-wet{display:inline-flex;gap:4px;margin-left:6px;padding-left:8px;
+  border-left:1px dashed #d8cbae}
+.tybank .tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;
+  padding:0 5px;border-radius:9px;background:var(--tc);color:var(--tt);
+  font-style:normal;font-weight:700;font-size:10px}
 
 </style>
 <!--
