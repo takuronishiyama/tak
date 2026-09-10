@@ -3054,3 +3054,60 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tybank .tb-wet>i{display:inline-flex;align-items:center;justify-content:center;height:18px;
   padding:0 5px;border-radius:9px;background:var(--tc);color:var(--tt);
   font-style:normal;font-weight:700;font-size:10px}
+
+/* =========================================================
+   ヘルプ（遊びかた）
+   横向きを前提に、左に索引・右に本文の二段組み。
+   縦向きのときだけ索引が上に回り、横に流れる並びになる。
+   ========================================================= */
+.helpwrap{display:flex;gap:8px;align-items:stretch;min-height:0}
+.hp-list{flex:0 0 154px;display:flex;flex-direction:column;gap:4px;
+         overflow-y:auto;max-height:60vh;padding-right:2px}
+.hp-nav{display:flex;align-items:center;gap:7px;text-align:left;
+        min-height:40px;padding:5px 8px;border:2px solid var(--ink);border-radius:7px;
+        background:var(--face);color:var(--faceTx);font-family:inherit;font-size:11.5px;
+        font-weight:bold;line-height:1.2;flex-shrink:0;box-shadow:0 2px 0 rgba(74,47,26,.30)}
+.hp-nav i{font-style:normal;font-size:16px;flex-shrink:0}
+.hp-nav span{min-width:0}
+.hp-nav.on{background:linear-gradient(#ffd76a,var(--yellow));color:#3a2611;
+           box-shadow:0 0 0 var(--ink);transform:translateY(2px)}
+.hp-body{flex:1;min-width:0;overflow-y:auto;max-height:60vh;
+         border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
+         padding:9px 12px}
+.hp-title{display:block;font-size:15px;margin-bottom:3px;color:var(--faceTx)}
+.hp-lead{font-size:12px;margin-bottom:9px;padding-bottom:7px;
+         border-bottom:1px dashed rgba(122,90,40,.45);color:var(--faceTx);opacity:.92}
+.hp-sec{margin-bottom:11px}
+.hp-h{display:block;font-size:12.5px;margin-bottom:3px;
+      border-left:4px solid var(--gold);padding-left:6px;color:var(--faceTx)}
+.hp-p{margin:0 0 5px;font-size:12px;line-height:1.62;color:var(--faceTx)}
+.hp-p:last-child{margin-bottom:0}
+/* 本文からヘルプへ飛ぶ小さな札 */
+.hp-more{display:inline-flex;align-items:center;gap:3px;vertical-align:middle;
+         margin-left:5px;padding:1px 7px;min-height:24px;
+         border:2px solid var(--ink);border-radius:999px;background:var(--face);
+         color:var(--faceTx);font-family:inherit;font-size:10.5px;font-weight:bold}
+@media (orientation:portrait) and (max-width:560px){
+  .helpwrap{flex-direction:column}
+  .hp-list{flex:0 0 auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+           max-height:none;scrollbar-width:none}
+  .hp-list::-webkit-scrollbar{display:none}
+  .hp-nav{flex:0 0 auto;min-height:44px}
+  .hp-body{max-height:52vh}
+}
+/* 横向きのスマートフォンは高さが足りないので、読む面をできるだけ取る。
+   このとき、外側（モーダル全体）を送るのではなく、
+   索引と本文がそれぞれ中で送られるようにする。
+   外側が動くと、読んでいる途中で索引まで一緒に消えてしまう      */
+@media (orientation:landscape) and (max-height:560px){
+  .helpwrap{height:calc(100vh - 152px);min-height:150px}
+  .hp-list{flex:0 0 128px;max-height:100%;font-size:11px;gap:3px}
+  .hp-nav{min-height:32px;padding:3px 6px;font-size:11px;box-shadow:0 2px 0 rgba(74,47,26,.22)}
+  .hp-nav i{font-size:14px}
+  .hp-body{max-height:100%;padding:7px 10px}
+  .hp-title{font-size:13px}
+  .hp-lead{font-size:11.5px;margin-bottom:7px;padding-bottom:5px}
+  .hp-h{font-size:12px}
+  .hp-p{font-size:11.5px;line-height:1.55}
+  .hp-sec{margin-bottom:9px}
+}

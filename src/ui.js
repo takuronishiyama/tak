@@ -807,6 +807,13 @@ GP.ui = (function () {
       bar.appendChild(el);
     });
     sectionize($('modalBody'));
+    /* 直前に押されたコマンドがあれば、この画面の持ち主として控える。
+       無ければ持ち主なし（本拠地の札などから開かれた画面）。
+       こうしておかないと、古い控えを戻り先として出してしまう      */
+    if (GP.app) {
+      GP.app.lastCmd = GP.app.pendingCmd || null;
+      GP.app.pendingCmd = null;
+    }
     return $('modalBody');
   }
 
@@ -914,6 +921,23 @@ GP.ui = (function () {
 
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling,
+  /* ---- ヘルプへの飛び札 ----
+     仕組みの説明は「遊びかた」に集めてある。
+     使う場所には1行だけ残し、続きを読みたい人だけがここから飛ぶ。
+     押したときの行き先は data-help に入れておき、
+     下の1本の受け口でまとめて拾う（画面ごとに配線しないで済む） */
+  function helpLink(key, label) {
+    return '<button class="hp-more" data-help="' + key + '">❓ ' +
+           (label || 'くわしく') + '</button>';
+  }
+  document.addEventListener('click', function (e) {
+    const b = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
+    if (!b) return;
+    e.preventDefault();
+    const fn = (GP.app && GP.app.cmdHelp) || null;
+    if (fn) fn(b.getAttribute('data-help'));
+  });
+
+  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

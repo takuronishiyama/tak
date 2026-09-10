@@ -44,6 +44,9 @@ window.GP = window.GP || {};
     };
     Object.keys(mine).forEach(n => { A[n] = mine[n]; });
     SCREENS.forEach(m => m.link());
+    /* ヘルプの飛び札（ui.js の受け口）から呼べるようにしておく。
+       画面ごとに配線しないで済ませるための、ただ1本の口 */
+    GP.app = A;
     syncG();
   }
   /* g を持ち替えたら、各画面にも配り直す */
@@ -89,6 +92,12 @@ window.GP = window.GP || {};
   window.addEventListener('resize', measureTop);
   window.addEventListener('orientationchange', () => setTimeout(measureTop, 120));
   measureTop();
+
+  /* 遊びかた。どの画面からでも、上部バーの ❓ で開く */
+  (function () {
+    const hb = document.getElementById('tHelp');
+    if (hb) hb.onclick = () => A.cmdHelp();
+  })();
 
   function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
 
@@ -1053,7 +1062,17 @@ window.GP = window.GP || {};
       cCrunch: A.cmdCrunch, cKart: A.askKart,
       cEngine: A.cmdEngine, cEngineR: A.cmdEngine, cEngineO: A.cmdEngine
     };
-    Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
+    /* いま開いている画面がどのコマンドのものかを控えておく。
+       ヘルプへ寄り道したあと、ここへ戻ってこられるようにするため。
+       控えたものが実際にモーダルを開いたかどうかは ui.js が見分ける */
+    Object.keys(map).forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.onclick = function () {
+        A.pendingCmd = { fn: map[id], label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
+        return map[id].apply(this, arguments);
+      };
+    });
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     /* じっくり（既定）を基準に、そこから3段だけ速くできる。

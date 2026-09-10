@@ -454,7 +454,7 @@ GP.screens.biz = function (A) {
       push(3, 'principal', '資金がマイナスです',
         '固定費が毎週 ' + money(fin.weekly) + '万。いまの資金は ' + money(g.funds) + '万です。' +
         '-20,000万を割ると、チームは解散になります。',
-        '人件費の見直しか、賞金の入る順位が要ります。高い契約から手を離すことも考えてください。');
+        '人件費の見直しか、賞金の入る順位が要ります。');
     } else if (runway < 8) {
       push(3, 'principal', '資金がもちません',
         '毎週 ' + money(fin.weekly) + '万が出ていきます。いまの資金では <b>あと' + runway + '週</b>です。',

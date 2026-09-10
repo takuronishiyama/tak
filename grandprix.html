@@ -3070,6 +3070,63 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   padding:0 5px;border-radius:9px;background:var(--tc);color:var(--tt);
   font-style:normal;font-weight:700;font-size:10px}
 
+/* =========================================================
+   ヘルプ（遊びかた）
+   横向きを前提に、左に索引・右に本文の二段組み。
+   縦向きのときだけ索引が上に回り、横に流れる並びになる。
+   ========================================================= */
+.helpwrap{display:flex;gap:8px;align-items:stretch;min-height:0}
+.hp-list{flex:0 0 154px;display:flex;flex-direction:column;gap:4px;
+         overflow-y:auto;max-height:60vh;padding-right:2px}
+.hp-nav{display:flex;align-items:center;gap:7px;text-align:left;
+        min-height:40px;padding:5px 8px;border:2px solid var(--ink);border-radius:7px;
+        background:var(--face);color:var(--faceTx);font-family:inherit;font-size:11.5px;
+        font-weight:bold;line-height:1.2;flex-shrink:0;box-shadow:0 2px 0 rgba(74,47,26,.30)}
+.hp-nav i{font-style:normal;font-size:16px;flex-shrink:0}
+.hp-nav span{min-width:0}
+.hp-nav.on{background:linear-gradient(#ffd76a,var(--yellow));color:#3a2611;
+           box-shadow:0 0 0 var(--ink);transform:translateY(2px)}
+.hp-body{flex:1;min-width:0;overflow-y:auto;max-height:60vh;
+         border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
+         padding:9px 12px}
+.hp-title{display:block;font-size:15px;margin-bottom:3px;color:var(--faceTx)}
+.hp-lead{font-size:12px;margin-bottom:9px;padding-bottom:7px;
+         border-bottom:1px dashed rgba(122,90,40,.45);color:var(--faceTx);opacity:.92}
+.hp-sec{margin-bottom:11px}
+.hp-h{display:block;font-size:12.5px;margin-bottom:3px;
+      border-left:4px solid var(--gold);padding-left:6px;color:var(--faceTx)}
+.hp-p{margin:0 0 5px;font-size:12px;line-height:1.62;color:var(--faceTx)}
+.hp-p:last-child{margin-bottom:0}
+/* 本文からヘルプへ飛ぶ小さな札 */
+.hp-more{display:inline-flex;align-items:center;gap:3px;vertical-align:middle;
+         margin-left:5px;padding:1px 7px;min-height:24px;
+         border:2px solid var(--ink);border-radius:999px;background:var(--face);
+         color:var(--faceTx);font-family:inherit;font-size:10.5px;font-weight:bold}
+@media (orientation:portrait) and (max-width:560px){
+  .helpwrap{flex-direction:column}
+  .hp-list{flex:0 0 auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+           max-height:none;scrollbar-width:none}
+  .hp-list::-webkit-scrollbar{display:none}
+  .hp-nav{flex:0 0 auto;min-height:44px}
+  .hp-body{max-height:52vh}
+}
+/* 横向きのスマートフォンは高さが足りないので、読む面をできるだけ取る。
+   このとき、外側（モーダル全体）を送るのではなく、
+   索引と本文がそれぞれ中で送られるようにする。
+   外側が動くと、読んでいる途中で索引まで一緒に消えてしまう      */
+@media (orientation:landscape) and (max-height:560px){
+  .helpwrap{height:calc(100vh - 152px);min-height:150px}
+  .hp-list{flex:0 0 128px;max-height:100%;font-size:11px;gap:3px}
+  .hp-nav{min-height:32px;padding:3px 6px;font-size:11px;box-shadow:0 2px 0 rgba(74,47,26,.22)}
+  .hp-nav i{font-size:14px}
+  .hp-body{max-height:100%;padding:7px 10px}
+  .hp-title{font-size:13px}
+  .hp-lead{font-size:11.5px;margin-bottom:7px;padding-bottom:5px}
+  .hp-h{font-size:12px}
+  .hp-p{font-size:11.5px;line-height:1.55}
+  .hp-sec{margin-bottom:9px}
+}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -3125,6 +3182,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <div class="stat"><span class="ic">🔬</span><b id="tRp">0</b></div>
       <div class="stat ticket" id="tTicketBox"><span class="ic">🎫</span><b id="tTicket">0</b></div>
       <div class="stat"><span class="ic">📅</span>S<b id="tSeason">1</b> W<b id="tWeek">1</b></div>
+      <button class="stat sound" id="tHelp" title="遊びかた（仕組みの説明はここにまとめてあります）">❓</button>
       <button class="stat sound" id="tSkin" title="見た目の切り替え（HD-2D／カイロ風）">🎨</button>
       <button class="stat sound" id="tSound" title="効果音の切り替え">🔊</button>
     </div>
@@ -17678,10 +17736,9 @@ GP.screens.hr = function (A) {
           '<em>' + lo + (t.max >= 999 ? '〜' : '〜' + t.max) + '</em>' +
           '<span>' + esc(t.note) + '</span></div>';
       }).join('') + '</div>' +
-      '<p class="desc">安定感が高いほど<b>クラッシュとミスが減り</b>、' +
-      '周回遅れを譲るのも上手くなります。' +
-      '「マシンを持って帰る」ことが点になる終盤ほど効いてきます。' +
-      '性格と、車体の<b>ドライバビリティ</b>でも上下します。</p>';
+      '<p class="desc">高いほど<b>クラッシュとミスが減ります</b>。' +
+      '性格と、車体の<b>ドライバビリティ</b>でも上下します。' +
+      U.helpLink('people') + '</p>';
   }
 
   function hrDrivers() {
@@ -17689,9 +17746,8 @@ GP.screens.hr = function (A) {
       '<div class="trustrow">' + g.drivers.map(d =>
         '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
       '</div>' +
-      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、ブリーフィングで言ったことが' +
-      '結果として返ってきたかどうかで動きます。薄くなると、レース中に指示とは違う走りをするようになり、' +
-      '底を割ると移籍を言い出します。厚いと、開発へのフィードバックも的確になります。</p>' +
+      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、言ったことが結果として返ってきたかどうかで動きます。' +
+      U.helpLink('people') + '</p>' +
       '<div class="pick">';
     g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
@@ -18043,9 +18099,8 @@ GP.screens.hr = function (A) {
 
     // ---- よそのチームから引き抜く ----
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
-      '<p class="desc">よそで働いている人は、市場の応募者より腕が立ちます。' +
-      'そのぶん要る金は高く、「一途」な人はなかなか動きません。' +
-      'オーナーの交渉術があると安く済みます。' +
+      '<p class="desc">市場の応募者より腕が立つかわりに、要る金は高くつきます。' +
+      U.helpLink('people') +
       (room > 0 ? '' : '<br><b class="warn">こちらも、席が空いていないと連れて来られません。</b>') +
       '</p><div class="pick">';
     rivalStaffMarket.forEach((st, i) => {
@@ -18858,10 +18913,8 @@ GP.screens.dev = function (A) {
       mechMapHTML(g) + mechReadHTML(g);
 
     body += '<div class="sub">装着中パーツの改良</div>' +
-      '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
-      '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
-      '手を入れ続けると<b>熟成</b>が溜まり、満ちたところで<b>格（レアリティ）が上がって上限そのものが伸びます</b>。' +
-      'タグ（追加効果）は「📐 開発」の担当です。</p><div class="pick">';
+      '<p class="desc">数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」。' +
+      U.helpLink('car') + '</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -19582,12 +19635,10 @@ GP.screens.dev = function (A) {
       '<span class="rg-sum">パッケージング <b>' + pkAll + '%</b>' +
       '　噛み合っている組 <b>' + live + '</b>/' + syn.length + '</span>' +
       '</div>' +
-      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>。' +
-      'いちばん外の線が<b>コンセプトの引いた境目</b>で、方針に逆らう向きでは' +
-      '内側へ食い込んでいます。節が境目に貼りついていたら、その項目はもう限界です。<br>' +
-      '扇形と扇形のあいだに架かっているのが <b>パッケージング</b>。' +
-      '部品ひとつひとつが良くても、<b>ここが細ければ車はまとまりません</b>。' +
-      '細い橋は、ドライバーがいちばん先に気づくところです。</p>' +
+      '<p class="desc">内から外へ、<b>部品 → 馴染み方 → コンセプト</b>。' +
+      '節が<b>いちばん外の線</b>に貼りついていたら、その項目はもう限界です。' +
+      '扇形どうしの橋が<b>パッケージング</b>で、細い橋は車をまとめさせません。' +
+      U.helpLink('car') + '</p>' +
       '</div>';
   }
 
@@ -20211,11 +20262,9 @@ GP.screens.dev = function (A) {
       return h + '<p class="desc">いまのところ、うちのパワーユニットを' +
         '欲しがっているチームはありません。</p>';
     }
-    h += '<p class="desc">一時金と毎戦の供給料が入り、客が走らせたデータも戻ってきます' +
-      '（研究P・信頼性）。<br>' +
+    h += '<p class="desc">一時金と毎戦の供給料、それに走行データが入ります。' +
       '<b class="warn">そのかわり、渡した相手はその日から速くなります。</b>' +
-      'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。' +
-      '何年もかけて開いた差が、契約書一枚で埋まっていくということです。</p><div class="pick">';
+      U.helpLink('engine') + '</p><div class="pick">';
     offers.forEach(o => {
       h += '<button class="pickbtn" data-k="__cus:' + esc(o.team) + '">' +
         '<span class="pb-ic engic" style="border-color:' + o.color + '">🔌</span>' +
@@ -21136,7 +21185,7 @@ GP.screens.weekend = function (A) {
         '<p class="desc">1回止まるたびに <b>' + one.toFixed(1) + '秒</b>。' +
         'このコースは' + laps + '周でピットロードが' + (t.pitLane || 18).toFixed(1) + '秒なので、' +
         '素直に走るなら <b>' + recTxt + '</b>（「おまかせ」はこれを選びます）。<br>' +
-        'ストップが少ないほど失う秒数は減りますが、区間が長くなるぶん硬くて遅いタイヤになります。' +
+        'ストップが少ないほど失う秒数は減りますが、そのぶん硬くて遅いタイヤになります。' +
         '多いほどやわらかいタイヤで攻められます。</p>';
     }
     const STOPS = [['auto', 'おまかせ', 'コースに合わせて決める'],
@@ -21500,7 +21549,7 @@ GP.screens.weekend = function (A) {
         : '予選で並びが決まりました。ここから先は<b>決勝ぶんだけ</b>選び直せます（予選の順位は動きません）。') +
       '<br>' +
       (deep ? '📊 走り込んだデータがあるので、1周あたりの差まで出せています。'
-            : '走り込んでいないぶん、読みは大まかです（「📊 ロングラン」「🛞 タイヤ」を選ぶと細かく出ます）。') +
+            : '走り込んでいないぶん、読みは大まかです。') +
       '</p>';
 
     h += '<div class="pudec">';
@@ -23422,7 +23471,7 @@ GP.screens.biz = function (A) {
       push(3, 'principal', '資金がマイナスです',
         '固定費が毎週 ' + money(fin.weekly) + '万。いまの資金は ' + money(g.funds) + '万です。' +
         '-20,000万を割ると、チームは解散になります。',
-        '人件費の見直しか、賞金の入る順位が要ります。高い契約から手を離すことも考えてください。');
+        '人件費の見直しか、賞金の入る順位が要ります。');
     } else if (runway < 8) {
       push(3, 'principal', '資金がもちません',
         '毎週 ' + money(fin.weekly) + '万が出ていきます。いまの資金では <b>あと' + runway + '週</b>です。',
@@ -25873,8 +25922,8 @@ GP.screens.home = function (A) {
     const lvl = Math.round(cw.level);
     const state = lvl < 20 ? { t: '万全', c: 'good' } : lvl < 45 ? { t: 'ふつう', c: '' }
                 : lvl < 70 ? { t: '疲れが見える', c: 'warn' } : { t: '限界', c: 'bad' };
-    let body = '<p class="desc">レースごとに、マシンと機材を世界中へ運びます。' +
-      '安く運べば資金は残りますが、クルーが消耗し、現地でのセットアップ時間も足りなくなります。</p>';
+    let body = '<p class="desc">運び方しだいで、資金・クルーの疲れ・現地での支度の進み具合が変わります。'
+      + U.helpLink('logi') + '</p>';
 
     body += '<div class="logi-crew"><b>🧑‍🔧 クルーの疲労</b>' +
       '<span class="skbar big"><i class="f' + (lvl < 45 ? '0' : lvl < 70 ? '1' : '2') +
@@ -25929,8 +25978,8 @@ GP.screens.home = function (A) {
     body += '</div>';
 
     body += '<div class="sub">積荷</div>' +
-      '<p class="desc">予備とツールをどれだけ持っていくか。' +
-      '積むほど現場で直せますが、重いぶん高くつき、クルーも消耗します。</p><div class="pick">';
+      '<p class="desc">予備とツールをどれだけ持っていくか。'
+      + U.helpLink('logi') + '</p><div class="pick">';
     D.LOGI_LOADS.forEach(ld => {
       const cost = withChoice(g.logi.plan, ld.key, () => S.logiCost(g, nextTrack));
       const risk = withChoice(g.logi.plan, ld.key, () => S.logiRisk(g, nextTrack));
@@ -25956,8 +26005,7 @@ GP.screens.home = function (A) {
       const curP = S.logiCrew(g);
       const mission = S.hasMission(g);
       body += '<div class="sub">遠征の編成</div>' +
-        '<p class="desc">誰を現地へ連れて行くか。部署ごと運べばピットもピットウォールも厚くなりますが、' +
-        '旅費がかさみ、全員が消耗します。<br>' +
+        '<p class="desc">誰を現地へ連れて行くか。' + U.helpLink('logi') + '<br>' +
         (mission
           ? '🛰️ <b>ミッションコントロール室</b>があるので、本国に残った分析チームが' +
             '回線の向こうからレースに加わります（作戦の読み +' + D.MISSION.read.toFixed(2) +
@@ -26037,6 +26085,289 @@ GP.screens.home = function (A) {
     link: link,
     setG: function (v) { g = v; },
     api: { cmdGarage: cmdGarage, bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
+  };
+};
+
+</script>
+<script>
+/* ===== src/screens/help.js ===== */
+/* =========================================================
+   画面：ヘルプ（遊びかたの索引）
+
+   これまで、仕組みの説明は使う場所のすぐ横に置いてきた。
+   そのほうが親切に見えるが、数えてみると11画面で 13,805 字あり、
+   うち 8,325 字が説明文だった。遠征の画面にいたっては 85% が説明で、
+   肝心の「今なにを選ぶか」が説明に埋もれていた。
+
+   そこで線を引く。
+     ・いまの数字を含む文（「約0.4%の確率で壊れます」）はその場に残す。
+       それは説明ではなく、いまの状態の報告だから。
+     ・毎回おなじ固定文（「レースごとに機材を世界中へ運びます」）はここへ。
+       一度読めば足りるものを、毎回読ませる必要はない。
+
+   画面は横向きを前提に、左に索引・右に本文の二段組み。
+   ========================================================= */
+window.GP = window.GP || {};
+GP.screens = GP.screens || {};
+
+GP.screens.help = function (A) {
+  'use strict';
+  let $, esc;
+  function link() { $ = A.$; esc = A.esc; }
+
+  /* ---- 中身 ----
+     h は小見出し、p はその下の段落。
+     文章は、仕組みの言葉ではなく「そうすると何が起きるか」で書く   */
+  const TOPICS = [
+    {
+      key: 'basics', icon: '📅', name: '週とコマンド',
+      lead: '1週に打てる手は決まっている。何に使うかがこのゲームです。',
+      secs: [
+        { h: '週が進む手・進まない手', p: [
+          'コマンドバーの上の段（車体・整備・ドライバー・営業・休養）は、1回打つと週の持ち駒をひとつ使います。持ち駒を使いきると次の週へ進みます。',
+          '下の段（マシン・施設・人事・遠征・エンジン・情報・オーナー）は、何度開いても週は進みません。見るだけ、決めるだけの場所です。契約や配属もここでやれば週は減りません。',
+          '徹夜を打つと、次の1コマンドが2回ぶんになります。そのかわり疲れが残り、しばらく効率が落ちます。'
+        ] },
+        { h: 'レースまでの週', p: [
+          '上部バーの「第◯戦まであと◯週」が、次のレースまでの猶予です。ここが0になった週がレースウィークで、コマンドバーが「レースへ向かう！」に変わります。',
+          'レースウィークに入ってからでも、施設・人事・遠征の手当てはできます。ただしパーツの開発はもう間に合いません。'
+        ] },
+        { h: '1シーズンの長さ', p: [
+          '1シーズンは12戦です。コースは17ありますが、毎年やる7大会と、隔年でまわる組から選ばれた5大会で12になります。走る数は変わらず、顔ぶれだけが毎年2つほど入れ替わります。'
+        ] }
+      ]
+    },
+    {
+      key: 'car', icon: '🏎️', name: 'マシンを速くする',
+      lead: '部品 → その固まりの作り込み → コンセプト。内から外へ三重になっています。',
+      secs: [
+        { h: '三つの輪', p: [
+          '内側がパーツです。空力・足まわり・シャシー・ブレーキ・パワーユニット・ギヤ・電装の7つ。数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」の目安です。',
+          'その外側が車体の作り込み（馴染み方）です。パーツをいくら良くしても、それを載せる車体が追いついていなければ効きません。',
+          'いちばん外がコンセプトです。ストレート重視・コーナー重視・加速重視・ドライバビリティ重視の4つから、シーズンごとに選びます。'
+        ] },
+        { h: 'コンセプトは境目', p: [
+          'いちばん外の線が、コンセプトの引いた境目です。方針に逆らう向きの作り込みは、この線の手前で止まります（上限が58%まで下がります）。',
+          '方針そのものを大きく変えたいときは、シーズン中ではなくマシンのバージョンアップで対応します。',
+          '基本設計の伸びしろは、人事の噛み合わせと、設計責任者の得意・不得意で決まります。得意な人に任せると、厚い部署ほど効きが増えます。'
+        ] },
+        { h: '扇形どうしの継ぎ目', p: [
+          '輪は3つの扇形に分かれていて、その継ぎ目が「パッケージング」です。空気と足／骨と制動／動力の3組で、隣り合う組の橋が細いと、そこがボトルネックになります。',
+          '橋が細いとドライバーが具体的に言ってきます。「足が硬すぎて縁石を使えません」なら空気と足、「ブレーキが熱ダレします」なら骨と制動、「バッテリーが弱くて立ち上がりがF3みたいです」なら動力と足です。'
+        ] },
+        { h: '世代とブレイクスルー', p: [
+          'パーツを煮詰めきると、マシンそのものが次の世代へ進みます。世代が上がると天井が上がり、また伸ばせるようになります。',
+          '研究を続けているとブレイクスルーが出ることがあります。出た週は、その分野の伸びが大きく跳ねます。'
+        ] }
+      ]
+    },
+    {
+      key: 'people', icon: '👥', name: '人とチーム',
+      lead: '部署どうしが噛み合っていないと、人を増やしても効きません。',
+      secs: [
+        { h: '部署と噛み合い', p: [
+          '人事の画面に、人 → 部署 → 効き目の鎖が出ています。ある部署の人数が足りていないと、そこで鎖が止まり、隣の部署をいくら厚くしても先へ流れません。',
+          '丸が小さいほうが、噛み合いを止めている側です。まずそこに人を入れてください。'
+        ] },
+        { h: '雇える人数', p: [
+          '同時に雇える人数は、施設のレベルで決まります。基礎5人に、施設が上がるごとに2人ずつ増えます。建て増しをしないまま人だけ集めることはできません。'
+        ] },
+        { h: 'ピットへの信頼', p: [
+          '信頼は、ブリーフィングで言ったことが結果として返ってきたかどうかで動きます。薄くなると、レース中に指示とは違う走りをするようになります。',
+          '守れない約束をするより、できることだけを言うほうが、長い目では速くなります。'
+        ] },
+        { h: '安定感', p: [
+          '安定感が高いほどクラッシュとミスが減り、周回遅れを譲るのも上手くなります。「マシンを持って帰る」ことが点になる終盤ほど効きます。',
+          '荒い人は速い日と壊す日があります。素質の高い人ほど、この取引をしないで済みます（速くて、壊さない）。'
+        ] }
+      ]
+    },
+    {
+      key: 'money', icon: '💰', name: 'お金',
+      lead: '契約と解約は週を使いません。何社でも見比べてから決めてください。',
+      secs: [
+        { h: 'スポンサーの型', p: [
+          '現金型はまとまった資金、技術提携は研究ポイント、露出型はファンと注目度が伸びます。複合型はその中間です。',
+          'サプライヤー型は現金こそ少ないものの、装備そのものが良くなります。ただし契約が切れると装備も返ります。',
+          '大手ほど「話題になっているチーム」でないと相手にしてくれません。ファンと注目度が届いていない相手からは、そもそも話が来ません。'
+        ] },
+        { h: 'タイトルスポンサー', p: [
+          'チーム名に冠がつく、いちばん大きな契約です。ファンと注目度が届いた相手からしか話は来ません。'
+        ] },
+        { h: 'コストキャップ', p: [
+          '1シーズンに使える額には上限があります。超えると罰金と、開発の制限が科されます。',
+          '上限は年々上がりますが、施設と人件費が先に膨らむと、開発に回す余地がなくなります。'
+        ] },
+        { h: '赤字になったら', p: [
+          '資金がマイナスのまま放っておくと、いずれ立ち行かなくなります。人件費の見直しか、賞金の入る順位が要ります。',
+          '開発を止めてでも順位を取りにいく、遠征を船便に落とす、高い契約から手を離す——このあたりが手当てです。'
+        ] }
+      ]
+    },
+    {
+      key: 'logi', icon: '🚚', name: '遠征',
+      lead: 'レースごとに、マシンと機材を世界中へ運びます。運び方が週末の出来に効きます。',
+      secs: [
+        { h: '運び方', p: [
+          '安く運べば資金は残りますが、クルーが消耗し、現地でのセットアップ時間も削られます。チャーターで先乗りすれば、金曜の時点で他より進んだ状態から始められます。',
+          '予選のグリッド表に出る ✈️🚢 の印が、そのチームの運び方です。チャーターで先乗りしたチームはセットアップが進んでいます。'
+        ] },
+        { h: '積み荷', p: [
+          '予備とツールをどれだけ持っていくか。積むほど現場で直せますが、重いぶん高くつき、クルーも消耗します。',
+          '壊れやすいマシンで手ぶらに近い積み方をすると、直せずにそのまま決勝を迎えることになります。'
+        ] },
+        { h: '随行', p: [
+          '誰を現地へ連れて行くか。部署ごと運べばピットもピットウォールも厚くなりますが、旅費がかさみ、全員が消耗します。',
+          '遠いコースほど旅費も消耗も増えます。近場で厚く、遠征で薄く、という配分もひとつの手です。'
+        ] }
+      ]
+    },
+    {
+      key: 'weekend', icon: '🏁', name: '週末（走行と予選）',
+      lead: '金曜に何を走るかが、日曜に何を履けるかを決めます。',
+      secs: [
+        { h: 'タイヤの棚', p: [
+          '週末に使えるドライタイヤは13セット（ハード2・ミディアム3・ソフト8）です。雨用は別枠で7セット。',
+          '金曜と土曜に何を履いて走ったかが、そのまま日曜に残るものを決めます。ソフトばかり走れば決勝用の新品は残りますが、決勝のことは何も分かりません。決勝用を走り込めば読みは決まりますが、日曜に出てくるのは中古ばかりになります。'
+        ] },
+        { h: '金曜の計画', p: [
+          '予選重視はソフト4本。土曜の一発は出ますが、決勝の読みは大まかなままです。',
+          'バランスはソフト3・ミディアム2。',
+          'レース重視はミディアム3・ハード2・ソフト1。唯一ハードを走る計画で、ロングランの読みが細かく出ます。'
+        ] },
+        { h: 'フリー走行のあと', p: [
+          '走り終えるとドライバーとエンジニアがやりとりします。ここで出てくる不満は、そのままパッケージングの弱いところです。',
+          '走り込んでいないぶん、読みは大まかになります。「ロングラン」「タイヤ」を選ぶと細かく出ます。'
+        ] },
+        { h: '予選', p: [
+          'タイムは積んでいる燃料も狙いもばらばらなので、並びは目安として見てください。決勝の天候は予選のあとで決まります。'
+        ] }
+      ]
+    },
+    {
+      key: 'race', icon: '🚦', name: '決勝',
+      lead: '作戦は事前に決め、走り出したあとは無線で押したり引いたりします。',
+      secs: [
+        { h: 'ピットの回数', p: [
+          'ストップが少ないほど失う秒数は減りますが、区間が長くなるぶん硬くて遅いタイヤになります。逆に多く止まれば毎回柔らかいタイヤで走れますが、そのたびに時間を失います。',
+          'ピットで失う時間は「ピットロードを走る時間」と「止まっている時間」に分かれます。前者はコースが決めるもので、後者はクルーの腕です。'
+        ] },
+        { h: '無線', p: [
+          'プッシュ・温存・通常の指示が、実際のペースとタイヤの減りを変えます。',
+          '信頼が薄いと、指示を飲み込めない周が出ます。'
+        ] },
+        { h: 'タイミングモニター', p: [
+          '📋 を押すと全車の表に切り替わります。緑は自己ベスト、紫はセッションベストで、実際の中継と同じ読み方です。',
+          '名前は英語3文字で出ます。左がチーム、右がドライバーです。',
+          '「先頭と」が1周ぶん以上離れると、秒ではなく「+1周」と出ます。'
+        ] },
+        { h: 'セーフティカー', p: [
+          'SCが出ると隊列が詰まります。解除はスタートラインからの再開です。ここでピットに入ると失う時間が小さくて済みますが、みなが同じことを考えています。'
+        ] }
+      ]
+    },
+    {
+      key: 'engine', icon: '🔌', name: 'エンジン',
+      lead: '買うか、自分で作るか、よそへ配るか。',
+      secs: [
+        { h: '買う', p: [
+          '強いチームからパワーユニットを買えます。すぐに速くなるうえ、供給元が開発したぶんが毎週降りてきます。そのかわり、供給元より速くなることはありません。'
+        ] },
+        { h: '配る', p: [
+          '一時金と毎戦の供給料が入り、客が走らせたデータも戻ってきます（研究ポイントと信頼性）。そのかわり、渡した相手はその日から速くなります。',
+          'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。'
+        ] },
+        { h: '消耗', p: [
+          'パワーユニットは1戦でおよそ15%減ります。1基でだいたい5戦です。',
+          '減ったぶんは、整備で全部は戻りません。傷みには「戻らないぶん」と「戻るぶん」があり、整備で戻せるのは後者だけです。開発を進めると、減り方そのものが小さくなり（27%→19%）、性能の落ち方も鈍くなります。',
+          '1シーズンに使える基数には上限があります。超えるとグリッド降格です。'
+        ] }
+      ]
+    },
+    {
+      key: 'facility', icon: '🏗️', name: '施設とオーナー',
+      lead: '建て増しは、その週だけでなく、この先ずっとに効きます。',
+      secs: [
+        { h: '施設', p: [
+          'ファクトリーの工作機械が新しくなると、開発の伸びと、作るパーツの質が上がります。',
+          '施設のレベルは、雇えるスタッフの人数と質の両方を決めます。人を集める前に、入れる場所が要ります。'
+        ] },
+        { h: 'オーナー', p: [
+          'レースの結果と話題でファンが増え、ファンが増えるとランクが上がります。ランクが上がるごとにスキルポイントが手に入ります。',
+          'スキルは振り直せません。何を伸ばすチームなのかを決めてから振ってください。'
+        ] }
+      ]
+    }
+  ];
+
+  function topicOf(key) {
+    return TOPICS.filter(t => t.key === key)[0] || TOPICS[0];
+  }
+
+  function bodyHTML(t) {
+    return '<div class="hp-lead">' + esc(t.lead) + '</div>' +
+      t.secs.map(s =>
+        '<div class="hp-sec"><b class="hp-h">' + esc(s.h) + '</b>' +
+        s.p.map(p => '<p class="hp-p">' + esc(p) + '</p>').join('') +
+        '</div>').join('');
+  }
+
+  function render(key) {
+    const cur = topicOf(key);
+    const nav = TOPICS.map(t =>
+      '<button class="hp-nav' + (t.key === cur.key ? ' on' : '') + '" data-k="' + t.key + '">' +
+      '<i>' + t.icon + '</i><span>' + esc(t.name) + '</span></button>').join('');
+    return '<div class="helpwrap">' +
+      '<nav class="hp-list">' + nav + '</nav>' +
+      '<div class="hp-body" id="hpBody">' +
+      '<b class="hp-title">' + cur.icon + ' ' + esc(cur.name) + '</b>' +
+      bodyHTML(cur) + '</div></div>';
+  }
+
+  /* 索引は押しても閉じない。中身だけ差し替えて、開いたまま読み進める */
+  function bind(key) {
+    const box = document.querySelector('.helpwrap');
+    if (!box) return;
+    box.querySelectorAll('.hp-nav').forEach(b => {
+      b.onclick = () => {
+        const t = topicOf(b.getAttribute('data-k'));
+        box.querySelectorAll('.hp-nav').forEach(x => x.classList.toggle('on', x === b));
+        const body = document.getElementById('hpBody');
+        body.innerHTML = '<b class="hp-title">' + t.icon + ' ' + esc(t.name) + '</b>' + bodyHTML(t);
+        body.scrollTop = 0;
+      };
+    });
+    const on = box.querySelector('.hp-nav.on');
+    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+    void key;
+  }
+
+  /* 上部バーの ❓ から開いたときは「閉じる」だけ。
+     画面の中の「くわしく」から来たときは、その画面へ戻る道を足す。
+     寄り道して戻れないと、そもそも読みに行かなくなる           */
+  function cmdHelp(key) {
+    const back = key ? A.lastCmd : null;
+    const btns = [];
+    if (back && back.fn) {
+      btns.push({
+        label: '◀ ' + (back.label || 'もどる'), cls: 'primary',
+        fn: function () {
+          // 戻った先でもう一度「くわしく」を押せるように、控えを戻しておく
+          A.pendingCmd = back;
+          back.fn();
+        }
+      });
+    }
+    btns.push({ label: '閉じる', fn: GP.ui.closeModal });
+    GP.ui.modal('📖 遊びかた', render(key), btns, { wide: true });
+    bind(key);
+  }
+
+  return {
+    name: 'help',
+    link: link,
+    setG: function () {},
+    api: { cmdHelp: cmdHelp, HELP_TOPICS: TOPICS }
   };
 };
 
@@ -28182,6 +28513,13 @@ GP.ui = (function () {
       bar.appendChild(el);
     });
     sectionize($('modalBody'));
+    /* 直前に押されたコマンドがあれば、この画面の持ち主として控える。
+       無ければ持ち主なし（本拠地の札などから開かれた画面）。
+       こうしておかないと、古い控えを戻り先として出してしまう      */
+    if (GP.app) {
+      GP.app.lastCmd = GP.app.pendingCmd || null;
+      GP.app.pendingCmd = null;
+    }
     return $('modalBody');
   }
 
@@ -28289,7 +28627,24 @@ GP.ui = (function () {
 
   function closeModal() { $('modal').className = ''; }
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling,
+  /* ---- ヘルプへの飛び札 ----
+     仕組みの説明は「遊びかた」に集めてある。
+     使う場所には1行だけ残し、続きを読みたい人だけがここから飛ぶ。
+     押したときの行き先は data-help に入れておき、
+     下の1本の受け口でまとめて拾う（画面ごとに配線しないで済む） */
+  function helpLink(key, label) {
+    return '<button class="hp-more" data-help="' + key + '">❓ ' +
+           (label || 'くわしく') + '</button>';
+  }
+  document.addEventListener('click', function (e) {
+    const b = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
+    if (!b) return;
+    e.preventDefault();
+    const fn = (GP.app && GP.app.cmdHelp) || null;
+    if (fn) fn(b.getAttribute('data-help'));
+  });
+
+  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
 
@@ -28342,6 +28697,9 @@ window.GP = window.GP || {};
     };
     Object.keys(mine).forEach(n => { A[n] = mine[n]; });
     SCREENS.forEach(m => m.link());
+    /* ヘルプの飛び札（ui.js の受け口）から呼べるようにしておく。
+       画面ごとに配線しないで済ませるための、ただ1本の口 */
+    GP.app = A;
     syncG();
   }
   /* g を持ち替えたら、各画面にも配り直す */
@@ -28387,6 +28745,12 @@ window.GP = window.GP || {};
   window.addEventListener('resize', measureTop);
   window.addEventListener('orientationchange', () => setTimeout(measureTop, 120));
   measureTop();
+
+  /* 遊びかた。どの画面からでも、上部バーの ❓ で開く */
+  (function () {
+    const hb = document.getElementById('tHelp');
+    if (hb) hb.onclick = () => A.cmdHelp();
+  })();
 
   function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
 
@@ -29351,7 +29715,17 @@ window.GP = window.GP || {};
       cCrunch: A.cmdCrunch, cKart: A.askKart,
       cEngine: A.cmdEngine, cEngineR: A.cmdEngine, cEngineO: A.cmdEngine
     };
-    Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
+    /* いま開いている画面がどのコマンドのものかを控えておく。
+       ヘルプへ寄り道したあと、ここへ戻ってこられるようにするため。
+       控えたものが実際にモーダルを開いたかどうかは ui.js が見分ける */
+    Object.keys(map).forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.onclick = function () {
+        A.pendingCmd = { fn: map[id], label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
+        return map[id].apply(this, arguments);
+      };
+    });
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     /* じっくり（既定）を基準に、そこから3段だけ速くできる。

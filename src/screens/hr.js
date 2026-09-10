@@ -419,10 +419,9 @@ GP.screens.hr = function (A) {
           '<em>' + lo + (t.max >= 999 ? '〜' : '〜' + t.max) + '</em>' +
           '<span>' + esc(t.note) + '</span></div>';
       }).join('') + '</div>' +
-      '<p class="desc">安定感が高いほど<b>クラッシュとミスが減り</b>、' +
-      '周回遅れを譲るのも上手くなります。' +
-      '「マシンを持って帰る」ことが点になる終盤ほど効いてきます。' +
-      '性格と、車体の<b>ドライバビリティ</b>でも上下します。</p>';
+      '<p class="desc">高いほど<b>クラッシュとミスが減ります</b>。' +
+      '性格と、車体の<b>ドライバビリティ</b>でも上下します。' +
+      U.helpLink('people') + '</p>';
   }
 
   function hrDrivers() {
@@ -430,9 +429,8 @@ GP.screens.hr = function (A) {
       '<div class="trustrow">' + g.drivers.map(d =>
         '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
       '</div>' +
-      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、ブリーフィングで言ったことが' +
-      '結果として返ってきたかどうかで動きます。薄くなると、レース中に指示とは違う走りをするようになり、' +
-      '底を割ると移籍を言い出します。厚いと、開発へのフィードバックも的確になります。</p>' +
+      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、言ったことが結果として返ってきたかどうかで動きます。' +
+      U.helpLink('people') + '</p>' +
       '<div class="pick">';
     g.drivers.forEach(d => {
       body += '<div class="pickbtn done">' +
@@ -784,9 +782,8 @@ GP.screens.hr = function (A) {
 
     // ---- よそのチームから引き抜く ----
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
-      '<p class="desc">よそで働いている人は、市場の応募者より腕が立ちます。' +
-      'そのぶん要る金は高く、「一途」な人はなかなか動きません。' +
-      'オーナーの交渉術があると安く済みます。' +
+      '<p class="desc">市場の応募者より腕が立つかわりに、要る金は高くつきます。' +
+      U.helpLink('people') +
       (room > 0 ? '' : '<br><b class="warn">こちらも、席が空いていないと連れて来られません。</b>') +
       '</p><div class="pick">';
     rivalStaffMarket.forEach((st, i) => {

@@ -2078,8 +2078,8 @@ GP.screens.home = function (A) {
     const lvl = Math.round(cw.level);
     const state = lvl < 20 ? { t: '万全', c: 'good' } : lvl < 45 ? { t: 'ふつう', c: '' }
                 : lvl < 70 ? { t: '疲れが見える', c: 'warn' } : { t: '限界', c: 'bad' };
-    let body = '<p class="desc">レースごとに、マシンと機材を世界中へ運びます。' +
-      '安く運べば資金は残りますが、クルーが消耗し、現地でのセットアップ時間も足りなくなります。</p>';
+    let body = '<p class="desc">運び方しだいで、資金・クルーの疲れ・現地での支度の進み具合が変わります。'
+      + U.helpLink('logi') + '</p>';
 
     body += '<div class="logi-crew"><b>🧑‍🔧 クルーの疲労</b>' +
       '<span class="skbar big"><i class="f' + (lvl < 45 ? '0' : lvl < 70 ? '1' : '2') +
@@ -2134,8 +2134,8 @@ GP.screens.home = function (A) {
     body += '</div>';
 
     body += '<div class="sub">積荷</div>' +
-      '<p class="desc">予備とツールをどれだけ持っていくか。' +
-      '積むほど現場で直せますが、重いぶん高くつき、クルーも消耗します。</p><div class="pick">';
+      '<p class="desc">予備とツールをどれだけ持っていくか。'
+      + U.helpLink('logi') + '</p><div class="pick">';
     D.LOGI_LOADS.forEach(ld => {
       const cost = withChoice(g.logi.plan, ld.key, () => S.logiCost(g, nextTrack));
       const risk = withChoice(g.logi.plan, ld.key, () => S.logiRisk(g, nextTrack));
@@ -2161,8 +2161,7 @@ GP.screens.home = function (A) {
       const curP = S.logiCrew(g);
       const mission = S.hasMission(g);
       body += '<div class="sub">遠征の編成</div>' +
-        '<p class="desc">誰を現地へ連れて行くか。部署ごと運べばピットもピットウォールも厚くなりますが、' +
-        '旅費がかさみ、全員が消耗します。<br>' +
+        '<p class="desc">誰を現地へ連れて行くか。' + U.helpLink('logi') + '<br>' +
         (mission
           ? '🛰️ <b>ミッションコントロール室</b>があるので、本国に残った分析チームが' +
             '回線の向こうからレースに加わります（作戦の読み +' + D.MISSION.read.toFixed(2) +

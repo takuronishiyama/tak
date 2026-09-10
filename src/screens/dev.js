@@ -190,10 +190,8 @@ GP.screens.dev = function (A) {
       mechMapHTML(g) + mechReadHTML(g);
 
     body += '<div class="sub">装着中パーツの改良</div>' +
-      '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
-      '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
-      '手を入れ続けると<b>熟成</b>が溜まり、満ちたところで<b>格（レアリティ）が上がって上限そのものが伸びます</b>。' +
-      'タグ（追加効果）は「📐 開発」の担当です。</p><div class="pick">';
+      '<p class="desc">数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」。' +
+      U.helpLink('car') + '</p><div class="pick">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) {
@@ -914,12 +912,10 @@ GP.screens.dev = function (A) {
       '<span class="rg-sum">パッケージング <b>' + pkAll + '%</b>' +
       '　噛み合っている組 <b>' + live + '</b>/' + syn.length + '</span>' +
       '</div>' +
-      '<p class="desc">内から外へ、<b>部品 → その固まりの馴染み方 → コンセプト</b>。' +
-      'いちばん外の線が<b>コンセプトの引いた境目</b>で、方針に逆らう向きでは' +
-      '内側へ食い込んでいます。節が境目に貼りついていたら、その項目はもう限界です。<br>' +
-      '扇形と扇形のあいだに架かっているのが <b>パッケージング</b>。' +
-      '部品ひとつひとつが良くても、<b>ここが細ければ車はまとまりません</b>。' +
-      '細い橋は、ドライバーがいちばん先に気づくところです。</p>' +
+      '<p class="desc">内から外へ、<b>部品 → 馴染み方 → コンセプト</b>。' +
+      '節が<b>いちばん外の線</b>に貼りついていたら、その項目はもう限界です。' +
+      '扇形どうしの橋が<b>パッケージング</b>で、細い橋は車をまとめさせません。' +
+      U.helpLink('car') + '</p>' +
       '</div>';
   }
 
@@ -1543,11 +1539,9 @@ GP.screens.dev = function (A) {
       return h + '<p class="desc">いまのところ、うちのパワーユニットを' +
         '欲しがっているチームはありません。</p>';
     }
-    h += '<p class="desc">一時金と毎戦の供給料が入り、客が走らせたデータも戻ってきます' +
-      '（研究P・信頼性）。<br>' +
+    h += '<p class="desc">一時金と毎戦の供給料、それに走行データが入ります。' +
       '<b class="warn">そのかわり、渡した相手はその日から速くなります。</b>' +
-      'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。' +
-      '何年もかけて開いた差が、契約書一枚で埋まっていくということです。</p><div class="pick">';
+      U.helpLink('engine') + '</p><div class="pick">';
     offers.forEach(o => {
       h += '<button class="pickbtn" data-k="__cus:' + esc(o.team) + '">' +
         '<span class="pb-ic engic" style="border-color:' + o.color + '">🔌</span>' +
