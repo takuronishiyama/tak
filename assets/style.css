@@ -2386,6 +2386,11 @@ body[data-skin="hd"]{
   .desc,.note{font-size:11px}
   .pickbtn{padding:5px 7px;min-height:44px}
   .pick{gap:5px}
+  /* 順位表は行を詰める。横長では一度に見える台数がものを言う */
+  .gridrow{padding:1px 5px;font-size:11px;gap:5px}
+  .gridrow .gp-pos{width:20px}
+  .gridrow .gp-t{font-size:10px}
+  .qcut{margin:2px 0 1px}
   .basewrap{max-height:38vh}
   /* 拠点は、絵と行き先を横に並べる。
      横長の画面では、縦に積むと絵だけで一画面を使ってしまう */

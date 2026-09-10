@@ -4195,6 +4195,33 @@ window.GP = window.GP || {};
     RV.start(cv, currentRes, showResult);
   }
 
+  /* ---- 決勝のあとのひとこと ----
+     順位だけを見て話させると、毎回おなじことしか言わない。
+     その日その車に起きたことのうち、いちばん重かったものを選んで
+     そこについて口を開かせる。何も無かった日は、性格どおりの台詞。 */
+  function raceQuote(e, res, said) {
+    if (e.dnf) return S.quoteFor(e.driver, e.pos, e.dnf, said);
+    const moved = e.grid - e.pos;
+    const on = {
+      trouble: !!e.trouble,
+      penalty: (e.penalties || []).length > 0,
+      blue:    (e.blueLoss || 0) >= 1.6,
+      wx:      !!res.weatherChange,
+      sc:      !!res.safetyCar,
+      pit:     (e.pitSlow || 0) > 0,
+      charge:  moved >= 5,
+      slip:    moved <= -5,
+      fight:   moved >= 2 && moved <= 4 && e.pos <= 12
+    };
+    const pool = [];
+    D.R_TALK.forEach(t => { if (on[t.key]) for (let i = 0; i < Math.round(t.w * 10); i++) pool.push(t); });
+    // 起きたことがあっても、たまには順位そのものについて話す
+    if (!pool.length || Math.random() < 0.22) return S.quoteFor(e.driver, e.pos, e.dnf, said);
+    const t = pool[S.rint(0, pool.length - 1)];
+    const lines = t.lines.filter(l => said.indexOf(l) < 0);
+    return S.pick(lines.length ? lines : t.lines);
+  }
+
   function showResult() {
     const res = currentRes;
     const reward = R.applyResult(g, res);
@@ -4251,10 +4278,11 @@ window.GP = window.GP || {};
           (scored ? ' — 10位以内で完走のためボーナス <b>+1pt</b>' : ' — 10位以内ではないためボーナスなし') + '</p>';
       }
 
-      // 性格に応じて調子が動き、ひとことを残す
+      // 性格に応じて調子が動き、ひとことを残す。
+      // その日その車に何かが起きていれば、そちらを話す
       const said = [];
       res.classified.filter(e => e.isPlayer).forEach(e => {
-        const q = S.quoteFor(e.driver, e.pos, e.dnf, said);
+        const q = raceQuote(e, res, said);
         said.push(q);
         const p = S.persOf(e.driver);
         body += '<div class="quote">' + U.face(e.driver, 30) +

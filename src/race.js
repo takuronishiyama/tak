@@ -1943,6 +1943,7 @@ GP.race = (function () {
              ジャッキが上がって下りるまでの時間は、何が出ていても変わらない  */
           const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
           const fumbled = Math.random() < e.pitFumble;
+          if (fumbled) e.pitSlow = (e.pitSlow || 0) + 1;   // レース後のひとことに使う
           const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0);
           const lane = e.pitLane * laneMul;
           const loss = lane + stand;

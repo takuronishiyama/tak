@@ -1416,6 +1416,46 @@ GP.data = (function () {
               'こういう日は好きだ。誰にでも目がある']
   };
 
+  /* 決勝のあとのひとこと。
+     順位だけでなく、その日その車に何が起きたかで口が変わる。
+     w は選ばれやすさ（起きたことが重いほど、そこを話す）        */
+  const R_TALK = [
+    { key: 'trouble', w: 3.2, lines: [
+      '途中から車が変わってしまった。あのまま走り切るのが精一杯だった',
+      '何かがおかしかった。ずっと騙しながら走っていたよ',
+      'あの症状が出てから、まったく攻められなくなった',
+      '無線で伝えたとおりだ。あれで今日のレースは終わった'] },
+    { key: 'penalty', w: 2.4, lines: [
+      'あのペナルティは納得できない。あそこは僕のラインだった',
+      '5秒か……重かった。あれが無ければ順位は違った',
+      '審査は審査だ。受け入れるしかない'] },
+    { key: 'blue', w: 2.6, lines: [
+      '周回遅れに引っかかった！ あそこで何秒も失った',
+      '青旗が出ているのに、どいてくれなかった',
+      '前がクリアなら、もう少し前に出られたはずだ'] },
+    { key: 'wx', w: 1.2, lines: [
+      '路面が変わったところが全てだった。判断が難しい一日だ',
+      '空が動いた瞬間の一手で決まった。今日はよく読めていた',
+      'タイヤを替えるのが一周遅かった。そこだけが悔しい'] },
+    { key: 'sc', w: 0.9, lines: [
+      'セーフティカーで流れが変わった。ああいう日もある',
+      'あのタイミングばかりは運だ。今日はこちらに向いた'] },
+    { key: 'charge', w: 2.0, lines: [
+      '前に出られた！ 今日は車がよく走ってくれた',
+      '一台ずつ、確実に仕留められた。いいレースだった',
+      'あの追い上げは自分でも気持ちよかった'] },
+    { key: 'slip', w: 2.0, lines: [
+      '守れなかった。ずるずる下がってしまった',
+      'ペースが持たなかった。タイヤが最後まで保たない',
+      '前半で使いすぎた。自分の組み立てが悪い'] },
+    { key: 'pit', w: 1.8, lines: [
+      'ピットで止まりすぎた。あれで一台ぶん損をした',
+      '作業に手間取ったな。誰のせいでもない、次だ'] },
+    { key: 'fight', w: 1.5, lines: [
+      'あのバトルは楽しかった。ぎりぎりまでやり合えた',
+      '最後まで真横にいた。ああいうレースがしたい'] }
+  ];
+
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
@@ -1985,5 +2025,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
