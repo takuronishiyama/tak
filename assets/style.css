@@ -2345,11 +2345,11 @@ body[data-skin="hd"]{
   /* 拠点は、絵と行き先を横に並べる。
      横長の画面では、縦に積むと絵だけで一画面を使ってしまう */
   .card.hub .pad{display:flex;gap:7px;align-items:flex-start}
-  .card.hub .basewrap{flex:0 0 42%;max-height:none;margin-bottom:0}
+  .card.hub .basewrap{flex:0 0 37%;max-height:none;margin-bottom:0}
   .card.hub #hubCv{width:100%;height:auto;max-width:none;max-height:none}
   .card.hub .hublist{flex:1 1 0;min-width:0;margin-top:0}
   /* 札は小ぶりに。1画面に収まる数を増やす */
-  .hlgrid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:4px}
+  .hlgrid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:4px}
   .hlbtn{min-height:0;padding:3px 3px 2px;gap:0;border-radius:6px;box-shadow:0 2px 0 rgba(74,47,26,.35)}
   .hlbtn i{font-size:15px}
   .hlbtn b{font-size:9.5px}
