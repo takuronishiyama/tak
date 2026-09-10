@@ -4193,6 +4193,25 @@ window.GP = window.GP || {};
     });
     body += tyreBandHTML();
 
+    // ---- 予選でタイヤをどう使うか ----
+    body += '<div class="sub">予選のタイヤの使いかた</div>' +
+      '<p class="desc">週末に持ち込めるドライタイヤは <b>' +
+      (D.TYRE_ALLOC.sets.soft + D.TYRE_ALLOC.sets.medium + D.TYRE_ALLOC.sets.hard) +
+      'セット</b>（ソフト' + D.TYRE_ALLOC.sets.soft + '／ミディアム' + D.TYRE_ALLOC.sets.medium +
+      '／ハード' + D.TYRE_ALLOC.sets.hard + '）。フリー走行と予選で使ったぶんは戻ってきません。<br>' +
+      '予選に新品を入れるほど前に出られますが、日曜のタイヤは薄くなります。' +
+      '（雨用は別枠なので、この数には入りません）</p>' +
+      '<div class="pick qplan" data-qplan="1">';
+    D.Q_PLANS.forEach(p => {
+      const n = p.newQ.reduce((a, b) => a + b, 0);
+      body += '<button class="pickbtn' + (p.key === 'all' ? ' on' : '') + '" data-v="' + p.key + '">' +
+        '<span class="pb-ic" style="background:#c0392b">' + p.icon + '</span>' +
+        '<span class="pb-body"><b>' + p.name + '</b><small>' + p.desc + '</small></span>' +
+        '<span class="pb-cost">新品<br>' + n + '本</span></button>';
+    });
+    body += '</div>';
+    pendingStrategy.qplan = 'all';
+
     // ---- ピット回数とタイヤの狙い ----
     {
       // このコースを素直に走るなら何回止まるか。ドライバーごとに違う
@@ -4293,6 +4312,16 @@ window.GP = window.GP || {};
         pendingStrategy['tyre_' + wrap.dataset.tdrv] = b.dataset.t;
       };
     });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-qplan]'), wrap => {
+      Array.prototype.forEach.call(wrap.children, b => {
+        b.onclick = () => {
+          Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+          b.classList.add('on');
+          pendingStrategy.qplan = b.dataset.v;
+          GP.sound.play('tap');
+        };
+      });
+    });
   }
 
   let currentRes = null, prePack = null, fpPack = null;
@@ -4334,6 +4363,12 @@ window.GP = window.GP || {};
         g.drivers.forEach(d => { d.technique = S.clamp(d.technique + S.rnd(0.6, 1.6), 1, 199); });
         return 'タイヤの持ちを確かめた（このコースは ' + stops + 'ストップが軸／ドライバーの技術も少し上がった）';
       } },
+    { k: 'save', icon: '🛞', label: '走らずにタイヤを残す', setup: 1.000,
+      note: 'ほとんどコースに出ない。セットアップは進まないが、日曜に手つかずのタイヤが残る',
+      run: () => {
+        staffExp('strategist', 6);
+        return 'ガレージで過ごした（決勝のタイヤを温存した）';
+      } },
     { k: 'long', icon: '📊', label: 'ロングランでデータを取る', setup: 1.005,
       note: '走り込んでデータを集める。研究ポイントが入る',
       run: () => {
@@ -4344,12 +4379,48 @@ window.GP = window.GP || {};
       } }
   ];
 
+  /* ---- 週末のタイヤ棚 ----
+     いま何本残っていて、そのうち何本が手つかずなのか。
+     走り込むほど減るので、金曜の選択が日曜の作戦にそのままつながる */
+  function bankHTML(pack, note) {
+    const mine = (pack && pack.entries || []).filter(e => e.isPlayer && e.bank);
+    if (!mine.length) return '';
+    let h = '<div class="sub small">🛞 週末に残っているタイヤ</div>';
+    if (note) h += '<p class="desc">' + note + '</p>';
+    h += '<div class="tybank">';
+    mine.forEach(e => {
+      h += '<div class="tb-row"><b>' + esc(e.driver.name) + '</b><span class="tb-sets">';
+      S.bankRows(e.bank).forEach(r => {
+        const t = D.TYRES.find(x => x.key === r.key);
+        h += '<span class="tb-set" style="--tc:' + t.color + ';--tt:' + t.text + '"' +
+          ' title="' + esc(t.name) + '"><i>' + t.short + '</i>' +
+          '<em class="fresh' + (r.fresh ? '' : ' zero') + '">新' + r.fresh + '</em>' +
+          '<em class="used' + (r.used ? '' : ' zero') + '">中' + r.used + '</em></span>';
+      });
+      h += '</span></div>';
+    });
+    return h + '</div>';
+  }
+
+  /* 予選で走った一本が新品だったか中古だったか */
+  function qTyreChip(e, si) {
+    const q = e.qTyre && e.qTyre[si];
+    if (!q) return '';
+    const t = D.TYRES.find(x => x.key === q.key) || D.TYRES[0];
+    return '<span class="qty' + (q.fresh ? ' new' : '') + '"' +
+      ' style="--tc:' + t.color + ';--tt:' + t.text + '"' +
+      ' title="' + (q.fresh ? '新品' : '中古（' + q.age.toFixed(1) + '周ぶん使用済み）') + '">' +
+      t.short + (q.fresh ? '' : 'ᵘ') + '</span>';
+  }
+
   function cmdPractice() {
     const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
     let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
       t.country + ' ' + esc(t.name) + '</span></div>' +
       '<p class="desc">決勝までに走れる時間は限られています。何に使うか、ひとつだけ選んでください。' +
-      'ここで決めたことは、この週末のあいだ効きます。</p><div class="pick">';
+      'ここで決めたことは、この週末のあいだ効きます。<br>' +
+      '<b>走り込むほどタイヤを使います</b>。金曜に減らした本数は、日曜には戻ってきません。</p>' +
+      '<div class="pick">';
     PRACTICE.forEach((x, i) => {
       const ok = !x.avail || x.avail();
       body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="fp:' + i + '"' +
@@ -4362,7 +4433,8 @@ window.GP = window.GP || {};
             (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0].name) +
           ' が乗ります</em>' : '') +
         '</small></span>' +
-        '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%</span></button>';
+        '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%' +
+        '<br><i class="tyuse">🛞' + (D.FP_SETS[x.k] || D.FP_SETS.setup).length + '本</i></span></button>';
     });
     body += '</div>';
     U.modal('🔧 フリー走行', body, [], { wide: true });
@@ -4585,9 +4657,206 @@ window.GP = window.GP || {};
       '<p class="note">✈️🚢 の印は、そのチームが機材をどうやって運んできたかです。' +
       'チャーターで先乗りしたチームはセットアップが進んでおり、' +
       '船便のチームは荷が遅れることがあります（⏳）。</p>';
+    body += bankHTML(res, 'フリー走行で使ったぶんが引かれています。' +
+                          '「新」は手つかず、「中」は一度走ったタイヤです。');
     body += puDecideHTML(res, 'fp');
-    U.modal('🔧 フリー走行', body, [{ label: '⏱️ 予選へ', cls: 'primary', fn: runQualifying }], { wide: true });
+    U.modal('🔧 フリー走行', body, [
+      { label: '⏱️ 一本ずつ走る', cls: 'primary', fn: runQualiStaged },
+      { label: '⏱️ 一気に走らせる', fn: runQualifying }
+    ], { wide: true });
     bindPuDecide(res, showPractice);
+  }
+
+  /* =======================================================
+     段階予選
+     Q1・Q2・Q3 を一本ずつ。あいだで出力モードを変え、
+     セットアップを触り、次の一本に新品を入れるかを決める。
+     一気に走らせるのと計算は同じで、区切りが入るだけ。
+     ======================================================= */
+  let qStage = null;
+
+  /* セッションのあいだに触れる、セットアップの微調整 */
+  const QTUNE = [
+    { key: 'push', name: '攻めに振る', icon: '🔥', gain: 0.006, loss: 0.005, risk: 0.34,
+      desc: '一本の速さを取りにいく。決まれば前に出るが、外すと収まりが悪くなる' },
+    { key: 'keep', name: 'そのまま',   icon: '⚖️', gain: 0,     loss: 0,     risk: 0,
+      desc: '触らない。いまの手応えのまま次の一本へ' },
+    { key: 'calm', name: '安定に振る', icon: '🛡️', gain: 0.002, loss: 0.002, risk: 0.10,
+      desc: 'まとめやすくする。速さは伸びないが、外しにくい' }
+  ];
+
+  function runQualiStaged() {
+    fpPack = null;
+    qTab = 'grid';
+    pendingStrategy.qtune = 1;
+    [0, 1, 2].forEach(i => { delete pendingStrategy['qnew' + i]; });
+    qStage = { pack: R.qOpen(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special),
+               phase: 'prep', last: null, tuned: false, msg: '' };
+    showQStage();
+  }
+
+  function qStageCut(qs) {
+    const si = qs.si;
+    if (si >= 2) return { from: qs.sizes[2], to: qs.sizes[2] };
+    return { from: qs.sizes[si], to: qs.sizes[si + 1] };
+  }
+
+  function showQStage() {
+    const st = qStage;
+    if (!st) return;
+    const pack = st.pack, qs = pack.qs;
+    const si = Math.min(2, qs.si);
+    const cut = qStageCut(qs);
+    let body = '<div class="racehead"><b>' + pack.weather.icon + ' ' + pack.weather.name +
+      '</b><span>Q' + (si + 1) + '　' + cut.from + '台 → ' + cut.to + '台</span></div>';
+
+    if (st.phase === 'result' && st.last) {
+      // ---- 走り終えた一本 ----
+      const ss = st.last;
+      body += '<p class="desc">Q' + (ss.si + 1) + ' が終わりました。' +
+        (ss.dropped.length ? '<b>' + ss.dropped.length + '台</b>がここで敗退です。' : 'ここからポールを争います。') +
+        '</p><div class="gridlist qlist">';
+      ss.order.forEach((e, i) => {
+        if (ss.cut != null && i === ss.cut) body += '<div class="qcut out1">ここから敗退</div>';
+        body += qRowHTML(e, i + 1, e.qLap[ss.si], qTyreChip(e, ss.si) + qEvHTML(e.qEv[ss.si]));
+      });
+      body += '</div>';
+      const mine = pack.entries.filter(e => e.isPlayer);
+      const gone = mine.filter(e => e.qOut === ss.si);
+      if (gone.length) {
+        body += '<p class="note warn">' + gone.map(e => esc(e.driver.name) +
+          ' はここで敗退しました。').join('<br>') + '</p>';
+      }
+      body += bankHTML(pack);
+      const done = qs.si >= 3;
+      U.modal('⏱️ 予選 Q' + (ss.si + 1), body, [
+        { label: done ? '🏁 予選結果へ' : '▶ Q' + (qs.si + 1) + ' の支度へ',
+          cls: 'primary', fn: done ? closeQStage : nextQPrep }
+      ], { wide: true });
+      return;
+    }
+
+    // ---- 次の一本の支度 ----
+    const mine = pack.entries.filter(e => e.isPlayer && e.qOut == null);
+    if (!mine.length) {
+      body += '<p class="note warn">自チームはすでに敗退しています。残りの争いを見届けましょう。</p>';
+    }
+    body += '<p class="desc">走り出す前に、次の一本をどう戦うかを決めます。' +
+      'ここで触ったことは<b>この一本から</b>効きます。</p>';
+    if (st.msg) body += '<p class="note' + (st.msgOk ? ' good' : ' warn') + '">' + st.msg + '</p>';
+
+    // 新品を入れるか
+    const newOn = pendingStrategy['qnew' + si] != null
+      ? !!pendingStrategy['qnew' + si]
+      : !!R.qPlanOf(pendingStrategy).newQ[si];
+    body += '<div class="sub small">🛞 この一本のタイヤ</div>' +
+      '<p class="desc">新品は食いつきますが、日曜に残りません。' +
+      '中古は約 <b>' + (D.TYRE_ALLOC.qUsedLoss).toFixed(2) + '秒</b> ぶん遅くなります。' +
+      (si === 2 ? '<br>Q3はポール争いなので、ふつうは新品を入れます。' : '') + '</p>' +
+      '<div class="qpickrow" data-qnew="' + si + '">' +
+      '<button class="stratbtn' + (newOn ? ' on' : '') + '" data-v="1">🆕 新品<br><small>いちばん速い</small></button>' +
+      '<button class="stratbtn' + (newOn ? '' : ' on') + '" data-v="0">♻️ 中古<br><small>日曜に残す</small></button>' +
+      '</div>';
+    body += bankHTML(pack);
+
+    // セットアップの微調整（1セッションに1回だけ）
+    body += '<div class="sub small">🔧 セットアップの微調整</div>';
+    if (st.tuned) {
+      body += '<p class="note">この一本ぶんの調整は済んでいます。</p>';
+    } else {
+      const eng = S.org(g).dept.engineer;
+      body += '<p class="desc">技術陣が厚いほど、狙ったほうに決まります' +
+        '（いまの成功率の底上げ：<b>+' + Math.round(Math.min(0.6, eng * 0.012) * 100) + '%</b>）。</p>' +
+        '<div class="pick">';
+      QTUNE.forEach(x => {
+        const risk = x.risk ? Math.max(0.05, x.risk * (1 - Math.min(0.6, eng * 0.012))) : 0;
+        body += '<button class="pickbtn" data-k="qt:' + x.key + '">' +
+          '<span class="pb-ic" style="background:#3a7ad9">' + x.icon + '</span>' +
+          '<span class="pb-body"><b>' + x.name + '</b><small>' + x.desc + '</small></span>' +
+          '<span class="pb-cost">' + (x.gain ? '+' + (x.gain * 100).toFixed(1) + '%<br>' +
+            '<i class="tyuse">外す ' + Math.round(risk * 100) + '%</i>' : '—') + '</span></button>';
+      });
+      body += '</div>';
+    }
+
+    body += puDecideHTML(pack, 'fp');
+    U.modal('⏱️ 予選 Q' + (si + 1), body, [
+      { label: '▶ Q' + (si + 1) + ' を走る', cls: 'primary', fn: runQStage },
+      { label: '⏭️ 残りを一気に', fn: rushQStage }
+    ], { wide: true });
+
+    bindPick(k => { if (k.indexOf('qt:') === 0) doQTune(k.slice(3)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-qnew]'), wrap => {
+      Array.prototype.forEach.call(wrap.children, b => {
+        b.onclick = () => {
+          Array.prototype.forEach.call(wrap.children, c => c.classList.remove('on'));
+          b.classList.add('on');
+          pendingStrategy['qnew' + wrap.dataset.qnew] = +b.dataset.v;
+          GP.sound.play('tap');
+        };
+      });
+    });
+    bindPuDecide(pack, showQStage);
+  }
+
+  function doQTune(k) {
+    const st = qStage;
+    const x = QTUNE.find(v => v.key === k);
+    if (!st || !x || st.tuned) return;
+    st.tuned = true;
+    if (!x.gain) {
+      st.msg = '⚖️ 何も触らず、そのまま送り出すことにした。';
+      st.msgOk = true;
+    } else {
+      const eng = S.org(g).dept.engineer;
+      const risk = Math.max(0.05, x.risk * (1 - Math.min(0.6, eng * 0.012)));
+      const ok = Math.random() >= risk;
+      pendingStrategy.qtune = (pendingStrategy.qtune || 1) * (ok ? 1 + x.gain : 1 - x.loss);
+      st.msgOk = ok;
+      st.msg = ok
+        ? x.icon + ' 狙いどおりに決まった（マシン +' + (x.gain * 100).toFixed(1) + '%）'
+        : '⚠️ 触ったぶんが裏目に出た（マシン −' + (x.loss * 100).toFixed(1) + '%）';
+      staffExp('engineer', 6);
+    }
+    GP.sound.play(st.msgOk ? 'confirm' : 'no');
+    showQStage();
+  }
+
+  function runQStage() {
+    const st = qStage;
+    if (!st) return;
+    const ss = R.qStep(st.pack, g, pendingStrategy);
+    if (!ss) { closeQStage(); return; }
+    st.last = ss;
+    st.phase = 'result';
+    st.tuned = false;
+    st.msg = '';
+    GP.sound.play('confirm');
+    showQStage();
+  }
+
+  function nextQPrep() {
+    if (!qStage) return;
+    qStage.phase = 'prep';
+    showQStage();
+  }
+
+  /* 途中で「もういい」と思ったら、残りは一気に走らせる */
+  function rushQStage() {
+    const st = qStage;
+    if (!st) return;
+    while (st.pack.qs.si < 3) R.qStep(st.pack, g, pendingStrategy);
+    closeQStage();
+  }
+
+  function closeQStage() {
+    const st = qStage;
+    if (!st) return;
+    while (st.pack.qs.si < 3) R.qStep(st.pack, g, pendingStrategy);
+    prePack = R.qClose(st.pack, g, pendingStrategy, raceCtx.special);
+    qStage = null;
+    qTab = 'grid';
+    showQualifying();
   }
 
   /* ---- 予選の表 ----
@@ -4646,7 +4915,7 @@ window.GP = window.GP || {};
       h += '<div class="gridlist qlist">';
       ss.order.forEach((e, i) => {
         if (ss.cut != null && i === ss.cut) h += '<div class="qcut out1">ここから敗退</div>';
-        h += qRowHTML(e, i + 1, e.qLap[si], qEvHTML(e.qEv[si]));
+        h += qRowHTML(e, i + 1, e.qLap[si], qTyreChip(e, si) + qEvHTML(e.qEv[si]));
       });
       h += '</div>';
     }
@@ -4670,6 +4939,8 @@ window.GP = window.GP || {};
                '</b><span>予選 — Q1 / Q2 / Q3</span></div>';
     body += qualiTableHTML(res);
     body += qTalkHTML(res);
+    body += bankHTML(res, '日曜に使えるのはこれだけです。' +
+      'スティントは「新」から順に履き、尽きたら中古で走ります。');
     body += forecastHTML(res);
     body += puDecideHTML(res, 'quali');
     U.modal('⏱️ 予選', body, [{ label: '🚶 グリッドへ', cls: 'primary', fn: cmdGrid }], { wide: true });

@@ -1959,6 +1959,51 @@ GP.data = (function () {
       desc: '大雨用。水を大量に掻き出すが、路面が乾くと溝が溶けてなくなる' }
   ];
   const DRY_TYRES = ['soft', 'medium', 'hard'];
+
+  /* ---------- 週末に持ち込めるタイヤ ----------
+     ドライタイヤはセット単位で数が決まっている。走り込めば減り、
+     予選で毎回新品を入れれば減り、日曜に残るのは走ったぶんだけ古いもの。
+     「速く走ること」と「日曜のためにとっておくこと」が、はじめて競合する。
+     インターとウェットはこの数に入らない（雨は誰のせいでもないので別枠）  */
+  const TYRE_ALLOC = {
+    sets:  { soft: 8, medium: 3, hard: 2 },   // 1台・1週末ぶん（計13セット）
+    carry: 0.62,      // ユーズドは、前に走った周回のこれだけを引きずって始まる
+    fpLaps: 7.5,      // フリー走行で1セットあたり走る周回
+    qLaps: 2.6,       // 予選の1本で走る周回（アウト・アタック・イン）
+    qUsedLoss: 0.13,  // 中古で予選を走ると1周でこれだけ失う（秒・皮むき済みぶん差し引き後）
+    freshEdge: 0.02   // 新品のほうが素直に食いつくぶん（秒）
+  };
+  /* ---------- フリー走行で、どの銘柄を何本おろすか ----------
+     メニューによって、手をつける銘柄が変わる。
+     セットアップを詰めるならソフトで一本ずつ確かめればよいが、
+     決勝のことを調べるなら、決勝で履く銘柄を走らせるしかない。
+     つまり「日曜のために調べるほど、日曜のタイヤが古くなる」        */
+  const FP_SETS = {
+    save:   ['soft', 'medium'],
+    setup:  ['medium', 'soft', 'hard', 'medium', 'soft', 'hard'],
+    rookie: ['medium', 'soft', 'medium', 'hard', 'soft', 'medium', 'soft'],
+    tyre:   ['medium', 'hard', 'medium', 'soft', 'hard', 'medium', 'soft', 'soft'],
+    long:   ['medium', 'hard', 'medium', 'hard', 'soft', 'medium', 'soft', 'soft']
+  };
+  /* ---------- 予選のタイヤの使いかた ----------
+     newQ は Q1・Q2・Q3 それぞれに新品を入れるかどうか。
+     予選で前に出るか、日曜に厚いタイヤを残すか。                      */
+  const Q_PLANS = [
+    { key: 'all',  name: '全開',     icon: '🔥',  newQ: [1, 1, 1],
+      desc: '毎回新品で行く。前に出やすいが、日曜に新品が残らない' },
+    { key: 'save', name: '温存',     icon: '🛡️',  newQ: [0, 1, 1],
+      desc: 'Q1は中古で流す。落ちる危険はあるが、決勝に1本多く残せる' },
+    { key: 'race', name: '決勝重視', icon: '🏁',  newQ: [0, 0, 1],
+      desc: 'Q1・Q2は中古。予選の並びは捨てるが、日曜のタイヤは厚い' }
+  ];
+  /* ライバルの走り込み（作戦の性格ごと）。
+     走らないチームは仕上がらないが、日曜のタイヤは新しい          */
+  const RIVAL_RUN = {
+    aggressive: ['medium', 'hard', 'medium', 'soft', 'hard', 'medium', 'soft', 'soft'],
+    wild:       ['soft', 'medium', 'soft', 'hard', 'medium', 'soft', 'medium', 'hard'],
+    balanced:   ['medium', 'hard', 'medium', 'soft', 'hard', 'soft', 'soft'],
+    steady:     ['soft', 'medium', 'soft', 'hard', 'soft']
+  };
   /* 路面と噛み合わないぶん、1周でどれだけ失うか。
      大雨（濡れ1.0）でドライのまま走ると 1周 +13% ほど。
      路面が濡れること自体でも全車が最大 +18% 遅くなるので、
@@ -2124,5 +2169,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
            BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
-           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, TYRE_ALLOC, FP_SETS, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

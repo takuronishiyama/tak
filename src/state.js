@@ -2039,6 +2039,73 @@ GP.state = (function () {
     return wearCarOf(carStats(g2), bodyRatio(g2, 'light'), mechLift(g2).wear);
   }
 
+  /* =======================================================
+     週末のタイヤ
+     持ち込めるのはセット単位で決まった本数だけ。
+     1セットは「これまで走った周回」を覚えていて、走るほど古くなる。
+     金曜に走り込むほど仕上がるが、日曜に残るタイヤは薄くなる。
+     ここが、週末を通してひとつながりの選択になる。
+     ======================================================= */
+  function newTyreBank() {
+    const b = {};
+    Object.keys(D.TYRE_ALLOC.sets).forEach(k => {
+      b[k] = [];
+      for (let i = 0; i < D.TYRE_ALLOC.sets[k]; i++) b[k].push(0);
+    });
+    return b;
+  }
+  /* セットを1本取り出す（戻さない）。
+     wantNew なら新品を、そうでなければ「まだ使えるいちばん古いもの」を選ぶ。
+     新品を日曜に残すのが、中古で走ることの意味なので                */
+  function drawSet(bank, key, wantNew) {
+    let arr = bank[key];
+    if (!arr || !arr.length) {
+      // その銘柄を使い切ったら、残っているうちでいちばん新しいものに履き替える
+      const alt = D.DRY_TYRES.filter(k => bank[k] && bank[k].length)
+        .sort((a, b) => Math.min.apply(null, bank[a]) - Math.min.apply(null, bank[b]))[0];
+      if (!alt) return { key: key, age: 0, empty: true };
+      key = alt; arr = bank[key];
+    }
+    arr.sort((a, b) => a - b);
+    let i = 0;                                  // 新品＝いちばん若いもの
+    if (!wantNew) {
+      for (let j = arr.length - 1; j >= 0; j--) { if (arr[j] > 0) { i = j; break; } }
+    }
+    const age = arr.splice(i, 1)[0];
+    return { key: key, age: age, fresh: age <= 0 };
+  }
+  /* 走ったぶん古くして棚に戻す（フリー走行・予選で使ったセット） */
+  function returnSet(bank, set, laps) {
+    if (!set || set.empty) return set;
+    (bank[set.key] = bank[set.key] || []).push(set.age + (laps || 0));
+    return set;
+  }
+  /* 1セットで走る（取り出して、走って、戻す） */
+  function runSet(bank, key, wantNew, laps) {
+    return returnSet(bank, drawSet(bank, key, wantNew), laps);
+  }
+  /* 走り込みで、指定された銘柄を順におろす。
+     走ったセットは棚に戻るが、もう新品ではない                     */
+  function scrubBank(bank, list, laps) {
+    (list || []).forEach(k => runSet(bank, k, true, typeof laps === 'function' ? laps() : laps));
+  }
+  /* 棚の中身（画面用）。銘柄ごとに 新品／中古 が何本ずつ残っているか */
+  function bankRows(bank) {
+    return D.DRY_TYRES.map(k => {
+      const arr = (bank && bank[k]) || [];
+      return { key: k, fresh: arr.filter(a => a <= 0).length,
+               used: arr.filter(a => a > 0).length, all: arr.length,
+               wear: arr.filter(a => a > 0).reduce((a, b) => a + b, 0) };
+    });
+  }
+  function bankFresh(bank) { return bankRows(bank).reduce((a, r) => a + r.fresh, 0); }
+  /* 中古で走るぶんの遅さ（秒／周）。皮むきの1周ぶんは差し引く */
+  function usedLoss(age) {
+    const A = D.TYRE_ALLOC;
+    if (!age || age <= 1) return 0;
+    return A.qUsedLoss * Math.min(1, (age - 1) / 5);
+  }
+
   /* ---------- スタッフ効果 ---------- */
   function staffBonus(g, key) {
     let sum = 0;
@@ -2921,6 +2988,7 @@ GP.state = (function () {
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
+    newTyreBank, drawSet, returnSet, runSet, scrubBank, bankRows, bankFresh, usedLoss,
     mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,

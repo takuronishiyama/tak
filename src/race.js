@@ -852,6 +852,21 @@ GP.race = (function () {
         });
       });
     });
+    /* ---- 週末のタイヤ棚 ----
+       金曜に走り込むほどマシンは仕上がるが、そのぶん日曜のタイヤは古くなる。
+       ライバルも同じ棚を持っている。走り込まないチームは仕上がらない代わりに、
+       日曜の朝、まだ手つかずのタイヤを何本も持っている                */
+    const fpKey = (strategy && strategy.fp) || 'setup';
+    const A = D.TYRE_ALLOC;
+    list.forEach(e => {
+      e.bank = S.newTyreBank();
+      const plan = e.isPlayer ? (D.FP_SETS[fpKey] || D.FP_SETS.setup)
+                              : (D.RIVAL_RUN[e.style] || D.RIVAL_RUN.balanced);
+      // 走る本数は日によって前後する。荷が遅れた週は、走れる時間そのものが足りない
+      const n = S.clamp(plan.length + S.rint(-1, 1), 3, plan.length + 1);
+      e.fpSets = n;
+      S.scrubBank(e.bank, plan.slice(0, n), () => A.fpLaps * S.rnd(0.80, 1.20));
+    });
     return list;
   }
 
@@ -963,41 +978,90 @@ GP.race = (function () {
     return out;
   }
 
-  function qualify(entries, track, weather, eng) {
+  /* 予選のタイヤ方針。段階予選では、セッションごとの指定が上書きする */
+  function qPlanOf(strategy) {
+    const k = (strategy && strategy.qplan) || 'all';
+    const p = D.Q_PLANS.find(x => x.key === k) || D.Q_PLANS[0];
+    const over = [0, 1, 2].map(i => strategy && strategy['qnew' + i]);
+    if (over.every(v => v == null)) return p;
+    return Object.assign({}, p, {
+      newQ: p.newQ.map((v, i) => (over[i] == null ? v : (over[i] ? 1 : 0)))
+    });
+  }
+
+  /* ---------- 予選で新品を入れるか ----------
+     プレイヤーは決めた方針どおり。ライバルはその場の見込みで決める。
+     「もう安全」「もう届かない」と分かった側から、日曜のために温存する。
+     早く諦めたチームほど、決勝のタイヤは新しい                       */
+  function qWantNew(e, si, cutN, n, plan) {
+    if (si === 2) return true;                          // Q3 はポール争い。全員が入れる
+    if (e.isPlayer) return !!(plan && plan.newQ[si]);
+    const rank = e.qRank || Math.round(n / 2);
+    if (rank <= cutN - 4) return Math.random() < 0.45;  // 余裕のある側は温存できる
+    if (rank > cutN + 3) return Math.random() < 0.25;   // 届かないと分かれば早く諦める
+    return true;                                        // 当落線上は迷わず新品
+  }
+
+  /* 予選のはじまり。まだ1本も走っていない状態を作る */
+  function qStart(entries) {
     const Q = D.QUALI;
     const n = entries.length;
     const cut = S.clamp(Math.round(n * Q.cut), Q.cutMin, Q.cutMax);
     const q2n = Math.max(Q.minQ2, Math.min(n - 1, n - cut));
     const q3n = Math.max(Q.minQ3, Math.min(q2n - 1, n - cut * 2));
-    const sizes = [n, q2n, q3n];
-    entries.forEach(e => { e.qLap = [null, null, null]; e.qEv = [[], [], []]; e.qOut = null; });
+    entries.forEach(e => {
+      e.qLap = [null, null, null]; e.qEv = [[], [], []];
+      e.qTyre = [null, null, null]; e.qOut = null;
+    });
+    return { si: 0, sizes: [n, q2n, q3n], q2n: q2n, q3n: q3n, n: n,
+             field: entries.slice(), sessions: [] };
+  }
 
-    let field = entries.slice();
-    const sessions = [];
-    for (let si = 0; si < 3; si++) {
-      field.forEach(e => {
-        let q = e.perf;
-        if (e.sk('qualify')) q *= 1.07;
-        const sp = Q.spread[si];
-        q *= (1 - sp + Math.random() * sp * 2) * weather.grip;
-        // 落とすか落とされるかの場面ほど、気持ちの強さがタイムに出る
-        q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08 * (1 + Q.nerve[si]));
-        let t = track.base * (1 + (Q.base + (140 - q) * 0.0009)) * Q.evo[si];
-        const evs = qEventFor(e, si, track, weather, eng);
-        evs.forEach(v => { t += v.sec; });
-        e.qLap[si] = Math.max(track.base * 0.80, t);
-        e.qEv[si] = evs;
-        e.qScore = q;
-      });
-      const order = field.slice().sort((a, b) => a.qLap[si] - b.qLap[si]);
-      const keep = si < 2 ? order.slice(0, sizes[si + 1]) : order;
-      const drop = si < 2 ? order.slice(sizes[si + 1]) : [];
-      drop.forEach(e => { e.qOut = si; });
-      sessions.push({ key: 'Q' + (si + 1), si: si, order: order,
-                      cut: si < 2 ? sizes[si + 1] : null, dropped: drop });
-      field = keep;
-    }
+  /* 1セッションぶんだけ走らせる。ここを繰り返せば予選が進む */
+  function qSession(qs, track, weather, eng, plan) {
+    const Q = D.QUALI;
+    const si = qs.si;
+    const field = qs.field;
+    const cutN = si < 2 ? qs.sizes[si + 1] : qs.sizes[si];
+    // 「いま何番手の速さか」。新品を入れるかどうかの読みに使う
+    field.slice().sort((a, b) => b.perf - a.perf).forEach((e, i) => { e.qRank = i + 1; });
+    field.forEach(e => {
+      let q = e.perf;
+      if (e.sk('qualify')) q *= 1.07;
+      const sp = Q.spread[si];
+      q *= (1 - sp + Math.random() * sp * 2) * weather.grip;
+      // 落とすか落とされるかの場面ほど、気持ちの強さがタイムに出る
+      q *= (1 - (1 - e.driver.mental / 260) * (weather.chaos - 1) * 0.08 * (1 + Q.nerve[si]));
+      let t = track.base * (1 + (Q.base + (140 - q) * 0.0009)) * Q.evo[si];
+      /* ---- 何を履いて出るか ----
+         雨なら本数に関係なく雨用を履く。乾いていれば棚から1セット出し、
+         走ったぶんだけ古くして戻す。中古は、そのぶん食いつかない      */
+      if (!weather.wetTyres && e.bank) {
+        const set = S.runSet(e.bank, 'soft', qWantNew(e, si, cutN, qs.n, plan),
+                             D.TYRE_ALLOC.qLaps);
+        e.qTyre[si] = { key: set.key, age: Math.round(set.age * 10) / 10, fresh: !!set.fresh };
+        t += S.usedLoss(set.age) - (set.fresh ? D.TYRE_ALLOC.freshEdge : 0);
+      }
+      const evs = qEventFor(e, si, track, weather, eng);
+      evs.forEach(v => { t += v.sec; });
+      e.qLap[si] = Math.max(track.base * 0.80, t);
+      e.qEv[si] = evs;
+      e.qScore = q;
+    });
+    const order = field.slice().sort((a, b) => a.qLap[si] - b.qLap[si]);
+    const keep = si < 2 ? order.slice(0, qs.sizes[si + 1]) : order;
+    const drop = si < 2 ? order.slice(qs.sizes[si + 1]) : [];
+    drop.forEach(e => { e.qOut = si; });
+    const sess = { key: 'Q' + (si + 1), si: si, order: order,
+                   cut: si < 2 ? qs.sizes[si + 1] : null, dropped: drop };
+    qs.sessions.push(sess);
+    qs.field = keep;
+    qs.si = si + 1;
+    return sess;
+  }
 
+  /* 3セッション走り終えたところで、グリッドを確定させる */
+  function qFinish(qs, entries) {
     /* 並び：Q3組 → Q2で落ちた組 → Q1で落ちた組。
        それぞれ、最後に走ったセッションのタイム順に並べる */
     const bySess = si => entries.filter(e => (e.qOut == null ? 2 : e.qOut) === si)
@@ -1011,8 +1075,14 @@ GP.race = (function () {
       e.qBest = Math.min.apply(null, e.qLap.filter(v => v != null));
     });
     entries.sort((a, b) => a.grid - b.grid);
-    grid.quali = { sessions: sessions, q2n: q2n, q3n: q3n, n: n };
+    grid.quali = { sessions: qs.sessions, q2n: qs.q2n, q3n: qs.q3n, n: qs.n };
     return grid;
+  }
+
+  function qualify(entries, track, weather, eng, plan) {
+    const qs = qStart(entries);
+    while (qs.si < 3) qSession(qs, track, weather, eng, plan);
+    return qFinish(qs, entries);
   }
 
   /* ---------- 予選のあとの、ドライバーのひとこと ----------
@@ -1145,7 +1215,8 @@ GP.race = (function () {
       : rollWeather(track));
     weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = buildEntries(g, track, weather, strategy);
-    const grid = qualify(entries, track, weather, S.org(g).dept.engineer);
+    const grid = qualify(entries, track, weather, S.org(g).dept.engineer,
+                         qPlanOf(strategy));
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const wxChange = rollWxChange(weather, laps, special);
     return { trackIndex: trackIndex, track: track, weather: weather,
@@ -1154,6 +1225,77 @@ GP.race = (function () {
              laps: laps, wxChange: wxChange,
              // 決勝が始まる前に見える予報（0周目から見た先ゆき）
              forecast: forecastAt(wxChange, 0, laps, S.foresightOf(g), trackIndex + '|' + g.season) };
+  }
+
+  /* ---------- 段階予選 ----------
+     Q1・Q2・Q3 を一本ずつ走らせる。あいだで出力モードを変え、
+     セットアップを触り、次の一本に新品を入れるかを決められる。
+     一気に走らせるのと同じ計算を、区切って回しているだけ            */
+  function qOpen(g, trackIndex, strategy, special) {
+    const track = D.TRACKS[trackIndex];
+    const weather = Object.assign({}, special && special.force
+      ? (D.WEATHER.find(w => w.key === special.force) || rollWeather(track))
+      : rollWeather(track));
+    weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
+    const entries = buildEntries(g, track, weather, strategy);
+    entries.forEach(e => { e.pmulBase = e.pmul; });
+    const pack = { trackIndex: trackIndex, track: track, weather: weather,
+                   entries: entries, special: special, staged: true,
+                   qs: qStart(entries) };
+    qProvis(pack);
+    return pack;
+  }
+  /* セッションとセッションのあいだに触ったぶんを、いまの数字に入れ直す */
+  function qRepack(pack, g, strategy) {
+    const car = S.carScore(g, pack.track);
+    const pp = S.puPerf(g);
+    const rel = S.reliability(g);
+    const tune = (strategy && strategy.qtune) || 1;
+    pack.entries.forEach(e => {
+      if (!e.isPlayer) return;
+      e.carScore = car;
+      e.pmul = (e.pmulBase || e.pmul) * tune;
+      e.perf = (car * 0.60 + e.drvScore * 0.40) * e.pmul + pp;
+      e.rel = rel;
+    });
+  }
+  /* まだ予選の途中でも、いまの並びを仮に作っておく。
+     セッションのあいだの画面が「いま何番手か」を参照できるように       */
+  function qProvis(pack) {
+    const lapOf = e => {
+      const si = e.qOut == null ? 2 : e.qOut;
+      return e.qLap[si] != null ? e.qLap[si] : Infinity;
+    };
+    const grid = pack.entries.slice().sort((a, b) => {
+      const oa = a.qOut == null ? 3 : a.qOut, ob = b.qOut == null ? 3 : b.qOut;
+      if (oa !== ob) return ob - oa;
+      return (lapOf(a) - lapOf(b)) || (b.perf - a.perf);
+    });
+    grid.forEach((e, i) => { e.grid = i + 1; });
+    pack.grid = grid;
+    return grid;
+  }
+  function qStep(pack, g, strategy) {
+    if (!pack || !pack.qs || pack.qs.si >= 3) return null;
+    qRepack(pack, g, strategy);
+    const ss = qSession(pack.qs, pack.track, pack.weather,
+                        S.org(g).dept.engineer, qPlanOf(strategy));
+    qProvis(pack);
+    return ss;
+  }
+  /* 3本走り終えたので、決勝に渡せる形に閉じる */
+  function qClose(pack, g, strategy, special) {
+    const grid = qFinish(pack.qs, pack.entries);
+    const laps = Math.max(4, Math.round(pack.track.laps * (special ? special.lapMul : 1)));
+    const wxChange = rollWxChange(pack.weather, laps, special);
+    pack.grid = grid;
+    pack.quali = grid.quali;
+    pack.qTalks = qTalks(grid, pack.weather);
+    pack.laps = laps;
+    pack.wxChange = wxChange;
+    pack.forecast = forecastAt(wxChange, 0, laps, S.foresightOf(g),
+                               pack.trackIndex + '|' + g.season);
+    return pack;
   }
 
   /* 予選が終わったあとで出力モードを変えたときに、決勝ぶんの速さと
@@ -1467,7 +1609,19 @@ GP.race = (function () {
           st2.forced = true;
         }
       }
+      /* ---- 棚から、実際に履くタイヤを出す ----
+         走り込んだ週末ほど、日曜に出てくるのは古いタイヤになる。
+         新品が尽きていれば、前に走ったぶんを引きずったまま走り出す   */
+      if (!weather.wetTyres && e.bank) {
+        e.stints.forEach(st2 => {
+          const set = S.drawSet(e.bank, st2.key, true);
+          st2.key = set.key;
+          st2.age0 = Math.round(set.age * D.TYRE_ALLOC.carry * 10) / 10;
+          st2.fresh = !!set.fresh;
+        });
+      }
       e.tyreKey = e.stints[0].key;
+      e.tyreAge = e.stints[0].age0 || 0;
       e.stintIdx = 0;
       e.lapTyre = [];       // 各周のタイヤと使用周回数（観戦画面の表示に使う）
       e.pitTime = [];       // 各周のピット停止時間
@@ -1981,7 +2135,6 @@ GP.race = (function () {
           const loss = lane + stand;
           t += loss;
           pitAdd = loss;
-          e.tyreAge = 0;
           e.pits.push(lap);
           // ピットレーンでの速度超過。慌てているチームほど出る
           if (Math.random() < 0.012 * (e.isPlayer
@@ -1990,12 +2143,17 @@ GP.race = (function () {
           }
           e.stintIdx = Math.min(e.stints.length - 1, e.stintIdx + 1);
           e.tyreKey = e.pitTyre || tyreForNow(e, lap);
+          /* 履くのは棚から出しておいたセット。予定と違う銘柄に変えたとき
+             （雨に降られたときなど）は、そのぶん新しいものを出す      */
+          const plan0 = e.stints[e.stintIdx];
+          e.tyreAge = (plan0 && plan0.key === e.tyreKey && plan0.age0) || 0;
           e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
             const pool = fumbled ? SAY.pitSlow : (underSC ? SAY.pitCheap : SAY.pit);
             events.push({ lap, type: 'pit', car: e,
-              text: say(pool, { A: e.driver.name, B: nt.name,
+              text: say(pool, { A: e.driver.name,
+                                B: nt.name + (e.tyreAge > 0.4 ? '（ユーズド）' : ''),
                                 P: loss.toFixed(1), S: stand.toFixed(1),
                                 L: lane.toFixed(1) }) });
           }
@@ -2752,5 +2910,6 @@ GP.race = (function () {
     return res.reward;
   }
 
-  return { simulate, prequalify, practice, applyResult, repackPU, STRATEGIES, rollWeather };
+  return { simulate, prequalify, practice, applyResult, repackPU, STRATEGIES, rollWeather,
+           qOpen, qStep, qClose, qPlanOf };
 })();
