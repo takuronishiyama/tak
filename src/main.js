@@ -101,6 +101,8 @@ window.GP = window.GP || {};
     offerSponsor();
 
     if (g.week > S.SEASON_WEEKS) return seasonEnd();
+    // シーズンの折り返し。工場ごと閉める2週間
+    if (S.inSummer(g.week) && g.summerSeason !== g.season) { S.save(g); return doSummerBreak(); }
     S.save(g);
     render();
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
@@ -108,6 +110,125 @@ window.GP = window.GP || {};
     if ((g.tdPending || []).length) return askDirective();
     // 週の終わりの出来事。選ばせるものが出なければ、流れるものを1つ
     if (!choiceEvent()) randomEvent();
+  }
+
+  /* =======================================================
+     サマーブレイク
+     シーズンの折り返しに、工場ごと閉める2週間。
+     実際のF1と同じで、ここは走ることも作ることもできない。
+     どう過ごすかだけを決めて、後半戦へ向かう。
+     ======================================================= */
+  const SUMMER_PLANS = [
+    { key: 'rest', icon: '🏖️', name: '全員で休む',
+      desc: 'ファクトリーの鍵を閉める。誰も何もしない2週間',
+      note: 'ドライバーの調子が大きく戻り、スタッフも頭が冴える' },
+    { key: 'camp', icon: '🏕️', name: '合同合宿を張る',
+      desc: '休みのあいだにドライバーを鍛える。費用がかかる',
+      note: '2人の能力が伸びる。ただし休養にはならない' },
+    { key: 'work', icon: '🏭', name: 'こっそり手を動かす',
+      desc: '閉めたことにして、裏で手を動かす',
+      note: 'パーツは伸びるが、人は休めない。見つかれば裁定が待っている' }
+  ];
+
+  function doSummerBreak() {
+    g.summerSeason = g.season;
+    const camp = Math.round(1800 + g.fans * 0.06);
+    const rows = SUMMER_PLANS.map(p2 => {
+      const cost = p2.key === 'camp' ? camp : 0;
+      return {
+        label: p2.icon + ' ' + p2.name,
+        sub: p2.desc + '<br><em>' + p2.note + '</em>',
+        cost: cost,
+        disabled: cost > 0 && g.funds < cost,
+        fn: () => runSummer(p2.key, cost)
+      };
+    });
+    let body = '<div class="racehead"><b>🏖️ サマーブレイク</b>' +
+      '<span>第' + S.SUMMER_AT + '戦まで終了</span></div>' +
+      '<p class="lead">シーズンの折り返しです。規則により、これから' +
+      '<b>' + S.SUMMER_WEEKS + '週間</b>はファクトリーを閉めなければなりません。' +
+      '走ることも、作ることもできません。<br>この2週間をどう使いますか。</p>' +
+      '<div class="pick">';
+    rows.forEach((r, i) => {
+      body += '<button class="pickbtn" data-k="sb:' + i + '"' + (r.disabled ? ' disabled' : '') + '>' +
+        '<span class="pb-body"><b>' + r.label + '</b><small>' + r.sub + '</small></span>' +
+        '<span class="pb-cost">' + (r.cost ? '💰' + money(r.cost) + '万' : '費用なし') + '</span></button>';
+    });
+    body += '</div>';
+    U.modal('🏖️ サマーブレイク', body, [], { wide: true });
+    $('modalClose').style.display = 'none';
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-k^="sb:"]'), b => {
+      b.onclick = () => { $('modalClose').style.display = ''; rows[+b.dataset.k.slice(3)].fn(); };
+    });
+  }
+
+  function runSummer(key, cost) {
+    const out = [];
+    g.funds -= cost;
+    if (key === 'rest') {
+      g.drivers.forEach(d => {
+        const p2 = S.persOf(d);
+        const up = Math.round(S.rnd(14, 24) * p2.rest);
+        d.form = S.clamp(d.form + up, 62, 124);
+        out.push(d.name + ' 調子 +' + up);
+      });
+      staffExpAll(14);
+      S.addHype(g, -2);
+      out.push('スタッフ全員に経験 +14');
+    } else if (key === 'camp') {
+      g.drivers.forEach(d => {
+        const ks = ['speed', 'technique', 'stamina', 'mental'];
+        const got = [];
+        ks.forEach(k => {
+          const up = S.rnd(1.2, 3.4);
+          d[k] = S.clamp(d[k] + up, 1, 199);
+          got.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] +
+                    ' +' + up.toFixed(1));
+        });
+        d.form = S.clamp(d.form + S.rnd(-2, 6), 62, 122);
+        out.push(d.name + '：' + got.join('／'));
+      });
+      staffExpAll(6);
+    } else {
+      // 閉めたことにして手を動かす。見つかれば裁定が待っている
+      let gained = 0;
+      D.PART_CATS.forEach(c => {
+        const p2 = g.equipped[c.key];
+        if (!p2 || (c.key === 'pu' && p2.supplied)) return;
+        const up = 3.2 * (1 + S.devPower(g) * 0.10);
+        p2.power = Math.round((p2.power + up) * 10) / 10;
+        gained += up;
+      });
+      out.push('パーツの性能 合計 +' + gained.toFixed(1));
+      g.drivers.forEach(d => {
+        const dn = Math.round(S.rnd(4, 10));
+        d.form = S.clamp(d.form - dn, 62, 122);
+        out.push(d.name + ' 調子 -' + dn);
+      });
+      if (Math.random() < 0.34) {
+        const fine = Math.round(2600 + g.fans * 0.08);
+        g.funds -= fine;
+        S.addHype(g, -6);
+        out.push('⚖️ 休止期間の作業が発覚。制裁金 -' + money(fine) + '万／注目度 -6');
+      } else {
+        out.push('⚖️ 今回は誰にも気づかれなかった');
+      }
+    }
+    // 2週間を消化して、後半戦へ
+    g.week = S.summerTo() + 1;
+    g.yardDone = [];
+    S.save(g);
+    const p3 = SUMMER_PLANS.find(x => x.key === key);
+    U.modal('🏖️ ' + p3.icon + ' ' + p3.name,
+      '<p class="lead">' + S.SUMMER_WEEKS + '週間が過ぎ、後半戦が始まります。</p>' +
+      '<div class="rewardbox">' + out.map(x => '<div>' + esc(x) + '</div>').join('') + '</div>',
+      [{ label: '後半戦へ', cls: 'primary', fn: () => {
+        U.closeModal();
+        U.log(g, '🏖️ サマーブレイク：' + p3.name, 'good');
+        render();
+        if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
+      } }], { wide: true });
+    GP.sound.play('good');
   }
 
   /* チームが何をしたかを、関わったスタッフの経験にする */

@@ -2266,8 +2266,19 @@ GP.state = (function () {
 
   /* ---------- カレンダー ---------- */
   const PREP_WEEKS = 3;      // レース間の準備週
-  function raceWeek(i) { return (i + 1) * (PREP_WEEKS + 1); }   // 第i戦(0-index)の週
-  const SEASON_WEEKS = D.TRACKS.length * (PREP_WEEKS + 1);
+  /* ---------- サマーブレイク ----------
+     シーズンの折り返しで、工場ごと閉める2週間。
+     実際のF1と同じで、ここは走ることも作ることもできない。
+     そのぶん人が休まり、後半戦へ向けて仕切り直せる。          */
+  const SUMMER_AT = Math.round(D.TRACKS.length / 2);   // この戦の「前」に入る（0-index）
+  const SUMMER_WEEKS = 2;
+  function raceWeek(i) {
+    return (i + 1) * (PREP_WEEKS + 1) + (i >= SUMMER_AT ? SUMMER_WEEKS : 0);
+  }
+  const SEASON_WEEKS = D.TRACKS.length * (PREP_WEEKS + 1) + SUMMER_WEEKS;
+  const summerFrom = () => raceWeek(SUMMER_AT - 1) + 1;
+  const summerTo   = () => summerFrom() + SUMMER_WEEKS - 1;
+  function inSummer(week) { return week >= summerFrom() && week <= summerTo(); }
 
   /* ---------- 新規ゲーム ---------- */
   const diffOf = g2 => D.DIFFICULTIES.find(x => x.key === (g2 && g2.mode)) || D.DIFFICULTIES[1];
@@ -2903,7 +2914,7 @@ GP.state = (function () {
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
     mechSynergy, mechLift, mechScore, mechName, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
-    raceWeek, SEASON_WEEKS, PREP_WEEKS,
+    raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
   };
 })();
