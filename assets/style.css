@@ -1833,6 +1833,38 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 機構の噛み合い図 ---- */
+.mechmap{background:var(--paper3);border:3px solid var(--ink);border-radius:10px;
+  padding:4px;margin-bottom:6px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
+.mechmap svg{display:block;width:100%;height:auto;max-height:60vh}
+.mm-node{fill:#fff8e3;stroke:var(--ink);stroke-width:2.5}
+.mm-node.part{fill:#ffeec6}
+.mm-node.body{fill:#e2eefc}
+[data-skin="hd"] .mm-node{fill:#2f2540;stroke:#0e0b14}
+[data-skin="hd"] .mm-node.part{fill:#40304e}
+[data-skin="hd"] .mm-node.body{fill:#26374e}
+.mm-ic{font-size:16px;text-anchor:middle;dominant-baseline:middle}
+.mm-lb{font-size:10px;font-weight:bold;fill:var(--ink);font-family:inherit}
+[data-skin="hd"] .mm-lb{fill:#efe4cf}
+.mm-pct{font-size:9px;font-weight:bold;fill:#1f5a1f;text-anchor:middle;font-family:inherit}
+.mm-leg{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:9px;
+  opacity:.8;padding:2px 4px 3px}
+.mm-leg span{display:flex;align-items:center;gap:3px}
+.mm-leg i{width:11px;height:11px;border:2px solid var(--ink);border-radius:50%;display:inline-block}
+.mm-leg i.part{background:#ffeec6}
+.mm-leg i.body{background:#e2eefc}
+.mm-leg i.edge{width:16px;height:4px;border-radius:2px;border:none;background:#4ea63f}
+/* 見立てのコメント */
+.mechread{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.mr-row{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:4px 8px}
+.mr-row b{flex:0 0 62px;font-size:11px}
+.mr-row span{flex:1;min-width:0}
+.mechsum{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.mechsum span{font-size:10px;font-weight:bold;background:#e8dcc0;color:#3a2611;
+  border:2px solid var(--ink);border-radius:999px;padding:1px 8px}
+[data-skin="hd"] .mechsum span{background:#4b3d68;color:#efe4cf;border-color:#5b4a74}
+
 /* 改良1回が、どの区間で返ってくるか */
 .secgain{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;
   background:#d8e8ff;color:#1d3f6e;border:1px solid var(--ink);border-radius:4px;padding:0 5px}

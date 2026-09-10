@@ -773,6 +773,8 @@ GP.race = (function () {
        同じ1周でも、曲がりどころの多い区間はダウンフォースが、
        長い直線の区間はパワーがそのままタイムになる           */
     const SW = GP.geom.sectorWeights(track);
+    // 部位どうしの噛み合いは、タイヤの持ちにも出る（プレイヤーだけが持つ値）
+    const myMech = S.mechLift(g).wear;
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
@@ -809,7 +811,8 @@ GP.race = (function () {
         const dfBias = S.dfBiasOf(stats);
         /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
            軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
-        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light);
+        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
+                                    t.isPlayer ? myMech : 0);
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,

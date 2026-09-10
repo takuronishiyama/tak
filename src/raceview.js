@@ -9,7 +9,10 @@ GP.raceview = (function () {
   let cv, ctx, res, poly, trackArt = null, raf = null;
   let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
-  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
+  /* 観戦の速さ（レース全体を何秒で見せるか）。
+     じっくり見るのを基準にして、そこから3段だけ速くできる    */
+  const DEFAULT_SPEED = 200;
+  let vt = 0, speed = DEFAULT_SPEED, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
   /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
   let shownRadio = 0, radioQueue = [], radioTimer = 0;
@@ -60,6 +63,32 @@ GP.raceview = (function () {
      ピットに入っている間、車はコース上を進んでいない。
      ここで停止時間を差し引かないと、止まっているのに順位が落ちず、
      出てきた瞬間に一気に入れ替わる、という妙な見え方になる        */
+  /* ピットが1周のうちどのあたりにあるか（0..1）。
+     ピットレーンは最長ストレートに沿って描いているので、
+     作業中の車もそこで止まっていなければ、出入りが飛んで見える  */
+  let pitFracCache = null;
+  function pitFrac() {
+    if (pitFracCache != null) return pitFracCache;
+    const sp = pitSpan();
+    if (!sp || !poly) { pitFracCache = 0.92; return pitFracCache; }
+    const mid = (sp.from + (sp.len >> 1)) % poly.n;
+    pitFracCache = Math.max(0.02, Math.min(0.96, poly.cum[mid] / poly.len));
+    return pitFracCache;
+  }
+
+  /* その周をどこまで進んだか（0..1）。
+     ピットに入る周は「ピットまで走る → 止まる → 出て残りを走る」の
+     三段に分ける。ここを周の終わりにまとめていたため、
+     ピットの位置と、出てくる位置が食い違って見えていた            */
+  function lapFrac(into, drive, pt) {
+    if (pt <= 0) return into / drive;
+    const pf = pitFrac();
+    const toPit = drive * pf;
+    if (into <= toPit) return into / drive;
+    if (into <= toPit + pt) return pf;
+    return (into - pt) / drive;
+  }
+
   function progress(e, t) {
     if (e.dnf && e.dnfLap > 0 && t >= (e.cum[e.dnfLap - 1] || 0)) {
       return { done: true, p: e.dnfLap };
@@ -72,10 +101,7 @@ GP.raceview = (function () {
     const lt = e.lapTimes[lap] || 1;
     const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
     const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
-    // ピット作業中は走っている時間ぶんを使い切っているので、そのままだと
-    // 「まだピットに居るのに1周を終えた」ことになり、ゴールした車と同じ値で
-    // 並んでしまう。周の手前でわずかに止めておく
-    return { done: false, p: lap + Math.min(0.999, (t - prev) / drive) };
+    return { done: false, p: lap + Math.min(0.999, lapFrac(t - prev, drive, pt)) };
   }
 
   /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
@@ -87,7 +113,10 @@ GP.raceview = (function () {
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const pt = (e.pitTime || [])[lap] || 0;
     const drive = Math.max(0.1, (e.lapTimes[lap] || 1) - pt);
-    return prev + f * drive;
+    // ピットを通り過ぎたあとの位置なら、作業ぶんの時間も足す
+    let dt = f * drive;
+    if (pt > 0 && f > pitFrac()) dt += pt;
+    return prev + dt;
   }
 
   /* いま何周目のどのあたりを走っているか */
@@ -106,7 +135,15 @@ GP.raceview = (function () {
     const li = lapInfo(e, t);
     const pt = (e.pitTime || [])[li.lap - 1] || 0;
     if (pt <= 0) return false;
-    return li.into > li.lapTime - pt;
+    const toPit = Math.max(0.1, li.lapTime - pt) * pitFrac();
+    return li.into > toPit && li.into <= toPit + pt;
+  }
+  /* 作業の残り時間 */
+  function pitLeft(e, t) {
+    const li = lapInfo(e, t);
+    const pt = (e.pitTime || [])[li.lap - 1] || 0;
+    const toPit = Math.max(0.1, li.lapTime - pt) * pitFrac();
+    return { left: Math.max(0, toPit + pt - li.into), pt: pt };
   }
 
   /* いま履いているタイヤ */
@@ -848,11 +885,10 @@ GP.raceview = (function () {
         const ang = Math.atan2(nm.dy, nm.dx);
         drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
         // 作業中のクルーと、残り時間
-        const li = lapInfo(e, t);
-        const pt = (e.pitTime || [])[li.lap - 1] || 1;
-        const left = Math.max(0, li.lapTime - li.into);
+        const pl = pitLeft(e, t);
+        const left = pl.left;
         // 作業の進み具合 0..1。これで手順のどこにいるかを決める
-        const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pt)));
+        const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pl.pt)));
         drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
         ctx.save();
         ctx.translate(px, py - 13);
@@ -1466,6 +1502,12 @@ GP.raceview = (function () {
     }
     if (!all) drainRadio();
   }
+  /* いま画面のその車が何周目を走っているか（小数） */
+  function lapNowOf(id) {
+    const c = res.entries.filter(x => x.id === id)[0];
+    return c ? progress(c, vt).p + 1 : 0;
+  }
+
   function drainRadio() {
     if (radioTimer || !radioQueue.length) return;
     // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）。
@@ -1474,9 +1516,15 @@ GP.raceview = (function () {
       const keep = radioQueue.filter(r => r.lap === 0);
       radioQueue = keep.concat(radioQueue.filter(r => r.lap !== 0).slice(-6 + keep.length));
     }
+    /* 無線が画面の周回からどれだけ遅れているか。
+       「次の周でボックス」と言い終わる前に入ってしまうと、
+       何の話だったのか分からなくなる。遅れているぶんは間を詰める   */
+    const head = radioQueue[0];
+    const behind = head && head.lap > 0 ? lapNowOf(head.id) - head.lap : 0;
     showRadio(radioQueue.shift());
-    // 詰まっているときは、間を詰めて追いつかせる
-    const wait = radioQueue.length >= 3 ? 640 : 1150;
+    const wait = behind >= 1.2 ? 240
+               : behind >= 0.55 ? 480
+               : radioQueue.length >= 3 ? 640 : 1150;
     radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, wait);
   }
   function showRadio(r) {
@@ -1819,6 +1867,7 @@ GP.raceview = (function () {
     ctx.imageSmoothingEnabled = false;
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, cv.width, cv.height, 34);
+    pitFracCache = null;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
@@ -1826,7 +1875,7 @@ GP.raceview = (function () {
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = DEFAULT_SPEED; lights = 0; chequer = 0;
     wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';

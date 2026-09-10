@@ -446,6 +446,13 @@ window.GP = window.GP || {};
             : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
       }
     }
+    // ---- 機構の噛み合い ----
+    body += '<div class="sub">🔗 機構の噛み合い</div>' +
+      '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
+      '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
+      '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
+      mechMapSVG(g) + mechReadHTML(g);
+
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
@@ -892,6 +899,195 @@ window.GP = window.GP || {};
      金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
      判断できない。実際に使っている式から、平均的な伸びと、
      それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  /* =======================================================
+     機構の噛み合い図
+     部位を多角形に並べ、噛み合う相手どうしを線で結ぶ。
+     線の太さがそのまま「いま効いている量」で、細い線が伸びしろ。
+     人の組織図と同じ読みかたができるようにしてある。
+     ======================================================= */
+  // 結んだ相手が隣どうしに来るよう、並び順は手で決めてある
+  const MECH_RING = [
+    { b: 'aeroBody', s: '空力' }, { p: 'aero', s: 'エアロ' }, { p: 'susp', s: 'サス' },
+    { b: 'drive', s: '乗りやすさ' }, { p: 'chas', s: 'シャシー' }, { b: 'rigidity', s: '剛性' },
+    { b: 'light', s: '軽量化' }, { p: 'gear', s: 'ギア' }, { b: 'service', s: '整備性' },
+    { p: 'pu', s: 'パワー' }, { b: 'cooling', s: '冷却' }, { p: 'brake', s: 'ブレーキ' },
+    { b: 'battery', s: 'バッテリー' }, { p: 'elec', s: '電装' }
+  ];
+  const mechKey = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
+
+  /* ---- 見立てと、これからの方向 ----
+     いまの車が何型で、どこが噛み合っていなくて、
+     この先のコースを見たときに何を叩くべきか。
+     数字の出どころは、レースで使っているものと同じ式。      */
+  function mechReadHTML(g2) {
+    const st = S.carStats(g2);
+    const syn = S.mechSynergy(g2);
+    const lift = S.mechLift(g2);
+    const kind = S.tyreKind(g2);
+    const df = S.dfBiasOf(st);
+
+    // この先3戦。何が要るコースが続くのか
+    const ahead = [];
+    for (let i = g2.nextRace; i < Math.min(D.TRACKS.length, g2.nextRace + 3); i++) ahead.push(D.TRACKS[i]);
+    const aw = { speed: 0, corner: 0, accel: 0 };
+    ahead.forEach(t => { aw.speed += t.weight.speed; aw.corner += t.weight.corner; aw.accel += t.weight.accel; });
+    const an = Math.max(1, ahead.length);
+    ['speed', 'corner', 'accel'].forEach(k => { aw[k] /= an; });
+    const NM = { speed: '最高速', corner: 'コーナー', accel: '加速' };
+    const aheadTop = ['speed', 'corner', 'accel'].sort((a, b) => aw[b] - aw[a])[0];
+
+    // うちの性能の偏り（釣り合った車と比べて、何が濃いか）
+    const tot = Math.max(1, st.speed + st.corner + st.accel);
+    const bias = { speed: st.speed / tot - 1 / 3, corner: st.corner / tot - 1 / 3, accel: st.accel / tot - 1 / 3 };
+    const myTop = ['speed', 'corner', 'accel'].sort((a, b) => bias[b] - bias[a])[0];
+    const myLow = ['speed', 'corner', 'accel'].sort((a, b) => bias[a] - bias[b])[0];
+
+    // 伸びしろ：噛み合いのうち、まだ取り切れていない量を「弱いほう」に集める
+    const room = {};
+    syn.forEach(x => {
+      const k = mechKey(x.weak);
+      room[k] = (room[k] || 0) + (x.def.gain - x.gain);
+    });
+    const roomList = Object.keys(room).sort((a, b) => room[b] - room[a]);
+    const nameOf = k => S.mechName(k[0] === 'p' ? { p: k.slice(2) } : { b: k.slice(2) });
+    const worst = syn.slice().sort((a, b) => (a.ratio - b.ratio))[0];
+    const best = syn.slice().sort((a, b) => (b.ratio - a.ratio))[0];
+
+    const rows = [];
+    // 見立て
+    rows.push(['🔍', '見立て',
+      S.machineChar(st) + '。' +
+      (kind < 0.97 ? 'タイヤに優しく、長いスティントを引っぱれます。'
+       : kind > 1.03 ? 'タイヤの当たりが強く、スティントは短めになります。' : '') +
+      'ダウンフォース比 ' + (df * 100).toFixed(0) + '％（釣り合いは ' + Math.round(D.DF_REF * 100) + '％）。']);
+    // 特徴
+    if (best && best.on) {
+      const A = S.mechName(best.def.a), B = S.mechName(best.def.b);
+      rows.push(['✨', '特徴',
+        A.icon + A.name + ' と ' + B.icon + B.name + ' が噛み合っています（' +
+        Math.round(best.ratio * 100) + '％）。' + best.def.desc + '。']);
+    } else {
+      rows.push(['✨', '特徴',
+        NM[myTop] + 'に振れた車です。まだどの部位も噛み合うところまで育っていません。']);
+    }
+    // 課題
+    if (worst) {
+      const W = S.mechName(worst.weak), O = S.mechName(
+        mechKey(worst.weak) === mechKey(worst.def.a) ? worst.def.b : worst.def.a);
+      rows.push(['⚠️', '課題',
+        O.icon + O.name + ' に対して ' + W.icon + W.name + ' が薄く、「' + worst.def.name +
+        '」が ' + Math.round(worst.ratio * 100) + '％ しか効いていません。' +
+        (worst.ratio < 0.15 ? W.name + ' を先に育てないと、' + O.name + ' を叩いても返ってきません。' : '')]);
+    }
+    // 方向性
+    {
+      const t0 = ahead[0];
+      let line = 'この先3戦は' + NM[aheadTop] + 'が効くコースが続きます。';
+      if (t0) {
+        const sw = GP.geom.sectorWeights(t0);
+        const all = S.carScoreOf(st, t0);
+        let bad = 0, badV = -1e9;
+        sw.w.forEach((w, k) => {
+          const d = (all - S.carScoreOf(st, { weight: w })) * sw.share0[k];
+          if (d > badV) { badV = d; bad = k; }
+        });
+        line += esc(t0.name) + ' では S' + (bad + 1) + ' が弱点です。';
+      }
+      if (roomList.length && room[roomList[0]] > 0.004) {
+        const R1 = nameOf(roomList[0]);
+        line += R1.icon + R1.name + ' を伸ばすと、噛み合いの伸びしろがいちばん大きく残っています。';
+      } else {
+        line += NM[myLow] + 'が薄いので、そこを担う部位を叩くと素直に返ってきます。';
+      }
+      rows.push(['🧭', '方向性', line]);
+    }
+
+    return '<div class="mechread">' + rows.map(r =>
+      '<div class="mr-row"><b>' + r[0] + ' ' + r[1] + '</b><span>' + r[2] + '</span></div>').join('') +
+      '</div>' +
+      '<div class="mechsum">' +
+      ['速さ +' + (lift.speed * 100).toFixed(1) + '%',
+       'コーナー +' + (lift.corner * 100).toFixed(1) + '%',
+       '加速 +' + (lift.accel * 100).toFixed(1) + '%',
+       'タイヤ -' + (lift.wear * 100).toFixed(1) + '%',
+       '壊れにくさ +' + (lift.rel * 100).toFixed(1) + 'pt'
+      ].map(x => '<span>' + x + '</span>').join('') + '</div>';
+  }
+
+  function mechMapSVG(g2) {
+    const syn = S.mechSynergy(g2);
+    const N = MECH_RING.length;
+    const CX = 230, CY = 198, R = 126, RL = 156;
+    const pos = MECH_RING.map((m, i) => {
+      const a = -Math.PI / 2 + i / N * Math.PI * 2;
+      return { x: CX + Math.cos(a) * R, y: CY + Math.sin(a) * R,
+               lx: CX + Math.cos(a) * RL, ly: CY + Math.sin(a) * RL, a: a, m: m };
+    });
+    const idx = {};
+    MECH_RING.forEach((m, i) => { idx[mechKey(m)] = i; });
+
+    // ---- 線（噛み合い）----
+    let lines = '';
+    syn.forEach(x => {
+      const A = pos[idx[mechKey(x.def.a)]], B = pos[idx[mechKey(x.def.b)]];
+      if (!A || !B) return;
+      const r = x.ratio;
+      const w = 1.2 + r * 5.2;
+      const col = x.on ? '#4ea63f' : '#8a8578';
+      lines += '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) +
+        '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) +
+        '" stroke="' + col + '" stroke-width="' + w.toFixed(2) +
+        '" stroke-linecap="round" opacity="' + (0.22 + r * 0.7).toFixed(2) + '"></line>';
+      // 効いている線には、真ん中に効き目を出す
+      if (x.on) {
+        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
+          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
+          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) +
+          '" class="mm-pct">' + Math.round(x.ratio * 100) + '</text>';
+      }
+    });
+
+    // ---- 節（部位）----
+    let nodes = '';
+    pos.forEach(q => {
+      const def = S.mechName(q.m);
+      const sc = Math.min(1, S.mechScore(g2, q.m));
+      const isP = !!q.m.p;
+      const rr = 17;
+      // 仕上がりを外周の弧で見せる
+      const arc = (() => {
+        if (sc <= 0.001) return '';
+        const a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
+        const big = sc > 0.5 ? 1 : 0;
+        const x0 = q.x + Math.cos(a0) * (rr + 3.5), y0 = q.y + Math.sin(a0) * (rr + 3.5);
+        const x1 = q.x + Math.cos(a1) * (rr + 3.5), y1 = q.y + Math.sin(a1) * (rr + 3.5);
+        if (sc >= 0.999) {
+          return '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + (rr + 3.5) +
+            '" fill="none" stroke="' + def.color + '" stroke-width="3"></circle>';
+        }
+        return '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + (rr + 3.5) + ' ' + (rr + 3.5) +
+          ' 0 ' + big + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+          '" fill="none" stroke="' + def.color + '" stroke-width="3" stroke-linecap="round"></path>';
+      })();
+      nodes += '<g>' + arc +
+        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
+        '" class="mm-node ' + (isP ? 'part' : 'body') + '"></circle>' +
+        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' +
+        def.icon + '</text>' +
+        '<text x="' + q.lx.toFixed(1) + '" y="' + (q.ly + 3).toFixed(1) + '" class="mm-lb" ' +
+        'text-anchor="' + (Math.abs(Math.cos(q.a)) < 0.25 ? 'middle'
+                          : (Math.cos(q.a) > 0 ? 'start' : 'end')) + '">' +
+        esc(q.m.s || def.name) + '</text></g>';
+    });
+
+    return '<div class="mechmap"><svg viewBox="0 0 460 396" role="img">' +
+      lines + nodes + '</svg>' +
+      '<div class="mm-leg"><span><i class="part"></i>装着パーツ</span>' +
+      '<span><i class="body"></i>車体の熟成</span>' +
+      '<span><i class="edge"></i>太い線ほど噛み合っている</span></div></div>';
+  }
+
   /* 1回の改良が、次のコースのどの区間で返ってくるか。
      いちばん効く区間だけを名指しする（3つ並べると読めない）   */
   function secGainLine(pv) {
@@ -6692,7 +6888,9 @@ window.GP = window.GP || {};
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
-    const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
+    /* じっくり（既定）を基準に、そこから3段だけ速くできる。
+       数字は「レース全体を何秒で見せるか」 */
+    const speeds = { rvSpeed0: 200, rvSpeed1: 110, rvSpeed2: 55, rvSpeed3: 22 };
     const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
     const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {

@@ -1848,6 +1848,38 @@ body[data-skin="hd"]{
 .hlbtn.allbtn b { font-size: 11.5px; }
 .hlbtn.allbtn em { opacity: .85; background: rgba(255,255,255,.18); margin-top: 0; }
 
+/* ---- 機構の噛み合い図 ---- */
+.mechmap{background:var(--paper3);border:3px solid var(--ink);border-radius:10px;
+  padding:4px;margin-bottom:6px;box-shadow:0 3px 0 rgba(74,47,26,.35)}
+.mechmap svg{display:block;width:100%;height:auto;max-height:60vh}
+.mm-node{fill:#fff8e3;stroke:var(--ink);stroke-width:2.5}
+.mm-node.part{fill:#ffeec6}
+.mm-node.body{fill:#e2eefc}
+[data-skin="hd"] .mm-node{fill:#2f2540;stroke:#0e0b14}
+[data-skin="hd"] .mm-node.part{fill:#40304e}
+[data-skin="hd"] .mm-node.body{fill:#26374e}
+.mm-ic{font-size:16px;text-anchor:middle;dominant-baseline:middle}
+.mm-lb{font-size:10px;font-weight:bold;fill:var(--ink);font-family:inherit}
+[data-skin="hd"] .mm-lb{fill:#efe4cf}
+.mm-pct{font-size:9px;font-weight:bold;fill:#1f5a1f;text-anchor:middle;font-family:inherit}
+.mm-leg{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:9px;
+  opacity:.8;padding:2px 4px 3px}
+.mm-leg span{display:flex;align-items:center;gap:3px}
+.mm-leg i{width:11px;height:11px;border:2px solid var(--ink);border-radius:50%;display:inline-block}
+.mm-leg i.part{background:#ffeec6}
+.mm-leg i.body{background:#e2eefc}
+.mm-leg i.edge{width:16px;height:4px;border-radius:2px;border:none;background:#4ea63f}
+/* 見立てのコメント */
+.mechread{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.mr-row{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:7px;padding:4px 8px}
+.mr-row b{flex:0 0 62px;font-size:11px}
+.mr-row span{flex:1;min-width:0}
+.mechsum{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.mechsum span{font-size:10px;font-weight:bold;background:#e8dcc0;color:#3a2611;
+  border:2px solid var(--ink);border-radius:999px;padding:1px 8px}
+[data-skin="hd"] .mechsum span{background:#4b3d68;color:#efe4cf;border-color:#5b4a74}
+
 /* 改良1回が、どの区間で返ってくるか */
 .secgain{font-style:normal;font-size:9px;font-weight:bold;margin-left:6px;
   background:#d8e8ff;color:#1d3f6e;border:1px solid var(--ink);border-radius:4px;padding:0 5px}
@@ -2649,10 +2681,10 @@ body[data-skin="hd"]{
     <div id="rvSectors" class="rv-sectors"></div>
     <div id="rvLog" class="rv-loglist"></div>
     <div class="rv-ctrl">
-      <button class="btn" id="rvSpeed0"><i>🐢</i><span>とてもゆっくり</span></button>
-      <button class="btn primary" id="rvSpeed1"><i>▶</i><span>ゆっくり</span></button>
-      <button class="btn" id="rvSpeed2"><i>▶▶</i><span>ふつう</span></button>
-      <button class="btn" id="rvSpeed3"><i>▶▶▶</i><span>はやい</span></button>
+      <button class="btn primary" id="rvSpeed0"><i>🐢</i><span>じっくり</span></button>
+      <button class="btn" id="rvSpeed1"><i>▶</i><span>すこし速く</span></button>
+      <button class="btn" id="rvSpeed2"><i>▶▶</i><span>速く</span></button>
+      <button class="btn" id="rvSpeed3"><i>▶▶▶</i><span>とばす</span></button>
       <button class="btn" id="rvSpeedReal" title="実際のレースと同じ速さで進みます"><i>⏱</i><span>実時間</span></button>
       <button class="btn" id="rvTiming" title="全車のセクタータイム・ラップ・ベスト・前車とのギャップ"><i>📋</i><span>タイミングモニター</span></button>
       <button class="btn primary" id="rvSkip"><i>⏭</i><span>結果へ</span></button>
@@ -3422,6 +3454,63 @@ GP.data = (function () {
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
+  /* ---------- 機構の噛み合い ----------
+     人が組み合わさって力を出すのと同じで、マシンの部位にも
+     「片方だけ厚くしても意味がない」組み合わせがある。
+     弱いほうの仕上がりで効き目が決まるので、満遍なく育てた車ほど
+     同じ数字でも速い。a・b は p（装着パーツ）か b（車体の項目）。
+     eff は何に効くか：speed / corner / accel は性能の倍率、
+     wear はタイヤの持ち、rel は壊れにくさ。                    */
+  /* どちらの側も、ここまで仕上がって初めて噛み合いが生まれる。
+     作りたてのマシンで勝手に効いてしまわないようにするための下限 */
+  const MECH_FLOOR = 0.34;
+  const MECH_SYNERGY = [
+    { a: { p: 'aero' }, b: { b: 'aeroBody' }, icon: '🌬️', gain: 0.055, half: 0.45,
+      name: '翼と車体が、同じ気流を見ている',
+      desc: '車体の形が翼に合っているぶん、付けた角度がそのまま押しつける力になる',
+      eff: { corner: 1.0 } },
+    { a: { p: 'chas' }, b: { b: 'rigidity' }, icon: '🧱', gain: 0.040, half: 0.45,
+      name: '骨と皮が一体で受ける',
+      desc: 'シャシーが硬いほど、足の動きが逃げずにタイヤへ届く',
+      eff: { corner: 0.8, rel: 0.5 } },
+    { a: { p: 'susp' }, b: { p: 'chas' }, icon: '🔩', gain: 0.045, half: 0.45,
+      name: '足がタイヤを押しつけ続ける',
+      desc: '土台が動かないので、サスペンションが仕事をしきれる。タイヤも滑らない',
+      eff: { corner: 0.9, wear: 0.8 } },
+    { a: { p: 'elec' }, b: { b: 'battery' }, icon: '🔋', gain: 0.050, half: 0.45,
+      name: '溜めた電気を、使いきれる',
+      desc: '容量があっても、出し入れの制御が無ければ持ち腐れになる',
+      eff: { speed: 0.7, accel: 0.9 } },
+    { a: { p: 'pu' }, b: { b: 'cooling' }, icon: '❄️', gain: 0.050, half: 0.45,
+      name: '熱を捨てられるから、踏み切れる',
+      desc: '冷やせないパワーユニットは、出力を絞って走るしかない',
+      eff: { speed: 1.0, rel: 0.6 } },
+    { a: { p: 'brake' }, b: { b: 'cooling' }, icon: '🛑', gain: 0.040, half: 0.45,
+      name: '最後の1周も、同じところで止まれる',
+      desc: 'ブレーキに風が入っているぶん、奥まで突っ込んでも効きが変わらない',
+      eff: { accel: 0.8, wear: 0.5 } },
+    { a: { p: 'chas' }, b: { b: 'light' }, icon: '🪶', gain: 0.040, half: 0.45,
+      name: '軽くて、それでいて硬い',
+      desc: '軽いだけの車はよじれる。硬いだけの車は重い。両立して初めて効く',
+      eff: { corner: 0.5, accel: 0.6, wear: 0.7 } },
+    { a: { p: 'susp' }, b: { b: 'drive' }, icon: '🎯', gain: 0.035, half: 0.45,
+      name: '足が素直に返事をする',
+      desc: '動きが読めるので、ドライバーが遠慮なく縁石に乗せられる',
+      eff: { corner: 0.8 } },
+    { a: { p: 'gear' }, b: { p: 'pu' }, icon: '⚙️', gain: 0.045, half: 0.45,
+      name: '谷のない加速',
+      desc: '出力の出かたに合った段が切ってあるので、どこを踏んでも前に出る',
+      eff: { accel: 1.0, speed: 0.4 } },
+    { a: { p: 'aero' }, b: { p: 'susp' }, icon: '🛬', gain: 0.040, half: 0.45,
+      name: '床が地面を離さない',
+      desc: '車高の変化を足が抑えるので、床下の効きが一定に保たれる',
+      eff: { corner: 0.9 } },
+    { a: { p: 'gear' }, b: { b: 'service' }, icon: '🧰', gain: 0.035, half: 0.45,
+      name: '開けて、直して、また出せる',
+      desc: '降ろさずに中を見られる造りなので、傷んだまま走らせずに済む',
+      eff: { rel: 0.9 } }
+  ];
+
   /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
   const BODY_CAP_RATIO = 0.35;
   /* 新型を作ったとき、前の車体の知見をどれだけ引き継ぐか */
@@ -5104,7 +5193,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -5918,10 +6007,45 @@ GP.state = (function () {
   }
 
   /* ---------- マシン性能の導出（装着パーツ＋マシン世代のベース）---------- */
+  /* ---------- 機構の噛み合い ----------
+     部位どうしの組み合わせ。弱いほうの仕上がりで効き目が決まるので、
+     一点に注ぎ込むより、噛み合う相手ごと育てたほうが速くなる。     */
+  function mechScore(g2, m) {
+    if (m.p) {
+      const p = g2.equipped[m.p];
+      return p ? clamp(p.power / Math.max(1, partCap(g2, p)), 0, 1.2) : 0;
+    }
+    return bodyRatio(g2, m.b);
+  }
+  function mechName(m) {
+    if (m.p) { const c = D.PART_CATS.find(x => x.key === m.p); return c ? c : { name: m.p, icon: '?', color: '#888' }; }
+    const b = D.BODY_ATTRS.find(x => x.key === m.b); return b ? b : { name: m.b, icon: '?', color: '#888' };
+  }
+  function mechSynergy(g2) {
+    return D.MECH_SYNERGY.map(sy => {
+      const a = mechScore(g2, sy.a), b = mechScore(g2, sy.b);
+      const lo = Math.min(a, b);
+      // 下限までは、いくら片方を厚くしても噛み合いは生まれない
+      const eff = Math.max(0, lo - D.MECH_FLOOR);
+      const v = sy.gain * (eff / (eff + sy.half));
+      return { def: sy, aScore: a, bScore: b, low: lo, gain: v,
+               // 効きの割合（満点に対して）
+               ratio: v / sy.gain,
+               on: v >= sy.gain * 0.22,
+               weak: a <= b ? sy.a : sy.b };
+    });
+  }
+  /* 噛み合いの合計。carStats などが見る */
+  function mechLift(g2) {
+    const out = { speed: 0, corner: 0, accel: 0, wear: 0, rel: 0 };
+    mechSynergy(g2).forEach(x => {
+      Object.keys(x.def.eff).forEach(k => { out[k] += x.gain * x.def.eff[k]; });
+    });
+    return out;
+  }
+
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
-    // 空力コンセプトが良いほど、エアロパーツの効きも上がる
-    const aeroBoost = 1 + bodyRatio(g, 'aeroBody') * 0.14;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
@@ -5929,8 +6053,7 @@ GP.state = (function () {
       // コンディションが落ちたパーツは本来の性能を出しきれない
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
-      const f = (c.key === 'pu' ? puForm(g)
-                                : (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1));
+      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -5938,6 +6061,11 @@ GP.state = (function () {
     // 車体そのものが生む性能
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
+    // 部位どうしの噛み合いぶん
+    const lift = mechLift(g);
+    s.speed *= 1 + lift.speed;
+    s.corner *= 1 + lift.corner;
+    s.accel *= 1 + lift.accel;
     return s;
   }
 
@@ -6828,7 +6956,8 @@ GP.state = (function () {
   /* 強みが「危うさ」を何割潰せるか。34 でちょうど半分、最大 86% */
   function relCut(g) {
     const care = Math.max(0, relCare(g));
-    return clamp(care / (care + 34), 0, 0.86);
+    // 部位どうしの噛み合いも、そのまま壊れにくさになる
+    return clamp(care / (care + 34) + mechLift(g).rel, 0, 0.88);
   }
   function partCondAvg(g) {
     let sum = 0, n = 0;
@@ -7369,12 +7498,13 @@ GP.state = (function () {
     return s.corner / Math.max(1, s.speed + s.corner + s.accel);
   }
   /* タイヤの減りやすさ。1.00 がライバルの標準で、小さいほど長持ちする */
-  function wearCarOf(s, lightRatio) {
+  function wearCarOf(s, lightRatio, mechWear) {
     return Math.max(0.55, (1 - lightRatio * 0.22) / (1 - RIVAL_BODY_REF * 0.22)
-                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF));
+                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF)
+                        * (1 - (mechWear || 0)));
   }
   function tyreKind(g2) {
-    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'));
+    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'), mechLift(g2).wear);
   }
 
   /* ---------- スタッフ効果 ---------- */
@@ -8247,7 +8377,8 @@ GP.state = (function () {
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
-    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
+    mechSynergy, mechLift, mechScore, mechName, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe
@@ -9032,6 +9163,8 @@ GP.race = (function () {
        同じ1周でも、曲がりどころの多い区間はダウンフォースが、
        長い直線の区間はパワーがそのままタイムになる           */
     const SW = GP.geom.sectorWeights(track);
+    // 部位どうしの噛み合いは、タイヤの持ちにも出る（プレイヤーだけが持つ値）
+    const myMech = S.mechLift(g).wear;
     teams.forEach((t, ti) => {
       t.drivers.forEach((d, di) => {
         const strat = t.isPlayer ? (strategy[d.id] || 'balance') : autoStrategy(t, track, weather);
@@ -9068,7 +9201,8 @@ GP.race = (function () {
         const dfBias = S.dfBiasOf(stats);
         /* この車の「タイヤの減りやすさ」。1.00 がライバルの標準。
            軽い車体とダウンフォースが、そのままタイヤ寿命になる       */
-        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light);
+        const wearCar = S.wearCarOf(stats, (t.isPlayer ? myBody : evenBody).light,
+                                    t.isPlayer ? myMech : 0);
         list.push({
           id: t.isPlayer ? d.id : (t.name + di),
           driver: d, team: t, color: t.color, isPlayer: !!t.isPlayer,
@@ -11025,7 +11159,10 @@ GP.raceview = (function () {
   let cv, ctx, res, poly, trackArt = null, raf = null;
   let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
-  let vt = 0, speed = 95, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
+  /* 観戦の速さ（レース全体を何秒で見せるか）。
+     じっくり見るのを基準にして、そこから3段だけ速くできる    */
+  const DEFAULT_SPEED = 200;
+  let vt = 0, speed = DEFAULT_SPEED, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
   /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
   let shownRadio = 0, radioQueue = [], radioTimer = 0;
@@ -11076,6 +11213,32 @@ GP.raceview = (function () {
      ピットに入っている間、車はコース上を進んでいない。
      ここで停止時間を差し引かないと、止まっているのに順位が落ちず、
      出てきた瞬間に一気に入れ替わる、という妙な見え方になる        */
+  /* ピットが1周のうちどのあたりにあるか（0..1）。
+     ピットレーンは最長ストレートに沿って描いているので、
+     作業中の車もそこで止まっていなければ、出入りが飛んで見える  */
+  let pitFracCache = null;
+  function pitFrac() {
+    if (pitFracCache != null) return pitFracCache;
+    const sp = pitSpan();
+    if (!sp || !poly) { pitFracCache = 0.92; return pitFracCache; }
+    const mid = (sp.from + (sp.len >> 1)) % poly.n;
+    pitFracCache = Math.max(0.02, Math.min(0.96, poly.cum[mid] / poly.len));
+    return pitFracCache;
+  }
+
+  /* その周をどこまで進んだか（0..1）。
+     ピットに入る周は「ピットまで走る → 止まる → 出て残りを走る」の
+     三段に分ける。ここを周の終わりにまとめていたため、
+     ピットの位置と、出てくる位置が食い違って見えていた            */
+  function lapFrac(into, drive, pt) {
+    if (pt <= 0) return into / drive;
+    const pf = pitFrac();
+    const toPit = drive * pf;
+    if (into <= toPit) return into / drive;
+    if (into <= toPit + pt) return pf;
+    return (into - pt) / drive;
+  }
+
   function progress(e, t) {
     if (e.dnf && e.dnfLap > 0 && t >= (e.cum[e.dnfLap - 1] || 0)) {
       return { done: true, p: e.dnfLap };
@@ -11088,10 +11251,7 @@ GP.raceview = (function () {
     const lt = e.lapTimes[lap] || 1;
     const pt = (e.pitTime || [])[lap] || 0;      // その周のピット停止時間
     const drive = Math.max(0.1, lt - pt);        // 実際に走っている時間
-    // ピット作業中は走っている時間ぶんを使い切っているので、そのままだと
-    // 「まだピットに居るのに1周を終えた」ことになり、ゴールした車と同じ値で
-    // 並んでしまう。周の手前でわずかに止めておく
-    return { done: false, p: lap + Math.min(0.999, (t - prev) / drive) };
+    return { done: false, p: lap + Math.min(0.999, lapFrac(t - prev, drive, pt)) };
   }
 
   /* その車が、コース上の位置 p（周＋周内の割合）に居たのは何秒の時点か。
@@ -11103,7 +11263,10 @@ GP.raceview = (function () {
     const prev = lap === 0 ? 0 : e.cum[lap - 1];
     const pt = (e.pitTime || [])[lap] || 0;
     const drive = Math.max(0.1, (e.lapTimes[lap] || 1) - pt);
-    return prev + f * drive;
+    // ピットを通り過ぎたあとの位置なら、作業ぶんの時間も足す
+    let dt = f * drive;
+    if (pt > 0 && f > pitFrac()) dt += pt;
+    return prev + dt;
   }
 
   /* いま何周目のどのあたりを走っているか */
@@ -11122,7 +11285,15 @@ GP.raceview = (function () {
     const li = lapInfo(e, t);
     const pt = (e.pitTime || [])[li.lap - 1] || 0;
     if (pt <= 0) return false;
-    return li.into > li.lapTime - pt;
+    const toPit = Math.max(0.1, li.lapTime - pt) * pitFrac();
+    return li.into > toPit && li.into <= toPit + pt;
+  }
+  /* 作業の残り時間 */
+  function pitLeft(e, t) {
+    const li = lapInfo(e, t);
+    const pt = (e.pitTime || [])[li.lap - 1] || 0;
+    const toPit = Math.max(0.1, li.lapTime - pt) * pitFrac();
+    return { left: Math.max(0, toPit + pt - li.into), pt: pt };
   }
 
   /* いま履いているタイヤ */
@@ -11864,11 +12035,10 @@ GP.raceview = (function () {
         const ang = Math.atan2(nm.dy, nm.dx);
         drawCar(px, py, ang, e.color, e.isPlayer, false, e.gen || 0, 0);
         // 作業中のクルーと、残り時間
-        const li = lapInfo(e, t);
-        const pt = (e.pitTime || [])[li.lap - 1] || 1;
-        const left = Math.max(0, li.lapTime - li.into);
+        const pl = pitLeft(e, t);
+        const left = pl.left;
         // 作業の進み具合 0..1。これで手順のどこにいるかを決める
-        const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pt)));
+        const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pl.pt)));
         drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
         ctx.save();
         ctx.translate(px, py - 13);
@@ -12482,6 +12652,12 @@ GP.raceview = (function () {
     }
     if (!all) drainRadio();
   }
+  /* いま画面のその車が何周目を走っているか（小数） */
+  function lapNowOf(id) {
+    const c = res.entries.filter(x => x.id === id)[0];
+    return c ? progress(c, vt).p + 1 : 0;
+  }
+
   function drainRadio() {
     if (radioTimer || !radioQueue.length) return;
     // 溜まりすぎたら古いものは捨てる（早送り中に一気に流れないように）。
@@ -12490,9 +12666,15 @@ GP.raceview = (function () {
       const keep = radioQueue.filter(r => r.lap === 0);
       radioQueue = keep.concat(radioQueue.filter(r => r.lap !== 0).slice(-6 + keep.length));
     }
+    /* 無線が画面の周回からどれだけ遅れているか。
+       「次の周でボックス」と言い終わる前に入ってしまうと、
+       何の話だったのか分からなくなる。遅れているぶんは間を詰める   */
+    const head = radioQueue[0];
+    const behind = head && head.lap > 0 ? lapNowOf(head.id) - head.lap : 0;
     showRadio(radioQueue.shift());
-    // 詰まっているときは、間を詰めて追いつかせる
-    const wait = radioQueue.length >= 3 ? 640 : 1150;
+    const wait = behind >= 1.2 ? 240
+               : behind >= 0.55 ? 480
+               : radioQueue.length >= 3 ? 640 : 1150;
     radioTimer = setTimeout(() => { radioTimer = 0; drainRadio(); }, wait);
   }
   function showRadio(r) {
@@ -12835,6 +13017,7 @@ GP.raceview = (function () {
     ctx.imageSmoothingEnabled = false;
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, cv.width, cv.height, 34);
+    pitFracCache = null;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
@@ -12842,7 +13025,7 @@ GP.raceview = (function () {
     cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
-    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = 95; lights = 0; chequer = 0;
+    vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = DEFAULT_SPEED; lights = 0; chequer = 0;
     wetNow = res.weather.key === 'rain' || res.weather.key === 'storm';
     clearTimeout(flashTimer);
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
@@ -16634,6 +16817,13 @@ window.GP = window.GP || {};
             : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
       }
     }
+    // ---- 機構の噛み合い ----
+    body += '<div class="sub">🔗 機構の噛み合い</div>' +
+      '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
+      '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
+      '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
+      mechMapSVG(g) + mechReadHTML(g);
+
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">パーツは<b>速さ</b>を作ります。数字は「1回手を入れると、' +
       '次のコースで1周あたりどれだけ速くなるか」の目安です。' +
@@ -17080,6 +17270,195 @@ window.GP = window.GP || {};
      金額と「性能 18 / 上限 30」だけでは、どのパーツに手を入れるべきか
      判断できない。実際に使っている式から、平均的な伸びと、
      それが車の速さ・1周のタイムにどう出るかを出しておく          */
+  /* =======================================================
+     機構の噛み合い図
+     部位を多角形に並べ、噛み合う相手どうしを線で結ぶ。
+     線の太さがそのまま「いま効いている量」で、細い線が伸びしろ。
+     人の組織図と同じ読みかたができるようにしてある。
+     ======================================================= */
+  // 結んだ相手が隣どうしに来るよう、並び順は手で決めてある
+  const MECH_RING = [
+    { b: 'aeroBody', s: '空力' }, { p: 'aero', s: 'エアロ' }, { p: 'susp', s: 'サス' },
+    { b: 'drive', s: '乗りやすさ' }, { p: 'chas', s: 'シャシー' }, { b: 'rigidity', s: '剛性' },
+    { b: 'light', s: '軽量化' }, { p: 'gear', s: 'ギア' }, { b: 'service', s: '整備性' },
+    { p: 'pu', s: 'パワー' }, { b: 'cooling', s: '冷却' }, { p: 'brake', s: 'ブレーキ' },
+    { b: 'battery', s: 'バッテリー' }, { p: 'elec', s: '電装' }
+  ];
+  const mechKey = m => (m.p ? 'p:' + m.p : 'b:' + m.b);
+
+  /* ---- 見立てと、これからの方向 ----
+     いまの車が何型で、どこが噛み合っていなくて、
+     この先のコースを見たときに何を叩くべきか。
+     数字の出どころは、レースで使っているものと同じ式。      */
+  function mechReadHTML(g2) {
+    const st = S.carStats(g2);
+    const syn = S.mechSynergy(g2);
+    const lift = S.mechLift(g2);
+    const kind = S.tyreKind(g2);
+    const df = S.dfBiasOf(st);
+
+    // この先3戦。何が要るコースが続くのか
+    const ahead = [];
+    for (let i = g2.nextRace; i < Math.min(D.TRACKS.length, g2.nextRace + 3); i++) ahead.push(D.TRACKS[i]);
+    const aw = { speed: 0, corner: 0, accel: 0 };
+    ahead.forEach(t => { aw.speed += t.weight.speed; aw.corner += t.weight.corner; aw.accel += t.weight.accel; });
+    const an = Math.max(1, ahead.length);
+    ['speed', 'corner', 'accel'].forEach(k => { aw[k] /= an; });
+    const NM = { speed: '最高速', corner: 'コーナー', accel: '加速' };
+    const aheadTop = ['speed', 'corner', 'accel'].sort((a, b) => aw[b] - aw[a])[0];
+
+    // うちの性能の偏り（釣り合った車と比べて、何が濃いか）
+    const tot = Math.max(1, st.speed + st.corner + st.accel);
+    const bias = { speed: st.speed / tot - 1 / 3, corner: st.corner / tot - 1 / 3, accel: st.accel / tot - 1 / 3 };
+    const myTop = ['speed', 'corner', 'accel'].sort((a, b) => bias[b] - bias[a])[0];
+    const myLow = ['speed', 'corner', 'accel'].sort((a, b) => bias[a] - bias[b])[0];
+
+    // 伸びしろ：噛み合いのうち、まだ取り切れていない量を「弱いほう」に集める
+    const room = {};
+    syn.forEach(x => {
+      const k = mechKey(x.weak);
+      room[k] = (room[k] || 0) + (x.def.gain - x.gain);
+    });
+    const roomList = Object.keys(room).sort((a, b) => room[b] - room[a]);
+    const nameOf = k => S.mechName(k[0] === 'p' ? { p: k.slice(2) } : { b: k.slice(2) });
+    const worst = syn.slice().sort((a, b) => (a.ratio - b.ratio))[0];
+    const best = syn.slice().sort((a, b) => (b.ratio - a.ratio))[0];
+
+    const rows = [];
+    // 見立て
+    rows.push(['🔍', '見立て',
+      S.machineChar(st) + '。' +
+      (kind < 0.97 ? 'タイヤに優しく、長いスティントを引っぱれます。'
+       : kind > 1.03 ? 'タイヤの当たりが強く、スティントは短めになります。' : '') +
+      'ダウンフォース比 ' + (df * 100).toFixed(0) + '％（釣り合いは ' + Math.round(D.DF_REF * 100) + '％）。']);
+    // 特徴
+    if (best && best.on) {
+      const A = S.mechName(best.def.a), B = S.mechName(best.def.b);
+      rows.push(['✨', '特徴',
+        A.icon + A.name + ' と ' + B.icon + B.name + ' が噛み合っています（' +
+        Math.round(best.ratio * 100) + '％）。' + best.def.desc + '。']);
+    } else {
+      rows.push(['✨', '特徴',
+        NM[myTop] + 'に振れた車です。まだどの部位も噛み合うところまで育っていません。']);
+    }
+    // 課題
+    if (worst) {
+      const W = S.mechName(worst.weak), O = S.mechName(
+        mechKey(worst.weak) === mechKey(worst.def.a) ? worst.def.b : worst.def.a);
+      rows.push(['⚠️', '課題',
+        O.icon + O.name + ' に対して ' + W.icon + W.name + ' が薄く、「' + worst.def.name +
+        '」が ' + Math.round(worst.ratio * 100) + '％ しか効いていません。' +
+        (worst.ratio < 0.15 ? W.name + ' を先に育てないと、' + O.name + ' を叩いても返ってきません。' : '')]);
+    }
+    // 方向性
+    {
+      const t0 = ahead[0];
+      let line = 'この先3戦は' + NM[aheadTop] + 'が効くコースが続きます。';
+      if (t0) {
+        const sw = GP.geom.sectorWeights(t0);
+        const all = S.carScoreOf(st, t0);
+        let bad = 0, badV = -1e9;
+        sw.w.forEach((w, k) => {
+          const d = (all - S.carScoreOf(st, { weight: w })) * sw.share0[k];
+          if (d > badV) { badV = d; bad = k; }
+        });
+        line += esc(t0.name) + ' では S' + (bad + 1) + ' が弱点です。';
+      }
+      if (roomList.length && room[roomList[0]] > 0.004) {
+        const R1 = nameOf(roomList[0]);
+        line += R1.icon + R1.name + ' を伸ばすと、噛み合いの伸びしろがいちばん大きく残っています。';
+      } else {
+        line += NM[myLow] + 'が薄いので、そこを担う部位を叩くと素直に返ってきます。';
+      }
+      rows.push(['🧭', '方向性', line]);
+    }
+
+    return '<div class="mechread">' + rows.map(r =>
+      '<div class="mr-row"><b>' + r[0] + ' ' + r[1] + '</b><span>' + r[2] + '</span></div>').join('') +
+      '</div>' +
+      '<div class="mechsum">' +
+      ['速さ +' + (lift.speed * 100).toFixed(1) + '%',
+       'コーナー +' + (lift.corner * 100).toFixed(1) + '%',
+       '加速 +' + (lift.accel * 100).toFixed(1) + '%',
+       'タイヤ -' + (lift.wear * 100).toFixed(1) + '%',
+       '壊れにくさ +' + (lift.rel * 100).toFixed(1) + 'pt'
+      ].map(x => '<span>' + x + '</span>').join('') + '</div>';
+  }
+
+  function mechMapSVG(g2) {
+    const syn = S.mechSynergy(g2);
+    const N = MECH_RING.length;
+    const CX = 230, CY = 198, R = 126, RL = 156;
+    const pos = MECH_RING.map((m, i) => {
+      const a = -Math.PI / 2 + i / N * Math.PI * 2;
+      return { x: CX + Math.cos(a) * R, y: CY + Math.sin(a) * R,
+               lx: CX + Math.cos(a) * RL, ly: CY + Math.sin(a) * RL, a: a, m: m };
+    });
+    const idx = {};
+    MECH_RING.forEach((m, i) => { idx[mechKey(m)] = i; });
+
+    // ---- 線（噛み合い）----
+    let lines = '';
+    syn.forEach(x => {
+      const A = pos[idx[mechKey(x.def.a)]], B = pos[idx[mechKey(x.def.b)]];
+      if (!A || !B) return;
+      const r = x.ratio;
+      const w = 1.2 + r * 5.2;
+      const col = x.on ? '#4ea63f' : '#8a8578';
+      lines += '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) +
+        '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) +
+        '" stroke="' + col + '" stroke-width="' + w.toFixed(2) +
+        '" stroke-linecap="round" opacity="' + (0.22 + r * 0.7).toFixed(2) + '"></line>';
+      // 効いている線には、真ん中に効き目を出す
+      if (x.on) {
+        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
+          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
+          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) +
+          '" class="mm-pct">' + Math.round(x.ratio * 100) + '</text>';
+      }
+    });
+
+    // ---- 節（部位）----
+    let nodes = '';
+    pos.forEach(q => {
+      const def = S.mechName(q.m);
+      const sc = Math.min(1, S.mechScore(g2, q.m));
+      const isP = !!q.m.p;
+      const rr = 17;
+      // 仕上がりを外周の弧で見せる
+      const arc = (() => {
+        if (sc <= 0.001) return '';
+        const a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
+        const big = sc > 0.5 ? 1 : 0;
+        const x0 = q.x + Math.cos(a0) * (rr + 3.5), y0 = q.y + Math.sin(a0) * (rr + 3.5);
+        const x1 = q.x + Math.cos(a1) * (rr + 3.5), y1 = q.y + Math.sin(a1) * (rr + 3.5);
+        if (sc >= 0.999) {
+          return '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + (rr + 3.5) +
+            '" fill="none" stroke="' + def.color + '" stroke-width="3"></circle>';
+        }
+        return '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + (rr + 3.5) + ' ' + (rr + 3.5) +
+          ' 0 ' + big + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+          '" fill="none" stroke="' + def.color + '" stroke-width="3" stroke-linecap="round"></path>';
+      })();
+      nodes += '<g>' + arc +
+        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
+        '" class="mm-node ' + (isP ? 'part' : 'body') + '"></circle>' +
+        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' +
+        def.icon + '</text>' +
+        '<text x="' + q.lx.toFixed(1) + '" y="' + (q.ly + 3).toFixed(1) + '" class="mm-lb" ' +
+        'text-anchor="' + (Math.abs(Math.cos(q.a)) < 0.25 ? 'middle'
+                          : (Math.cos(q.a) > 0 ? 'start' : 'end')) + '">' +
+        esc(q.m.s || def.name) + '</text></g>';
+    });
+
+    return '<div class="mechmap"><svg viewBox="0 0 460 396" role="img">' +
+      lines + nodes + '</svg>' +
+      '<div class="mm-leg"><span><i class="part"></i>装着パーツ</span>' +
+      '<span><i class="body"></i>車体の熟成</span>' +
+      '<span><i class="edge"></i>太い線ほど噛み合っている</span></div></div>';
+  }
+
   /* 1回の改良が、次のコースのどの区間で返ってくるか。
      いちばん効く区間だけを名指しする（3つ並べると読めない）   */
   function secGainLine(pv) {
@@ -22880,7 +23259,9 @@ window.GP = window.GP || {};
     Object.keys(map).forEach(id => { const el = $(id); if (el) el.onclick = map[id]; });
     $('modalClose').onclick = U.closeModal;
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
-    const speeds = { rvSpeed0: 200, rvSpeed1: 95, rvSpeed2: 45, rvSpeed3: 15 };
+    /* じっくり（既定）を基準に、そこから3段だけ速くできる。
+       数字は「レース全体を何秒で見せるか」 */
+    const speeds = { rvSpeed0: 200, rvSpeed1: 110, rvSpeed2: 55, rvSpeed3: 22 };
     const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
     const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {

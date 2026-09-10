@@ -530,10 +530,45 @@ GP.state = (function () {
   }
 
   /* ---------- マシン性能の導出（装着パーツ＋マシン世代のベース）---------- */
+  /* ---------- 機構の噛み合い ----------
+     部位どうしの組み合わせ。弱いほうの仕上がりで効き目が決まるので、
+     一点に注ぎ込むより、噛み合う相手ごと育てたほうが速くなる。     */
+  function mechScore(g2, m) {
+    if (m.p) {
+      const p = g2.equipped[m.p];
+      return p ? clamp(p.power / Math.max(1, partCap(g2, p)), 0, 1.2) : 0;
+    }
+    return bodyRatio(g2, m.b);
+  }
+  function mechName(m) {
+    if (m.p) { const c = D.PART_CATS.find(x => x.key === m.p); return c ? c : { name: m.p, icon: '?', color: '#888' }; }
+    const b = D.BODY_ATTRS.find(x => x.key === m.b); return b ? b : { name: m.b, icon: '?', color: '#888' };
+  }
+  function mechSynergy(g2) {
+    return D.MECH_SYNERGY.map(sy => {
+      const a = mechScore(g2, sy.a), b = mechScore(g2, sy.b);
+      const lo = Math.min(a, b);
+      // 下限までは、いくら片方を厚くしても噛み合いは生まれない
+      const eff = Math.max(0, lo - D.MECH_FLOOR);
+      const v = sy.gain * (eff / (eff + sy.half));
+      return { def: sy, aScore: a, bScore: b, low: lo, gain: v,
+               // 効きの割合（満点に対して）
+               ratio: v / sy.gain,
+               on: v >= sy.gain * 0.22,
+               weak: a <= b ? sy.a : sy.b };
+    });
+  }
+  /* 噛み合いの合計。carStats などが見る */
+  function mechLift(g2) {
+    const out = { speed: 0, corner: 0, accel: 0, wear: 0, rel: 0 };
+    mechSynergy(g2).forEach(x => {
+      Object.keys(x.def.eff).forEach(k => { out[k] += x.gain * x.def.eff[k]; });
+    });
+    return out;
+  }
+
   function carStats(g) {
     const s = { speed: 0, corner: 0, accel: 0 };
-    // 空力コンセプトが良いほど、エアロパーツの効きも上がる
-    const aeroBoost = 1 + bodyRatio(g, 'aeroBody') * 0.14;
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       if (!p) return;
@@ -541,8 +576,7 @@ GP.state = (function () {
       // コンディションが落ちたパーツは本来の性能を出しきれない
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
-      const f = (c.key === 'pu' ? puForm(g)
-                                : (0.82 + p.cond / 100 * 0.18) * (c.key === 'aero' ? aeroBoost : 1));
+      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -550,6 +584,11 @@ GP.state = (function () {
     // 車体そのものが生む性能
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
+    // 部位どうしの噛み合いぶん
+    const lift = mechLift(g);
+    s.speed *= 1 + lift.speed;
+    s.corner *= 1 + lift.corner;
+    s.accel *= 1 + lift.accel;
     return s;
   }
 
@@ -1440,7 +1479,8 @@ GP.state = (function () {
   /* 強みが「危うさ」を何割潰せるか。34 でちょうど半分、最大 86% */
   function relCut(g) {
     const care = Math.max(0, relCare(g));
-    return clamp(care / (care + 34), 0, 0.86);
+    // 部位どうしの噛み合いも、そのまま壊れにくさになる
+    return clamp(care / (care + 34) + mechLift(g).rel, 0, 0.88);
   }
   function partCondAvg(g) {
     let sum = 0, n = 0;
@@ -1981,12 +2021,13 @@ GP.state = (function () {
     return s.corner / Math.max(1, s.speed + s.corner + s.accel);
   }
   /* タイヤの減りやすさ。1.00 がライバルの標準で、小さいほど長持ちする */
-  function wearCarOf(s, lightRatio) {
+  function wearCarOf(s, lightRatio, mechWear) {
     return Math.max(0.55, (1 - lightRatio * 0.22) / (1 - RIVAL_BODY_REF * 0.22)
-                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF));
+                        * (1 - (dfBiasOf(s) - D.DF_REF) * D.WEAR_DF)
+                        * (1 - (mechWear || 0)));
   }
   function tyreKind(g2) {
-    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'));
+    return wearCarOf(carStats(g2), bodyRatio(g2, 'light'), mechLift(g2).wear);
   }
 
   /* ---------- スタッフ効果 ---------- */
@@ -2859,7 +2900,8 @@ GP.state = (function () {
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
-    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
+    mechSynergy, mechLift, mechScore, mechName, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS,
     save, load, wipe

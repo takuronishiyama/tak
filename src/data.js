@@ -349,6 +349,63 @@ GP.data = (function () {
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
   ];
+  /* ---------- 機構の噛み合い ----------
+     人が組み合わさって力を出すのと同じで、マシンの部位にも
+     「片方だけ厚くしても意味がない」組み合わせがある。
+     弱いほうの仕上がりで効き目が決まるので、満遍なく育てた車ほど
+     同じ数字でも速い。a・b は p（装着パーツ）か b（車体の項目）。
+     eff は何に効くか：speed / corner / accel は性能の倍率、
+     wear はタイヤの持ち、rel は壊れにくさ。                    */
+  /* どちらの側も、ここまで仕上がって初めて噛み合いが生まれる。
+     作りたてのマシンで勝手に効いてしまわないようにするための下限 */
+  const MECH_FLOOR = 0.34;
+  const MECH_SYNERGY = [
+    { a: { p: 'aero' }, b: { b: 'aeroBody' }, icon: '🌬️', gain: 0.055, half: 0.45,
+      name: '翼と車体が、同じ気流を見ている',
+      desc: '車体の形が翼に合っているぶん、付けた角度がそのまま押しつける力になる',
+      eff: { corner: 1.0 } },
+    { a: { p: 'chas' }, b: { b: 'rigidity' }, icon: '🧱', gain: 0.040, half: 0.45,
+      name: '骨と皮が一体で受ける',
+      desc: 'シャシーが硬いほど、足の動きが逃げずにタイヤへ届く',
+      eff: { corner: 0.8, rel: 0.5 } },
+    { a: { p: 'susp' }, b: { p: 'chas' }, icon: '🔩', gain: 0.045, half: 0.45,
+      name: '足がタイヤを押しつけ続ける',
+      desc: '土台が動かないので、サスペンションが仕事をしきれる。タイヤも滑らない',
+      eff: { corner: 0.9, wear: 0.8 } },
+    { a: { p: 'elec' }, b: { b: 'battery' }, icon: '🔋', gain: 0.050, half: 0.45,
+      name: '溜めた電気を、使いきれる',
+      desc: '容量があっても、出し入れの制御が無ければ持ち腐れになる',
+      eff: { speed: 0.7, accel: 0.9 } },
+    { a: { p: 'pu' }, b: { b: 'cooling' }, icon: '❄️', gain: 0.050, half: 0.45,
+      name: '熱を捨てられるから、踏み切れる',
+      desc: '冷やせないパワーユニットは、出力を絞って走るしかない',
+      eff: { speed: 1.0, rel: 0.6 } },
+    { a: { p: 'brake' }, b: { b: 'cooling' }, icon: '🛑', gain: 0.040, half: 0.45,
+      name: '最後の1周も、同じところで止まれる',
+      desc: 'ブレーキに風が入っているぶん、奥まで突っ込んでも効きが変わらない',
+      eff: { accel: 0.8, wear: 0.5 } },
+    { a: { p: 'chas' }, b: { b: 'light' }, icon: '🪶', gain: 0.040, half: 0.45,
+      name: '軽くて、それでいて硬い',
+      desc: '軽いだけの車はよじれる。硬いだけの車は重い。両立して初めて効く',
+      eff: { corner: 0.5, accel: 0.6, wear: 0.7 } },
+    { a: { p: 'susp' }, b: { b: 'drive' }, icon: '🎯', gain: 0.035, half: 0.45,
+      name: '足が素直に返事をする',
+      desc: '動きが読めるので、ドライバーが遠慮なく縁石に乗せられる',
+      eff: { corner: 0.8 } },
+    { a: { p: 'gear' }, b: { p: 'pu' }, icon: '⚙️', gain: 0.045, half: 0.45,
+      name: '谷のない加速',
+      desc: '出力の出かたに合った段が切ってあるので、どこを踏んでも前に出る',
+      eff: { accel: 1.0, speed: 0.4 } },
+    { a: { p: 'aero' }, b: { p: 'susp' }, icon: '🛬', gain: 0.040, half: 0.45,
+      name: '床が地面を離さない',
+      desc: '車高の変化を足が抑えるので、床下の効きが一定に保たれる',
+      eff: { corner: 0.9 } },
+    { a: { p: 'gear' }, b: { b: 'service' }, icon: '🧰', gain: 0.035, half: 0.45,
+      name: '開けて、直して、また出せる',
+      desc: '降ろさずに中を見られる造りなので、傷んだまま走らせずに済む',
+      eff: { rel: 0.9 } }
+  ];
+
   /* 車体の各項目の上限は、マシン世代の上限に対する割合で決まる */
   const BODY_CAP_RATIO = 0.35;
   /* 新型を作ったとき、前の車体の知見をどれだけ引き継ぐか */
@@ -2031,6 +2088,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, RARITY,
-           BODY_ATTRS, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
+           BODY_ATTRS, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, POLISH, CAR_GENS, SKILLS, FACILITIES,
            SPONSOR_KINDS, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, TYRES, DRY_TYRES, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, RACEKIT, WET_LEVELS, MANAGERS, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
