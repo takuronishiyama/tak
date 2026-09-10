@@ -3107,6 +3107,167 @@ window.GP = window.GP || {};
      職種の一覧ではなく、実際に仕事をしている単位で見せる。
      グループの中の噛み合いと、グループ同士の相補作用を、
      そのまま数字と言葉で出す                                      */
+  /* =======================================================
+     人の輪
+     マシンと同じ読みかたで、チームの中身を多重の輪にする。
+     中心＝チーム、内＝首脳陣、外＝各セクション、いちばん外＝ドライバー。
+     線は「誰が誰を見ているか」と「セクションどうしの噛み合い」。
+     ドライバーの節は、持っている力をどれだけ車に出せているか。
+     ======================================================= */
+  // 見ている相手が近くに来るよう、並び順は手で決めてある
+  const ORG_RING = [
+    { k: 'design',   s: '設計' }, { k: 'data',    s: '解析' },
+    { k: 'develop',  s: '開発' }, { k: 'research', s: '研究' },
+    { k: 'crew',     s: 'クルー' }, { k: 'pitwall', s: '作戦' },
+    { k: 'human',    s: '鍛錬' }, { k: 'logi',    s: '物流' }
+  ];
+
+  function orgMapSVG(g2) {
+    const gt = S.org(g2).groups;
+    const CX = 240, CY = 238;
+    const R1 = 84, R2 = 152, L1 = 52, L2 = 186, R3 = 214;
+    const N = ORG_RING.length;
+
+    // セクションを外の輪に並べる
+    const spot = {};
+    const outer = ORG_RING.map((o, i) => {
+      const a = -Math.PI / 2 + i / N * Math.PI * 2;
+      const q = { o: o, i: i, a: a, x: CX + Math.cos(a) * R2, y: CY + Math.sin(a) * R2,
+                  lx: CX + Math.cos(a) * L2, ly: CY + Math.sin(a) * L2 };
+      spot[o.k] = q;
+      return q;
+    });
+
+    /* 首脳陣は、自分が見ているセクションの真ん中に置く。
+       誰が誰を見ているかが、そのまま位置になる                */
+    const bossOf = {};
+    D.GROUPS.forEach(G => { bossOf[G.key] = D.ORG.DEPT[G.of] || 'principal'; });
+    const inner = D.MANAGERS.map(m => {
+      const mine = ORG_RING.filter(o => bossOf[o.k] === m.key);
+      let sx = 0, sy = 0;
+      mine.forEach(o => { sx += Math.cos(spot[o.k].a); sy += Math.sin(spot[o.k].a); });
+      const a = mine.length ? Math.atan2(sy, sx) : -Math.PI / 2;
+      return { m: m, a: a, mine: mine,
+               x: CX + Math.cos(a) * R1, y: CY + Math.sin(a) * R1,
+               lx: CX + Math.cos(a) * L1, ly: CY + Math.sin(a) * L1 };
+    });
+
+    // ドライバーは、現場の外側に置く
+    const drivers = (g2.drivers || []).slice(0, 2).map((d, i) => {
+      const a = Math.PI * (0.60 + i * 0.28);      // 現場の外側（下まわり）
+      return { d: d, a: a, x: CX + Math.cos(a) * R3, y: CY + Math.sin(a) * R3 };
+    });
+
+    let rings = '';
+    [R1, R2].forEach(r => { rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + r + '" class="mm-ring"></circle>'; });
+    rings += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R3 + '" class="mm-ring dash"></circle>';
+
+    // ---- 線 ----
+    let lines = '';
+    const line = (A, B, col, w, op, dash) =>
+      '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) + '" x2="' + B.x.toFixed(1) +
+      '" y2="' + B.y.toFixed(1) + '" stroke="' + col + '" stroke-width="' + w.toFixed(2) +
+      '" stroke-linecap="round" opacity="' + op.toFixed(2) + '"' +
+      (dash ? ' stroke-dasharray="4 4"' : '') + '></line>';
+    // 首脳陣 → セクション（見ている相手）
+    inner.forEach(q => {
+      const sk = S.mgrSkill ? S.mgrSkill(g2, q.m.key) : ((g2.managers || {})[q.m.key] || {}).skill || 0;
+      const r = Math.min(1, sk / 70);
+      q.mine.forEach(o => { lines += line(q, spot[o.k], sk ? '#b06fd0' : '#8a8578', 1.2 + r * 4.4, 0.20 + r * 0.65); });
+    });
+    // セクションどうしの噛み合い
+    gt.syn.forEach(x => {
+      const A = spot[x.a], B = spot[x.b];
+      if (!A || !B) return;
+      const r = Math.min(1, x.gain / x.def.gain);
+      lines += line(A, B, x.on ? '#4ea63f' : '#8a8578', 1.2 + r * 5.0, 0.18 + r * 0.7);
+      if (x.on) {
+        const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+        lines += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
+          '" r="9" fill="#f0fbe8" stroke="#2e6b2e" stroke-width="1.5"></circle>' +
+          '<text x="' + mx.toFixed(1) + '" y="' + (my + 3.2).toFixed(1) + '" class="mm-pct">' +
+          Math.round(r * 100) + '</text>';
+      }
+    });
+    // 現場 → ドライバー（直接ドライバーに触っているセクション）
+    ['human', 'pitwall', 'crew'].forEach(k => {
+      drivers.forEach(dv => {
+        const gx = gt.byKey(k);
+        const r = gx ? Math.min(1, gx.total / 9) : 0;
+        lines += line(spot[k], dv, '#e0a020', 1.0 + r * 3.4, 0.18 + r * 0.6, true);
+      });
+    });
+
+    // ---- 節 ----
+    const nodeHTML = (q, rr, icon, color, ratio, label, cls, anchor2, lx, ly) => {
+      let arc = '';
+      const sc = Math.max(0, Math.min(1, ratio));
+      if (sc > 0.001) {
+        const RR = rr + 3.5, a0 = -Math.PI / 2, a1 = a0 + sc * Math.PI * 2;
+        if (sc >= 0.999) {
+          arc = '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + RR +
+            '" fill="none" stroke="' + color + '" stroke-width="3"></circle>';
+        } else {
+          const x0 = q.x + Math.cos(a0) * RR, y0 = q.y + Math.sin(a0) * RR;
+          const x1 = q.x + Math.cos(a1) * RR, y1 = q.y + Math.sin(a1) * RR;
+          arc = '<path d="M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + RR + ' ' + RR +
+            ' 0 ' + (sc > 0.5 ? 1 : 0) + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+            '" fill="none" stroke="' + color + '" stroke-width="3" stroke-linecap="round"></path>';
+        }
+      }
+      return '<g>' + arc +
+        '<circle cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="' + rr +
+        '" class="mm-node ' + cls + '"></circle>' +
+        '<text x="' + q.x.toFixed(1) + '" y="' + (q.y + 5.5).toFixed(1) + '" class="mm-ic">' + icon + '</text>' +
+        '<text x="' + lx.toFixed(1) + '" y="' + (ly + 3).toFixed(1) + '" class="mm-lb' +
+        (cls === 'body' ? ' in' : '') + '" text-anchor="' + anchor2 + '">' + label + '</text></g>';
+    };
+    const anchorOf = a => Math.abs(Math.cos(a)) < 0.25 ? 'middle' : (Math.cos(a) > 0 ? 'start' : 'end');
+
+    let nodes = '';
+    inner.forEach(q => {
+      const sk = ((g2.managers || {})[q.m.key] || {}).skill || 0;
+      nodes += nodeHTML(q, 15, q.m.icon, '#b06fd0', sk / 70,
+        esc(q.m.name.replace('チームプリンシパル', '代表').replace('責任者', '長')
+              .replace('ピットクルーチーフ', '現場長').replace('ロジスティクス長', '物流長')),
+        'body', 'middle', q.lx, q.ly);
+    });
+    outer.forEach(q => {
+      const gx = gt.byKey(q.o.k);
+      const sc = gx ? Math.min(1, gx.total / 9) : 0;
+      nodes += nodeHTML(q, 17, (gx ? gx.def.icon : '•'), (gx && gx.def.place === 'factory' ? '#3a7ad9' : '#e0644a'),
+        sc, esc(q.o.s) + (gx ? '<tspan class="mm-sub"> ' + gx.members.length + '人</tspan>' : ''),
+        'part', anchorOf(q.a), q.lx, q.ly);
+    });
+    drivers.forEach(dv => {
+      const fit = S.driverFit(g2, dv.d);
+      const pct = Math.round(fit.out * 100);
+      // 名前が枠の外へ出ないように、位置を内側へ寄せる
+      const lx = Math.max(66, Math.min(414, CX + Math.cos(dv.a) * (R3 + 10)));
+      const ly = CY + Math.sin(dv.a) * (R3 + 26);
+      nodes += nodeHTML(dv, 16, '🧑‍✈️', '#ffc93c',
+        Math.max(0, Math.min(1, (fit.out - 0.80) / 0.40)),
+        esc(dv.d.name) + '<tspan class="mm-sub"> ' + pct + '%</tspan>',
+        'drv', 'middle', lx, ly);
+    });
+
+    // ---- 中心 ----
+    const staffN = (g2.staff || []).length;
+    const mgN = D.MANAGERS.filter(m => (g2.managers || {})[m.key]).length;
+    const core = '<circle cx="' + CX + '" cy="' + CY + '" r="34" class="mm-core"></circle>' +
+      '<text x="' + CX + '" y="' + (CY - 5) + '" class="mm-core-t">チーム</text>' +
+      '<text x="' + CX + '" y="' + (CY + 9) + '" class="mm-core-s">首脳' + mgN + '／社員' + staffN + '</text>';
+
+    return '<div class="mechmap"><svg viewBox="0 0 480 500" role="img">' +
+      rings + lines + core + nodes + '</svg>' +
+      '<div class="mm-leg">' +
+      '<span><i class="body"></i>内：首脳陣（見ているセクションの前に立つ）</span>' +
+      '<span><i class="part"></i>外：セクション</span>' +
+      '<span><i class="drv"></i>いちばん外：ドライバー（引き出せている割合）</span>' +
+      '<span><i class="edge"></i>緑＝セクションどうしの噛み合い</span>' +
+      '</div></div>';
+  }
+
   function groupsHTML() {
     const gt = S.groupTable(g);
     let h = '';
@@ -3162,6 +3323,14 @@ window.GP = window.GP || {};
         h += '</div></div>';
       });
     });
+    // 人の輪
+    h += '<div class="sub">🔗 人の輪</div>' +
+      '<p class="desc">マシンと同じ読みかたです。中心がチーム、内が首脳陣、' +
+      '外が各セクション、いちばん外がドライバー。' +
+      '首脳陣は<b>自分が見ているセクションの前</b>に立っています。' +
+      'ドライバーの数字は、持っている力を<b>どれだけ車に出せているか</b>です。</p>' +
+      orgMapSVG(g);
+
     // 相補作用
     h += '<div class="sub">🤝 グループ同士の相補作用</div>' +
       '<p class="desc">両方のグループが育っているときだけ効きます。' +

@@ -1871,6 +1871,9 @@ body[data-skin="hd"]{
 .mm-node{fill:#fff8e3;stroke:var(--ink);stroke-width:2.5}
 .mm-node.part{fill:#ffeec6}
 .mm-node.body{fill:#e2eefc}
+.mm-node.drv{fill:#fff2c4}
+[data-skin="hd"] .mm-node.drv{fill:#4a3d1e}
+.mm-sub{font-size:8.5px;font-weight:normal;opacity:.75}
 [data-skin="hd"] .mm-node{fill:#2f2540;stroke:#0e0b14}
 [data-skin="hd"] .mm-node.part{fill:#40304e}
 [data-skin="hd"] .mm-node.body{fill:#26374e}
@@ -1907,6 +1910,7 @@ body[data-skin="hd"]{
 .mm-leg i.edge{width:16px;height:4px;border-radius:2px;border:none;background:#4ea63f}
 .mm-leg i.tech{background:#e8dcc0}
 .mm-leg i.find{background:#3a7ad9}
+.mm-leg i.drv{background:#fff2c4}
 /* 見立てのコメント */
 .mechread{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
 .mr-row{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.55;

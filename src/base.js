@@ -10,24 +10,41 @@ GP.base = (function () {
 
   const W = 780, H = 340;
 
-  /* 建物の区画。x,y は左下（正面）を基準にする。
-     実際のF1ファクトリーに倣って、一列に並べず
-     周回路をはさんだ奥（back）と手前（front）の二列に置く。
-     奥の列は BACK_SCALE で縮めて描き、遠くにあるように見せる。   */
-  const BACK_SCALE = 0.62;
+  /* ---------- 敷地は円（楕円）に組む ----------
+     周回路をぐるりと1本通し、その外側に建物を並べる。
+     真ん中は中庭。奥（画面の上）にある建物ほど小さく描くので、
+     一枚の絵で見下ろしているように見える。
+     ang は輪の上の角度（度）。0が右、90が手前、180が左、270が奥。 */
+  const RING = { cx: 390, cy: 192, rx: 300, ry: 82, w: 22 };
   const PLOTS = [
-    // 奥の列（生産・技術のブロック）
-    { key: 'tunnel',  x: 70,  y: 122, back: true, label: '風洞' },
-    { key: 'depot',   x: 180, y: 124, back: true, label: '物流倉庫' },
-    { key: 'mission', x: 430, y: 120, back: true, label: 'ミッションコントロール' },
-    // 手前の列（毎日出入りするところ）
-    { key: 'pit',     x: 28,  y: 288, label: 'ピット設備' },
-    { key: 'factory', x: 150, y: 292, label: 'ファクトリー' },
-    { key: 'sim',     x: 352, y: 292, label: 'シミュレーター' },
-    { key: 'market',  x: 506, y: 286, label: 'マーケ室' },
-    { key: 'youth',   x: 648, y: 290, label: 'ユース' }
+    { key: 'depot',   ang: 250, label: '物流倉庫' },
+    { key: 'mission', ang: 286, label: 'ミッションコントロール' },
+    { key: 'tunnel',  ang: 322, label: '風洞' },
+    { key: 'sim',     ang: 10,  label: 'シミュレーター' },
+    { key: 'youth',   ang: 48,  label: 'ユース' },
+    { key: 'market',  ang: 132, label: 'マーケ室' },
+    { key: 'pit',     ang: 170, label: 'ピット設備' },
+    { key: 'factory', ang: 210, label: 'ファクトリー' }
   ];
-  const ROAD = { backY: 128, midY: 236, spanX: 268, spanW: 44 };   // 周回路と引き込み路
+  /* 輪の上の点。out は輪からどれだけ外へ出すか（建物は外側に建つ） */
+  function ringAt(ang, out) {
+    const a = ang * Math.PI / 180;
+    const k = 1 + (out || 0);
+    return { x: RING.cx + Math.cos(a) * RING.rx * k,
+             y: RING.cy + Math.sin(a) * RING.ry * k, a: a };
+  }
+  /* 奥ほど小さく。手前ほど大きく（見下ろしの遠近） */
+  function depthScale(y) {
+    const t = (y - (RING.cy - RING.ry * 1.3)) / (RING.ry * 2.6);
+    return 0.56 + Math.max(0, Math.min(1, t)) * 0.52;
+  }
+  /* その建物の立ち位置と縮尺（描画にも当たり判定にも使う） */
+  function plotSpot(p, g2) {
+    const q = ringAt(p.ang, 0.22);
+    const sc = depthScale(q.y);
+    const s2 = tierOf(g2.facilities[p.key] || 1);
+    return { x: q.x - s2.w * sc / 2, y: q.y, sc: sc };
+  }
 
   let hitBoxes = [];
   let dusk = false;          // HD-2Dスキンのときは夕景で描く
@@ -77,10 +94,11 @@ GP.base = (function () {
       if (best) return best;
     }
     PLOTS.forEach(p => {
+      const sp = plotSpot(p, g2);
       const s = tierOf(g2.facilities[p.key] || 1);
-      const cx = p.x + s.w / 2;
+      const cx = sp.x + s.w * sp.sc / 2;
       const d = Math.abs(x - cx);
-      if (d < 22 && d < bd) { bd = d; best = { key: p.key, x: cx, y: p.y }; }
+      if (d < 22 && d < bd) { bd = d; best = { key: p.key, x: cx, y: sp.y }; }
     });
     return best;
   }
@@ -95,9 +113,10 @@ GP.base = (function () {
     if (yi >= 0) return { x: YARD_X[yi], y: WALK.y1 - 6 };
     const p = PLOTS.find(q => q.key === key);
     if (!p) return null;
+    const sp = plotSpot(g2 ? { key: key, ang: p.ang } : p, g2);
     const s = tierOf(g2.facilities[key] || 1);
     // 外からも使えるようにしておく（パドックやグリッドで共用する）
-  return { x: p.x + s.w / 2, y: WALK.y0 + 6 };
+  return { x: sp.x + s.w * sp.sc / 2, y: WALK.y0 + 6 };
   }
 
   function clampWalk(x, y) {
@@ -538,10 +557,14 @@ GP.base = (function () {
       ctx.fillRect(x + 8.5 - cw, ty - 3 - ch, cw * 0.6, ch * 0.28);
       ctx.fillRect(x + 8 - cw * 0.5, ty - 6.5 - ch, cw * 0.5, 2.4);
     }
-    /* ---- 敷地（キャンパス）----
-       上から見下ろした一枚として組む。
-       外周の生垣 → 奥の建物 → 周回路 → 中庭（池と駐車場）→
-       手前の建物 → 正面の広場、の順に手前へ降りてくる。      */
+    /* ---- 敷地（円形のキャンパス）----
+       周回路を1本ぐるりと通し、その外側に建物を並べる。
+       真ん中は中庭。奥（画面の上）にある建物ほど小さく描くので、
+       一枚の絵で見下ろしているように見える。                */
+    const ell = (ex, ey, rx, ry, fill) => {
+      ctx.fillStyle = fill; ctx.beginPath();
+      ctx.ellipse(ex, ey, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    };
 
     // 外周の生垣とフェンス
     ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(0, 46, W, 9);
@@ -550,91 +573,59 @@ GP.base = (function () {
     ctx.fillStyle = dusk ? '#3a3442' : '#7a6a52';
     for (let x = 5; x < W; x += 11) ctx.fillRect(x, 48, 2, 9);
 
-    // 敷地の芝。外の野原よりわずかに手入れされた色にする
+    // 敷地の芝
     ctx.fillStyle = dusk ? '#2a4527' : '#83b95a'; ctx.fillRect(0, 55, W, H - 55);
     ctx.fillStyle = dusk ? '#264022' : '#7bb052';
     for (let y = 58; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
 
-    // 舗装（建物が建つ面）
-    const pave = (px, py2, pw, ph) => {
-      ctx.fillStyle = dusk ? '#4a4450' : '#b8b0a0'; ctx.fillRect(px, py2, pw, ph);
-      ctx.fillStyle = dusk ? '#524b58' : '#c4bcac';
-      for (let x = px; x < px + pw; x += 24) ctx.fillRect(x, py2, 22, ph);
-      ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c'; ctx.fillRect(px, py2, pw, 2);
-    };
-    pave(12, 80, W - 24, 48);            // 奥の建物の足元
-    // 敷地の内側にも生垣を一列。芝と舗装のあいだを締める
-    ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(12, 74, W - 24, 7);
-    ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
-    for (let x = 12; x < W - 12; x += 10) ctx.fillRect(x, 74, 7, 3);
-    pave(12, 258, W - 24, H - 262);      // 手前の建物の足元と正面広場
+    // 建物が建つ帯（輪の外側の舗装）
+    ell(RING.cx, RING.cy, RING.rx * 1.38, RING.ry * 1.42, dusk ? '#463f4c' : '#b0a898');
+    ell(RING.cx, RING.cy, RING.rx * 1.30, RING.ry * 1.32, dusk ? '#4a4450' : '#b8b0a0');
 
-    // 周回路と、正門からの引き込み路
-    const road = (rx, ry, rw, rh, horiz) => {
-      ctx.fillStyle = dusk ? '#2f313a' : '#6d7078'; ctx.fillRect(rx, ry, rw, rh);
-      ctx.fillStyle = dusk ? '#3a3d47' : '#7b7e86'; ctx.fillRect(rx, ry, rw, 2);
-      ctx.fillStyle = 'rgba(255,255,255,.50)';
-      if (horiz) for (let x = rx + 8; x < rx + rw - 6; x += 20) ctx.fillRect(x, ry + rh / 2 - 1.5, 10, 3);
-      else       for (let y = ry + 8; y < ry + rh - 6; y += 20) ctx.fillRect(rx + rw / 2 - 1.5, y, 3, 10);
-    };
-    road(10, ROAD.backY, W - 20, 18, true);
-    road(10, ROAD.midY, W - 20, 18, true);
-    road(ROAD.spanX, 50, ROAD.spanW, H - 50, false);
+    // 周回路
+    ctx.strokeStyle = dusk ? '#22242c' : '#5b5e66';
+    ctx.lineWidth = RING.w + 5;
+    ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = dusk ? '#2f313a' : '#6d7078';
+    ctx.lineWidth = RING.w;
+    ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.50)';
+    ctx.lineWidth = 2.4; ctx.setLineDash([9, 13]);
+    ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
 
-    // 正門。遠征のトラックはここから出ていく
+    // 中庭（輪の内側）
+    ell(RING.cx, RING.cy, RING.rx - RING.w * 0.7, RING.ry - RING.w * 0.7,
+        dusk ? '#264022' : '#7fb457');
+
+    /* ---- 正門と引き込み路 ----
+       手前のまん中で輪とつながる。遠征のトラックはここから出ていく */
+    const gate = ringAt(90, 0);
+    ctx.fillStyle = dusk ? '#2f313a' : '#6d7078';
+    ctx.fillRect(gate.x - 22, gate.y - 4, 44, H - gate.y + 4);
+    ctx.fillStyle = 'rgba(255,255,255,.50)';
+    for (let y = gate.y + 12; y < H; y += 18) ctx.fillRect(gate.x - 2, y, 4, 9);
     ctx.fillStyle = dusk ? '#4a4250' : '#8a8578';
-    ctx.fillRect(ROAD.spanX - 6, 44, 4, 18);
-    ctx.fillRect(ROAD.spanX + ROAD.spanW + 2, 44, 4, 18);
-    ctx.fillStyle = '#e8e2d4'; ctx.fillRect(ROAD.spanX - 2, 49, ROAD.spanW + 4, 4);
+    ctx.fillRect(gate.x - 28, H - 46, 4, 18); ctx.fillRect(gate.x + 24, H - 46, 4, 18);
+    ctx.fillStyle = '#e8e2d4'; ctx.fillRect(gate.x - 24, H - 41, 48, 4);
     ctx.fillStyle = '#c8503f';
-    for (let x = ROAD.spanX; x < ROAD.spanX + ROAD.spanW - 2; x += 13) ctx.fillRect(x, 49, 6, 4);
+    for (let x = gate.x - 22; x < gate.x + 20; x += 13) ctx.fillRect(x, H - 41, 6, 4);
 
-    /* ---- 奥の空き地 ----
-       右側が寂しいので、実物のファクトリーにもあるものを置く。 */
-    // ヘリポート
-    const heli = (hx, hy, r2) => {
-      ctx.fillStyle = dusk ? '#3c3742' : '#a89e8c';
-      ctx.beginPath(); ctx.ellipse(hx, hy, r2, r2 * 0.52, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = dusk ? 'rgba(230,224,200,.55)' : 'rgba(255,255,255,.85)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(hx, hy, r2 - 4, r2 * 0.52 - 2, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = dusk ? 'rgba(230,224,200,.75)' : 'rgba(255,255,255,.95)';
-      ctx.fillRect(hx - 6, hy - 5, 3, 10); ctx.fillRect(hx + 3, hy - 5, 3, 10);
-      ctx.fillRect(hx - 4, hy - 1.5, 8, 3);
-    };
-    heli(600, 104, 22);
-    // 貯水タンク
-    const silo = (sx, sy, sw, sh) => {
-      ctx.fillStyle = '#3a2413'; ctx.fillRect(sx - 1, sy - sh - 1, sw + 2, sh + 2);
-      ctx.fillStyle = dusk ? '#6a6470' : '#cfd2d6'; ctx.fillRect(sx, sy - sh, sw, sh);
-      ctx.fillStyle = 'rgba(255,255,255,.30)'; ctx.fillRect(sx, sy - sh, Math.max(2, sw * 0.3), sh);
-      ctx.fillStyle = 'rgba(40,24,10,.22)'; ctx.fillRect(sx + sw * 0.72, sy - sh, sw * 0.28, sh);
-      ctx.fillStyle = dusk ? '#8a8494' : '#9aa0a8'; ctx.fillRect(sx - 2, sy - sh - 3, sw + 4, 3);
-    };
-    silo(690, 126, 16, 30); silo(712, 126, 16, 24); silo(732, 126, 12, 18);
-
-    /* ---- 中庭の池 ----
-       実際のファクトリーにもよくある水の景色。
-       芝の岸と遊歩道で囲って、敷地の真ん中に余白を作る。    */
-    const pond = (cx, cy, rx, ry) => {
-      const ell = (ex, ey, w2, h2, c) => {
-        ctx.fillStyle = c; ctx.beginPath();
-        ctx.ellipse(ex, ey, w2, h2, 0, 0, Math.PI * 2); ctx.fill();
-      };
-      ell(cx, cy, rx + 9, ry + 8, dusk ? '#264022' : '#79ad52');            // 岸の芝
-      ell(cx, cy, rx + 5, ry + 4, dusk ? '#3c3742' : '#a89e8c');            // 遊歩道
-      ell(cx, cy, rx, ry, dusk ? '#0e2a3c' : '#2f6a97');                    // 水
-      ell(cx, cy - ry * 0.16, rx * 0.9, ry * 0.6, dusk ? '#173d55' : '#3f86b8');
-      ctx.fillStyle = 'rgba(255,255,255,.28)';                              // 水面の照り
-      for (let i = 0; i < 5; i++) {
-        const lw = rx * (0.46 - i * 0.06);
-        ctx.fillRect(cx - lw / 2 + (i % 2 ? 7 : -5), cy - ry * 0.42 + i * 5, lw, 1.5);
+    /* ---- 中庭の池 ---- */
+    const pond = (cx2, cy2, rx2, ry2) => {
+      ell(cx2, cy2, rx2 + 9, ry2 + 7, dusk ? '#1d3320' : '#6da247');
+      ell(cx2, cy2, rx2 + 5, ry2 + 4, dusk ? '#3c3742' : '#a89e8c');
+      ell(cx2, cy2, rx2, ry2, dusk ? '#0e2a3c' : '#2f6a97');
+      ell(cx2, cy2 - ry2 * 0.16, rx2 * 0.9, ry2 * 0.6, dusk ? '#173d55' : '#3f86b8');
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      for (let i = 0; i < 4; i++) {
+        const lw = rx2 * (0.46 - i * 0.07);
+        ctx.fillRect(cx2 - lw / 2 + (i % 2 ? 6 : -5), cy2 - ry2 * 0.4 + i * 5, lw, 1.5);
       }
     };
-    pond(410, 186, 56, 21);
+    pond(RING.cx + 78, RING.cy + 2, 52, 19);
 
-    /* ---- 中庭の駐車場 ----
-       ここで働く人たちの車。チームが大きくなるほど埋まっていく。 */
+    /* ---- 中庭の駐車場 ---- */
     const CARC = ['#c8503f', '#3a6fb0', '#e0e0e0', '#4f5560', '#4e9b46', '#d8a832', '#7a5a9a'];
     const parkRow = (px, py2, cols, fill) => {
       const pw = cols * 17 + 4;
@@ -656,34 +647,33 @@ GP.base = (function () {
       }
     };
     const parkFill = Math.min(0.92, 0.22 + g2.fans / 11000);
-    [172, 200, 228].forEach((y, i) => {
-      parkRow(22, y, 13, parkFill * (1 - i * 0.10));
-      parkRow(556, y, 12, parkFill * (0.86 - i * 0.10));
-    });
+    parkRow(RING.cx - 250, RING.cy - 18, 9, parkFill);
+    parkRow(RING.cx - 250, RING.cy + 10, 9, parkFill * 0.85);
+    parkRow(RING.cx - 250, RING.cy + 38, 9, parkFill * 0.7);
 
-    // 中庭の植え込み
-    const bush = (bx, by, bw) => {
-      ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(bx, by, bw, 7);
-      ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
-      for (let x = bx; x < bx + bw; x += 9) ctx.fillRect(x, by, 6, 3);
+    // ヘリポート（中庭の左寄り）
+    const heli = (hx, hy, r2) => {
+      ell(hx, hy, r2, r2 * 0.5, dusk ? '#3c3742' : '#a89e8c');
+      ctx.strokeStyle = dusk ? 'rgba(230,224,200,.55)' : 'rgba(255,255,255,.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(hx, hy, r2 - 4, r2 * 0.5 - 2, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = dusk ? 'rgba(230,224,200,.75)' : 'rgba(255,255,255,.95)';
+      ctx.fillRect(hx - 6, hy - 5, 3, 10); ctx.fillRect(hx + 3, hy - 5, 3, 10);
+      ctx.fillRect(hx - 4, hy - 1.5, 8, 3);
     };
-    bush(322, 150, 70); bush(322, 220, 70);
-    bush(492, 150, 52); bush(492, 220, 52);
+    heli(RING.cx - 74, RING.cy - 44, 20);
 
-    // 引き込み路のわきに、チームカラーの旗ざおを3本立てる
+    // 入口の旗ざお
     for (let i = 0; i < 3; i++) {
-      const fx = 248 + i * 8;
-      ctx.fillStyle = dusk ? '#4a4250' : '#8a8578'; ctx.fillRect(fx, 202, 2, 30);
+      const fx = RING.cx - 14 + i * 10;
+      ctx.fillStyle = dusk ? '#4a4250' : '#8a8578'; ctx.fillRect(fx, RING.cy + 28, 2, 28);
       ctx.fillStyle = i === 1 ? g2.color : shadeHex(g2.color, i ? 0.18 : -0.14);
-      ctx.fillRect(fx + 2, 202, 9, 7);
-      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(fx + 2, 203, 8, 1.5);
+      ctx.fillRect(fx + 2, RING.cy + 28, 9, 7);
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(fx + 2, RING.cy + 29, 8, 1.5);
     }
 
-    /* ---- 正面の広場 ----
-       手前の建物の足元。ここに人と、遠征の道具が並ぶ。        */
-    const GY = 338;                                     // 置きものの地面
-
-    // タイヤの山（ピット設備が大きいほど積み上がる）
+    /* ---- 正面の広場（輪の手前）---- */
+    const GY = 336;
     const tyreStack = (tx, ty, n) => {
       for (let i = 0; i < n; i++) {
         const yy = ty - i * 5;
@@ -693,26 +683,23 @@ GP.base = (function () {
       ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(tx - 8, ty - n * 5 - 5, 16, 1);
     };
     const pitLv = g2.facilities.pit || 1;
-    tyreStack(72, GY, Math.min(7, 3 + Math.floor(pitLv / 2.5)));
-    tyreStack(90, GY, Math.min(5, 2 + Math.floor(pitLv / 3.5)));
-    tyreStack(414, GY - 2, 3);
+    tyreStack(74, GY, Math.min(7, 3 + Math.floor(pitLv / 2.5)));
+    tyreStack(92, GY, Math.min(5, 2 + Math.floor(pitLv / 3.5)));
     tyreStack(620, GY - 2, 2);
 
-    // 資材のコンテナ（物流倉庫が育つほど積み荷が増える）
-    const crate = (cx, cy, cw, ch2, c) => {
-      ctx.fillStyle = '#2a2015'; ctx.fillRect(cx - 1, cy - ch2 - 1, cw + 2, ch2 + 2);
-      ctx.fillStyle = c; ctx.fillRect(cx, cy - ch2, cw, ch2);
-      ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx, cy - ch2, cw, 2);
-      ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(cx, cy - 3, cw, 3);
+    const crate = (cx2, cy2, cw, ch2, c) => {
+      ctx.fillStyle = '#2a2015'; ctx.fillRect(cx2 - 1, cy2 - ch2 - 1, cw + 2, ch2 + 2);
+      ctx.fillStyle = c; ctx.fillRect(cx2, cy2 - ch2, cw, ch2);
+      ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx2, cy2 - ch2, cw, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(cx2, cy2 - 3, cw, 3);
     };
     const depLv = g2.facilities.depot || 1;
-    crate(134, GY, 22, 13, g2.color);
+    crate(136, GY, 22, 13, g2.color);
     crate(206, GY, 16, 10, '#6a7078');
-    crate(480, GY, 20, 12, '#6a7078');
-    if (depLv >= 3) crate(504, GY, 14, 9, g2.color);
+    crate(478, GY, 20, 12, '#6a7078');
+    if (depLv >= 3) crate(502, GY, 14, 9, g2.color);
     if (depLv >= 5) crate(546, GY, 12, 15, '#6a7078');
 
-    // ドラム缶
     const drum = (dx, dy, c) => {
       ctx.fillStyle = '#2a2015'; ctx.fillRect(dx - 1, dy - 13, 10, 13);
       ctx.fillStyle = c; ctx.fillRect(dx, dy - 12, 8, 12);
@@ -720,11 +707,9 @@ GP.base = (function () {
       ctx.fillStyle = 'rgba(0,0,0,.20)';
       ctx.fillRect(dx, dy - 8, 8, 1); ctx.fillRect(dx, dy - 5, 8, 1);
     };
-    drum(340, GY, '#c05a30'); drum(351, GY, '#4a6f9a'); drum(345, GY - 13, '#c05a30');
+    drum(276, GY, '#c05a30'); drum(287, GY, '#4a6f9a');
 
-    /* ---- チームのトランスポーター ----
-       遠征のたびに、ここから機材を積んで出ていく。
-       物流倉庫が育つほど、連ねる荷台が長くなる。          */
+    /* ---- チームのトランスポーター ---- */
     const hauler = (hx, hy, c, len) => {
       const bh = 20, top = hy - 6 - bh;
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(hx - 2, hy - 1, len + 20, 3);
@@ -747,7 +732,7 @@ GP.base = (function () {
     const hlen = 44 + Math.min(3, Math.floor(depLv / 2.5)) * 8;
     hauler(W - 18 - hlen - 16, GY, g2.color, hlen);
 
-    // 照明塔。夕景では灯りの下だけ明るくなる
+    // 照明塔。輪のまわりに立てる
     const lamp = (lx, ly, h2) => {
       ctx.fillStyle = dusk ? '#3a3442' : '#7d786c'; ctx.fillRect(lx, ly - h2, 3, h2);
       ctx.fillStyle = dusk ? '#4a4250' : '#5a5448'; ctx.fillRect(lx - 5, ly - h2 - 5, 13, 5);
@@ -761,31 +746,37 @@ GP.base = (function () {
         ctx.fillStyle = gr; ctx.fillRect(lx - 20, ly - h2, 43, h2 + 30);
       }
     };
-    [16, 486, 768].forEach(x => lamp(x, 232, 30));
-    [130, 350, 545, 660].forEach(x => lamp(x, 126, 22));
+    [30, 150, 340].forEach(ang2 => {
+      const q = ringAt(ang2, 0.10);
+      lamp(q.x, q.y, 22 + depthScale(q.y) * 14);
+    });
 
     // 建物より手前は別レイヤーに描く。シルエットから影を作りたいので
     const bl = dusk ? layer() : null;
     const bg = bl ? bl.g : ctx;
 
-    /* ---- 建物（奥の列 → 手前の列）----
-       奥の列は縮尺を落として描く。同じ絵のまま小さくすることで、
-       遠くに建っているように見え、敷地に奥行きが出る。          */
+    /* ---- 建物（輪の外側にぐるりと）----
+       奥にあるものほど小さく描く。同じ絵のまま縮めるだけで、
+       見下ろしている一枚の絵として奥行きが出る。
+       奥から手前へ順に描くので、手前の建物が奥を隠す。         */
     const signs = [];
-    PLOTS.forEach((p, pi) => {
+    PLOTS.map(p => ({ p: p, sp: plotSpot(p, g2) }))
+         .sort((a2, b2) => a2.sp.y - b2.sp.y)
+         .forEach((it, pi) => {
+      const p = it.p, sc = it.sp.sc;
       const lv = g2.facilities[p.key] || 1;
-      const sc = p.back ? BACK_SCALE : 1;
-      let bb;
-      if (sc === 1) {
-        bb = DRAW[p.key](bg, p, lv, g2.color);
-      } else {
-        // 縮めた座標系で描き、当たり判定は元の縮尺へ戻す
-        bg.save(); bg.scale(sc, sc);
-        const raw = DRAW[p.key](bg, { key: p.key, x: p.x / sc, y: p.y / sc, label: p.label },
-                                lv, g2.color);
-        bg.restore();
-        bb = { x: raw.x * sc, y: raw.y * sc, w: raw.w * sc, h: raw.h * sc };
-      }
+      // 足元の舗装。輪の外側に、建物ぶんだけ面を作る
+      const s3 = tierOf(lv);
+      bg.fillStyle = dusk ? '#3c3742' : '#a89e8c';
+      bg.beginPath();
+      bg.ellipse(it.sp.x + s3.w * sc / 2, it.sp.y - 1, s3.w * sc * 0.72, 7 * sc, 0, 0, Math.PI * 2);
+      bg.fill();
+      // 縮めた座標系で描き、当たり判定は元の縮尺へ戻す
+      bg.save(); bg.scale(sc, sc);
+      const raw = DRAW[p.key](bg, { key: p.key, x: it.sp.x / sc, y: it.sp.y / sc, label: p.label },
+                              lv, g2.color);
+      bg.restore();
+      const bb = { x: raw.x * sc, y: raw.y * sc, w: raw.w * sc, h: raw.h * sc };
       hitBoxes.push({ key: p.key, x: bb.x, y: bb.y, w: bb.w, h: bb.h });
       if (sel === p.key) {
         bg.strokeStyle = '#fff34d'; bg.lineWidth = 3;
@@ -793,8 +784,8 @@ GP.base = (function () {
         bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
         bg.setLineDash([]);
       }
-      // 看板は建物の上に出す。隣同士でぶつからないよう一段ずつずらす
-      signs.push({ x: bb.x + bb.w / 2, y: Math.max(2, bb.y - 15 - (pi % 2) * 13),
+      // 看板は建物の上。隣とぶつからないよう一段ずつずらす
+      signs.push({ x: bb.x + bb.w / 2, y: Math.max(2, bb.y - 14 - (pi % 2) * 12),
                    text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
     signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));

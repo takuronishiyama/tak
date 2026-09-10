@@ -1716,6 +1716,15 @@ GP.state = (function () {
              syn: syn, scores: scores };
   }
 
+  /* ---------- ドライバーが、どれだけ引き出せているか ----------
+     持っている力そのものではなく、それが車に出ているかどうか。
+     レースで実際に掛けている数字（乗りやすさと調子）をそのまま返す */
+  function driverFit(g2, d) {
+    const drive = 1 + (bodyRatio(g2, 'drive') - RIVAL_BODY_REF) * 0.20;
+    const form = (d.form || 100) / 100;
+    return { drive: drive, form: form, out: drive * form };
+  }
+
   function org(g2) {
     const raw = {}, dept = {}, lead = {};
     // グループの中の噛み合いと、グループ同士の相補作用を通した値を使う
@@ -2912,7 +2921,7 @@ GP.state = (function () {
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
     carStats, carScore, carScoreOf, dfBiasOf, wearCarOf, tyreKind, machineChar,
-    mechSynergy, mechLift, mechScore, mechName, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
+    mechSynergy, mechLift, mechScore, mechName, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
