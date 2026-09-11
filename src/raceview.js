@@ -157,11 +157,21 @@ GP.raceview = (function () {
     const v = (e.lapTemp || [])[li.lap - 1];
     if (v == null || !td || td.tLo == null) return null;
     const S2 = GP.state;
-    const off = S2.tyreOff(td, v);
-    const tier = S2.tempTier(td, v);
-    return { temp: v, off: off, tier: tier,
+    const vf = (e.lapTempF || [])[li.lap - 1];
+    const vr = (e.lapTempR || [])[li.lap - 1];
+    /* 印に出すのは、たちの悪いほう。
+       前が焼けていても後ろが冷えていても、困っているのは同じなので */
+    const offF = vf == null ? null : S2.tyreOff(td, vf);
+    const offR = vr == null ? null : S2.tyreOff(td, vr);
+    const bad = (offF == null || offR == null) ? v
+              : (Math.abs(offF) >= Math.abs(offR) ? vf : vr);
+    const off = S2.tyreOff(td, bad);
+    const tier = S2.tempTier(td, bad);
+    const axle = (offF == null || offR == null) ? null
+               : (Math.abs(offF) >= Math.abs(offR) ? 'フロント' : 'リア');
+    return { temp: v, tempF: vf, tempR: vr, off: off, tier: tier, axle: axle,
              // 帯の中での位置（0..1）。外れているぶんは端に張りつく
-             pos: Math.max(0, Math.min(1, (v - td.tLo) / Math.max(1, td.tHi - td.tLo))) };
+             pos: Math.max(0, Math.min(1, (bad - td.tLo) / Math.max(1, td.tHi - td.tLo))) };
   }
 
   function orderAt(t) {
@@ -1866,7 +1876,11 @@ GP.raceview = (function () {
             ';left:' + Math.round(tp.pos * 100) + '%"></i>'
           : '';
         const ttl = tp
-          ? 'タイヤ ' + tp.temp + '℃／' + tp.tier.name +
+          ? (tp.tempF != null
+              ? 'フロント ' + tp.tempF + '℃／リア ' + tp.tempR + '℃' +
+                '（作動域 ' + td.tLo + '〜' + td.tHi + '℃）\n' +
+                (tp.axle ? tp.axle + 'が' : '') + tp.tier.name
+              : 'タイヤ ' + tp.temp + '℃／' + tp.tier.name) +
             (tp.off < 0 ? '（作動域まで あと' + Math.round(-tp.off) + '℃）'
                         : tp.off > 0 ? '（作動域を ' + Math.round(tp.off) + '℃ 超過）' : '')
           : (dry ? '路面に対して溝がない。いつ失ってもおかしくない' : '');

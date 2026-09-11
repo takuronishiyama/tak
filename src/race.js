@@ -311,15 +311,23 @@ GP.race = (function () {
   const RADIO = {
     /* --- タイヤの温度 ---
        何が起きたかではなく、何をしたせいかが分かる言い方にする */
-    tyCold: ['「まったく熱が入らない！ 曲がりどころでフロントが逃げる」',
-             '「冷たい。これじゃ踏めない、グリップが無い」',
-             '「タイヤが寝たままだ。起こさないと話にならない」'],
+    tyCold: ['「{AX}に熱が入らない！ このままじゃ踏めない」',
+             '「{AX}が冷たい。グリップがまったく無い」',
+             '「{AX}が寝たままだ。起こさないと話にならない」'],
+    tyColdF: ['「フロントが入らない！ 曲がりどころで逃げていく」',
+              '「フロントが冷たい。ノーズが入っていかない」'],
+    tyColdR: ['「リアが入らない！ 立ち上がりで空転する」',
+              '「リアが冷たい。踏んでも前に出ない」'],
     tyColdBack: ['「踏んで入れてくれ。労わっていても目を覚まさない」',
                  '「1周だけ大きく振って熱を入れて。丁寧にやらなくていい」',
                  '「わかった、温めよう。無理に飛び込まないで」'],
     tyHot: ['「攻めすぎだ！ この使い方だと最後まで持たない」',
-            '「熱を持ちすぎている。減りが一気に早くなっている」',
-            '「このペースだとタイヤが先に無くなる。落とさせてくれ」'],
+            '「{AX}が熱を持ちすぎている。減りが一気に早くなっている」',
+            '「このペースだと{AX}が先に無くなる。落とさせてくれ」'],
+    tyHotF: ['「フロントが熱い。曲がりどころで削れていくのが分かる」',
+             '「フロントを使いすぎだ。このままだと一気に終わる」'],
+    tyHotR: ['「リアが熱い。立ち上がりで滑って削れている」',
+             '「リアを使いすぎだ。トラクションが先に無くなる」'],
     tyHotBack: ['「1周落とせ。タイヤを持たせたいから、前とは間隔を空けて」',
                 '「ペースを落として。いま削ったぶんは、あとで全部返すことになる」',
                 '「了解、抑えよう。最後まで持たせるほうが速い」'],
@@ -696,7 +704,9 @@ GP.race = (function () {
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
         S: e.penalty || 0,
         TN: e.radioTLn || 0,
-        TR: Math.max(0, D.TRACK_LIMITS.strike - (e.radioTLn || 0))
+        TR: Math.max(0, D.TRACK_LIMITS.strike - (e.radioTLn || 0)),
+        // いま悪いほうの軸。無線が前後を言い分けるのに使う
+        AX: Math.abs(e.offF || 0) >= Math.abs(e.offR || 0) ? 'フロント' : 'リア'
       };
       const push = (pool, from, force) => {
         // 直前と同じ言い回しにならないように、二度までは引き直す
@@ -814,9 +824,16 @@ GP.race = (function () {
                   : (off > -4 && off < 4 && (e.radioTemp === 'cold' || e.radioTemp === 'hot')) ? 'ok' : null;
         if (st2 && st2 !== e.radioTemp && lap > 1) {
           e.radioTemp = st2 === 'ok' ? null : st2;
+          const front = Math.abs(e.offF || 0) >= Math.abs(e.offR || 0);
           if (st2 === 'gone') { push(RADIO.tyGone, 'drv', true); push(RADIO.tyGoneBack, 'pit', true); }
-          else if (st2 === 'cold') { push(RADIO.tyCold, 'drv', true); push(RADIO.tyColdBack, 'pit', true); }
-          else if (st2 === 'hot') { push(RADIO.tyHot, 'drv', true); push(RADIO.tyHotBack, 'pit', true); }
+          else if (st2 === 'cold') {
+            // 前後どちらが寝ているかで、言うことも直しかたも変わる
+            push(Math.random() < 0.6 ? (front ? RADIO.tyColdF : RADIO.tyColdR) : RADIO.tyCold, 'drv', true);
+            push(RADIO.tyColdBack, 'pit', true);
+          } else if (st2 === 'hot') {
+            push(Math.random() < 0.6 ? (front ? RADIO.tyHotF : RADIO.tyHotR) : RADIO.tyHot, 'drv', true);
+            push(RADIO.tyHotBack, 'pit', true);
+          }
           else push(RADIO.tyGood, 'drv', true);
           e.radioCool = 4;
           return;
@@ -1976,7 +1993,8 @@ GP.race = (function () {
       /* グリッドではタイヤウォーマーで温めてあるが、
          路面がそもそも冷えていれば1周目から食わない        */
       e.tyreTemp = S.roadTemp(track, weather, tempRoll, 0, D.RUBBER.start) + 6;
-      e.lapTemp = [];
+      e.tempF = e.tempR = e.tyreTemp;
+      e.lapTemp = []; e.lapTempF = []; e.lapTempR = [];
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
          路面が「いまどうか」ではなく「これからどうなるか」を、
@@ -2365,21 +2383,50 @@ GP.race = (function () {
                    + ((e.gapAhead != null && e.gapAhead < 1.6) ? TT.dirty : 0)
                    + ((e.wearCar || 1) - 1) * TT.wearHeat;
           if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) want += TT.sc;
-          if (e.tyreTemp == null) e.tyreTemp = road;
-          e.tyreTemp += (want - e.tyreTemp) * TT.rate;
-          const off = S.tyreOff(ty, e.tyreTemp);
-          e.tyreOff = off;
+          /* ---- 前と後ろで、入る熱が違う ----
+             曲がりどころの多いコースはフロントに、
+             立ち上がりと直線の長いコースはリアに熱が入る。
+             そこへ、その車がどちらへ振ってあるかが乗る。
+             押しつける力の大きい車はフロントを使い、
+             駆動に振った車はリアを使う                          */
+          const wCor = track.weight.corner;
+          const wDrv = track.weight.speed + track.weight.accel;
+          const tilt = S.clamp(
+            (wCor - TT.corRef) / TT.corSpan * 0.70 +
+            (((e.df == null ? TT.dfRef : e.df) - TT.dfRef) / TT.dfSpan) * 0.50,
+            -1.3, 1.3);
+          const wantF = want + tilt * TT.axleSwing;
+          const wantR = want - tilt * TT.axleSwing;
+          if (e.tempF == null) { e.tempF = e.tyreTemp == null ? road : e.tyreTemp; }
+          if (e.tempR == null) { e.tempR = e.tempF; }
+          e.tempF += (wantF - e.tempF) * TT.rate;
+          e.tempR += (wantR - e.tempR) * TT.rate;
+          e.tyreTemp = (e.tempF + e.tempR) / 2;
+          const offF = S.tyreOff(ty, e.tempF);
+          const offR = S.tyreOff(ty, e.tempR);
+          e.offF = offF; e.offR = offR;
+          // 走らせかたの判断と無線は、たちの悪いほうを見る
+          e.tyreOff = Math.abs(offF) >= Math.abs(offR) ? offF : offR;
           e.lapTemp[lap - 1] = Math.round(e.tyreTemp);
-          if (off < 0) {
-            // 冷たいタイヤは食わない。グリップが無いぶん、そのまま遅い
-            t *= 1 + (-off / TT.span) * TT.coldPace;
-          } else if (off > 0) {
-            // 熱いタイヤは食うが、表面から壊れていく
-            t *= 1 + (off / TT.span) * TT.hotPace;
-            e.tyreAge += (off / TT.span) * TT.hotWear;
-            // 熱で失った表面は、冷やしても戻らない。積み上げが「終わり」を決める
-            e.heatDeg = (e.heatDeg || 0) + off / TT.span;
-          }
+          (e.lapTempF = e.lapTempF || [])[lap - 1] = Math.round(e.tempF);
+          (e.lapTempR = e.lapTempR || [])[lap - 1] = Math.round(e.tempR);
+          /* ---- 効きかた ----
+             フロントが外れれば曲がりどころで、
+             リアが外れれば立ち上がりと直線で失う。
+             だからコースによって、同じ外れかたでも痛みが違う      */
+          const hit = (off, share) => {
+            if (off < 0) {
+              // 冷たいタイヤは食わない。グリップが無いぶん、そのまま遅い
+              t *= 1 + (-off / TT.span) * TT.coldPace * share * 2;
+            } else if (off > 0) {
+              // 熱いタイヤは食うが、削れかたが一気に早くなる
+              t *= 1 + (off / TT.span) * TT.hotPace * share * 2;
+              e.tyreAge += (off / TT.span) * TT.hotWear * share;
+              e.heatDeg = (e.heatDeg || 0) + off / TT.span * share;
+            }
+          };
+          hit(offF, wCor);
+          hit(offR, wDrv);
         }
 
         /* タイヤ摩耗。寿命を超えると急激にタレる。
@@ -2681,7 +2728,8 @@ GP.race = (function () {
           e.tyreAge = (plan0 && plan0.key === e.tyreKey && plan0.age0) || 0;
           // 履いたばかりのタイヤは冷えている。1周目は食わない
           e.tyreTemp = roadAt(lap / laps, rubber) + D.TYRE_TEMP.fresh;
-          e.heatDeg = 0;          // 焼いたのは前のタイヤの話
+          e.tempF = e.tempR = e.tyreTemp;     // 前後とも冷えたところから
+          e.heatDeg = 0;          // 削ったのは前のタイヤの話
           e.radioTemp = null;
           e.pitTyre = null;
           if (e.isPlayer) {
