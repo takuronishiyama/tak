@@ -2408,7 +2408,9 @@ GP.race = (function () {
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
             const big = Math.random() < 0.16 + (e.st.risk - 1) * 0.10;
-            const lost = big ? S.rnd(4.5, 11.0) : S.rnd(0.4, 2.4);
+            /* スピンが 3.0〜9.0秒。ミスはその手前で止まるべきもので、
+               11秒はスピンより重い。順番が逆になっていた             */
+            const lost = big ? S.rnd(3.0, 7.0) : S.rnd(0.4, 2.4);
             t += lost;
             e.tyreAge += big ? 1.6 : 0.5;
             e.misses = (e.misses || 0) + 1;

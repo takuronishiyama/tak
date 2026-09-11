@@ -2605,6 +2605,30 @@ GP.state = (function () {
   function puLiftFor(own, give) {
     return Math.max(0, Math.min(give - own, own * D.PU_SUPPLY.maxLift));
   }
+  /* 押し上げ幅が、ラップにすると何秒ぶんになるか。
+     素点をいくら見せても速さの実感にならないので、
+     race.js と同じ式（paceGap）を使って秒に直す。
+     車の評価は perf の 0.60 ぶんを占めるので、そこだけが動く    */
+  function supplySec(g2, teamName, lift) {
+    const r = (g2.rivals || []).filter(x => x.name === teamName)[0];
+    if (!r || !(lift > 0)) return 0;
+    const track = trackAt(g2, g2.nextRace);
+    const PU = D.PART_CATS.filter(c => c.key === 'pu')[0];
+    const after = { speed:  r.stats.speed  + lift * PU.gain.speed,
+                    corner: r.stats.corner,
+                    accel:  r.stats.accel  + lift * PU.gain.accel };
+    const perfOf = st => carScoreOf(st, track) * 0.60 + 30 * 0.40;
+    // その顔ぶれの基準。race.js の perfRef と同じ組み立て
+    const ref = Math.max.apply(null,
+      (g2.rivals || []).map(x => perfOf(x === r ? after : x.stats))
+        .concat([perfOf(carStats(g2))])) + 4;
+    const lapAt = perf => {
+      const rel = (ref - perf) / Math.max(1, ref);
+      return track.base * (1 + D.PACE.k * D.PACE.soft * Math.tanh(rel / D.PACE.soft));
+    };
+    return Math.max(0, lapAt(perfOf(r.stats)) - lapAt(perfOf(after)));
+  }
+
   /* 「分けてほしい」と言ってくるチーム。
      自前が明らかに劣っている相手ほど、強く欲しがる            */
   function customerOffers(g2) {
@@ -4237,6 +4261,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,
     supplierPower, tickEngine, myPuPower, puRank01, canSupplyPU, customerOffers,
     signCustomer, dropCustomer, dropCustomerFee, customerFee, tickCustomers, rivalPuOf,
+    supplySec,
     tickCustomerYears, puDevMul, isCustomer,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,

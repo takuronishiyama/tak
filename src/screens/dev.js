@@ -1982,6 +1982,13 @@ GP.screens.dev = function (A) {
      ======================================================= */
   function customerBoxHTML() {
     const P2 = D.PU_SUPPLY;
+    /* 秒の見せかた。1周ぶんだけだと小さく見えるが、
+       レースは25周前後あるので、そこまで書いて初めて重さが伝わる */
+    const secTxt = sec => {
+      if (!(sec > 0.004)) return 'ほぼ変わらず';
+      const laps = (S.trackAt(g, g.nextRace) || D.TRACKS[0]).laps || 26;
+      return '-' + sec.toFixed(2) + '秒/周（1レースで約' + Math.round(sec * laps) + '秒）';
+    };
     const cus = g.customers || [];
     let h = '<div class="sub">よそへ供給する</div>';
     if (g.engine) {
@@ -2001,7 +2008,8 @@ GP.screens.dev = function (A) {
           '<i style="background:' + (r ? r.color : '#888') + '"></i>' +
           '<b>' + esc(c.team) + '</b>' +
           '<span>毎戦 💰' + money(c.fee) + '万</span>' +
-          '<span>渡したぶん <em class="warn">+' + (c.given || 0).toFixed(1) + '</em></span>' +
+          '<span>渡したぶん <em class="warn">+' + (c.given || 0).toFixed(1) +
+          '（' + secTxt(S.supplySec(g, c.team, c.given || 0)) + '）</em></span>' +
           '<span>あと' + c.left + '季</span></div>';
       }).join('') + '</div>' +
       '<p class="note warn">🔌 供給料は毎戦 <b>💰' + money(S.customerFee(g)) +
@@ -2041,6 +2049,8 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(o.team) + ' に供給する</b>' +
         '<small>先方の自前 ' + o.own + ' → うちの仕様 <b>' + o.give + '</b>' +
         '（<em class="warn">+' + Math.round(o.gap) + '</em> 押し上げます）' +
+        '<br><em class="warn">ラップにすると ' + secTxt(S.supplySec(g, o.team, o.gap)) +
+        '</em> 先方が速くなります' +
         '<br>毎戦 💰' + money(o.fee) + '万　契約 ' + D.PU_SUPPLY.years + 'シーズン</small></span>' +
         '<span class="pb-cost">一時金<br>+' + money(o.upfront) + '</span></button>';
     });

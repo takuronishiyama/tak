@@ -6939,8 +6939,11 @@ GP.data = (function () {
     needRank: 0.70,     // 自前PUが業界のこの位置より上にあること
     detune:   0.93,     // 客に回すのは、自分のものより一段落としたもの
     gapMin:   5,        // 相手が自前でこれ以上劣っていれば、話が来る
-    maxLift:  0.55,     // 押し上げられるのは、相手が自前で持っている力のこれだけまで
+    maxLift:  1.00,     // 押し上げられるのは、相手が自前で持っている力のこれだけまで
                         // （シャシーは相手のものなので、PUだけで別のチームにはならない）
+                        // 0.55 だと、測ったかぎり毎回ここで頭打ちになり、
+                        // detune のほうが一度も効かなかった。倍までに緩めて、
+                        // 「一段落とした仕様を渡す」がそのまま押し上げ幅になるようにする
     catch:    0.26,     // 渡したぶんが、相手に届く1週あたりの割合
     upfront:  2400,     // 契約の一時金（＋性能ぶん）
     upfrontPer: 62,
@@ -9990,6 +9993,30 @@ GP.state = (function () {
   function puLiftFor(own, give) {
     return Math.max(0, Math.min(give - own, own * D.PU_SUPPLY.maxLift));
   }
+  /* 押し上げ幅が、ラップにすると何秒ぶんになるか。
+     素点をいくら見せても速さの実感にならないので、
+     race.js と同じ式（paceGap）を使って秒に直す。
+     車の評価は perf の 0.60 ぶんを占めるので、そこだけが動く    */
+  function supplySec(g2, teamName, lift) {
+    const r = (g2.rivals || []).filter(x => x.name === teamName)[0];
+    if (!r || !(lift > 0)) return 0;
+    const track = trackAt(g2, g2.nextRace);
+    const PU = D.PART_CATS.filter(c => c.key === 'pu')[0];
+    const after = { speed:  r.stats.speed  + lift * PU.gain.speed,
+                    corner: r.stats.corner,
+                    accel:  r.stats.accel  + lift * PU.gain.accel };
+    const perfOf = st => carScoreOf(st, track) * 0.60 + 30 * 0.40;
+    // その顔ぶれの基準。race.js の perfRef と同じ組み立て
+    const ref = Math.max.apply(null,
+      (g2.rivals || []).map(x => perfOf(x === r ? after : x.stats))
+        .concat([perfOf(carStats(g2))])) + 4;
+    const lapAt = perf => {
+      const rel = (ref - perf) / Math.max(1, ref);
+      return track.base * (1 + D.PACE.k * D.PACE.soft * Math.tanh(rel / D.PACE.soft));
+    };
+    return Math.max(0, lapAt(perfOf(r.stats)) - lapAt(perfOf(after)));
+  }
+
   /* 「分けてほしい」と言ってくるチーム。
      自前が明らかに劣っている相手ほど、強く欲しがる            */
   function customerOffers(g2) {
@@ -11622,6 +11649,7 @@ GP.state = (function () {
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,
     supplierPower, tickEngine, myPuPower, puRank01, canSupplyPU, customerOffers,
     signCustomer, dropCustomer, dropCustomerFee, customerFee, tickCustomers, rivalPuOf,
+    supplySec,
     tickCustomerYears, puDevMul, isCustomer,
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
@@ -14068,7 +14096,9 @@ GP.race = (function () {
           if (Math.random() < mp) {
             // 大きく崩したか、こらえたか
             const big = Math.random() < 0.16 + (e.st.risk - 1) * 0.10;
-            const lost = big ? S.rnd(4.5, 11.0) : S.rnd(0.4, 2.4);
+            /* スピンが 3.0〜9.0秒。ミスはその手前で止まるべきもので、
+               11秒はスピンより重い。順番が逆になっていた             */
+            const lost = big ? S.rnd(3.0, 7.0) : S.rnd(0.4, 2.4);
             t += lost;
             e.tyreAge += big ? 1.6 : 0.5;
             e.misses = (e.misses || 0) + 1;
@@ -22007,6 +22037,13 @@ GP.screens.dev = function (A) {
      ======================================================= */
   function customerBoxHTML() {
     const P2 = D.PU_SUPPLY;
+    /* 秒の見せかた。1周ぶんだけだと小さく見えるが、
+       レースは25周前後あるので、そこまで書いて初めて重さが伝わる */
+    const secTxt = sec => {
+      if (!(sec > 0.004)) return 'ほぼ変わらず';
+      const laps = (S.trackAt(g, g.nextRace) || D.TRACKS[0]).laps || 26;
+      return '-' + sec.toFixed(2) + '秒/周（1レースで約' + Math.round(sec * laps) + '秒）';
+    };
     const cus = g.customers || [];
     let h = '<div class="sub">よそへ供給する</div>';
     if (g.engine) {
@@ -22026,7 +22063,8 @@ GP.screens.dev = function (A) {
           '<i style="background:' + (r ? r.color : '#888') + '"></i>' +
           '<b>' + esc(c.team) + '</b>' +
           '<span>毎戦 💰' + money(c.fee) + '万</span>' +
-          '<span>渡したぶん <em class="warn">+' + (c.given || 0).toFixed(1) + '</em></span>' +
+          '<span>渡したぶん <em class="warn">+' + (c.given || 0).toFixed(1) +
+          '（' + secTxt(S.supplySec(g, c.team, c.given || 0)) + '）</em></span>' +
           '<span>あと' + c.left + '季</span></div>';
       }).join('') + '</div>' +
       '<p class="note warn">🔌 供給料は毎戦 <b>💰' + money(S.customerFee(g)) +
@@ -22066,6 +22104,8 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(o.team) + ' に供給する</b>' +
         '<small>先方の自前 ' + o.own + ' → うちの仕様 <b>' + o.give + '</b>' +
         '（<em class="warn">+' + Math.round(o.gap) + '</em> 押し上げます）' +
+        '<br><em class="warn">ラップにすると ' + secTxt(S.supplySec(g, o.team, o.gap)) +
+        '</em> 先方が速くなります' +
         '<br>毎戦 💰' + money(o.fee) + '万　契約 ' + D.PU_SUPPLY.years + 'シーズン</small></span>' +
         '<span class="pb-cost">一時金<br>+' + money(o.upfront) + '</span></button>';
     });
@@ -28453,6 +28493,24 @@ GP.screens.help = function (A) {
       ]
     },
     {
+      key: 'lapgap', icon: '⏱️', name: '1周のタイム差はどこから来るか',
+      lead: 'タイミングモニターで、ある1台だけが極端に落ちることがあります。中身はたいてい決まっています。',
+      secs: [
+        { h: '車の差そのもの', p: [
+          'マシンの出来の差は、1周にして 2〜3秒ぶんです。グリッドの先頭から最後尾まででも、だいたいこの幅に収まります。実際のF1と同じで、ここは思ったより狭い。',
+          'だから開発で得た「+14%」のような数字も、ラップにすれば0.2秒ほどです。小さく見えますが、1レースを走れば5秒10秒になり、順位はそこで決まります。'
+        ] },
+        { h: '5秒以上落ちた周', p: [
+          'それは車の差ではありません。ピットに入った周、セーフティカー、路面と合っていないタイヤ、寿命を超えたタイヤ、そしてドライバーのミスやスピンです。',
+          'どれも実況か無線で必ず言います。「なぜか1台だけ遅い」という周は無いようにしてあります。'
+        ] },
+        { h: 'ミスとスピン', p: [
+          'ミスは 0.4〜7.0秒、スピンは 3.0〜9.0秒。どちらもレースに1回か2回は起きます。',
+          '起きやすさは、その人のメンタルと「まとめる力」、それにマシンの乗りやすさで決まります。乗りにくい車ほど、ドライバーは崩します。'
+        ] }
+      ]
+    },
+    {
       key: 'engine', icon: '🔌', name: 'エンジンとパーツの供給',
       lead: '買うか、自分で作るか、よそへ配るか。外とのやりとりは「🔌 供給」でまとめて決めます。',
       secs: [
@@ -28461,7 +28519,8 @@ GP.screens.help = function (A) {
         ] },
         { h: '配る', p: [
           '一時金と毎戦の供給料が入り、客が走らせたデータも戻ってきます（研究ポイントと信頼性）。そのかわり、渡した相手はその日から速くなります。',
-          'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。'
+          'こちらが伸ばした最新仕様は、一段落としただけの形で毎週そのまま先方に届きます。',
+          '申し出のところに「ラップにすると -0.30秒/周」と出ます。0.3秒は小さく見えますが、1レースは25周前後あるので8秒前後。F1では順位3つ4つぶんです。渡す前に、そこを見てください。'
         ] },
         { h: '消耗', p: [
           'パワーユニットは1戦でおよそ15%減ります。1基でだいたい5戦です。',
