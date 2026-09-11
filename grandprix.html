@@ -671,7 +671,8 @@ body.preboot .topbar{visibility:hidden}
 #raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
             image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
             max-width:100%;background:#7fbf5a}
-.rv-cam{position:absolute;right:6px;bottom:6px;display:flex;gap:4px}
+/* 無線に右下を譲って、カメラの切り替えは左下へ */
+.rv-cam{position:absolute;left:6px;bottom:6px;display:flex;gap:4px}
 .rv-cam button{background:rgba(255,248,227,.9);border:2px solid var(--ink);border-radius:6px;
                font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
 .rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
@@ -758,8 +759,12 @@ body.preboot .topbar{visibility:hidden}
 
 /* ---- チーム無線 ----
    実況の文字列とは別に、ピットとドライバーの声だけを数秒だけ出す */
-.rv-radio{position:absolute;left:8px;bottom:8px;width:min(260px,58%);
-          display:flex;flex-direction:column;gap:4px;z-index:7;pointer-events:none}
+/* 無線は右下。実際の中継と同じ位置に置く。
+   新しいものが下に積まれ、古いものが上へ抜けていく          */
+.rv-radio{position:absolute;right:8px;bottom:8px;width:min(260px,58%);
+          display:flex;flex-direction:column;align-items:flex-end;
+          gap:4px;z-index:7;pointer-events:none}
+.rv-radio .rvr{width:100%}
 .rvr{border:2px solid #12100c;border-radius:6px;padding:4px 7px;
      background:#141b16;color:#d8f0d4;box-shadow:0 2px 0 rgba(0,0,0,.45);
      animation:rvrIn .22s ease-out}
@@ -768,7 +773,7 @@ body.preboot .topbar{visibility:hidden}
 .rvr.drv{background:#211a12;color:#f6e5c8;border-color:#12100c}
 .rvr.drv b{color:#ffc93c}
 .rvr.out{opacity:0;transform:translateY(-4px);transition:opacity .45s,transform .45s}
-@keyframes rvrIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes rvrIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
 
 /* レース後にふり返る無線のログ */
 .radiolog{max-height:210px;overflow:auto;border:2px solid var(--ink);border-radius:6px;
@@ -844,7 +849,7 @@ body.preboot .topbar{visibility:hidden}
   .rv-canvaswrap{width:100%}
   #raceCanvas{width:100%;height:auto}
   .rv-cam button{font-size:9px;padding:2px 5px}
-  .rv-radio{width:70%;bottom:34px}
+  .rv-radio{width:70%;bottom:34px;right:6px}
   .rvr span{font-size:10px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
   .sc-t{width:48px;font-size:10px}
