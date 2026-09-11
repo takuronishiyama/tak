@@ -4600,8 +4600,46 @@ GP.data = (function () {
     /* 本体を作るときに引く配分の振れ幅。
        0.34 が均等で、tilt のぶんだけ強い軸と弱い軸ができる。
        lean はコンセプトの向きへどれだけ引っぱられるか        */
-    tilt: 0.22, lean: 0.10
+    tilt: 0.22, lean: 0.10,
+    /* 開発責任者とコンセプトの相性が、出来上がる車の顔を変える。
+       得意な人に任せると、狙った向きへ素直に出る（lean↑ tilt↓）。
+       不得意な人だと、狙いが乗らず、でこぼこの車になる（lean↓ tilt↑）*/
+    fitLean: 0.90, fitTilt: 0.45
   };
+
+  /* ---------- 予備シャシー ----------
+     週末に車を壊しても、もう1台あれば載せ替えて走れる。
+     無ければ、徹夜で叩き直すか、応急処置で日曜を迎えるか  */
+  const SPARE = {
+    max: 2,
+    cost: 0.34          // 新車の何割で1台ぶん組めるか
+  };
+
+  /* ---------- 週末の事故 ----------
+     予選が終わった時点で判定する。
+     コースの危なさ、ドライバーの安定感、車の傷みで決まる     */
+  const WEEKEND_HIT = {
+    base: 0.13,         // 素の起きやすさ
+    careHalf: 95,       // 安定感がこれだけあると、半分に減る
+    condHalf: 55,       // 傷んだ車ほど壊れる
+    /* 手当ての三択。どれも日曜には走れるが、失うものがちがう */
+    fix: [
+      { key: 'night', icon: '🌙', name: '徹夜で直す',
+        crew: 22, cond: -8, spare: 0,
+        note: 'クルーが一晩かけて叩き直す。走れる状態には戻るが、みな消耗する' },
+      { key: 'spare', icon: '🔧', name: '予備シャシーに載せ替える',
+        crew: 9, cond: -4, spare: 1,
+        note: '組んであるほうへ載せ替える。いちばん早いが、予備を1台使う' },
+      { key: 'patch', icon: '🩹', name: '応急処置で済ます',
+        crew: 4, cond: -30, spare: 0,
+        note: 'クルーは休ませる。そのかわり、日曜は本来の状態では走れない' }
+    ]
+  };
+
+  /* ---------- 期待を超えたぶん ----------
+     しんどい週末でも、結果が出ればクルーの顔つきは変わる。
+     期待順位を上回った順位ぶんだけ、疲れが少し飛ぶ         */
+  const CREW_BOOST = { per: 2.6, max: 16 };
 
   /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
   const CHASSIS_TRAITS = [
@@ -6798,7 +6836,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -7772,13 +7810,26 @@ GP.state = (function () {
      （狙って作っても、出来上がってみないと分からない）        */
   function rollChassis(g2) {
     const C = D.CHASSIS;
-    const cn = D.CONCEPTS.filter(x => x.key === conceptOf(g2))[0];
+    /* conceptOf は定義そのものを返す（キーではない）。
+       そして CONCEPTS の lead は扇のキーなので、軸の名前には使えない。
+       軸と対応しているのはコンセプトのキーのほう。
+       ドライバビリティ重視だけは速さの軸を名指ししていないので、
+       どの軸へも引っぱらない                                   */
+    const cn = conceptOf(g2);
+    const AXOF = { speed: 'speed', corner: 'corner', accel: 'accel' };
+    const leadAx = cn ? AXOF[cn.key] : null;
+    /* 開発責任者とコンセプトの相性。
+       得意な人に任せれば狙った向きへ素直に出るし、
+       不得意な人だと、狙いが乗らないうえに、でこぼこの車になる */
+    const fit = mgrFit(g2, 'technical');
+    const lean = C.lean * (1 + fit * C.fitLean);
+    const tilt = C.tilt * (1 - fit * C.fitTilt);
     const AX = ['speed', 'corner', 'accel'];
     const w = {};
     AX.forEach(k => {
-      // コンセプトが名指ししている軸は、少しだけ出やすい
-      const pull = (cn && cn.lead === k) ? C.lean : 0;
-      w[k] = 1 / 3 + pull + rnd(-C.tilt, C.tilt);
+      // コンセプトが名指ししている軸は、そのぶん出やすい
+      const pull = (leadAx === k) ? lean : 0;
+      w[k] = 1 / 3 + pull + rnd(-tilt, tilt);
     });
     const tot = AX.reduce((a, k) => a + Math.max(0.08, w[k]), 0);
     const out = {};
@@ -9247,6 +9298,79 @@ GP.state = (function () {
     g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
+  /* ---------- 予備シャシー ----------
+     週末に壊しても、もう1台あれば載せ替えて走れる          */
+  function spareOf(g2) { return clamp(Math.round((g2 && g2.spare) || 0), 0, D.SPARE.max); }
+  function spareCost(g2) {
+    const gen = D.CAR_GENS[clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1)];
+    // いちばん安い世代でも、それなりの額にはなる
+    return Math.round(Math.max(900, (gen.cost || 3200) * D.SPARE.cost));
+  }
+  function buySpare(g2) {
+    if (spareOf(g2) >= D.SPARE.max) return null;
+    const c = spareCost(g2);
+    if (g2.funds < c) return null;
+    g2.funds -= c;
+    g2.spare = spareOf(g2) + 1;
+    return { cost: c, now: g2.spare };
+  }
+
+  /* ---------- 週末の事故 ----------
+     予選が終わった時点で、壊したかどうかを決める。
+     コースの危なさ、乗り手の安定感、車の傷みで変わる        */
+  function weekendHitOdds(g2, track) {
+    const W = D.WEEKEND_HIT;
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (!ds.length) return 0;
+    // 2人のうち、危ういほうに引きずられる
+    const care = Math.min.apply(null, ds.map(d => careOf(d)));
+    const cond = D.PART_CATS.reduce((a, c) => {
+      const p = g2.equipped[c.key];
+      return a + (p ? p.cond : 100);
+    }, 0) / Math.max(1, D.PART_CATS.length);
+    const byCare = W.careHalf / (W.careHalf + Math.max(0, care));
+    const byCond = 1 + Math.max(0, 100 - cond) / W.condHalf;
+    return clamp(W.base * byCare * byCond * ((track && track.risk) || 1), 0, 0.55);
+  }
+  function rollWeekendHit(g2, track) {
+    if (Math.random() >= weekendHitOdds(g2, track)) return null;
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (!ds.length) return null;
+    // 安定感の低いほうが起こしやすい
+    const d = ds.length > 1 && careOf(ds[1]) < careOf(ds[0]) && Math.random() < 0.62 ? ds[1] : ds[0];
+    const kind = Math.random() < 0.58
+      ? { key: 'crash', icon: '💥', name: 'クラッシュ',
+          say: 'コースアウトして、フロントからバリアに当てました' }
+      : { key: 'fail', icon: '🛠️', name: '大きな故障',
+          say: '走行中に異音。開けてみたら、そのままでは日曜を迎えられません' };
+    return { driver: d.name, kind: kind };
+  }
+  /* 手当てを実行する。三択のどれを選んでも日曜には走れる */
+  function applyWeekendFix(g2, key) {
+    const f = D.WEEKEND_HIT.fix.filter(x => x.key === key)[0];
+    if (!f) return null;
+    if (f.spare) {
+      if (spareOf(g2) < f.spare) return null;
+      g2.spare = spareOf(g2) - f.spare;
+    }
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
+    g2.logi.crew = clamp(crew(g2) + f.crew, 0, 100);
+    D.PART_CATS.forEach(c => {
+      const p = g2.equipped[c.key];
+      if (p) p.cond = clamp(p.cond + f.cond, 10, 100);
+    });
+    return f;
+  }
+
+  /* ---------- 期待を超えたぶん ----------
+     しんどい週末でも、結果が出ればクルーの顔つきは変わる   */
+  function crewBoost(g2, beat) {
+    if (!(beat > 0)) return 0;
+    const v = Math.min(D.CREW_BOOST.max, beat * D.CREW_BOOST.per);
+    restCrew(g2, v);
+    return Math.round(v * 10) / 10;
+  }
+
   /* ---------- パワーユニットの使用基数と載せ替え ---------- */
   function puOf(g2) {
     if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
@@ -10237,6 +10361,7 @@ GP.state = (function () {
       pu: { used: 1, life: 100, grid: 0, over: 0 },   // パワーユニットの基数と残り
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       techs: {},            // 開発で積み上げた技術（タグ）
+      spare: 0,             // 予備シャシーの数
       mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
       matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
@@ -11004,6 +11129,7 @@ GP.state = (function () {
       D.PART_CATS.forEach(c => toQual(g.equipped && g.equipped[c.key]));
       (g.inventory || []).forEach(toQual);
       (g.stock || []).forEach(toQual);
+      if (g.spare == null) g.spare = 0;
       if (!g.mat) g.mat = {};
       if (!g.matP) g.matP = {};
       D.PART_GROUPS.forEach(gr => {
@@ -11048,6 +11174,7 @@ GP.state = (function () {
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
     chassisStats, chassisOf, chassisTrait, rollChassis,
+    spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
@@ -13963,6 +14090,16 @@ GP.race = (function () {
       if (beat >= 4) fanNote = '🎉 誰も期待していなかった ' + got + '位！ ファンが一気に増えた！';
       else if (beat <= -4 && !best.dnf) fanNote = '😞 ' + expect + '位あたりを期待されていたのに ' + got + '位…ファンが離れた。';
       notes.push(fanNote + '（期待 ' + expect + '位）');
+      /* 結果が出れば、クルーの顔つきは変わる。
+         しんどい週末を越えた直後ほど、ここが効く            */
+      if (!best.dnf) {
+        const back = S.crewBoost(g, beat);
+        if (back > 0) {
+          notes.push('🧑‍🔧 期待を ' + beat + 'つ上回った。クルーの疲れが ' +
+                     back + ' 飛んだ（いま ' +
+                     Math.round((g.logi && g.logi.crew) || 0) + '）');
+        }
+      }
 
       // 母国グランプリ：地元のスタンドが自分の色で埋まる
       const homeDrv = g.drivers.filter(d => S.nationOf(d).flag === res.track.country);
@@ -19293,6 +19430,28 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
   }
+  /* ---- 予備シャシー ----
+     組んであるだけで、週末に壊したときの逃げ道になる。
+     金は寝るが、クルーを潰さずに日曜を迎えられる          */
+  function spareBoxHTML() {
+    const now = S.spareOf(g);
+    const cost = S.spareCost(g);
+    const full = now >= D.SPARE.max;
+    const ok = !full && g.funds >= cost;
+    return '<div class="sub">予備シャシー</div>' +
+      '<p class="desc">週末に壊したとき、組んであれば載せ替えるだけで済みます。' +
+      '無ければ徹夜で叩き直すか、応急処置のまま日曜を迎えることになります。' +
+      U.helpLink('car') + '</p><div class="pick">' +
+      '<button class="pickbtn" data-spare="1"' + (ok ? '' : ' disabled') + '>' +
+      '<span class="pb-ic" style="background:#c98b4a">🚛</span>' +
+      '<span class="pb-body"><b>もう1台ぶん組んでおく' +
+      '<em class="matnow">いま ' + now + ' / ' + D.SPARE.max + ' 台</em></b>' +
+      '<small>' + (full ? 'これ以上は置く場所がありません'
+                        : '載せ替えなら、クルーの疲労は +9 で済みます（徹夜なら +22）') +
+      '</small></span>' +
+      '<span class="pb-cost">' + (full ? '—' : '💰' + money(cost)) + '</span></button></div>';
+  }
+
   /* ---- 素材 ----
      扇ごとに、いま何で作れるか。
      パーツを作り、煮詰めるたびに、その扇に「勘所」が貯まる。
@@ -19733,6 +19892,9 @@ GP.screens.dev = function (A) {
         '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
     }
 
+    // ---- 予備シャシー ----
+    body += spareBoxHTML();
+
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -19799,6 +19961,14 @@ GP.screens.dev = function (A) {
       else if (kind === 'des') doDesign(key);
     });
     bindMat();
+    bindAct('data-spare', () => {
+      const r2 = S.buySpare(g);
+      if (!r2) return;
+      GP.sound.play('build');
+      U.log(g, '🚛 予備シャシーを1台組んだ（いま ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
+      U.toast('🚛 予備シャシー ' + r2.now + '台', 'good');
+      S.save(g); render(); cmdDesign();
+    });
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -22144,9 +22314,55 @@ GP.screens.weekend = function (A) {
   }
 
   function startRace() {
+    /* ---- 土曜の夜に起きること ----
+       予選が終わったところで、壊したかどうかが決まる。
+       ここからは、日曜に何を持って行くかという話になる    */
+    const hit = S.rollWeekendHit(g, S.trackAt(g, g.nextRace));
+    if (hit) return showWeekendHit(hit);
+    goRace();
+  }
+
+  function goRace() {
     currentRes = R.simulate(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special, A.prePack);
     A.prePack = null;
     runRace();
+  }
+
+  /* ---- 壊したあとの三択 ----
+     どれを選んでも日曜には走れる。失うものがちがうだけ。
+     クルーを潰すか、予備を使うか、車のほうを諦めるか      */
+  function showWeekendHit(hit) {
+    const sp = S.spareOf(g);
+    const crewNow = Math.round((g.logi && g.logi.crew) || 0);
+    let h = '<div class="sub">' + hit.kind.icon + ' ' + hit.kind.name + '</div>' +
+      '<p class="lead">' + esc(hit.driver) + '「' + esc(hit.kind.say) + '」</p>' +
+      '<p class="desc">日曜までに間に合わせなければなりません。' +
+      'いまのクルーの疲労は <b>' + crewNow + '</b>／予備シャシーは <b>' + sp + '台</b>です。</p>' +
+      '<div class="pick">';
+    D.WEEKEND_HIT.fix.forEach(f => {
+      const lack = f.spare && sp < f.spare;
+      h += '<button class="pickbtn" data-fix="' + f.key + '"' + (lack ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="font-size:19px">' + f.icon + '</span>' +
+        '<span class="pb-body"><b>' + f.name +
+        (lack ? '<em class="warn">予備がありません</em>' : '') + '</b>' +
+        '<small>' + esc(f.note) +
+        '<br><em class="pnote">クルーの疲労 +' + f.crew +
+        '／マシンのコンディション ' + f.cond +
+        (f.spare ? '／予備 -' + f.spare : '') + '</em></small></span></button>';
+    });
+    h += '</div>' +
+      '<p class="note">💡 日曜に<b>期待より上の順位</b>で帰れば、クルーの疲れは少し飛びます。</p>';
+    U.modal('🌙 土曜の夜', h, []);
+    bindAct('data-fix', key => {
+      const f = S.applyWeekendFix(g, key);
+      if (!f) return;
+      U.closeModal();
+      U.log(g, hit.kind.icon + ' ' + esc(hit.driver) + ' が' + hit.kind.name +
+        '。' + f.name + '（クルーの疲労 +' + f.crew + '）', 'warn');
+      GP.sound.play(key === 'night' ? 'warn' : 'confirm');
+      S.save(g);
+      goRace();
+    });
   }
 
   /* ---- 予選のあとの、出力モードの決めどころ ----
@@ -26961,7 +27177,14 @@ GP.screens.help = function (A) {
         { h: '車体の性格と、パーツの振りかた', p: [
           '車を作るときに、本体の配分（直線／コーナー／立ち上がり）が決まります。強い軸と弱い軸ができ、そこから「直線番長」「曲がる車」「蹴り出しの車」「素直な車」という性格が付きます。狙って作っても、出来上がってみないと分かりません。',
           'そのうえで、パーツをどちらへ振るかを選べます。本体の得意へさらに積むのが<b>補強</b>、苦手を埋めるのが<b>是正</b>です。補強した車は合うコースで手がつけられなくなり、合わないコースでは沈みます。是正した車はどこへ行っても大崩れしません。',
-          'インテグレートは、この性格を<b>増幅</b>します。まとめ上げた車ほど「その車らしく」なり、まとまっていない車は良いところも悪いところも出てきません。合計の速さは変わらず、配分だけが伸び縮みします。'
+          'インテグレートは、この性格を<b>増幅</b>します。まとめ上げた車ほど「その車らしく」なり、まとまっていない車は良いところも悪いところも出てきません。合計の速さは変わらず、配分だけが伸び縮みします。',
+          'どんな車が出てくるかは、その年のコンセプトと、<b>開発責任者との相性</b>で決まります。得意な人に任せると9割以上が狙いどおりの向きに出て、しかも素直な車になります。不得意な人だと狙いは3割ほどしか通らず、でこぼこの大きい車ができあがります。'
+        ] },
+        { h: '予備シャシーと、土曜の夜', p: [
+          'フリー走行や予選で壊すと、土曜の夜に三つの選択肢が出ます。どれを選んでも日曜には走れますが、失うものがちがいます。',
+          '🌙 徹夜で直す … クルーの疲労 +22、マシンのコンディション -8。／🔧 予備シャシーに載せ替える … 疲労 +9、コンディション -4、予備を1台使う。／🩹 応急処置で済ます … 疲労 +4だが、コンディション -30。',
+          '予備シャシーは📐開発で組んでおけます。置いてあるだけで金は寝ますが、壊したときにクルーを潰さずに済みます。',
+          '日曜に<b>期待順位を上回る</b>と、上回った順位ぶんだけクルーの疲れが飛びます（1つにつき2.6、最大16）。しんどい週末でも、結果が出れば取り返せます。'
         ] },
         { h: '三つの輪', p: [
           '内側がパーツです。空力・足まわり・シャシー・ブレーキ・パワーユニット・ギヤ・電装の7つ。数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」の目安です。',

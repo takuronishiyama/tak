@@ -2871,6 +2871,16 @@ GP.race = (function () {
       if (beat >= 4) fanNote = '🎉 誰も期待していなかった ' + got + '位！ ファンが一気に増えた！';
       else if (beat <= -4 && !best.dnf) fanNote = '😞 ' + expect + '位あたりを期待されていたのに ' + got + '位…ファンが離れた。';
       notes.push(fanNote + '（期待 ' + expect + '位）');
+      /* 結果が出れば、クルーの顔つきは変わる。
+         しんどい週末を越えた直後ほど、ここが効く            */
+      if (!best.dnf) {
+        const back = S.crewBoost(g, beat);
+        if (back > 0) {
+          notes.push('🧑‍🔧 期待を ' + beat + 'つ上回った。クルーの疲れが ' +
+                     back + ' 飛んだ（いま ' +
+                     Math.round((g.logi && g.logi.crew) || 0) + '）');
+        }
+      }
 
       // 母国グランプリ：地元のスタンドが自分の色で埋まる
       const homeDrv = g.drivers.filter(d => S.nationOf(d).flag === res.track.country);

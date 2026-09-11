@@ -709,9 +709,55 @@ GP.screens.weekend = function (A) {
   }
 
   function startRace() {
+    /* ---- 土曜の夜に起きること ----
+       予選が終わったところで、壊したかどうかが決まる。
+       ここからは、日曜に何を持って行くかという話になる    */
+    const hit = S.rollWeekendHit(g, S.trackAt(g, g.nextRace));
+    if (hit) return showWeekendHit(hit);
+    goRace();
+  }
+
+  function goRace() {
     currentRes = R.simulate(g, raceCtx.trackIndex, pendingStrategy, raceCtx.special, A.prePack);
     A.prePack = null;
     runRace();
+  }
+
+  /* ---- 壊したあとの三択 ----
+     どれを選んでも日曜には走れる。失うものがちがうだけ。
+     クルーを潰すか、予備を使うか、車のほうを諦めるか      */
+  function showWeekendHit(hit) {
+    const sp = S.spareOf(g);
+    const crewNow = Math.round((g.logi && g.logi.crew) || 0);
+    let h = '<div class="sub">' + hit.kind.icon + ' ' + hit.kind.name + '</div>' +
+      '<p class="lead">' + esc(hit.driver) + '「' + esc(hit.kind.say) + '」</p>' +
+      '<p class="desc">日曜までに間に合わせなければなりません。' +
+      'いまのクルーの疲労は <b>' + crewNow + '</b>／予備シャシーは <b>' + sp + '台</b>です。</p>' +
+      '<div class="pick">';
+    D.WEEKEND_HIT.fix.forEach(f => {
+      const lack = f.spare && sp < f.spare;
+      h += '<button class="pickbtn" data-fix="' + f.key + '"' + (lack ? ' disabled' : '') + '>' +
+        '<span class="pb-ic" style="font-size:19px">' + f.icon + '</span>' +
+        '<span class="pb-body"><b>' + f.name +
+        (lack ? '<em class="warn">予備がありません</em>' : '') + '</b>' +
+        '<small>' + esc(f.note) +
+        '<br><em class="pnote">クルーの疲労 +' + f.crew +
+        '／マシンのコンディション ' + f.cond +
+        (f.spare ? '／予備 -' + f.spare : '') + '</em></small></span></button>';
+    });
+    h += '</div>' +
+      '<p class="note">💡 日曜に<b>期待より上の順位</b>で帰れば、クルーの疲れは少し飛びます。</p>';
+    U.modal('🌙 土曜の夜', h, []);
+    bindAct('data-fix', key => {
+      const f = S.applyWeekendFix(g, key);
+      if (!f) return;
+      U.closeModal();
+      U.log(g, hit.kind.icon + ' ' + esc(hit.driver) + ' が' + hit.kind.name +
+        '。' + f.name + '（クルーの疲労 +' + f.crew + '）', 'warn');
+      GP.sound.play(key === 'night' ? 'warn' : 'confirm');
+      S.save(g);
+      goRace();
+    });
   }
 
   /* ---- 予選のあとの、出力モードの決めどころ ----

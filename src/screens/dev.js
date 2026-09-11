@@ -65,6 +65,28 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
   }
+  /* ---- 予備シャシー ----
+     組んであるだけで、週末に壊したときの逃げ道になる。
+     金は寝るが、クルーを潰さずに日曜を迎えられる          */
+  function spareBoxHTML() {
+    const now = S.spareOf(g);
+    const cost = S.spareCost(g);
+    const full = now >= D.SPARE.max;
+    const ok = !full && g.funds >= cost;
+    return '<div class="sub">予備シャシー</div>' +
+      '<p class="desc">週末に壊したとき、組んであれば載せ替えるだけで済みます。' +
+      '無ければ徹夜で叩き直すか、応急処置のまま日曜を迎えることになります。' +
+      U.helpLink('car') + '</p><div class="pick">' +
+      '<button class="pickbtn" data-spare="1"' + (ok ? '' : ' disabled') + '>' +
+      '<span class="pb-ic" style="background:#c98b4a">🚛</span>' +
+      '<span class="pb-body"><b>もう1台ぶん組んでおく' +
+      '<em class="matnow">いま ' + now + ' / ' + D.SPARE.max + ' 台</em></b>' +
+      '<small>' + (full ? 'これ以上は置く場所がありません'
+                        : '載せ替えなら、クルーの疲労は +9 で済みます（徹夜なら +22）') +
+      '</small></span>' +
+      '<span class="pb-cost">' + (full ? '—' : '💰' + money(cost)) + '</span></button></div>';
+  }
+
   /* ---- 素材 ----
      扇ごとに、いま何で作れるか。
      パーツを作り、煮詰めるたびに、その扇に「勘所」が貯まる。
@@ -505,6 +527,9 @@ GP.screens.dev = function (A) {
         '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
     }
 
+    // ---- 予備シャシー ----
+    body += spareBoxHTML();
+
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -571,6 +596,14 @@ GP.screens.dev = function (A) {
       else if (kind === 'des') doDesign(key);
     });
     bindMat();
+    bindAct('data-spare', () => {
+      const r2 = S.buySpare(g);
+      if (!r2) return;
+      GP.sound.play('build');
+      U.log(g, '🚛 予備シャシーを1台組んだ（いま ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
+      U.toast('🚛 予備シャシー ' + r2.now + '台', 'good');
+      S.save(g); render(); cmdDesign();
+    });
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }

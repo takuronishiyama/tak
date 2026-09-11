@@ -696,8 +696,46 @@ GP.data = (function () {
     /* 本体を作るときに引く配分の振れ幅。
        0.34 が均等で、tilt のぶんだけ強い軸と弱い軸ができる。
        lean はコンセプトの向きへどれだけ引っぱられるか        */
-    tilt: 0.22, lean: 0.10
+    tilt: 0.22, lean: 0.10,
+    /* 開発責任者とコンセプトの相性が、出来上がる車の顔を変える。
+       得意な人に任せると、狙った向きへ素直に出る（lean↑ tilt↓）。
+       不得意な人だと、狙いが乗らず、でこぼこの車になる（lean↓ tilt↑）*/
+    fitLean: 0.90, fitTilt: 0.45
   };
+
+  /* ---------- 予備シャシー ----------
+     週末に車を壊しても、もう1台あれば載せ替えて走れる。
+     無ければ、徹夜で叩き直すか、応急処置で日曜を迎えるか  */
+  const SPARE = {
+    max: 2,
+    cost: 0.34          // 新車の何割で1台ぶん組めるか
+  };
+
+  /* ---------- 週末の事故 ----------
+     予選が終わった時点で判定する。
+     コースの危なさ、ドライバーの安定感、車の傷みで決まる     */
+  const WEEKEND_HIT = {
+    base: 0.13,         // 素の起きやすさ
+    careHalf: 95,       // 安定感がこれだけあると、半分に減る
+    condHalf: 55,       // 傷んだ車ほど壊れる
+    /* 手当ての三択。どれも日曜には走れるが、失うものがちがう */
+    fix: [
+      { key: 'night', icon: '🌙', name: '徹夜で直す',
+        crew: 22, cond: -8, spare: 0,
+        note: 'クルーが一晩かけて叩き直す。走れる状態には戻るが、みな消耗する' },
+      { key: 'spare', icon: '🔧', name: '予備シャシーに載せ替える',
+        crew: 9, cond: -4, spare: 1,
+        note: '組んであるほうへ載せ替える。いちばん早いが、予備を1台使う' },
+      { key: 'patch', icon: '🩹', name: '応急処置で済ます',
+        crew: 4, cond: -30, spare: 0,
+        note: 'クルーは休ませる。そのかわり、日曜は本来の状態では走れない' }
+    ]
+  };
+
+  /* ---------- 期待を超えたぶん ----------
+     しんどい週末でも、結果が出ればクルーの顔つきは変わる。
+     期待順位を上回った順位ぶんだけ、疲れが少し飛ぶ         */
+  const CREW_BOOST = { per: 2.6, max: 16 };
 
   /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
   const CHASSIS_TRAITS = [
@@ -2894,6 +2932,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

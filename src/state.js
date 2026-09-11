@@ -690,13 +690,26 @@ GP.state = (function () {
      （狙って作っても、出来上がってみないと分からない）        */
   function rollChassis(g2) {
     const C = D.CHASSIS;
-    const cn = D.CONCEPTS.filter(x => x.key === conceptOf(g2))[0];
+    /* conceptOf は定義そのものを返す（キーではない）。
+       そして CONCEPTS の lead は扇のキーなので、軸の名前には使えない。
+       軸と対応しているのはコンセプトのキーのほう。
+       ドライバビリティ重視だけは速さの軸を名指ししていないので、
+       どの軸へも引っぱらない                                   */
+    const cn = conceptOf(g2);
+    const AXOF = { speed: 'speed', corner: 'corner', accel: 'accel' };
+    const leadAx = cn ? AXOF[cn.key] : null;
+    /* 開発責任者とコンセプトの相性。
+       得意な人に任せれば狙った向きへ素直に出るし、
+       不得意な人だと、狙いが乗らないうえに、でこぼこの車になる */
+    const fit = mgrFit(g2, 'technical');
+    const lean = C.lean * (1 + fit * C.fitLean);
+    const tilt = C.tilt * (1 - fit * C.fitTilt);
     const AX = ['speed', 'corner', 'accel'];
     const w = {};
     AX.forEach(k => {
-      // コンセプトが名指ししている軸は、少しだけ出やすい
-      const pull = (cn && cn.lead === k) ? C.lean : 0;
-      w[k] = 1 / 3 + pull + rnd(-C.tilt, C.tilt);
+      // コンセプトが名指ししている軸は、そのぶん出やすい
+      const pull = (leadAx === k) ? lean : 0;
+      w[k] = 1 / 3 + pull + rnd(-tilt, tilt);
     });
     const tot = AX.reduce((a, k) => a + Math.max(0.08, w[k]), 0);
     const out = {};
@@ -2165,6 +2178,79 @@ GP.state = (function () {
     g2.logi.crew = clamp(crew(g2) - amount, 0, 100);
   }
 
+  /* ---------- 予備シャシー ----------
+     週末に壊しても、もう1台あれば載せ替えて走れる          */
+  function spareOf(g2) { return clamp(Math.round((g2 && g2.spare) || 0), 0, D.SPARE.max); }
+  function spareCost(g2) {
+    const gen = D.CAR_GENS[clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1)];
+    // いちばん安い世代でも、それなりの額にはなる
+    return Math.round(Math.max(900, (gen.cost || 3200) * D.SPARE.cost));
+  }
+  function buySpare(g2) {
+    if (spareOf(g2) >= D.SPARE.max) return null;
+    const c = spareCost(g2);
+    if (g2.funds < c) return null;
+    g2.funds -= c;
+    g2.spare = spareOf(g2) + 1;
+    return { cost: c, now: g2.spare };
+  }
+
+  /* ---------- 週末の事故 ----------
+     予選が終わった時点で、壊したかどうかを決める。
+     コースの危なさ、乗り手の安定感、車の傷みで変わる        */
+  function weekendHitOdds(g2, track) {
+    const W = D.WEEKEND_HIT;
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (!ds.length) return 0;
+    // 2人のうち、危ういほうに引きずられる
+    const care = Math.min.apply(null, ds.map(d => careOf(d)));
+    const cond = D.PART_CATS.reduce((a, c) => {
+      const p = g2.equipped[c.key];
+      return a + (p ? p.cond : 100);
+    }, 0) / Math.max(1, D.PART_CATS.length);
+    const byCare = W.careHalf / (W.careHalf + Math.max(0, care));
+    const byCond = 1 + Math.max(0, 100 - cond) / W.condHalf;
+    return clamp(W.base * byCare * byCond * ((track && track.risk) || 1), 0, 0.55);
+  }
+  function rollWeekendHit(g2, track) {
+    if (Math.random() >= weekendHitOdds(g2, track)) return null;
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (!ds.length) return null;
+    // 安定感の低いほうが起こしやすい
+    const d = ds.length > 1 && careOf(ds[1]) < careOf(ds[0]) && Math.random() < 0.62 ? ds[1] : ds[0];
+    const kind = Math.random() < 0.58
+      ? { key: 'crash', icon: '💥', name: 'クラッシュ',
+          say: 'コースアウトして、フロントからバリアに当てました' }
+      : { key: 'fail', icon: '🛠️', name: '大きな故障',
+          say: '走行中に異音。開けてみたら、そのままでは日曜を迎えられません' };
+    return { driver: d.name, kind: kind };
+  }
+  /* 手当てを実行する。三択のどれを選んでも日曜には走れる */
+  function applyWeekendFix(g2, key) {
+    const f = D.WEEKEND_HIT.fix.filter(x => x.key === key)[0];
+    if (!f) return null;
+    if (f.spare) {
+      if (spareOf(g2) < f.spare) return null;
+      g2.spare = spareOf(g2) - f.spare;
+    }
+    if (!g2.logi) g2.logi = { plan: 'std', load: 'std', crew: 0 };
+    g2.logi.crew = clamp(crew(g2) + f.crew, 0, 100);
+    D.PART_CATS.forEach(c => {
+      const p = g2.equipped[c.key];
+      if (p) p.cond = clamp(p.cond + f.cond, 10, 100);
+    });
+    return f;
+  }
+
+  /* ---------- 期待を超えたぶん ----------
+     しんどい週末でも、結果が出ればクルーの顔つきは変わる   */
+  function crewBoost(g2, beat) {
+    if (!(beat > 0)) return 0;
+    const v = Math.min(D.CREW_BOOST.max, beat * D.CREW_BOOST.per);
+    restCrew(g2, v);
+    return Math.round(v * 10) / 10;
+  }
+
   /* ---------- パワーユニットの使用基数と載せ替え ---------- */
   function puOf(g2) {
     if (!g2.pu) g2.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
@@ -3155,6 +3241,7 @@ GP.state = (function () {
       pu: { used: 1, life: 100, grid: 0, over: 0 },   // パワーユニットの基数と残り
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       techs: {},            // 開発で積み上げた技術（タグ）
+      spare: 0,             // 予備シャシーの数
       mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
       matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
@@ -3922,6 +4009,7 @@ GP.state = (function () {
       D.PART_CATS.forEach(c => toQual(g.equipped && g.equipped[c.key]));
       (g.inventory || []).forEach(toQual);
       (g.stock || []).forEach(toQual);
+      if (g.spare == null) g.spare = 0;
       if (!g.mat) g.mat = {};
       if (!g.matP) g.matP = {};
       D.PART_GROUPS.forEach(gr => {
@@ -3966,6 +4054,7 @@ GP.state = (function () {
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
     chassisStats, chassisOf, chassisTrait, rollChassis,
+    spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
