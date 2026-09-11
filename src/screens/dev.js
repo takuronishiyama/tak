@@ -48,16 +48,19 @@ GP.screens.dev = function (A) {
       carMixHTML() +
       mechMapHTML(g) + mechReadHTML(g) +
       '<div class="sub">何をしますか</div>' +
-      '<p class="desc">どれも1週ぶんのコマンドです。' +
-      '<b>改良</b>は積んでいるものを煮詰め、<b>開発</b>は新しいパーツと素材を作り、' +
-      '<b>研究</b>はその一段手前で「何が効くか」を探します。</p>' +
+      '<p class="desc">どれも1週ぶんのコマンドで、' +
+      '<b>上の輪のどこを動かすか</b>がそれぞれ違います。' +
+      '内側から順に、パーツ・インテグレート・コンセプトです。</p>' +
       '<div class="pick">' +
-      carPickHTML('🔧', '改良', 'いま積んでいるパーツを煮詰める',
-        '性能が上限へ近づく。上限はその個体の品質で決まっていて、ここでは動かない', 'imp') +
-      carPickHTML('📐', '開発', '新しいパーツを作り、素材と技術を伸ばす',
-        '出来のいい個体を引き当てる。作るほど扇に勘所が貯まり、素材を上げられる', 'des') +
-      carPickHTML('🔬', '研究', 'まだ図面になっていないものを探す',
-        '知見が溜まり、改良1回ぶんの伸びが大きくなる。開発の一段手前', 'res') +
+      carPickHTML('📐', '開発', '⬤ 内側の輪 ― パーツ',
+        '新しいパーツを作り、いま積んでいるものを煮詰める。' +
+        'パーツの輪が動くのは、ここだけです', 'des') +
+      carPickHTML('🔧', '改良', '◎ 真ん中の輪 ― インテグレート',
+        '扇の中をまとめ、扇どうしをつなぐ。' +
+        '持っているものが、そのぶん外へ出てくるようになります', 'imp') +
+      carPickHTML('🔬', '研究', '◯ いちばん外の輪 ― コンセプト',
+        '方針が引いた線そのものを押し広げる。' +
+        '「この車では行けない」はずだった向きへ、行けるようになります', 'res') +
       '</div>';
     U.modal('🏎️ 車体', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, res: cmdResearch };
@@ -73,14 +76,25 @@ GP.screens.dev = function (A) {
     const cost = S.spareCost(g);
     const full = now >= D.SPARE.max;
     const ok = !full && g.funds >= cost;
-    return '<div class="sub">予備シャシー</div>' +
-      '<p class="desc">週末に壊したとき、組んであれば載せ替えるだけで済みます。' +
+    /* パワーユニットと同じ考えかたで、数を持つ。
+       ただしこちらに基数制限はない。何台持っておくかだけの話   */
+    let dots = '';
+    for (let i = 0; i < D.SPARE.max; i++) {
+      dots += '<b class="' + (i < now ? 'on' : '') + '"></b>';
+    }
+    return '<div class="sub">シャシーの在庫</div>' +
+      '<p class="desc">組んである車体を何台持っておくか。' +
+      'パワーユニットとちがって使える数に決まりはなく、' +
+      '<b>週末に壊したときの逃げ道</b>としてだけ効きます。' +
       '無ければ徹夜で叩き直すか、応急処置のまま日曜を迎えることになります。' +
-      U.helpLink('car') + '</p><div class="pick">' +
+      U.helpLink('car') + '</p>' +
+      '<div class="stockbar"><span>🚛 いまの在庫</span>' +
+      '<i class="stockdots">' + dots + '</i>' +
+      '<em>' + now + ' / ' + D.SPARE.max + ' 台</em></div>' +
+      '<div class="pick">' +
       '<button class="pickbtn" data-spare="1"' + (ok ? '' : ' disabled') + '>' +
       '<span class="pb-ic" style="background:#c98b4a">🚛</span>' +
-      '<span class="pb-body"><b>もう1台ぶん組んでおく' +
-      '<em class="matnow">いま ' + now + ' / ' + D.SPARE.max + ' 台</em></b>' +
+      '<span class="pb-body"><b>もう1台ぶん組んでおく</b>' +
       '<small>' + (full ? 'これ以上は置く場所がありません'
                         : '載せ替えなら、クルーの疲労は +9 で済みます（徹夜なら +22）') +
       '</small></span>' +
@@ -279,11 +293,14 @@ GP.screens.dev = function (A) {
 
   let useTicket = false;
 
-  function cmdImprove() {
+  /* ---- 開発の腰まわり ----
+     どれだけの力を今季に注ぐか、来季にいくら積んであるか、
+     そして世代がどこまで来ているか。
+     どれもパーツを叩く話なので、開発の画面に置く          */
+  function devHeadHTML() {
     const tk = g.tickets || 0;
-    if (!tk) useTicket = false;
     const fc = S.focusOf(g);
-    let body = interiorHTML('factory') +
+    let body = '' +
       '<div class="sub">開発リソースの配分</div>' +
       '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
       '来季に回したぶんは、次の世代のマシンの初期性能になります。</p>' +
@@ -340,13 +357,24 @@ GP.screens.dev = function (A) {
             : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
       }
     }
-    // ---- 機構の噛み合い ----
-    body += '<div class="sub">🔗 機構の噛み合い</div>' +
-      '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
-      '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
-      '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
-      mechMapHTML(g) + mechReadHTML(g);
+    return body;
+  }
 
+  /* ---- 装着中パーツの改良 ----
+     内側の輪が動くのは、ここと新パーツの設計だけ          */
+  function partsBoxHTML() {
+    let body = '';
+    const tk = g.tickets || 0;
+    // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている
+    let weakest = null;
+    {
+      const rs = D.PART_CATS.map(c => {
+        const q = g.equipped[c.key];
+        if (!q || (c.key === 'pu' && q.supplied)) return null;
+        return { key: c.key, r: q.power / S.partCap(g, q) };
+      }).filter(Boolean).sort((a, b) => a.r - b.r);
+      if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
+    }
     body += '<div class="sub">装着中パーツの改良</div>' +
       '<p class="desc">数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」。' +
       U.helpLink('car') + '</p><div class="pick">';
@@ -378,11 +406,7 @@ GP.screens.dev = function (A) {
           U.partIcon(c.key, 26, S.qualStars(S.qualOf(p))) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) +
         (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') +
-        // 研究で溜めた知見。この部位を改良すると、1つ使って大きく伸びる
-        (S.findingsOf(g, c.key)
-          ? '<em class="findchip" title="🔬 研究の知見。改良1回の伸びが ×' +
-            D.RESEARCH.polMul.toFixed(2) + ' になります">🔬 知見 ' +
-            S.findingsOf(g, c.key) + '</em>' : '') + '</b>' +
+        '</b>' +
         '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
         '（' + pct + '%）' +
         (locked ? ' <em class="warn">供給中は開発できません</em>'
@@ -406,6 +430,20 @@ GP.screens.dev = function (A) {
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
+    return body;
+  }
+
+  function cmdImprove() {
+    const tk = g.tickets || 0;
+    if (!tk) useTicket = false;
+    let body = interiorHTML('factory');
+    // ---- 機構の噛み合い ----
+    body += '<div class="sub">🔗 機構の噛み合い</div>' +
+      '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
+      '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
+      '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
+      mechMapHTML(g) + mechReadHTML(g);
+
     // ---- インテグレート（まとめ上げ） ----
     // 上限は項目ごと。コンセプトに逆らう項目は、ここが低い
     const capAll = S.bodyCap(g);
@@ -558,21 +596,9 @@ GP.screens.dev = function (A) {
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
-    const tg = $('tkToggle');
-    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdImprove(); };
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
-      b.onclick = () => {
-        g.focus = b.dataset.focus;
-        GP.sound.play('tap');
-        const f = S.focusOf(g);
-        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
-        S.save(g); render(); cmdImprove();
-      };
-    });
     bindPick(k => {
       const [kind, key] = k.split(':');
-      if (kind === 'imp') doImprove(key);
-      else if (kind === 'bdy') doBody(key);
+      if (kind === 'bdy') doBody(key);
     });
   }
 
@@ -585,15 +611,11 @@ GP.screens.dev = function (A) {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     let body = interiorHTML('factory');
-    if (tk) {
-      body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle2">' +
-        '<span class="tk-ic">🎫</span>' +
-        '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
-        '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
-        '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
-    }
 
-    // ---- 予備シャシー ----
+    // ---- 開発の腰まわりと、いま積んでいるパーツ ----
+    body += devHeadHTML() + partsBoxHTML();
+
+    // ---- シャシーの在庫 ----
     body += spareBoxHTML();
 
     // ---- 素材 ----
@@ -654,20 +676,31 @@ GP.screens.dev = function (A) {
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
-    const tg2 = $('tkToggle2');
+    const tg2 = $('tkToggle');
     if (tg2) tg2.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDesign(); };
+    // 開発リソースの配分も、パーツを叩く話なのでここで決める
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
+      b.onclick = () => {
+        g.focus = b.dataset.focus;
+        GP.sound.play('tap');
+        const f = S.focusOf(g);
+        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
+        S.save(g); render(); cmdDesign();
+      };
+    });
     bindPick(k => {
       const [kind, key] = k.split(':');
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
+      else if (kind === 'imp') doImprove(key);
     });
     bindMat();
     bindAct('data-spare', () => {
       const r2 = S.buySpare(g);
       if (!r2) return;
       GP.sound.play('build');
-      U.log(g, '🚛 予備シャシーを1台組んだ（いま ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
-      U.toast('🚛 予備シャシー ' + r2.now + '台', 'good');
+      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
+      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
       S.save(g); render(); cmdDesign();
     });
     bindAct('data-copytrend', () => doCopyTrend());
@@ -1393,9 +1426,6 @@ GP.screens.dev = function (A) {
     let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c) * crunchMul() * S.devRate(g);
     if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
     let crit = false;
-    // 研究で溜めた知見があれば、ここで1つ使う。何を直せばいいか分かっている
-    const found = S.useFinding(g, key);
-    if (found) gain *= D.RESEARCH.polMul;
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
@@ -1549,36 +1579,77 @@ GP.screens.dev = function (A) {
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
       '<span class="pb-cost">+' + Math.round(12 + S.analystPower(g) * 4 + g.facilities.sim * 2) + '🔬</span></button></div>';
 
-    /* ---- 研究テーマ ----
-       いきなり図面は引けない。まず「そもそも何が効くのか」を探す。
-       溜まりきると知見がひとつ生まれ、次の改良1回に乗る          */
-    body += '<div class="sub">🔬 研究テーマ</div>' +
-      '<p class="desc"><b>リサーチ → 開発 → 改良</b>の、いちばん手前です。' +
-      '部位をひとつ選んで1週かけて調べると、' + D.RESEARCH.need + ' まで溜まったところで' +
-      '<b>知見</b>がひとつ生まれます。知見は次の <b>🔧 改良</b> 1回に乗り、' +
-      '伸びと熟成が <b>×' + D.RESEARCH.polMul.toFixed(2) + '</b> になります' +
-      '（部位ごとに ' + D.RESEARCH.keep + 'つまで抱えられます）。<br>' +
+    /* ---- コンセプトの線 ----
+       方針に逆らう向きは、上限そのものが 58% までしか無い。
+       それが「方針からは外れない」の実体で、
+       いくら改良しても、その線の手前で止まっていた。
+       研究は、その線を外へ押していく仕事                       */
+    const cn = S.conceptOf(g);
+    body += '<div class="sub">🔬 コンセプトの線</div>' +
+      (cn ? '' :
+        '<p class="note">📋 まだ<b>マシンの方針</b>を決めていません。' +
+        '1年目の車は何にも縛られていないので、押し広げるものがそもそもありません。' +
+        'ここで溜めた知見は消えないので、オフシーズンに方針を決めたあとで使えます。</p>') +
+      '<p class="desc">いちばん外の輪が、' +
+      (cn ? '<b>' + cn.icon + ' ' + esc(cn.name) + '</b>' : '<b>コンセプト</b>') +
+      'の引いた線です。方針に逆らう向きは、' +
+      '<b>上限そのもの</b>が ' + Math.round(D.CONCEPT.offCap * 100) + '% までしかありません。' +
+      'いくら改良しても、その手前で止まります。<br>' +
+      '研究は、その線を外へ押していく仕事です。扇をひとつ選んで1週かけて調べると、' +
+      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます。' +
+      '知見を使うと、その扇の線が <b>+' + Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
+      '（' + Math.round((D.CONCEPT.offCap + D.RESEARCH.liftMax) * 100) + '% まで）。<br>' +
       '1週で進むのは <b>' + rp.toFixed(1) + '</b>。' +
       '🔬リサーチャー・📊アナリスト・風洞の規模・' +
       (S.hasEstate(g, 'lab') ? '<b>🔬リサーチセンター</b>' : '🔬リサーチセンター') +
       'で速くなります。<br>費用 💰' + money(D.RESEARCH.cost) + '万／🔬' + D.RESEARCH.rp +
-      '（1週消費）</p><div class="pick">';
+      '（1週消費）' + U.helpLink('car') + '</p><div class="pick">';
     S.researchList(g).forEach(r => {
       const poor = g.funds < D.RESEARCH.cost || g.rp < D.RESEARCH.rp;
-      const full = r.found >= D.RESEARCH.keep;
-      body += '<button class="pickbtn' + ((poor || full) ? ' done' : '') +
-        '" data-k="res:' + r.key + '"' + ((poor || full) ? ' disabled' : '') + '>' +
+      const stack = r.found >= D.RESEARCH.keep;
+      const held = r.held.map(x => x.icon + x.name).join('・');
+      body += '<button class="pickbtn' + ((poor || stack || r.full) ? ' done' : '') +
+        '" data-k="res:' + r.key + '"' + ((poor || stack || r.full) ? ' disabled' : '') + '>' +
         '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(r.name) +
           (r.found ? '　<em class="free">知見 ' + '🔬'.repeat(r.found) + '</em>' : '') + '</b>' +
-        '<small><span class="skbar"><i style="width:' + r.pct + '%"></i></span> ' +
-        r.p + ' / ' + r.need +
-        (full ? '<br><b class="warn">これ以上は抱えられません。改良で使ってください</b>'
+        '<small>' +
+        (r.held.length
+          ? 'いま押さえつけられている向き：<b>' + esc(held) + '</b><br>' +
+            'この扇の上限 <b>' + Math.round(r.off * 100) + '%</b>' +
+            (r.full ? '　<em class="free">押し広げきりました</em>'
+                    : '　→ 知見を使えば <b class="up">' + Math.round(r.next * 100) + '%</b>')
+          : (cn ? '<b>この扇に、' + esc(cn.name) + 'が押さえつけている向きはありません</b>' +
+                   '（方針を変えると、押さえつけられる向きも変わります）'
+                : '<b>いまは押さえつけられている向きがありません</b>' +
+                  '（方針を決めると、逆らう向きの上限が下がります）')) +
+        '<span class="skbar"><i style="width:' + r.pct + '%"></i></span> ' +
+        Math.round(r.p) + ' / ' + r.need +
+        (r.full ? '' : stack ? '<br><b class="warn">これ以上は抱えられません。下の「押し広げる」で使ってください</b>'
               : poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(D.RESEARCH.cost) + '<br>🔬' + D.RESEARCH.rp + '</span></button>';
     });
     body += '</div>';
+
+    /* ---- 溜めた知見を使う ---- */
+    {
+      const use = S.researchList(g).filter(r => r.found > 0 && !r.full && r.held.length);
+      if (use.length) {
+        body += '<div class="sub small">押し広げる</div>' +
+          '<p class="desc">溜めた知見を使います。週は進みません。</p><div class="pick">';
+        use.forEach(r => {
+          body += '<button class="pickbtn" data-lift="' + r.key + '">' +
+            '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
+            '<span class="pb-body"><b>' + esc(r.name) + ' の線を押し広げる</b>' +
+            '<small>' + esc(r.held.map(x => x.name).join('・')) + ' の上限が ' +
+            Math.round(r.off * 100) + '% → <b class="up">' + Math.round(r.next * 100) +
+            '%</b> になります</small></span>' +
+            '<span class="pb-cost">🔬 知見 -1</span></button>';
+        });
+        body += '</div>';
+      }
+    }
 
     body += '<div class="sub">マシンの世代</div>';
     body += '<p class="desc">現在のマシン：<b>' + cur.name + '</b>' +
@@ -1632,6 +1703,19 @@ GP.screens.dev = function (A) {
       if (k.indexOf('__cus:') === 0) return doCustomerOn(k.slice(6));
       if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
       if (k === '__engscreen') return cmdEngine();
+    });
+    /* 溜めた知見を使って、コンセプトの線を押し広げる。
+       調べるのとちがって、ここは週を使わない            */
+    bindAct('data-lift', gk => {
+      const r2 = S.liftConcept(g, gk);
+      if (!r2) return;
+      const gr = D.PART_GROUPS.filter(x => x.key === gk)[0] || { name: gk, icon: '🔬' };
+      GP.sound.play('build');
+      U.log(g, '🔬 ' + gr.icon + ' ' + gr.name + ' の線を押し広げた（上限 ' +
+        Math.round(Math.min(1, D.CONCEPT.offCap + r2.from) * 100) + '% → ' +
+        Math.round(Math.min(1, D.CONCEPT.offCap + r2.to) * 100) + '%）', 'good');
+      U.toast('🔬 ' + gr.name + ' の線を押し広げた', 'good');
+      S.save(g); render(); cmdResearch();
     });
   }
 
@@ -1814,7 +1898,8 @@ GP.screens.dev = function (A) {
 
   /* ---- 研究テーマを1週進める ---- */
   function doResearch(key) {
-    const c = D.PART_CATS.find(x => x.key === key);
+    // 研究の単位は扇。線を押し広げる先も扇ごと
+    const c = D.PART_GROUPS.find(x => x.key === key);
     if (!c) return;
     if (g.funds < D.RESEARCH.cost || g.rp < D.RESEARCH.rp) return U.toast('資金か研究Pが足りません', 'bad');
     g.funds -= D.RESEARCH.cost; g.rp -= D.RESEARCH.rp; capSpend(D.RESEARCH.cost);
@@ -1822,8 +1907,8 @@ GP.screens.dev = function (A) {
     staffExp('researcher', 16); staffExp('analyst', 6);
     U.closeModal();
     if (r.found) {
-      U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ 次の「🔧 改良」で使える（いま ' +
-        r.have + 'つ）', 'good');
+      U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ ' +
+        'コンセプトの線を押し広げるのに使える（いま ' + r.have + 'つ）', 'good');
       U.toast('🔬 知見をひとつ掴んだ！', 'good');
       GP.sound.play('levelup');
     } else {

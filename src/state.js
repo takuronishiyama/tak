@@ -262,12 +262,52 @@ GP.state = (function () {
     return true;
   }
   function findingsOf(g2, key) { return researchOf(g2, key).found; }
-  /* 画面用。部位ごとの進み具合を並べる */
+  /* ---------- コンセプトの線を押し広げる ----------
+     方針に逆らう向きは、上限そのものが 58% までしか無い。
+     それが「方針からは外れない」の実体で、
+     いくら改良しても、その線より先へは行けなかった。
+
+     研究は、その線を外へ押していく仕事にする。
+     扇ひとつぶんの知見を積んで使うと、
+     その扇の逆らう向きの上限が、少しずつ上がる。
+     「ストレート重視なのに曲がる車も欲しい」を、時間と金で解く道   */
+  function groupOfBody(key) {
+    const gr = D.PART_GROUPS.filter(x => (x.body || []).indexOf(key) >= 0)[0];
+    return gr ? gr.key : null;
+  }
+  function capLiftOf(g2, key) {
+    const gk = groupOfBody(key);
+    if (!gk) return 0;
+    return clamp((g2.capLift && g2.capLift[gk]) || 0, 0, D.RESEARCH.liftMax);
+  }
+  /* 知見をひとつ使って、その扇の線を押し広げる */
+  function liftConcept(g2, gk) {
+    g2.capLift = g2.capLift || {};
+    const now = clamp(g2.capLift[gk] || 0, 0, D.RESEARCH.liftMax);
+    if (now >= D.RESEARCH.liftMax) return null;
+    if (!useFinding(g2, gk)) return null;
+    g2.capLift[gk] = Math.min(D.RESEARCH.liftMax, now + D.RESEARCH.lift);
+    return { from: now, to: g2.capLift[gk] };
+  }
+  /* その扇のいまの上限（満点に対する割合）。逆らう向きだけの話 */
+  function offCapOf(g2, gk) {
+    const lift = clamp((g2.capLift && g2.capLift[gk]) || 0, 0, D.RESEARCH.liftMax);
+    return Math.min(1, D.CONCEPT.offCap + lift);
+  }
+
+  /* 画面用。扇ごとの進み具合と、いま押さえつけられている項目を並べる */
   function researchList(g2) {
-    return D.PART_CATS.map(c => {
-      const r = researchOf(g2, c.key);
-      return { key: c.key, name: c.name, icon: c.icon, color: c.color,
+    return D.PART_GROUPS.map(gr => {
+      const r = researchOf(g2, gr.key);
+      // この扇のうち、方針に逆らっていて上限が下がっている項目
+      const held = (gr.body || []).filter(k => conceptDir(g2, k) < 0)
+        .map(k => (D.BODY_ATTRS.filter(x => x.key === k)[0] || { key: k, name: k, icon: '❓' }));
+      return { key: gr.key, name: gr.name, icon: gr.icon, color: gr.color, note: gr.note,
                p: r.p, found: r.found, need: D.RESEARCH.need,
+               held: held,
+               off: offCapOf(g2, gr.key),
+               next: Math.min(1, offCapOf(g2, gr.key) + D.RESEARCH.lift),
+               full: ((g2.capLift && g2.capLift[gr.key]) || 0) >= D.RESEARCH.liftMax,
                pct: Math.min(100, Math.round(r.p / D.RESEARCH.need * 100)) };
     });
   }
@@ -877,10 +917,12 @@ GP.state = (function () {
     if (c.down.indexOf(key) >= 0) return -1;
     return 0;
   }
-  /* 作り込み1項目ぶんの上限。逆らう向きはここが下がる */
+  /* 作り込み1項目ぶんの上限。逆らう向きはここが下がる。
+     研究で線を押し広げたぶんだけ、下がりかたが浅くなる     */
   function bodyCapOf(g2, key) {
     const d = conceptDir(g2, key);
-    return d < 0 ? Math.round(bodyCap(g2) * D.CONCEPT.offCap) : bodyCap(g2);
+    if (d >= 0) return bodyCap(g2);
+    return Math.round(bodyCap(g2) * Math.min(1, D.CONCEPT.offCap + capLiftOf(g2, key)));
   }
   /* 作り込みの伸びかたの倍率 */
   function conceptMul(g2, key) {
@@ -3246,6 +3288,7 @@ GP.state = (function () {
       equipped: {}, inventory: [], facilities: {}, staff: [], drivers: [], sponsors: [],
       techs: {},            // 開発で積み上げた技術（タグ）
       spare: 0,             // 予備シャシーの数
+      capLift: {},          // 研究で押し広げた、コンセプトの線（扇ごと）
       mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
       matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
@@ -4050,6 +4093,12 @@ GP.state = (function () {
       (g.inventory || []).forEach(toQual);
       (g.stock || []).forEach(toQual);
       if (g.spare == null) g.spare = 0;
+      /* 研究の単位を部位から扇へ移した。
+         古い鍵のまま持っていても意味が合わないので、いちど畳む */
+      if (!g.capLift) {
+        g.capLift = {};
+        g.research = {};
+      }
       if (!g.mat) g.mat = {};
       if (!g.matP) g.matP = {};
       D.PART_GROUPS.forEach(gr => {
@@ -4092,6 +4141,7 @@ GP.state = (function () {
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
+    groupOfBody, capLiftOf, liftConcept, offCapOf,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
