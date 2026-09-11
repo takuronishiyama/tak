@@ -2341,6 +2341,10 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .kartgo{color:#8ef08e}
 .kartlog{height:auto;max-height:120px;margin:8px 0}
 
+/* 手応えのある週末の吹き出しは、色を変えて一目で分かるようにする */
+.quote.qsay.mine.up{border-color:#4e8a5a}
+.quote.qsay.mine.up span{color:#d8f0d0}
+
 /* ---- インテグレート（まとめ上げ）の一覧 ---- */
 /* 見出しへ飛んだとき、貼りついているタブの下に潜らないようにする */
 .modal-body .sub{scroll-margin-top:52px}

@@ -988,7 +988,7 @@ GP.screens.weekend = function (A) {
       // 言い出すのは、いちばん納得のいっていないほう
       const d = g.drivers.slice().sort((a, b) => S.trustOf(a) - S.trustOf(b))[0];
       if (!d) { runQualiStaged(); return; }
-      briefState = { c: f.def, gap: f.gap, id: d.id,
+      briefState = { c: f.def, gap: f.gap, id: d.id, good: !!f.good,
                      say: f.def.say[S.rint(0, f.def.say.length - 1)], done: null };
     }
     const st = briefState;
@@ -997,24 +997,32 @@ GP.screens.weekend = function (A) {
     let body = '<div class="racehead"><b>🗣️ ミーティングルーム Lv.' + room +
       '</b><span>' + t.country + ' ' + esc(t.name) + '　フリー走行のあと</span></div>';
 
-    body += '<div class="quote qsay mine">' + U.face(d, 34) +
+    const up = !!st.good;
+    body += '<div class="quote qsay mine' + (up ? ' up' : '') + '">' + U.face(d, 34) +
       '<span><em>' + esc(d.name) + '　' + trustChip(d) + '</em>' + esc(st.say) + '</span></div>';
     body += '<p class="desc">🔧 エンジニア：' + esc(st.c.eng) + '</p>';
 
     if (!st.done) {
-      body += '<p class="desc">言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) +
-        '</b>。ここでの返し方が、そのままこの週末のマシンと、' +
+      body += '<p class="desc">' +
+        (up ? '今日は<b>' + st.c.icon + ' ' + esc(st.c.name) +
+              '</b>という手応えです。足りないところが見当たらない週末で、' +
+              'ここから<b>もう一段詰めにいく</b>か、<b>この形のまま日曜へ持っていく</b>かを選びます。'
+            : '言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) + '</b>。') +
+        'ここでの返し方が、そのままこの週末のマシンと、' +
         'この人のピットへの信頼に効きます。<br>' +
         '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
         S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
       body += '<div class="pick">';
       D.BRIEF_REPLIES.forEach(r => {
         const odds = r.key === 'fix' ? S.fixOdds(g) : r.key === 'data' ? S.dataOdds(g) : null;
+        const nm = up ? (r.upName || r.name) : r.name;
+        const de = up ? (r.upDesc || r.desc) : r.desc;
+        const ln = up ? (r.upLine || r.line) : r.line;
         body += '<button class="pickbtn" data-k="br:' + r.key + '">' +
-          '<span class="pb-ic" style="background:#3f6f8a">' + r.icon + '</span>' +
-          '<span class="pb-body"><b>' + esc(r.name) + '</b>' +
-          '<small>' + esc(r.desc) +
-          '<br><em class="pnote">' + esc(r.line) + '</em>' +
+          '<span class="pb-ic" style="background:' + (up ? '#4e8a5a' : '#3f6f8a') + '">' + r.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(nm) + '</b>' +
+          '<small>' + esc(de) +
+          '<br><em class="pnote">' + esc(ln) + '</em>' +
           '<br>信頼 決まれば <b>+' + r.okTrust + '</b>／外せば <b>' + r.ngTrust + '</b>' +
           '　決勝しだいで さらに <b>+' + r.raceOk + ' / ' + r.raceNg + '</b>' +
           '</small></span>' +
@@ -1032,7 +1040,8 @@ GP.screens.weekend = function (A) {
     // ---- 返したあと ----
     const r = st.done.reply;
     if (r) {
-      body += '<div class="quote qsay"><span><em>🔧 エンジニア</em>' + esc(r.line) + '</span></div>';
+      body += '<div class="quote qsay"><span><em>🔧 エンジニア</em>' +
+        esc(up ? (r.upLine || r.line) : r.line) + '</span></div>';
       body += '<p class="note' + (st.done.ok ? ' good' : ' warn') + '">' + esc(st.done.msg) + '</p>';
     } else {
       body += '<p class="note">何も言わず、そのまま送り出した。</p>';
@@ -1051,6 +1060,7 @@ GP.screens.weekend = function (A) {
     const d = g.drivers.filter(x => x.id === st.id)[0] || g.drivers[0];
     if (!r || !d) return;
     let ok = true, msg = '';
+    const up = !!st.good;
     if (r.key === 'fix') {
       ok = Math.random() < S.fixOdds(g);
       // 設定で触りようのない言い分（つなぎ目の話など）は、ここへ来ても何もしない
@@ -1062,28 +1072,34 @@ GP.screens.weekend = function (A) {
       });
       pendingStrategy.tune = tune;
       msg = ok
-        ? '🔧 狙ったところに決まった。次のランで、本人の口調が変わった。'
-        : '⚠️ 振ったぶんが噛み合わなかった。取りにいったところは出ず、捨てたところだけが減った。';
+        ? (up ? '🔧 もう一段出た。「さっきより良いです」と戻ってきた。'
+              : '🔧 狙ったところに決まった。次のランで、本人の口調が変わった。')
+        : (up ? '⚠️ 触ったぶんが裏目に出た。良かったところは伸びず、削ったぶんだけが減った。'
+              : '⚠️ 振ったぶんが噛み合わなかった。取りにいったところは出ず、捨てたところだけが減った。');
       staffExp('engineer', 10);
     } else if (r.key === 'data') {
       ok = Math.random() < S.dataOdds(g);
       msg = ok
-        ? '📊 数字を見せると、本人が黙って頷いた。車はこのまま行く。'
-        : '⚠️ 数字では納得しなかった。「乗ってるのは自分です」と言われて終わった。';
+        ? (up ? '📊 手応えが数字と合っていた。何が効いているかを、本人も掴んで出ていった。'
+              : '📊 数字を見せると、本人が黙って頷いた。車はこのまま行く。')
+        : (up ? '⚠️ 数字とは噛み合わなかった。「感触のほうを信じます」と言われて終わった。'
+              : '⚠️ 数字では納得しなかった。「乗ってるのは自分です」と言われて終わった。');
       staffExp('analyst', 10);
     } else {
       // 腕の見せどころ、は決勝まで答えが出ない
       ok = d.mental >= 100 || Math.random() < 0.5;
       msg = ok
-        ? '💪 少し間があって、「やってみます」と返ってきた。'
-        : '⚠️ 「分かりました」とだけ言って、席を立った。納得はしていない。';
+        ? (up ? '💪 「分かりました、このまま行きます」。顔つきが良い。'
+              : '💪 少し間があって、「やってみます」と返ってきた。')
+        : (up ? '⚠️ 「触らないんですか」と一度だけ聞かれた。腑に落ちてはいない。'
+              : '⚠️ 「分かりました」とだけ言って、席を立った。納得はしていない。');
     }
     S.addTrust(g, d, ok ? r.okTrust : r.ngTrust);
     // 決勝のあとに、結果でもう一度動かすために覚えておく
     g.brief = { id: d.id, reply: r.key, key: st.c.key,
                 raceOk: r.raceOk, raceNg: r.raceNg, at: g.week };
     st.done = { reply: r, ok: ok, msg: msg };
-    U.log(g, '🗣️ ' + d.name + '「' + st.say + '」→ ' + r.name + '（' +
+    U.log(g, '🗣️ ' + d.name + '「' + st.say + '」→ ' + (up ? (r.upName || r.name) : r.name) + '（' +
       (ok ? '通じた' : '通じなかった') + '／信頼 ' + Math.round(S.trustOf(d)) + '）',
       ok ? 'good' : 'warn');
     GP.sound.play(ok ? 'confirm' : 'no');

@@ -1600,18 +1600,68 @@ GP.data = (function () {
       eng: '前後の釣り合いの話。落ち着かせれば、そのぶん速さは削れる',
       fix: { drive: 0.045, speed: -0.006 } }
   ];
+  /* ---------- うまくいっている週末 ----------
+     足りないところばかり聞かされていると、
+     自分が何を伸ばしたのかが分からなくなる。
+     出来ているときは、出来ていると言ってもらう。
+     そのうえで「もう一段詰める」か「このまま持っていく」かが選択になる。
+
+     fix は、その出来ているところをさらに伸ばす向き。
+     伸ばすぶん、どこかは削れる                               */
+  const PRAISES = [
+    { key: 'speed', icon: '🏁', name: '直線で前に出られる',
+      say: ['「今日はいいです。ストレートで前に出られる。この方向で行きましょう」',
+            '「踏んだぶんだけ伸びます。並ばれても抜き返せる感触があります」',
+            '「ストレートエンドに余裕があります。仕掛けどころは作れます」'],
+      eng: '抵抗の抜けが効いている。ここは触らないほうがいい',
+      fix: { speed: 0.010, corner: -0.004 } },
+    { key: 'corner', icon: '🌀', name: '高速で頭が入る',
+      say: ['「頭が入ります。今日はいい、この方向で詰めてください」',
+            '「S字を一発で通せます。狙ったところに置ける」',
+            '「高速で信じて踏めます。こういう日はタイムが出ます」'],
+      eng: '前の押しつけが決まっている。この形は残しておきたい',
+      fix: { corner: 0.010, speed: -0.004 } },
+    { key: 'accel', icon: '⚡', name: '立ち上がりが決まる',
+      say: ['「出口で前に出られます。調子いいです、このまま行きましょう」',
+            '「トラクションがいい。踏んだ瞬間から進みます」',
+            '「立ち上がりで毎回1台ぶん稼げています」'],
+      eng: '後ろの荷重が乗っている。車高はこのままでいい',
+      fix: { accel: 0.010, speed: -0.004 } },
+    { key: 'wear', icon: '🛞', name: 'タイヤが保つ',
+      say: ['「タイヤが最後まで残ります。長いスティントが組めますよ」',
+            '「10周走っても落ちません。今日はいい」',
+            '「表面がきれいです。これなら1回で行けます」'],
+      eng: '滑らせずに曲がれている。この状態なら作戦の幅が広い',
+      fix: { wear: -0.045, speed: -0.003 } },
+    { key: 'drive', icon: '🎯', name: '車が素直だ',
+      say: ['「素直です。限界がどこにあるか分かる。今日は攻められます」',
+            '「同じ入り方をすれば、同じように返ってきます。これは乗りやすい」',
+            '「怖いところがありません。あとは自分の仕事です」'],
+      eng: '前後の釣り合いが出ている。ここを崩すのは惜しい',
+      fix: { drive: 0.030, speed: -0.004 } }
+  ];
+
   const BRIEF_REPLIES = [
     { key: 'fix',   icon: '🔧', name: '分かった、セッティングを変えよう',
       line: '「分かった。そこに振ってみよう。次のランで確かめてくれ」',
       desc: '言われたところに振る。決まればいちばん効くが、外すこともある',
+      upName: 'その方向で、もう一段詰めよう',
+      upLine: '「いいね。そこをもう少し伸ばしてみよう。次のランで確かめてくれ」',
+      upDesc: '出ているところをさらに伸ばす。決まれば大きいが、そのぶんどこかは削れる',
       okTrust: 12, ngTrust: -9, raceOk: 6, raceNg: -8 },
     { key: 'pride', icon: '💪', name: 'そこは腕の見せどころだ',
       line: '「そこは君の腕の見せどころだ。いまの車で、そのぶんは出せる」',
       desc: '車はこれで戦える、と返す。結果が出れば大きいが、出なければ響く',
+      upName: 'その調子だ。この形のまま日曜へ持っていこう',
+      upLine: '「その調子だ。触らずに、この形のまま日曜へ持っていこう」',
+      upDesc: '触らずに送り出す。うまくいっているものを崩さないが、上積みもない',
       okTrust: 5, ngTrust: -6, raceOk: 12, raceNg: -16 },
     { key: 'data',  icon: '📊', name: 'データを見せて話す',
       line: '「数字を見てくれ。ここは、君が感じているのとは少し違う」',
       desc: '数字で説明する。車は変わらないが、納得すれば信頼は残る',
+      upName: '数字でも出ている。裏づけを渡しておく',
+      upLine: '「数字でも出ている。どこが効いているか、渡しておく」',
+      upDesc: '手応えを数字で裏づける。車は変わらないが、話が噛み合えば信頼は残る',
       okTrust: 9, ngTrust: -3, raceOk: 3, raceNg: -4 }
   ];
   /* ---------- ピットへの信頼 ----------
@@ -1648,7 +1698,26 @@ GP.data = (function () {
     dataAnalyst: 0.10,
     dataRoom: 0.030,
     dataMax: 0.88,
-    roomTrust: 0.05   // 部屋のレベル1あたり、信頼の動きがこれだけ大きくなる（良い側だけ）
+    roomTrust: 0.05,  // 部屋のレベル1あたり、信頼の動きがこれだけ大きくなる（良い側だけ）
+    /* ---- 何を言い出すか ----
+       橋の細さは 0〜0.42、軸のずれは 0.02〜0.10 と桁がちがっていた。
+       そのままでは橋の話しか出てこないので、同じ物差しに載せる     */
+    packScale: 0.26,
+    /* ---- 手応えを言うとき ----
+       足りないところが見当たらない週末（ずれが goodUnder 未満）は、いつも。
+
+       そうでなくても、どこかが「求められているよりはっきり出ている」なら、
+       その手応えのほうを先に言うことがある。
+       足りないところの話しか出てこないと、
+       自分が何を伸ばしたのか分からないままになるので。
+       出ているぶんが大きいほど、その確率は上がる                */
+    goodUnder: 0.030,
+    praiseFrom: 0.040,   // これだけ出ていれば、口に出ることがある
+    praiseFull: 0.100,   // これだけ出ていれば、いちばん出やすい
+    praiseMax:  0.50,    // それでも、半分は足りないところの話をする
+    /* いちばんのずれのこの割合までは、言い出す候補に入れる。
+       毎週おなじ台詞を聞かされないための幅                       */
+    pickBand: 0.55
   };
 
   /* ---------- エグゼクティブ講習 ----------
@@ -2967,5 +3036,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

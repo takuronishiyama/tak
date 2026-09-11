@@ -3559,19 +3559,55 @@ GP.state = (function () {
        ドライバーはそこを言う。「エンジンとギヤ比が合っていない」は
        速さの多寡ではなく、噛み合わせの話                        */
     const pk = packWorst(g2);
+    let packCand = null;
     if (pk && pk.thin) {
-      const pv = (D.PACK.thin - pk.ratio) * 1.6;
-      if (pv > gaps[0].v) {
-        return { def: { key: 'pack:' + pk.def.key, icon: pk.def.icon,
-                        name: pk.def.name + 'が噛み合っていない',
-                        say: pk.def.say, eng: pk.def.eng,
-                        fix: pk.def.fix || null, pack: pk },
-                 gap: Math.round(pv * 1000) / 1000, all: gaps, pack: pk };
-      }
+      /* 橋の細さは 0〜0.42、軸のずれは 0.02〜0.10。
+         そのまま比べると橋の話しか出てこないので、同じ物差しに載せる */
+      const pv = (D.PACK.thin - pk.ratio) * D.BRIEF.packScale;
+      packCand = { key: 'pack:' + pk.def.key, v: pv,
+                   def: { key: 'pack:' + pk.def.key, icon: pk.def.icon,
+                          name: pk.def.name + 'が噛み合っていない',
+                          say: pk.def.say, eng: pk.def.eng,
+                          fix: pk.def.fix || null, pack: pk } };
     }
-    const top = gaps[0];
-    const c = D.COMPLAINTS.filter(x => x.key === top.key)[0] || D.COMPLAINTS[0];
-    return { def: c, gap: Math.round(top.v * 1000) / 1000, all: gaps };
+    const cand = gaps.map(x => ({ key: x.key, v: x.v,
+                                  def: D.COMPLAINTS.filter(c => c.key === x.key)[0] }))
+                     .filter(x => x.def);
+    if (packCand) cand.push(packCand);
+    cand.sort((a, b) => b.v - a.v);
+    const top = cand[0];
+
+    /* ---- 足りているとき ----
+       いちばんのずれが小さければ、不満は出てこない。
+       そのかわり、いちばん出来ているところの手応えを言う。
+       毎週おなじことばかり言われていると、
+       何を伸ばしたのかが分からなくなるので                     */
+    // ずれがいちばん小さい＝求められているより出ているところ
+    const best = gaps.slice().sort((a, b) => a.v - b.v)[0];
+    const strong = -best.v;                    // 求められているより、どれだけ出ているか
+    const B = D.BRIEF;
+    const chance = clamp((strong - B.praiseFrom) / Math.max(0.001, B.praiseFull),
+                         0, B.praiseMax);
+    if (top.v < B.goodUnder || Math.random() < chance) {
+      /* 良いところも、ひとつに決め打ちしない。
+         求められているよりはっきり出ているところなら、どれも口に出る。
+         いちばん出ているところとの比で絞ると、
+         物差しの大きい項目（乗り味）だけを毎週言うことになる      */
+      const gpool = gaps.filter(x => x.v <= -B.praiseFrom);
+      const gp = (gpool.length ? gpool : [best])[rint(0, Math.max(0, gpool.length - 1))] || best;
+      const pr = D.PRAISES.filter(x => x.key === gp.key)[0] || D.PRAISES[0];
+      return { def: pr, good: true, gap: Math.round(top.v * 1000) / 1000, all: gaps };
+    }
+
+    /* ---- 言い出す候補 ----
+       いちばん大きいずれの 72% までは、口に出る可能性がある。
+       いつも同じ台詞にならないための幅                         */
+    const band = top.v * D.BRIEF.pickBand;
+    const pool = cand.filter(x => x.v >= band);
+    const pick = pool[rint(0, pool.length - 1)] || top;
+    return { def: pick.def, good: false,
+             gap: Math.round(pick.v * 1000) / 1000, all: gaps,
+             pack: pick.def.pack || null };
   }
   function fixOdds(g2) {
     return clamp(D.BRIEF.fixBase + org(g2).dept.engineer * D.BRIEF.fixEng
