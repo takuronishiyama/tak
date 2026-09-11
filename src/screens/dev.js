@@ -304,7 +304,9 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
         '総合 ' + Math.round(S.driverRating(d)) + '／調子 ' + Math.round(d.form) +
         '／' + p2.icon + p2.name + '／' + ct.icon + ct.name +
-        '<br><em>いまの車で <b>' + Math.round(fit.out * 100) + '%</b> 引き出せています' +
+        '<br><em' + (fit.over ? ' class="up"' : '') + '>いまの車の力を <b>' +
+        Math.round(fit.out * 100) + '%</b> 引き出せています' +
+        (fit.over ? '　<b>車の持ち分を超えています</b>' : '') +
         '（乗りやすさ ' + (fit.drive >= 1 ? '+' : '') + Math.round((fit.drive - 1) * 100) + '%）</em>' +
         '</small></span></div>';
     });

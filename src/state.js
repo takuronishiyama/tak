@@ -2219,10 +2219,25 @@ GP.state = (function () {
   /* ---------- ドライバーが、どれだけ引き出せているか ----------
      持っている力そのものではなく、それが車に出ているかどうか。
      レースで実際に掛けている数字（乗りやすさと調子）をそのまま返す */
+  /* ---------- 引き出し率 ----------
+     車が持っている力のうち、その人が何割を出せるか。
+     race.js がラップを出すのに使うのと同じ式。
+     画面の「◯% 引き出せています」も、ここを通す        */
+  function driverOut(rating, d) {
+    const O = D.DRIVER_OUT;
+    const pot = Math.max(0, Math.min(O.over.length - 1, (d && d.pot) || 0));
+    // 腕は 100% まで。素質ぶんは、腕が伴ってはじめて乗る
+    const k = Math.min(1, Math.max(0, rating) / O.ref);
+    return Math.min(O.max, O.floor + (1 - O.floor) * k + O.over[pot] * k);
+  }
   function driverFit(g2, d) {
     const drive = 1 + (bodyRatio(g2, 'drive') - RIVAL_BODY_REF) * 0.20;
     const form = (d.form || 100) / 100;
-    return { drive: drive, form: form, out: drive * form };
+    // 調子は driverRating の中にすでに入っている。二重にかけない
+    const out = driverOut(driverRating(d), d) * drive;
+    return { drive: drive, form: form, out: out,
+             // 車の持ち分を超えているか（素質の高い人だけが届く）
+             over: out > 1.0 };
   }
 
   function org(g2) {
@@ -4379,7 +4394,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
-    meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    driverOut, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,

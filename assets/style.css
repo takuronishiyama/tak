@@ -3384,3 +3384,8 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   font-weight:700;vertical-align:middle;max-width:11em;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 [data-skin="hd"] .t-nm .ownchip{background:rgba(240,196,90,.18);color:#f0c45a}
+
+/* 車の持ち分を超えて引き出している人。素質の高い人だけが届く */
+.pb-body em.up{color:#2e8b30;font-style:normal}
+.pb-body em.up b{color:#2e8b30}
+[data-skin="hd"] .pb-body em.up,[data-skin="hd"] .pb-body em.up b{color:#6ee06a}

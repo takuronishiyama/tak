@@ -3400,6 +3400,11 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   text-overflow:ellipsis;white-space:nowrap}
 [data-skin="hd"] .t-nm .ownchip{background:rgba(240,196,90,.18);color:#f0c45a}
 
+/* 車の持ち分を超えて引き出している人。素質の高い人だけが届く */
+.pb-body em.up{color:#2e8b30;font-style:normal}
+.pb-body em.up b{color:#2e8b30}
+[data-skin="hd"] .pb-body em.up,[data-skin="hd"] .pb-body em.up b{color:#6ee06a}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -5729,6 +5734,17 @@ GP.data = (function () {
     leaveAt: 18,      // ここを割ったまま週末を終えると、移籍を言い出す
     devFrom: 70,      // 信頼が厚いほど、開発へのフィードバックが的確になる
     devMax: 0.06,
+    /* ---- 作戦の実行 ----
+       ピットが決めた周に、そのとおり入ってくるかどうか。
+       信頼が薄いと「まだ行ける」「もう限界だ」で1〜2周ずれる。
+       アンダーカットは1周ずれた時点で消えるので、ここは重い    */
+    blurLo: 0.50,     // 全幅の信頼。予定の周ぴったりに入ってくる
+    blurHi: 2.20,     // 決裂寸前。2周ぶれる
+    read:   0.12,     // 信頼が厚いと、タイヤの報告が正確になる（±この半分）
+    /* 仕掛ける積極性に掛かる。信頼が薄いと、現場が動けない。
+       アンダーカットもセーフティカーも、一手ぶん遅れる          */
+    actLo:  0.55,
+    actHi:  1.25,
     drift: 0.35       // 毎レース、少しだけ中央（start）へ戻る
   };
   const BRIEF = {
@@ -6233,6 +6249,20 @@ GP.data = (function () {
      という割合で見る。そのうえで、離れるほど効きを鈍らせる。
      こうしておけば、何倍の車を作っても1周3秒ぶんまでで頭打ちになり、
      速い車はきちんと速いまま、絵は壊れない。                        */
+  /* ---------- 引き出し率 ----------
+     車が持っている力のうち、そのドライバーが何割を出せるか。
+     足し算ではなく掛け算なので、遅い車をいくら名手が転がしても
+     速い車には届かない。そのかわり、良い車を持ったときの差は大きい */
+  const DRIVER_OUT = {
+    floor: 0.78,   // 腕がなくても、車なりにはこれだけ出る
+    ref:   78,     // 総合がここで 100%（＝車の持ち分をちょうど出しきる）
+    /* 腕だけでは 100% が天井。車が持っていないものは出てこない。
+       そこを超えられるのは素質の高い人だけで、しかも
+       腕が伴っていないと出てこない（段は POTENTIAL に対応）    */
+    over:  [0, 0.008, 0.018, 0.032, 0.050],
+    max:   1.06
+  };
+
   const PACE = {
     k:    0.0393,   // 顔ぶれの端から端まででどれだけ動くか
     soft: 2.00,     // これに近づくほど、差の効きが鈍る
@@ -7157,7 +7187,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -9661,10 +9691,25 @@ GP.state = (function () {
   /* ---------- ドライバーが、どれだけ引き出せているか ----------
      持っている力そのものではなく、それが車に出ているかどうか。
      レースで実際に掛けている数字（乗りやすさと調子）をそのまま返す */
+  /* ---------- 引き出し率 ----------
+     車が持っている力のうち、その人が何割を出せるか。
+     race.js がラップを出すのに使うのと同じ式。
+     画面の「◯% 引き出せています」も、ここを通す        */
+  function driverOut(rating, d) {
+    const O = D.DRIVER_OUT;
+    const pot = Math.max(0, Math.min(O.over.length - 1, (d && d.pot) || 0));
+    // 腕は 100% まで。素質ぶんは、腕が伴ってはじめて乗る
+    const k = Math.min(1, Math.max(0, rating) / O.ref);
+    return Math.min(O.max, O.floor + (1 - O.floor) * k + O.over[pot] * k);
+  }
   function driverFit(g2, d) {
     const drive = 1 + (bodyRatio(g2, 'drive') - RIVAL_BODY_REF) * 0.20;
     const form = (d.form || 100) / 100;
-    return { drive: drive, form: form, out: drive * form };
+    // 調子は driverRating の中にすでに入っている。二重にかけない
+    const out = driverOut(driverRating(d), d) * drive;
+    return { drive: drive, form: form, out: out,
+             // 車の持ち分を超えているか（素質の高い人だけが届く）
+             over: out > 1.0 };
   }
 
   function org(g2) {
@@ -11821,7 +11866,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
-    meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    driverOut, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
@@ -12796,7 +12841,10 @@ GP.race = (function () {
                                  // 週の途中にシミュレーターで走り込んでいたぶん
                                  * (1 + ((g.simGain || 0) > 0 ? 0.012 : 0))
                                  : rl.perf);
-        const perf = (t.car * 0.60 + drv * 0.40) * pmul
+        /* 車が持っている力に、引き出し率を掛ける。
+           足し算にすると、遅い車でも腕だけで順位が上がってしまう */
+        const out = S.driverOut(drv, d);
+        const perf = t.car * out * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
         let stats = t.stats || { speed: 1, corner: 1, accel: 1 };
@@ -12810,7 +12858,7 @@ GP.race = (function () {
         }
         // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
         const secPerf = SW.w.map(w =>
-          (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
+          S.carScoreOf(stats, { weight: w }) * out * pmul
           + (t.isPlayer ? S.puPerf(g) : 0));
         /* ダウンフォースの偏り。押しつける力が大きいほどタイヤは滑らず、
            1周あたりの摩耗が小さくなる。釣り合った車で 0.33 前後になる */
@@ -13691,7 +13739,12 @@ GP.race = (function () {
         }
         e.tyreBias = e.forceStops ? e.tyreBias
                    : (e.tyrePlan == null ? 1 : e.tyrePlan);
-        e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready;
+        /* 仕掛けるかどうかは、言えばそのとおりに動いてくれるか次第。
+           信じていない相手の「いま入れ」には、一拍かかる          */
+        const tv0 = e.trust == null ? D.TRUST.start : e.trust;
+        const tMul = D.TRUST.actLo
+                   + (D.TRUST.actHi - D.TRUST.actLo) * S.clamp(tv0 / 100, 0, 1);
+        e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready * tMul;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
         const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
@@ -13710,7 +13763,14 @@ GP.race = (function () {
       /* 予定の周をどれだけ散らすか。等分ちょうどを外さないこと自体に
          値打ちはないので、ここは全チーム同じ。読みの差は「路面がどうなるかを
          当てて、いつ履き替えるかを決める」ほうに出る                    */
-      const blur = 1.4;
+      /* ---- 予定の周にどれだけ忠実か ----
+         ピットが決めた周にそのとおり入ってくるかどうかは、信頼の話。
+         「まだ行ける」「もう限界だ」で1〜2周ずれれば、
+         アンダーカットはその時点で消える。
+         ライバルはチームとして回っているものとして、基準どおり     */
+      const tv = e.isPlayer ? (e.trust == null ? D.TRUST.start : e.trust) : 78;
+      const T = D.TRUST;
+      const blur = 1.4 * (T.blurHi + (T.blurLo - T.blurHi) * S.clamp(tv / 100, 0, 1));
       const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
@@ -13746,7 +13806,11 @@ GP.race = (function () {
       /* ---- ストラテジストの読み ----
          路面が「いまどうか」ではなく「これからどうなるか」を、
          どこまで織り込んでタイヤを選べるか。0.1（後手）〜0.92（先読み）  */
-      e.foresight = e.isPlayer ? S.foresightOf(g)
+      /* 信じていない相手には、ドライバーは正直に報告しない。
+         「まだいける」と言われた1周が、そのまま読みの精度になる     */
+      const tv1 = e.trust == null ? D.TRUST.start : e.trust;
+      const tRead = D.TRUST.read * (S.clamp(tv1 / 100, 0, 1) - 0.5) * 2;
+      e.foresight = e.isPlayer ? S.clamp(S.foresightOf(g) + tRead, 0.10, 0.94)
                                : S.clamp(0.22 + (e.react || 0.45) * 0.55, 0.10, 0.88);
       /* ---- ドライバーの雨・路面への適性 ----
          合わないタイヤでも、うまい人はある程度なんとかしてしまう。
@@ -20556,7 +20620,9 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
         '総合 ' + Math.round(S.driverRating(d)) + '／調子 ' + Math.round(d.form) +
         '／' + p2.icon + p2.name + '／' + ct.icon + ct.name +
-        '<br><em>いまの車で <b>' + Math.round(fit.out * 100) + '%</b> 引き出せています' +
+        '<br><em' + (fit.over ? ' class="up"' : '') + '>いまの車の力を <b>' +
+        Math.round(fit.out * 100) + '%</b> 引き出せています' +
+        (fit.over ? '　<b>車の持ち分を超えています</b>' : '') +
         '（乗りやすさ ' + (fit.drive >= 1 ? '+' : '') + Math.round((fit.drive - 1) * 100) + '%）</em>' +
         '</small></span></div>';
     });
@@ -28786,6 +28852,17 @@ GP.screens.help = function (A) {
         { h: '5秒以上落ちた周', p: [
           'それは車の差ではありません。ピットに入った周、セーフティカー、路面と合っていないタイヤ、寿命を超えたタイヤ、そしてドライバーのミスやスピンです。',
           'どれも実況か無線で必ず言います。「なぜか1台だけ遅い」という周は無いようにしてあります。'
+        ] },
+        { h: 'ドライバーは「引き出す人」', p: [
+          'ラップタイムは「車が持っている力 × その人が引き出せる割合」で決まります。足し算ではありません。だから、遅い車をいくら名手が転がしても、速い車には届かない。そのかわり良い車を持ったときの差は大きくなります。',
+          '引き出せる割合は、腕（総合）で 78% から 100% まで。100% が「その車の持ち分をちょうど出しきった」状態で、腕だけではここが天井です。',
+          '素質の高い人だけが、そこを超えます。大器なら最大 105%。車が持っていないはずのものを出してくる——ドライバーの画面で 100% を超えていたら、その人はそういう人です。ただし腕が伴っていないと出てきません。',
+          '車体の「乗りやすさ（ドライバビリティ）」は、この割合そのものを押し上げます。腕を上げるのと、乗りやすくするのは、同じところに効きます。'
+        ] },
+        { h: '信頼は、作戦が通るかどうか', p: [
+          '信頼が厚いと、ピットが決めたことがそのとおりに運びます。仕掛けるかどうかの判断が速くなり（アンダーカットもセーフティカーも一手ぶん早い）、予定の周にきっちり入ってきて、タイヤの報告も正直になるので読みが当たります。',
+          '薄いと、その全部が鈍ります。「まだ行ける」で1〜2周ずれれば、アンダーカットはその時点で消える。40 を割ると、無線そのものを聞かない周が出はじめます。',
+          '信頼はフリー走行の受け答えと、レースの結果で動きます。'
         ] },
         { h: '金がなくても勝てるところ', p: [
           'マシンの出来だけが順位を決めているわけではありません。車がほぼ互角のとき、いちばん効くのはドライバーの腕、そのつぎが車体の乗りやすさ、そしてピットとスタッフです。',

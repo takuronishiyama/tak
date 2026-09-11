@@ -916,7 +916,10 @@ GP.race = (function () {
                                  // 週の途中にシミュレーターで走り込んでいたぶん
                                  * (1 + ((g.simGain || 0) > 0 ? 0.012 : 0))
                                  : rl.perf);
-        const perf = (t.car * 0.60 + drv * 0.40) * pmul
+        /* 車が持っている力に、引き出し率を掛ける。
+           足し算にすると、遅い車でも腕だけで順位が上がってしまう */
+        const out = S.driverOut(drv, d);
+        const perf = t.car * out * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
 
         let stats = t.stats || { speed: 1, corner: 1, accel: 1 };
@@ -930,7 +933,7 @@ GP.race = (function () {
         }
         // 区間ごとのマシン評価。パーツの中身がそのまま区間タイムに出る
         const secPerf = SW.w.map(w =>
-          (S.carScoreOf(stats, { weight: w }) * 0.60 + drv * 0.40) * pmul
+          S.carScoreOf(stats, { weight: w }) * out * pmul
           + (t.isPlayer ? S.puPerf(g) : 0));
         /* ダウンフォースの偏り。押しつける力が大きいほどタイヤは滑らず、
            1周あたりの摩耗が小さくなる。釣り合った車で 0.33 前後になる */
@@ -1811,7 +1814,12 @@ GP.race = (function () {
         }
         e.tyreBias = e.forceStops ? e.tyreBias
                    : (e.tyrePlan == null ? 1 : e.tyrePlan);
-        e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready;
+        /* 仕掛けるかどうかは、言えばそのとおりに動いてくれるか次第。
+           信じていない相手の「いま入れ」には、一拍かかる          */
+        const tv0 = e.trust == null ? D.TRUST.start : e.trust;
+        const tMul = D.TRUST.actLo
+                   + (D.TRUST.actHi - D.TRUST.actLo) * S.clamp(tv0 / 100, 0, 1);
+        e.react = (0.5 + strategist * 0.12 + S.osk(g, 'call') * 0.06) * ready * tMul;
       } else {
         // ライバルはチームごとの性格に従う。性格はシーズンを通して変わらない
         const st = D.STRAT_STYLES[e.style] || D.STRAT_STYLES.balanced;
@@ -1830,7 +1838,14 @@ GP.race = (function () {
       /* 予定の周をどれだけ散らすか。等分ちょうどを外さないこと自体に
          値打ちはないので、ここは全チーム同じ。読みの差は「路面がどうなるかを
          当てて、いつ履き替えるかを決める」ほうに出る                    */
-      const blur = 1.4;
+      /* ---- 予定の周にどれだけ忠実か ----
+         ピットが決めた周にそのとおり入ってくるかどうかは、信頼の話。
+         「まだ行ける」「もう限界だ」で1〜2周ずれれば、
+         アンダーカットはその時点で消える。
+         ライバルはチームとして回っているものとして、基準どおり     */
+      const tv = e.isPlayer ? (e.trust == null ? D.TRUST.start : e.trust) : 78;
+      const T = D.TRUST;
+      const blur = 1.4 * (T.blurHi + (T.blurLo - T.blurHi) * S.clamp(tv / 100, 0, 1));
       const shift = e.pitShift || 0;
       e.pitPlan = [];
       for (let i = 1; i <= stops; i++) {
@@ -1866,7 +1881,11 @@ GP.race = (function () {
       /* ---- ストラテジストの読み ----
          路面が「いまどうか」ではなく「これからどうなるか」を、
          どこまで織り込んでタイヤを選べるか。0.1（後手）〜0.92（先読み）  */
-      e.foresight = e.isPlayer ? S.foresightOf(g)
+      /* 信じていない相手には、ドライバーは正直に報告しない。
+         「まだいける」と言われた1周が、そのまま読みの精度になる     */
+      const tv1 = e.trust == null ? D.TRUST.start : e.trust;
+      const tRead = D.TRUST.read * (S.clamp(tv1 / 100, 0, 1) - 0.5) * 2;
+      e.foresight = e.isPlayer ? S.clamp(S.foresightOf(g) + tRead, 0.10, 0.94)
                                : S.clamp(0.22 + (e.react || 0.45) * 0.55, 0.10, 0.88);
       /* ---- ドライバーの雨・路面への適性 ----
          合わないタイヤでも、うまい人はある程度なんとかしてしまう。
