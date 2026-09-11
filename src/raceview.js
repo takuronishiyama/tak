@@ -1810,8 +1810,7 @@ GP.raceview = (function () {
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
-      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
-      '<u class="tb-full">ドライバー</u></span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
       '<span class="tb-br"></span>' +
@@ -1862,8 +1861,7 @@ GP.raceview = (function () {
         '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
           '<i style="background:' + e.color + '"></i>' +
           '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
-          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
-          '<u class="tb-full">' + rvEsc(e.driver.name) + '</u></span>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b></span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +

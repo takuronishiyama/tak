@@ -2373,7 +2373,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tb-row.out{opacity:.45;text-decoration:line-through}
 .tb-row.pit{background:rgba(255,243,77,.20);border-left-color:#ffe066}
 .tb-p{width:18px;text-align:right;flex-shrink:0}
-.tb-nm{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden;
+.tb-nm{flex:1 1 auto;min-width:62px;display:flex;align-items:center;gap:4px;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap}
 .tb-nm i{width:7px;height:7px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
 /* 英語3文字。中継のタイミング表と同じで、狭いところではこれだけを出す。
@@ -2382,8 +2382,6 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
        background:rgba(255,238,196,.10);border-radius:3px;padding:0 3px;line-height:1.45}
 .tb-dv{flex-shrink:0;font-size:11px;letter-spacing:.05em;color:#fff4d8;font-weight:bold}
 .tb-row.me .tb-dv{color:#ffe89a}
-.tb-full{font-style:normal;text-decoration:none;overflow:hidden;
-         text-overflow:ellipsis;white-space:nowrap;color:#e2d5b6}
 .tb-head .tb-nm i{border-color:transparent;background:none!important}
 .tb-head .tb-tm,.tb-head .tb-dv{background:none;color:#d8c8a4;font-weight:normal;font-size:9px}
 /* 広い画面では折り返さないので、折り目は無いものとして扱う */
@@ -2416,8 +2414,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-sectors.board{padding:2px 6px;max-height:min(52vh,420px)}
   .tb-row{flex-wrap:wrap;row-gap:2px;padding:4px 0 5px 4px}
   .tb-br{display:block;width:100%;height:0;margin:0}
-  .tb-full{display:none}
-  .tb-nm{flex:0 0 auto;gap:5px}
+  .tb-nm{flex:0 0 auto;min-width:0;gap:5px}
   .tb-g{flex:1;width:auto;min-width:46px}
   /* 二段目は幅いっぱいに割り、一段目の順位のぶんだけ下げて揃える */
   .tb-br+.tb-s{margin-left:19px}
@@ -2524,6 +2521,31 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 @media (max-width:520px), (hover:none) and (pointer:coarse){
   .rv-sectors.board{max-height:30vh}
   .rv-wrap.timing .rv-loglist{height:44px}
+}
+
+/* ---- モニターと実況 ----
+   ふだんは上下に積む。入れ物は無いものとして扱うので、
+   これまでと1ピクセルも変わらない。
+
+   タイミングモニターを出しているあいだだけ横に並べる。
+   選手名を英語3文字だけにしたぶん表が縮み、
+   その空いた幅がそのまま実況の欄になる。
+   上下に積んだままだと、モニターが背を取ったぶん
+   実況が3行ぶんまで痩せていて、読むそばから流れていった。   */
+.rv-mon{display:contents}
+.rv-wrap.timing .rv-mon{display:flex;gap:6px;align-items:stretch;min-height:0;flex-shrink:0}
+.rv-wrap.timing .rv-mon .rv-sectors{flex:1 1 auto;min-width:0;max-height:min(30vh + 46px,300px)}
+.rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(168px,27%,300px);
+  height:auto;max-height:min(30vh + 46px,300px);justify-content:flex-end}
+/* 横に置くと何の欄か分かりにくいので、見出しを貼りつけておく */
+.rv-wrap.timing .rv-mon .rv-loglist::before{content:'実況';display:block;
+  position:sticky;top:-4px;margin:-4px -6px 2px;padding:2px 6px;
+  background:#2b1c0e;color:#d8c8a4;font-size:9px;letter-spacing:.08em;
+  border-bottom:1px dashed rgba(255,238,196,.34);z-index:2}
+/* 縦に持つ端末では並べきれないので、これまでどおり積む */
+@media (max-width:560px){
+  .rv-wrap.timing .rv-mon{display:contents}
+  .rv-wrap.timing .rv-mon .rv-loglist::before{content:none}
 }
 
 /* 溝のないタイヤで濡れた路面に居る車 */
@@ -2863,6 +2885,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-loglist{height:44px}
   .rv-sectors.board{max-height:34vh}
   .rv-wrap.timing .rv-loglist{height:34px}
+  /* モニターを出しているあいだは、表のほうが主役。
+     コース図は上に少しだけ残し、空いた高さは全部モニターへ渡す。
+     横に寝かせた画面で4台しか見えないのでは、表の意味がない       */
+  .rv-wrap.timing .rv-body{flex:0 1 auto;max-height:23vh}
+  .rv-wrap.timing .rv-mon .rv-sectors{max-height:48vh}
+  .rv-wrap.timing .rv-mon .rv-loglist{max-height:48vh}
   .rv-cam button{font-size:9px;padding:2px 5px}
 
   /* ---- 中身の詰めかた ---- */
@@ -3477,8 +3505,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
         <div id="rvOrder" class="rv-order"></div>
       </div>
     </div>
-    <div id="rvSectors" class="rv-sectors"></div>
-    <div id="rvLog" class="rv-loglist"></div>
+    <!-- モニターと実況。ふだんは上下に積むが、
+         タイミングモニターを出したときだけ横に並べる -->
+    <div class="rv-mon">
+      <div id="rvSectors" class="rv-sectors"></div>
+      <div id="rvLog" class="rv-loglist"></div>
+    </div>
     <div class="rv-ctrl">
       <button class="btn primary" id="rvSpeed0"><i>🐢</i><span>じっくり</span></button>
       <button class="btn" id="rvSpeed1"><i>▶</i><span>すこし速く</span></button>
@@ -16168,8 +16200,7 @@ GP.raceview = (function () {
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
-      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
-      '<u class="tb-full">ドライバー</u></span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
       '<span class="tb-br"></span>' +
@@ -16220,8 +16251,7 @@ GP.raceview = (function () {
         '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
           '<i style="background:' + e.color + '"></i>' +
           '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
-          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
-          '<u class="tb-full">' + rvEsc(e.driver.name) + '</u></span>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b></span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +

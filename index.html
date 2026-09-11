@@ -185,8 +185,12 @@
         <div id="rvOrder" class="rv-order"></div>
       </div>
     </div>
-    <div id="rvSectors" class="rv-sectors"></div>
-    <div id="rvLog" class="rv-loglist"></div>
+    <!-- モニターと実況。ふだんは上下に積むが、
+         タイミングモニターを出したときだけ横に並べる -->
+    <div class="rv-mon">
+      <div id="rvSectors" class="rv-sectors"></div>
+      <div id="rvLog" class="rv-loglist"></div>
+    </div>
     <div class="rv-ctrl">
       <button class="btn primary" id="rvSpeed0"><i>🐢</i><span>じっくり</span></button>
       <button class="btn" id="rvSpeed1"><i>▶</i><span>すこし速く</span></button>
