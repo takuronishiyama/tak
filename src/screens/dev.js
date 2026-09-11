@@ -68,6 +68,45 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
   }
+  /* ---- ひらめきを形にする ----
+     掘り当てただけでは速くならない。
+     図面に落として作って、はじめて車に載る。
+     抱えたまま放っておくと、よそが先に持ち込んで古びる        */
+  function ideaBoxHTML() {
+    const list = S.ideaList(g);
+    if (!list.length) {
+      return '<div class="sub">ひらめき</div>' +
+        '<p class="desc">いまは抱えていません。' +
+        '📐開発や🔧改良を続けていると、ときどき何かを掘り当てます。' +
+        '掘り当てたものは、ここで<b>形にして</b>はじめて車に載ります。' +
+        '規則が新しいうちほど、まだ誰も掘っていないものが残っています。' +
+        U.helpLink('car') + '</p>';
+    }
+    let h = '<div class="sub">ひらめき</div>' +
+      '<p class="desc">掘り当てたものを、パーツとして形にします。' +
+      '品質が <b>+' + D.IDEA.qual.toFixed(2) + '</b> 底上げされ、' +
+      '出来上がりの性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態で生まれます。<br>' +
+      '<b>抱えたままだと古びます</b>。よそが先に同じものを持ち込めば、もう目新しくありません。' +
+      U.helpLink('car') + '</p><div class="pick">';
+    list.forEach(it => {
+      const c = D.PART_CATS.filter(x => x.key === it.cat)[0] || D.PART_CATS[0];
+      const dc = designCost();
+      const cost = Math.round(dc.money * 1.15);
+      const left = S.ideaLeft(g, it);
+      const ok = useTicket || (g.funds >= cost && g.rp >= dc.rp);
+      h += '<button class="pickbtn ideamark" data-idea="' + it.id + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+        '<span class="pb-body"><b>' + esc(it.name) +
+        '<em class="' + (left <= 8 ? 'warn' : 'free') + '">あと ' + left + '週</em></b>' +
+        '<small>' + c.icon + ' ' + c.name + ' として形にします' +
+        (left <= 8 ? '<br><b class="warn">そろそろ古びます。作るなら今です</b>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
+          : '💰' + money(cost) + '<br>🔬' + dc.rp) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
   /* ---- 予備シャシー ----
      組んであるだけで、週末に壊したときの逃げ道になる。
      金は寝るが、クルーを潰さずに日曜を迎えられる          */
@@ -615,6 +654,9 @@ GP.screens.dev = function (A) {
     // ---- 開発の腰まわりと、いま積んでいるパーツ ----
     body += devHeadHTML() + partsBoxHTML();
 
+    // ---- 抱えているひらめき ----
+    body += ideaBoxHTML();
+
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -692,6 +734,7 @@ GP.screens.dev = function (A) {
       else if (kind === 'imp') doImprove(key);
     });
     bindMat();
+    bindAct('data-idea', id => doIdea(id));
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -785,7 +828,12 @@ GP.screens.dev = function (A) {
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     const brk = S.rollBreakthrough(g);
-    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
+    if (brk) {
+      gain *= D.IDEA.now; crit = true;
+      // まとめ上げの最中に出たひらめきも、形にするのはパーツのほう
+      S.addIdea(g, brk, (S.groupOfBody(key) === 'air' ? 'aero'
+                       : S.groupOfBody(key) === 'frame' ? 'chas' : 'pu'));
+    }
     if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
@@ -1418,9 +1466,10 @@ GP.screens.dev = function (A) {
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
-       掘り当てると、熟成が一気に進む                                */
+       掘り当てたぶんは、その場で少しだけ伸びに乗る。
+       本番は、これを「形にして載せる」ほうにある               */
     const brk = S.rollBreakthrough(g);
-    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
+    if (brk) { gain *= D.IDEA.now; crit = true; S.addIdea(g, brk, key); }
     /* 手を動かせば、その扇の作りかたも分かってくる。
        ここで貯まったぶんが、あとで素材を上げる元手になる */
     S.addMatPoint(g, key, D.MAT.perImprove * (brk ? 3 : 1));
@@ -1505,6 +1554,42 @@ GP.screens.dev = function (A) {
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+  }
+
+  /* ひらめきを形にする。ふつうの設計と同じ道を通すが、
+     品質の引きが底上げされ、生まれた時点である程度できあがっている */
+  function doIdea(id) {
+    const it = S.ideaOf(g, id);
+    if (!it) return;
+    const c = D.PART_CATS.filter(x => x.key === it.cat)[0];
+    if (!c) return;
+    const dc = designCost();
+    const cost = Math.round(dc.money * 1.15);
+    const free = useTicket && (g.tickets || 0) > 0;
+    if (!free && (g.funds < cost || g.rp < dc.rp)) return U.toast('資金か研究Pが足りません', 'bad');
+    if (free) g.tickets--;
+    else { g.funds -= cost; g.rp -= dc.rp; capSpend(cost); }
+    S.useIdea(g, id);
+
+    const q = Math.min(D.QUAL.max, S.rollQuality(g, c.key) + D.IDEA.qual);
+    const p = S.makePart(c.key, g.carGen, q);
+    p.name = it.name;                       // 掘り当てたものの名前で残す
+    p.idea = it.name;
+    /* 生まれた時点で、ふつうに設計したものより先へ進んでいる。
+       Math.max ではなく足し算にしないと、
+       序盤は素の出来のほうが大きくて、何も効かなかった        */
+    const icap = S.partCap(g, p);
+    p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
+    g.inventory.push(p);
+    S.addMatPoint(g, c.key, D.MAT.perDesign);
+    GP.sound.play('levelup');
+    U.log(g, '💡 <b>' + esc(it.name) + '</b> を形にした！ ' +
+      c.name + 'として保管庫に入った（品質 ' + q.toFixed(2) + '）。' +
+      '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
+    U.toast('💡 ' + it.name + ' が形になった！', 'good');
+    S.pushNews(g, 'brk', it.name);
+    S.save(g);
+    endWeek();
   }
 
   function doDesign(key) {

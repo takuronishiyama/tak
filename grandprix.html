@@ -3387,6 +3387,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   background:rgba(255,238,196,.10);display:block}
 .stockdots b.on{background:#c98b4a}
 
+/* 規則の読みかた。ライバル一覧で、開発の速さの理由を示す */
+.erachip{font-style:normal;font-size:10px;font-weight:bold;white-space:nowrap}
+/* ひらめきから生まれたパーツの札 */
+.pickbtn.ideamark{border-color:#b06fd0}
+.pickbtn.ideamark .pb-body>b{color:#e9a8ff}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -6526,6 +6532,40 @@ GP.data = (function () {
      ときどき、どこかのチームがそれを掘り当てて一気に速くなる。
      規則が固まるほど掘るところは減り、見つかるものも小さくなる。
      ADUO で時間をもらっているチームは、その時間を探索に使える     */
+  /* ---------- ライバルの開発ペース ----------
+     これまで、地力 0.70〜1.00 の差が
+     1週あたりの伸びでは 1.2倍にしかなっておらず、
+     金のあるチームも無いチームも似た速さで育っていた。
+     シーズンを通しても並びがほとんど動かないのは、これが理由。
+
+     資金力の効きを強くして、上位と下位で差がつくようにする。
+     グリッド全体の平均の伸びは、これまでと同じに合わせてある
+     （floor と byMoney を、そうなる値にしてある）。
+
+     そのかわり、規則が新しいうちは「読めたかどうか」が大きい。
+     金があっても外す年があり、持たざるチームが当てる年もある。
+     年を追うごとに、みなが同じ答えへ寄っていく                  */
+  const RIVAL_DEV = {
+    floor:   0.018,   // 誰でも進むぶん
+    byMoney: 0.145,   // 資金力（地力）に比例するぶん
+    moneyK:  2.4,     // 資金力の効きかた。1より大きいほど上位が有利
+    /* 規則が始まってからの経過シーズンごとの、読みのばらつき。
+       1年目は ±38%、そこから収束していく                       */
+    eraSpread: [0.38, 0.22, 0.11, 0.05]
+  };
+
+  /* ---------- ひらめき ----------
+     掘り当てたものは、その場で速さに化けるわけではない。
+     形にして、車に載せてはじめて効く。
+     ライバルが「新型フロア」を持ち込むのと同じことを、こちらもやる  */
+  const IDEA = {
+    keep:  3,       // 抱えておける数
+    life:  30,      // 何週で古びるか（形にしないと、よそに追い越される）
+    qual:  0.16,    // ひらめきから作ると、品質がこれだけ底上げされる
+    power: 0.20,    // 出来上がりの性能が、上限に対してこれだけ底上げされる
+    now:   1.8      // 掘り当てたその週の、伸びの倍率（残りは形にして受け取る）
+  };
+
   const INNOV = {
     fresh: [2.4, 1.7, 1.25, 1.0],   // 規則変更からの経過シーズン（0,1,2,3以降）
     rivalWeek: 0.010,               // ライバル1チーム・1週あたりの基礎確率
@@ -7035,7 +7075,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -8568,6 +8608,8 @@ GP.state = (function () {
 
   function applyRegulation(g2) {
     g2.reg = (g2.reg || 0) + 1;
+    // 新しい規則を、どこが読み切るか。ここで引き直す
+    rollEraFit(g2);
     // ---- 保管していたパーツは「遺産」になる ----
     // 旧規則のまま走らせることはできないが、そこに詰まっている知見は残る。
     // ばらして解析すれば研究の材料になり、良いものを持っていたチームは
@@ -8649,6 +8691,34 @@ GP.state = (function () {
     return sec / (t.base * 0.00092 * 0.60);
   }
   function innovName() { return pick(D.INNOV.NAMES); }
+
+  /* ---------- ひらめきを抱える ----------
+     掘り当てたものは、その場で速さに化けるわけではない。
+     形にして、車に載せてはじめて効く。
+     抱えたまま放っておくと、よそが先に持ち込んで古びる        */
+  function ideaList(g2) {
+    g2.ideas = (g2.ideas || []).filter(x => weekStamp(g2) - (x.at || 0) < D.IDEA.life);
+    return g2.ideas;
+  }
+  function addIdea(g2, name, catKey) {
+    const list = ideaList(g2);
+    if (list.length >= D.IDEA.keep) list.shift();      // 古いものから忘れる
+    const it = { id: 'i' + Math.random().toString(36).slice(2, 8),
+                 name: name, cat: catKey, at: weekStamp(g2) };
+    list.push(it);
+    g2.ideas = list;
+    return it;
+  }
+  function ideaOf(g2, id) { return ideaList(g2).filter(x => x.id === id)[0] || null; }
+  function useIdea(g2, id) {
+    const before = ideaList(g2).length;
+    g2.ideas = ideaList(g2).filter(x => x.id !== id);
+    return g2.ideas.length < before;
+  }
+  /* ひらめきが古びるまで、あと何週か */
+  function ideaLeft(g2, it) {
+    return Math.max(0, D.IDEA.life - (weekStamp(g2) - (it.at || 0)));
+  }
   /* プレイヤーの開発1回ぶんの抽選。規則が新しいうちほど当たりやすく、
      技術部門が厚いほど掘り当てられる。当たれば何を見つけたかを返す   */
   function rollBreakthrough(g2) {
@@ -8915,6 +8985,33 @@ GP.state = (function () {
     };
   }
 
+  /* ---------- 規則を読めたかどうか ----------
+     新しい規則の1年目は、当たり外れが大きい。
+     同じ金をかけても、読めたチームは飛び出し、外したチームは沈む。
+     年を追うごとに、みなが同じ答えへ寄っていくので差は縮む。
+     どの規則でどのチームが当たるかは、規則が変わるたびに引き直す  */
+  function rollEraFit(g2) {
+    /* 一様に引くと「読み切った」と「外した」ばかりになる。
+       3回引いて平均をとり、真ん中に寄せる。
+       飛び抜けるチームも沈むチームも、いるにはいる、くらいに   */
+    const bell = () => (rnd(-1, 1) + rnd(-1, 1) + rnd(-1, 1)) / 3;
+    (g2.rivals || []).forEach(r => { r.eraRoll = bell(); });
+  }
+  function eraFitOf(g2, r) {
+    const sp = D.RIVAL_DEV.eraSpread;
+    const since = Math.min(sp.length - 1, regSince(g2));
+    return 1 + (r.eraRoll || 0) * sp[since];
+  }
+  /* 画面用。いまその規則をどれだけ読めているか */
+  function eraReadOf(g2, r) {
+    const v = eraFitOf(g2, r);
+    return v >= 1.14 ? { name: '読み切っている', icon: '🔥', color: '#e04a3f' }
+         : v >= 1.05 ? { name: '掴んでいる',     icon: '📈', color: '#f0a020' }
+         : v >= 0.95 ? { name: 'ふつう',         icon: '⚖️', color: '#a89878' }
+         : v >= 0.86 ? { name: '手探り',         icon: '🌫️', color: '#7ecbf0' }
+                     : { name: '外している',     icon: '🧊', color: '#3a7ad9' };
+  }
+
   function developRivals(g2) {
     const diff = diffOf(g2);
     // いまの選手権順位。上位のチームほど開発に使える時間が少ない
@@ -8939,7 +9036,12 @@ GP.state = (function () {
       const atr = D.ATR[Math.min(D.ATR.length - 1, (rivalRank[r.name] || 6) - 1)];
       // 一強状態なら、離されたチームには是正措置ぶんが上乗せされる
       const relief = aduoMul(g2, rivalRank[r.name] || 6, ad);
-      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * atr * relief
+      /* 資金力（地力）の効きを、はっきり出す。
+         そのうえで、規則を読めたかどうかを掛ける             */
+      const RD = D.RIVAL_DEV;
+      const money = Math.pow(power, RD.moneyK);
+      const step = (RD.floor + money * RD.byMoney) * eraFitOf(g2, r)
+                 * (diff.rivalGrow || 1) * atr * relief
                  * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
       const behind = (ad.level && (rivalRank[r.name] || 6) > 1)
         ? Math.max(0, topScore - sum(r.stats)) : 0;
@@ -10607,6 +10709,7 @@ GP.state = (function () {
       techs: {},            // 開発で積み上げた技術（タグ）
       spare: 0,             // 予備シャシーの数
       capLift: {},          // 研究で押し広げた、コンセプトの線（扇ごと）
+      ideas: [],            // 抱えているひらめき（形にすると新しいパーツになる）
       mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
       matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
@@ -10639,6 +10742,8 @@ GP.state = (function () {
     if (diff.oilSponsor) g.sponsors.push(Object.assign({}, D.OIL_SPONSOR));
 
     g.rivals = makeRivals(1, g.drivers.map(d => d.name), diff, 0);
+    // 最初の規則を、どこが読み切るか
+    rollEraFit(g);
     // 最初から若手を1人抱えている
     g.youth = [makeYouth(1)];
     return g;
@@ -11417,6 +11522,9 @@ GP.state = (function () {
         g.capLift = {};
         g.research = {};
       }
+      if (!g.ideas) g.ideas = [];
+      // 規則の読みかたは、途中から入れたぶんを引いておく
+      if ((g.rivals || []).some(r => r.eraRoll == null)) rollEraFit(g);
       if (!g.mat) g.mat = {};
       if (!g.matP) g.matP = {};
       D.PART_GROUPS.forEach(gr => {
@@ -11474,6 +11582,7 @@ GP.state = (function () {
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
+    ideaList, addIdea, ideaOf, useIdea, ideaLeft, rollEraFit, eraFitOf, eraReadOf,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
@@ -19889,6 +19998,45 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
   }
+  /* ---- ひらめきを形にする ----
+     掘り当てただけでは速くならない。
+     図面に落として作って、はじめて車に載る。
+     抱えたまま放っておくと、よそが先に持ち込んで古びる        */
+  function ideaBoxHTML() {
+    const list = S.ideaList(g);
+    if (!list.length) {
+      return '<div class="sub">ひらめき</div>' +
+        '<p class="desc">いまは抱えていません。' +
+        '📐開発や🔧改良を続けていると、ときどき何かを掘り当てます。' +
+        '掘り当てたものは、ここで<b>形にして</b>はじめて車に載ります。' +
+        '規則が新しいうちほど、まだ誰も掘っていないものが残っています。' +
+        U.helpLink('car') + '</p>';
+    }
+    let h = '<div class="sub">ひらめき</div>' +
+      '<p class="desc">掘り当てたものを、パーツとして形にします。' +
+      '品質が <b>+' + D.IDEA.qual.toFixed(2) + '</b> 底上げされ、' +
+      '出来上がりの性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態で生まれます。<br>' +
+      '<b>抱えたままだと古びます</b>。よそが先に同じものを持ち込めば、もう目新しくありません。' +
+      U.helpLink('car') + '</p><div class="pick">';
+    list.forEach(it => {
+      const c = D.PART_CATS.filter(x => x.key === it.cat)[0] || D.PART_CATS[0];
+      const dc = designCost();
+      const cost = Math.round(dc.money * 1.15);
+      const left = S.ideaLeft(g, it);
+      const ok = useTicket || (g.funds >= cost && g.rp >= dc.rp);
+      h += '<button class="pickbtn ideamark" data-idea="' + it.id + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+        '<span class="pb-body"><b>' + esc(it.name) +
+        '<em class="' + (left <= 8 ? 'warn' : 'free') + '">あと ' + left + '週</em></b>' +
+        '<small>' + c.icon + ' ' + c.name + ' として形にします' +
+        (left <= 8 ? '<br><b class="warn">そろそろ古びます。作るなら今です</b>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
+          : '💰' + money(cost) + '<br>🔬' + dc.rp) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
   /* ---- 予備シャシー ----
      組んであるだけで、週末に壊したときの逃げ道になる。
      金は寝るが、クルーを潰さずに日曜を迎えられる          */
@@ -20436,6 +20584,9 @@ GP.screens.dev = function (A) {
     // ---- 開発の腰まわりと、いま積んでいるパーツ ----
     body += devHeadHTML() + partsBoxHTML();
 
+    // ---- 抱えているひらめき ----
+    body += ideaBoxHTML();
+
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -20513,6 +20664,7 @@ GP.screens.dev = function (A) {
       else if (kind === 'imp') doImprove(key);
     });
     bindMat();
+    bindAct('data-idea', id => doIdea(id));
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -20606,7 +20758,12 @@ GP.screens.dev = function (A) {
     let crit = false;
     if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
     const brk = S.rollBreakthrough(g);
-    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
+    if (brk) {
+      gain *= D.IDEA.now; crit = true;
+      // まとめ上げの最中に出たひらめきも、形にするのはパーツのほう
+      S.addIdea(g, brk, (S.groupOfBody(key) === 'air' ? 'aero'
+                       : S.groupOfBody(key) === 'frame' ? 'chas' : 'pu'));
+    }
     if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
     const toNext = gain * fc.next;
     gain = Math.round(gain * fc.cur * 10) / 10;
@@ -21239,9 +21396,10 @@ GP.screens.dev = function (A) {
     if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
     /* ---- ブレイクスルー ----
        規則が新しいうちほど、まだ誰も掘っていないものが残っている。
-       掘り当てると、熟成が一気に進む                                */
+       掘り当てたぶんは、その場で少しだけ伸びに乗る。
+       本番は、これを「形にして載せる」ほうにある               */
     const brk = S.rollBreakthrough(g);
-    if (brk) { gain *= D.INNOV.playerGain; crit = true; }
+    if (brk) { gain *= D.IDEA.now; crit = true; S.addIdea(g, brk, key); }
     /* 手を動かせば、その扇の作りかたも分かってくる。
        ここで貯まったぶんが、あとで素材を上げる元手になる */
     S.addMatPoint(g, key, D.MAT.perImprove * (brk ? 3 : 1));
@@ -21326,6 +21484,42 @@ GP.screens.dev = function (A) {
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+  }
+
+  /* ひらめきを形にする。ふつうの設計と同じ道を通すが、
+     品質の引きが底上げされ、生まれた時点である程度できあがっている */
+  function doIdea(id) {
+    const it = S.ideaOf(g, id);
+    if (!it) return;
+    const c = D.PART_CATS.filter(x => x.key === it.cat)[0];
+    if (!c) return;
+    const dc = designCost();
+    const cost = Math.round(dc.money * 1.15);
+    const free = useTicket && (g.tickets || 0) > 0;
+    if (!free && (g.funds < cost || g.rp < dc.rp)) return U.toast('資金か研究Pが足りません', 'bad');
+    if (free) g.tickets--;
+    else { g.funds -= cost; g.rp -= dc.rp; capSpend(cost); }
+    S.useIdea(g, id);
+
+    const q = Math.min(D.QUAL.max, S.rollQuality(g, c.key) + D.IDEA.qual);
+    const p = S.makePart(c.key, g.carGen, q);
+    p.name = it.name;                       // 掘り当てたものの名前で残す
+    p.idea = it.name;
+    /* 生まれた時点で、ふつうに設計したものより先へ進んでいる。
+       Math.max ではなく足し算にしないと、
+       序盤は素の出来のほうが大きくて、何も効かなかった        */
+    const icap = S.partCap(g, p);
+    p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
+    g.inventory.push(p);
+    S.addMatPoint(g, c.key, D.MAT.perDesign);
+    GP.sound.play('levelup');
+    U.log(g, '💡 <b>' + esc(it.name) + '</b> を形にした！ ' +
+      c.name + 'として保管庫に入った（品質 ' + q.toFixed(2) + '）。' +
+      '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
+    U.toast('💡 ' + it.name + ' が形になった！', 'good');
+    S.pushNews(g, 'brk', it.name);
+    S.save(g);
+    endWeek();
   }
 
   function doDesign(key) {
@@ -27908,6 +28102,11 @@ GP.screens.help = function (A) {
           '同じ📐開発で、新しいパーツを作ります。同じ図面から作っても出来はそのつどちがい、品質は<b>作った瞬間に決まって、あとから変わりません</b>。上限で詰まったら、作り直して良い個体を引き当てるしかありません。',
           '品質は 並 → 良品 → 上物 → 特上 → 会心作。数字がそのまま上限の倍率です。'
         ] },
+        { h: 'ひらめきを形にする', p: [
+          '📐開発や🔧改良を続けていると、ときどき何かを掘り当てます。掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。ライバルが「新型フロア」を持ち込むのと同じことです。',
+          '抱えたひらめきは <b>📐 開発 → ひらめき</b>に並びます。形にすると、そのパーツの<b>品質が +0.16</b> 底上げされ、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
+          '<b>抱えたままだと古びます</b>（30週）。よそが先に同じものを持ち込めば、もう目新しくありません。掘り当てたら、早めに形にしてください。'
+        ] },
         { h: '作ったパーツを積む', p: [
           '📐開発で設計したパーツは、その場では積まれません。いったん<b>保管庫</b>に入ります。',
           '積み替えるのは <b>🛠️ 整備 →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
@@ -27926,6 +28125,11 @@ GP.screens.help = function (A) {
         { h: '扇どうしの継ぎ目', p: [
           '輪は3つの扇に分かれていて、その継ぎ目が「継ぎ目のインテグレート」です。空気と足／骨と制動／動力の3組で、隣り合う組の橋が細いと、そこがボトルネックになります。',
           '橋が細いとドライバーが具体的に言ってきます。「足が硬すぎて縁石を使えません」なら空気と足、「ブレーキが熱ダレします」なら骨と制動、「バッテリーが弱くて立ち上がりがF3みたいです」なら動力と足です。'
+        ] },
+        { h: 'ライバルの開発ペース', p: [
+          'よそのチームも毎週育ちます。育つ速さは<b>資金力</b>で決まり、上位のチームほど速く伸びます（いちばん潤沢なチームと、いちばん苦しいチームで2倍ほどの差）。',
+          'ただし、上位のチームほど風洞とCFDに使える時間が減ります（🪫厳しい〜🔋恵まれている）。負ければ時間がもらえ、勝てば取り上げられる、という押し戻しが常に効いています。',
+          'そして<b>規則が新しいうちは、読めたかどうかの当たり外れが大きい</b>。同じ金をかけても、読み切ったチームは飛び出し、外したチームは沈みます。年を追うごとに、みな同じ答えへ寄っていくので差は縮みます。📖情報のライバル一覧に、そのチームがいまの規則をどれだけ読めているかが出ます。'
         ] },
         { h: '世代とブレイクスルー', p: [
           'パーツを煮詰めきると、マシンそのものが次の世代へ進みます。世代が上がると天井（品質に掛ける側の数字）が上がり、また伸ばせるようになります。',
@@ -31096,6 +31300,8 @@ window.GP = window.GP || {};
       rows.push({ name: r.name, color: r.color, mine: false,
                   stats: r.stats, base0: r.base0 || null,
                   car: S.carScoreOf(r.stats, track),
+                  // いまの規則をどれだけ読めているか（開発ペースに出る）
+                  era: S.eraReadOf(g, r),
                   style: r.style, pts: r.points });
     });
     rows.sort((a, b) => b.car - a.car);
@@ -31117,7 +31323,10 @@ window.GP = window.GP || {};
       h += '<div class="trow' + (r.mine ? ' me' : '') + '">' +
         '<span class="t-pos">' + (i + 1) + '</span>' +
         '<span class="rk-chip" style="background:' + r.color + '"></span>' +
-        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') + '</span>' +
+        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') +
+          (r.era ? ' <em class="erachip" style="color:' + r.era.color + '" title="' +
+            'いまの規則をどれだけ読めているか。開発の速さに出ます">' +
+            r.era.icon + r.era.name + '</em>' : '') + '</span>' +
         '<span class="t-bar"><i style="width:' + Math.round(r.car / top * 100) + '%"></i>' +
           '<b>' + Math.round(r.car) + '</b></span>' +
         '<span class="t-mix" title="最高速／コーナー／加速">' +
@@ -31132,7 +31341,10 @@ window.GP = window.GP || {};
       '<div class="seclegend"><span><i style="background:#e04a3f"></i>最高速</span>' +
       '<span><i style="background:#3a7ad9"></i>コーナー</span>' +
       '<span><i style="background:#4ea63f"></i>加速</span>' +
-      '<em>右端はシーズン開始からの伸び</em></div>';
+      '<em>右端はシーズン開始からの伸び</em></div>' +
+      '<p class="note">🔥📈⚖️🌫️🧊 は、そのチームが<b>いまの規則をどれだけ読めているか</b>です。' +
+      '規則が新しいうちほど当たり外れが大きく、年を追うごとにみな同じ答えへ寄っていきます。' +
+      '読み切っているチームは、同じ金をかけても速く育ちます。</p>';
     return h;
   }
 

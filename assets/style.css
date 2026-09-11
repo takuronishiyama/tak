@@ -3371,3 +3371,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .stockdots b{width:14px;height:14px;border:2px solid var(--ink);border-radius:4px;
   background:rgba(255,238,196,.10);display:block}
 .stockdots b.on{background:#c98b4a}
+
+/* 規則の読みかた。ライバル一覧で、開発の速さの理由を示す */
+.erachip{font-style:normal;font-size:10px;font-weight:bold;white-space:nowrap}
+/* ひらめきから生まれたパーツの札 */
+.pickbtn.ideamark{border-color:#b06fd0}
+.pickbtn.ideamark .pb-body>b{color:#e9a8ff}

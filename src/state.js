@@ -1250,6 +1250,8 @@ GP.state = (function () {
 
   function applyRegulation(g2) {
     g2.reg = (g2.reg || 0) + 1;
+    // 新しい規則を、どこが読み切るか。ここで引き直す
+    rollEraFit(g2);
     // ---- 保管していたパーツは「遺産」になる ----
     // 旧規則のまま走らせることはできないが、そこに詰まっている知見は残る。
     // ばらして解析すれば研究の材料になり、良いものを持っていたチームは
@@ -1331,6 +1333,34 @@ GP.state = (function () {
     return sec / (t.base * 0.00092 * 0.60);
   }
   function innovName() { return pick(D.INNOV.NAMES); }
+
+  /* ---------- ひらめきを抱える ----------
+     掘り当てたものは、その場で速さに化けるわけではない。
+     形にして、車に載せてはじめて効く。
+     抱えたまま放っておくと、よそが先に持ち込んで古びる        */
+  function ideaList(g2) {
+    g2.ideas = (g2.ideas || []).filter(x => weekStamp(g2) - (x.at || 0) < D.IDEA.life);
+    return g2.ideas;
+  }
+  function addIdea(g2, name, catKey) {
+    const list = ideaList(g2);
+    if (list.length >= D.IDEA.keep) list.shift();      // 古いものから忘れる
+    const it = { id: 'i' + Math.random().toString(36).slice(2, 8),
+                 name: name, cat: catKey, at: weekStamp(g2) };
+    list.push(it);
+    g2.ideas = list;
+    return it;
+  }
+  function ideaOf(g2, id) { return ideaList(g2).filter(x => x.id === id)[0] || null; }
+  function useIdea(g2, id) {
+    const before = ideaList(g2).length;
+    g2.ideas = ideaList(g2).filter(x => x.id !== id);
+    return g2.ideas.length < before;
+  }
+  /* ひらめきが古びるまで、あと何週か */
+  function ideaLeft(g2, it) {
+    return Math.max(0, D.IDEA.life - (weekStamp(g2) - (it.at || 0)));
+  }
   /* プレイヤーの開発1回ぶんの抽選。規則が新しいうちほど当たりやすく、
      技術部門が厚いほど掘り当てられる。当たれば何を見つけたかを返す   */
   function rollBreakthrough(g2) {
@@ -1597,6 +1627,33 @@ GP.state = (function () {
     };
   }
 
+  /* ---------- 規則を読めたかどうか ----------
+     新しい規則の1年目は、当たり外れが大きい。
+     同じ金をかけても、読めたチームは飛び出し、外したチームは沈む。
+     年を追うごとに、みなが同じ答えへ寄っていくので差は縮む。
+     どの規則でどのチームが当たるかは、規則が変わるたびに引き直す  */
+  function rollEraFit(g2) {
+    /* 一様に引くと「読み切った」と「外した」ばかりになる。
+       3回引いて平均をとり、真ん中に寄せる。
+       飛び抜けるチームも沈むチームも、いるにはいる、くらいに   */
+    const bell = () => (rnd(-1, 1) + rnd(-1, 1) + rnd(-1, 1)) / 3;
+    (g2.rivals || []).forEach(r => { r.eraRoll = bell(); });
+  }
+  function eraFitOf(g2, r) {
+    const sp = D.RIVAL_DEV.eraSpread;
+    const since = Math.min(sp.length - 1, regSince(g2));
+    return 1 + (r.eraRoll || 0) * sp[since];
+  }
+  /* 画面用。いまその規則をどれだけ読めているか */
+  function eraReadOf(g2, r) {
+    const v = eraFitOf(g2, r);
+    return v >= 1.14 ? { name: '読み切っている', icon: '🔥', color: '#e04a3f' }
+         : v >= 1.05 ? { name: '掴んでいる',     icon: '📈', color: '#f0a020' }
+         : v >= 0.95 ? { name: 'ふつう',         icon: '⚖️', color: '#a89878' }
+         : v >= 0.86 ? { name: '手探り',         icon: '🌫️', color: '#7ecbf0' }
+                     : { name: '外している',     icon: '🧊', color: '#3a7ad9' };
+  }
+
   function developRivals(g2) {
     const diff = diffOf(g2);
     // いまの選手権順位。上位のチームほど開発に使える時間が少ない
@@ -1621,7 +1678,12 @@ GP.state = (function () {
       const atr = D.ATR[Math.min(D.ATR.length - 1, (rivalRank[r.name] || 6) - 1)];
       // 一強状態なら、離されたチームには是正措置ぶんが上乗せされる
       const relief = aduoMul(g2, rivalRank[r.name] || 6, ad);
-      const step = (0.055 + power * 0.075) * (diff.rivalGrow || 1) * atr * relief
+      /* 資金力（地力）の効きを、はっきり出す。
+         そのうえで、規則を読めたかどうかを掛ける             */
+      const RD = D.RIVAL_DEV;
+      const money = Math.pow(power, RD.moneyK);
+      const step = (RD.floor + money * RD.byMoney) * eraFitOf(g2, r)
+                 * (diff.rivalGrow || 1) * atr * relief
                  * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
       const behind = (ad.level && (rivalRank[r.name] || 6) > 1)
         ? Math.max(0, topScore - sum(r.stats)) : 0;
@@ -3289,6 +3351,7 @@ GP.state = (function () {
       techs: {},            // 開発で積み上げた技術（タグ）
       spare: 0,             // 予備シャシーの数
       capLift: {},          // 研究で押し広げた、コンセプトの線（扇ごと）
+      ideas: [],            // 抱えているひらめき（形にすると新しいパーツになる）
       mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
       matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
@@ -3321,6 +3384,8 @@ GP.state = (function () {
     if (diff.oilSponsor) g.sponsors.push(Object.assign({}, D.OIL_SPONSOR));
 
     g.rivals = makeRivals(1, g.drivers.map(d => d.name), diff, 0);
+    // 最初の規則を、どこが読み切るか
+    rollEraFit(g);
     // 最初から若手を1人抱えている
     g.youth = [makeYouth(1)];
     return g;
@@ -4099,6 +4164,9 @@ GP.state = (function () {
         g.capLift = {};
         g.research = {};
       }
+      if (!g.ideas) g.ideas = [];
+      // 規則の読みかたは、途中から入れたぶんを引いておく
+      if ((g.rivals || []).some(r => r.eraRoll == null)) rollEraFit(g);
       if (!g.mat) g.mat = {};
       if (!g.matP) g.matP = {};
       D.PART_GROUPS.forEach(gr => {
@@ -4156,6 +4224,7 @@ GP.state = (function () {
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
+    ideaList, addIdea, ideaOf, useIdea, ideaLeft, rollEraFit, eraFitOf, eraReadOf,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

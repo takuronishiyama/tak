@@ -602,6 +602,8 @@ window.GP = window.GP || {};
       rows.push({ name: r.name, color: r.color, mine: false,
                   stats: r.stats, base0: r.base0 || null,
                   car: S.carScoreOf(r.stats, track),
+                  // いまの規則をどれだけ読めているか（開発ペースに出る）
+                  era: S.eraReadOf(g, r),
                   style: r.style, pts: r.points });
     });
     rows.sort((a, b) => b.car - a.car);
@@ -623,7 +625,10 @@ window.GP = window.GP || {};
       h += '<div class="trow' + (r.mine ? ' me' : '') + '">' +
         '<span class="t-pos">' + (i + 1) + '</span>' +
         '<span class="rk-chip" style="background:' + r.color + '"></span>' +
-        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') + '</span>' +
+        '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') +
+          (r.era ? ' <em class="erachip" style="color:' + r.era.color + '" title="' +
+            'いまの規則をどれだけ読めているか。開発の速さに出ます">' +
+            r.era.icon + r.era.name + '</em>' : '') + '</span>' +
         '<span class="t-bar"><i style="width:' + Math.round(r.car / top * 100) + '%"></i>' +
           '<b>' + Math.round(r.car) + '</b></span>' +
         '<span class="t-mix" title="最高速／コーナー／加速">' +
@@ -638,7 +643,10 @@ window.GP = window.GP || {};
       '<div class="seclegend"><span><i style="background:#e04a3f"></i>最高速</span>' +
       '<span><i style="background:#3a7ad9"></i>コーナー</span>' +
       '<span><i style="background:#4ea63f"></i>加速</span>' +
-      '<em>右端はシーズン開始からの伸び</em></div>';
+      '<em>右端はシーズン開始からの伸び</em></div>' +
+      '<p class="note">🔥📈⚖️🌫️🧊 は、そのチームが<b>いまの規則をどれだけ読めているか</b>です。' +
+      '規則が新しいうちほど当たり外れが大きく、年を追うごとにみな同じ答えへ寄っていきます。' +
+      '読み切っているチームは、同じ金をかけても速く育ちます。</p>';
     return h;
   }
 
