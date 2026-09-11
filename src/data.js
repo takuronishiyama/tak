@@ -2241,6 +2241,31 @@ GP.data = (function () {
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
+  /* ---------- トラックリミット ----------
+     白線をはみ出しても、その場では何も起きない。
+     審査はただ回数を数えていて、5回目で5秒の加算になる。
+
+     加算は「次のピットで余計に止まる」ことで払う。
+     だから終盤にもらった5秒がいちばん重い。
+     払いきれずにチェッカーを受ければ、そのまま総時間に足される。
+
+     どれだけ白線に近いところを走るかは人による。
+     安定感のある人は縁石の内側で我慢し、
+     攻めろと言われている車は外へ出ていく。                */
+  const TRACK_LIMITS = {
+    strike: 5,          // 何回目で加算になるか
+    sec: 5,             // 加算の秒数
+    base: 0.088,        // 1周あたりの素の出やすさ
+    careHalf: 85,       // 安定感がこれだけあると、半分になる
+    riskK: 0.85,        // 「攻めろ」と言うほど出る
+    wetMul: 0.45,       // 濡れていると、そもそも縁石まで行かない
+    proneMid: 1.00,     // その日の癖。レース前に車ごとに引く
+    proneSpread: 0.85,
+    fade: 0.95,         // 序盤ほど出て、警告が重なるほど我慢するようになる
+    warnFrom: 2,        // 何回目から無線で言うか
+    showRival: 3        // ライバルは何回目から実況に出すか
+  };
+
   const PENALTIES = [
     { key: 'limits', name: 'トラックリミット超過', icon: '🚧', sec: 5,
       text: 'コース外にはみ出して得をしたと判断された' },
@@ -2801,9 +2826,14 @@ GP.data = (function () {
        湿り〜ハーフ（〜0.66） インター
        ウェット〜大雨（0.66〜） ウェット
      たとえば大雨（1.0）でインターのままだと 1周 +10%、
-     乾いた路面でインターだと +5%、ウェットだと +23% になる      */
+     乾いた路面でインターだと +8%、ウェットだと +35% になる      */
   const WET_MISMATCH  = 0.18;
   const WET_MISMATCH2 = 0.22;
+  /* ずれの向きで、重さが変わる。
+     水に対してタイヤが足りないのは「滑る」で、腕でいなせる余地がある。
+     タイヤに対して水が足りないのは「溶ける」で、うまさでは止まらない。
+     乾いた路面で溝つきを引っぱるほうを、はっきり重くしておく     */
+  const WET_ON_DRY_PACE = 1.50;
 
   /* ---------- 環境係数 ----------
      路面と銘柄のずれ、終わったタイヤ、濡れた路面、攻めろという指示。
@@ -2835,7 +2865,11 @@ GP.data = (function () {
     /* 逆に、溝のあるタイヤを乾いた路面で使うのは「溶ける」であって
        「滑る」ではない。スピンには効きにくく、摩耗で払わせる。      */
     wetOnDry:   0.35, // ずれがスピンに効く度合い（ドライタイヤの35%）
-    wetMelt:    1.60  // ずれ 1.0 あたり、1周で何周ぶん余計に減るか
+    /* ずれ 1.0 あたり、1周で何周ぶん余計に減るか。
+       乾いた路面のインターは、ずれが 0.22 ほどある。
+       ここが 20 なら 1周で 5.4周ぶん減るので、4周ももたない。
+       雨が上がったら換える、という当たり前が成立する数字にしてある */
+    wetMelt:    20.0
   };
   /* ---------- トラックサイド装備 ----------
      現地に持ち込むもの。施設は本拠地、備品はその中身、
@@ -2933,5 +2967,5 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

@@ -2356,6 +2356,34 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .kartgo{color:#8ef08e}
 .kartlog{height:auto;max-height:120px;margin:8px 0}
 
+/* ---- インテグレート（まとめ上げ）の一覧 ---- */
+/* 見出しへ飛んだとき、貼りついているタブの下に潜らないようにする */
+.modal-body .sub{scroll-margin-top:52px}
+/* いまの掛け算と、その内訳。押す前に「何のための画面か」を見せる */
+.intsum{background:#2b1c0e;border:3px solid var(--ink);border-radius:8px;
+        padding:7px 9px;margin:6px 0 8px;display:flex;flex-direction:column;gap:4px}
+[data-skin="hd"] .intsum{background:#2f2540;border-color:#5b4a74}
+.intsum>b{font-size:12px;color:#ffe9a8}
+.intsum>b u{text-decoration:none;font-size:15px;color:#ffd23a}
+.intsum span{position:relative;display:block;font-size:10.5px;color:#e2d5b6;
+             background:rgba(255,238,196,.08);border-radius:4px;padding:3px 6px;overflow:hidden}
+.intsum span i{position:absolute;left:0;top:0;bottom:0;background:rgba(255,210,58,.22);
+               display:block;border-radius:4px}
+.intsum span em{position:relative;font-style:normal;color:#b7a682;margin-left:6px}
+/* 扇の見出し。どの扇が薄いかを、行の前に置いて分からせる */
+.intgrp{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;
+        border-left:5px solid #888;padding:2px 0 2px 8px;margin:10px 0 4px}
+.intgrp b{font-size:13px}
+.intgrp em{font-style:normal;font-size:11px;color:#ffe9a8;
+           background:rgba(255,238,196,.12);border-radius:4px;padding:1px 6px}
+.intgrp small{font-size:10.5px;color:#b7a682;flex:1 1 100%}
+.devrow .deveff{display:block;font-size:10.5px;color:#b7a682;margin-top:2px}
+.devrow .devnow em.cap{font-style:normal;color:#e0a060}
+@media (max-width:520px){
+  .intsum span{font-size:10px}
+  .intsum span em{display:block;margin-left:0}
+}
+
 /* ---- タイミングモニター（全車） ---- */
 .rv-sectors.board{max-height:230px;overflow-y:auto;padding:2px 4px}
 /* 数字を追う表なので、地の色より「読めること」を優先する。
@@ -2382,6 +2410,14 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
        background:rgba(255,238,196,.10);border-radius:3px;padding:0 3px;line-height:1.45}
 .tb-dv{flex-shrink:0;font-size:11px;letter-spacing:.05em;color:#fff4d8;font-weight:bold}
 .tb-row.me .tb-dv{color:#ffe89a}
+/* 白線をいくつ越えているか。5回目で5秒なので、
+   あと1回のところまで来たら色を変えて知らせる */
+.tb-tl{flex-shrink:0;font-size:9px;font-weight:bold;letter-spacing:0;
+       color:#d8c8a4;background:rgba(255,238,196,.10);border-radius:3px;
+       padding:0 3px;line-height:1.45}
+.tb-tl.near{background:#6a4a12;color:#ffe1a0}
+.tb-tl.pen{background:#7a2a1e;color:#ffd9c8}
+.tb-head .tb-tl{background:none;color:#d8c8a4;font-weight:normal}
 .tb-head .tb-nm i{border-color:transparent;background:none!important}
 .tb-head .tb-tm,.tb-head .tb-dv{background:none;color:#d8c8a4;font-weight:normal;font-size:9px}
 /* 広い画面では折り返さないので、折り目は無いものとして扱う */
@@ -6177,6 +6213,31 @@ GP.data = (function () {
   /* ---------- 審査（FIA）の裁定 ----------
      コース外にはみ出して得をしたり、無理に飛び込んで相手を押し出したりすると
      5秒が足される。攻めるほど出やすい、というだけの単純な仕組み       */
+  /* ---------- トラックリミット ----------
+     白線をはみ出しても、その場では何も起きない。
+     審査はただ回数を数えていて、5回目で5秒の加算になる。
+
+     加算は「次のピットで余計に止まる」ことで払う。
+     だから終盤にもらった5秒がいちばん重い。
+     払いきれずにチェッカーを受ければ、そのまま総時間に足される。
+
+     どれだけ白線に近いところを走るかは人による。
+     安定感のある人は縁石の内側で我慢し、
+     攻めろと言われている車は外へ出ていく。                */
+  const TRACK_LIMITS = {
+    strike: 5,          // 何回目で加算になるか
+    sec: 5,             // 加算の秒数
+    base: 0.088,        // 1周あたりの素の出やすさ
+    careHalf: 85,       // 安定感がこれだけあると、半分になる
+    riskK: 0.85,        // 「攻めろ」と言うほど出る
+    wetMul: 0.45,       // 濡れていると、そもそも縁石まで行かない
+    proneMid: 1.00,     // その日の癖。レース前に車ごとに引く
+    proneSpread: 0.85,
+    fade: 0.95,         // 序盤ほど出て、警告が重なるほど我慢するようになる
+    warnFrom: 2,        // 何回目から無線で言うか
+    showRival: 3        // ライバルは何回目から実況に出すか
+  };
+
   const PENALTIES = [
     { key: 'limits', name: 'トラックリミット超過', icon: '🚧', sec: 5,
       text: 'コース外にはみ出して得をしたと判断された' },
@@ -6737,9 +6798,14 @@ GP.data = (function () {
        湿り〜ハーフ（〜0.66） インター
        ウェット〜大雨（0.66〜） ウェット
      たとえば大雨（1.0）でインターのままだと 1周 +10%、
-     乾いた路面でインターだと +5%、ウェットだと +23% になる      */
+     乾いた路面でインターだと +8%、ウェットだと +35% になる      */
   const WET_MISMATCH  = 0.18;
   const WET_MISMATCH2 = 0.22;
+  /* ずれの向きで、重さが変わる。
+     水に対してタイヤが足りないのは「滑る」で、腕でいなせる余地がある。
+     タイヤに対して水が足りないのは「溶ける」で、うまさでは止まらない。
+     乾いた路面で溝つきを引っぱるほうを、はっきり重くしておく     */
+  const WET_ON_DRY_PACE = 1.50;
 
   /* ---------- 環境係数 ----------
      路面と銘柄のずれ、終わったタイヤ、濡れた路面、攻めろという指示。
@@ -6771,7 +6837,11 @@ GP.data = (function () {
     /* 逆に、溝のあるタイヤを乾いた路面で使うのは「溶ける」であって
        「滑る」ではない。スピンには効きにくく、摩耗で払わせる。      */
     wetOnDry:   0.35, // ずれがスピンに効く度合い（ドライタイヤの35%）
-    wetMelt:    1.60  // ずれ 1.0 あたり、1周で何周ぶん余計に減るか
+    /* ずれ 1.0 あたり、1周で何周ぶん余計に減るか。
+       乾いた路面のインターは、ずれが 0.22 ほどある。
+       ここが 20 なら 1周で 5.4周ぶん減るので、4周ももたない。
+       雨が上がったら換える、という当たり前が成立する数字にしてある */
+    wetMelt:    20.0
   };
   /* ---------- トラックサイド装備 ----------
      現地に持ち込むもの。施設は本拠地、備品はその中身、
@@ -6869,7 +6939,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -11655,6 +11725,16 @@ GP.race = (function () {
           '「雨は上がった。ラインの外はまだ濡れている」'],
     pen: ['「{S}秒の加算だ。取り返すぞ、まだ終わっていない」',
           '「裁定が出た。{S}秒。頭を切り替えてくれ」'],
+    tl: ['「トラックリミット、{TN}回目。あと{TR}回で5秒加算だ」',
+         '「白線を越えている。{TN}回目、そろそろ気をつけてくれ」',
+         '「審査が数えている。{TN}回目、残り{TR}回だ」'],
+    tlBack: ['「了解。あそこは縁石が高くて、つい乗ってしまう」',
+             '「分かった。次から内側で我慢する」',
+             '「タイムは出るんだが……ラインを戻す」'],
+    tlPen: ['「トラックリミットで5秒加算。次のピットで払う」',
+            '「5秒だ。ボックスで余計に止まることになる」'],
+    tlPaid: ['「5秒は払った。ここからは普通のレースだ」',
+             '「ペナルティは消化した。前を追うぞ」'],
     ok: ['「大丈夫か？ マシンの状態を教えてくれ」',
          '「いまのは見えた。ダメージはないか」',
          '「落ち着いていこう。何が起きた？」'],
@@ -11858,7 +11938,9 @@ GP.race = (function () {
         L: Math.max(0, Math.round(ty.life - e.tyreAge)),
         GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
-        S: e.penalty || 0
+        S: e.penalty || 0,
+        TN: e.radioTLn || 0,
+        TR: Math.max(0, D.TRACK_LIMITS.strike - (e.radioTLn || 0))
       };
       const push = (pool, from, force) => {
         // 直前と同じ言い回しにならないように、二度までは引き直す
@@ -11916,9 +11998,23 @@ GP.race = (function () {
       }
       if (e.radioPen === lap) {                         // 加算をもらった
         e.radioPen = -1;
-        push(RADIO.pen, 'pit', true);
+        // 次のピットで払うぶんなら、そう言う
+        push(e.penServe > 0 ? RADIO.tlPen : RADIO.pen, 'pit', true);
         push(RADIO.angry, 'drv', true);
         e.radioCool = 3;
+        return;
+      }
+      if (e.radioTL === lap) {                          // 白線を越えた
+        e.radioTL = -1;
+        push(RADIO.tl, 'pit', true);
+        push(RADIO.tlBack, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (e.radioPaid === lap) {                        // 加算を払い終えた
+        e.radioPaid = -1;
+        push(RADIO.tlPaid, 'pit', true);
+        e.radioCool = 2;
         return;
       }
       if (e.orderChanged === lap) {                     // 指示が変わった
@@ -12160,7 +12256,7 @@ GP.race = (function () {
             return v(a) - v(b);
           })[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
-          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [],
+          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [], tlLap: [],
         bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
@@ -12207,7 +12303,9 @@ GP.race = (function () {
      決勝を回しはじめるところで一度だけ読んでおく                    */
   let fiaFav = 0;
 
-  function givePenalty(e, key, lap, events, laps) {
+  /* defer を立てると、その場で持ち時間に足さずに
+     「次のピットで余計に止まって払う」ぶんとして積んでおく    */
+  function givePenalty(e, key, lap, events, laps, defer) {
     const P = D.PENALTIES.find(x => x.key === key) || D.PENALTIES[0];
     /* 同じ場面でも、見る人によって見え方は変わる。
        こっそり流してもらえることもあれば、ことさら厳しく取られることもある */
@@ -12222,21 +12320,63 @@ GP.race = (function () {
     }
     e.penalty = (e.penalty || 0) + sec;
     e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: sec }]);
-    // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
-    if (e.cum[lap - 1] != null) {
+    if (defer) {
+      // 払うのはピットの中。持ち時間はまだ動かさない
+      e.penServe = (e.penServe || 0) + sec;
+    } else if (e.cum[lap - 1] != null) {
+      // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
       e.cum[lap - 1] += sec;
       e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + sec;
     } else e.penPending = (e.penPending || 0) + sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
+    }
+    /* 裁定はライバルのぶんも実況に出す。
+       「あいつが5秒もらった」は、こちらの順位の話でもあるから */
+    if (e.isPlayer || defer) {
       events.push({ lap: lap, type: 'penalty', car: e,
         text: P.icon + ' ' + e.driver.name + ' に' + sec + '秒加算 — ' + P.text +
+              (defer ? '（次のピットで消化）' : '') +
               (sec > P.sec ? '（重く取られた）' : '') });
+    }
+  }
+
+  /* ---------- トラックリミット ----------
+     はみ出した回数を数えるだけ。時間は失わない
+     （はみ出したほうが速いからこそ、回数で縛られている）。
+     決められた回数に届いたところで、はじめて5秒の加算になる。
+     そこで数え直しになるのも、実際の裁定と同じ           */
+  function addTrackLimit(e, lap, events) {
+    const TL = D.TRACK_LIMITS;
+    e.tl = (e.tl || 0) + 1;
+    e.tlTotal = (e.tlTotal || 0) + 1;
+    const n = e.tl;
+    if (n >= TL.strike) {
+      e.tl = 0;
+      givePenalty(e, 'limits', lap, events, null, true);
+      return;
+    }
+    if (e.isPlayer) {
+      if (n >= TL.warnFrom) { e.radioTL = lap; e.radioTLn = n; }
+      events.push({ lap: lap, type: 'limits', car: e,
+        text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目（' +
+              TL.strike + '回で ' + TL.sec + '秒加算）' });
+    } else if (n >= TL.showRival) {
+      events.push({ lap: lap, type: 'limits', car: e,
+        text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目' });
     }
   }
 
   /* ライバルの車体はこのくらい仕上がっている、という基準。
      プレイヤーの車体効果はすべてここを 0 として増減する */
+  /* ---- そのコースで白線をはみ出しやすいか ----
+     壁の近い市街地では、はみ出す前にぶつかる。
+     高速コーナーの連続する広いコースほど、縁石の外へ出ていく      */
+  function trackLimitMul(track) {
+    return S.clamp(0.55 + ((track.weight && track.weight.corner) || 0.33) * 1.5 -
+                   ((track.risk || 1) - 1) * 1.2, 0.30, 1.80);
+  }
+
   const RIVAL_BODY_REF = 0.40;
   /* いちばん傷んでいた部位から、壊れかたを決める */
   const MECH_BY_CAT = {
@@ -12751,7 +12891,12 @@ GP.race = (function () {
     function wetGap(ty, w, e) {
       if (!isFinite(w)) w = 0;
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
-      const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
+      const base = ty.wetTol != null ? ty.wetTol : 0.2;
+      /* 腕で広げられるのは「水に対してタイヤが足りない」側だけ。
+         路面のほうが乾いていて溝が溶けていくとき、
+         うまさは何の役にも立たない                              */
+      const tooLittle = w > ideal;
+      const tol = base * (tooLittle ? (1 + (e ? e.wetSkill : 0) * 0.45) : 1);
       return Math.max(0, Math.abs(w - ideal) - tol);
     }
     /* 担当範囲から外れたぶんの、1周あたりの損。
@@ -12760,8 +12905,11 @@ GP.race = (function () {
     function wetLoss(ty, w, e) {
       const gap = wetGap(ty, w, e);
       if (gap <= 0) return 0;
-      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2)
-           * (1 - (e ? e.wetSkill : 0) * 0.35);
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tooLittle = w > ideal;
+      // 滑るほうは腕でいなせる。溶けるほうは、そのぶん重くする
+      const soft = tooLittle ? (1 - (e ? e.wetSkill : 0) * 0.35) : D.WET_ON_DRY_PACE;
+      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2) * soft;
     }
 
     /* 溝のないタイヤが、掻き出せない水の上に取り残されている量。
@@ -12861,6 +13009,7 @@ GP.race = (function () {
        縮められるのは後者だけ。だから隊列が遅いセーフティカー中は、
        走るぶんだけが安くなり、止まるぶんは変わらずかかる。            */
     const pitLane = track.pitLane || 18;
+    const tlTrack = trackLimitMul(track);        // このコースの白線の越えやすさ
     const myPit = S.pitCrew(g);
     /* 読み（何をすべきか分かる）と、現場の余力（実際に動ける）は別もの。
        疲れきったクルーでは、正しい指示も間に合わない                  */
@@ -12973,6 +13122,15 @@ GP.race = (function () {
                   D.PIT_STAND_MIN, 6.2);
       e.pitFumble = e.isPlayer ? myPit.fumble : 0.045;
       e.pitLoss = e.pitLane + e.pitStand;      // 平常時の目安。表示と「遅かった」判定に使う
+      /* ---- その日どれだけ白線に近いところを走るか ----
+         安定感のある人ほど縁石の内側で我慢する。
+         レースのあいだ変わらない癖なので、ここで一度だけ引く。
+         「攻めろ」と言われたぶんは、そのつど周ごとに掛ける       */
+      e.tlProne = S.clamp(
+        (D.TRACK_LIMITS.proneMid + S.rnd(-D.TRACK_LIMITS.proneSpread, D.TRACK_LIMITS.proneSpread)) *
+        (D.TRACK_LIMITS.careHalf / (D.TRACK_LIMITS.careHalf + Math.max(0, S.careOf(e.driver)))),
+        0, 2.6);
+      e.tl = 0; e.tlTotal = 0; e.penServe = 0;
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
@@ -13347,14 +13505,26 @@ GP.race = (function () {
            軽い車体とダウンフォースは、この「齢の進みかた」そのものを
            遅くする。だから残量の表示も、実際に長く保つようになる     */
         e.tyreAge += (e.wearCar || 1);
-        // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
-        if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
+        /* 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる。
+           溶けるのは路面のほうが乾いているときだけで、
+           大雨でインターが苦しいのは水に浮くからであって、溝の話ではない */
+        const idealW = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+        // 溝が残っていないタイヤは、それ以上は溶けようがない
+        if (ty.wet && wx.level < idealW && e.tyreAge < ty.life * 1.6) {
+          e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
+        }
         /* 走った周回ぶんの落ち。ここが浅いと、中古のタイヤも
            寿命を過ぎたタイヤも「ちょっと遅いだけ」になってしまう。
            1スティントぶん走ると2秒前後を失う傾きにしてある      */
         t += track.base * e.tyreAge * 0.0014 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0011 * e.tyreSkill;   // 落ちきってからは加速度的に
+        if (over > 0) {
+          /* 落ちきってからは加速度的に。ただし頭は打たせる。
+             二乗のまま伸ばすと、溝を溶かしきったまま走り続けた車が
+             1周10分といった数字を出してしまい、表が読めなくなる   */
+          const o2 = Math.min(over, ty.life * 0.8);
+          t += track.base * o2 * o2 * 0.0011 * e.tyreSkill;
+        }
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
@@ -13527,7 +13697,8 @@ GP.race = (function () {
                       '（-' + lost.toFixed(1) + '秒）' });
             }
             // 大きく外れたまま順位を保っていると、審査が入る
-            if (big && Math.random() < 0.18) givePenalty(e, 'limits', lap, events, laps);
+            // 大きく外れたなら、白線の外に出ている。回数として数えられる
+            if (big && Math.random() < 0.40) addTrackLimit(e, lap, events);
           }
         }
 
@@ -13540,6 +13711,21 @@ GP.race = (function () {
            バーチャル中なのに差が開いていってしまう。
            指定タイムに合わせて走るのだから、みな同じ1周になる       */
         const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        /* ---- 白線をはみ出す ----
+           隊列を流しているあいだは起きない。
+           濡れていれば、そもそも縁石まで攻めない                */
+        if (!underSC && lap > 1) {
+          const tlRisk = 1 + ((e.st ? e.st.risk : 1) - 1) * D.TRACK_LIMITS.riskK;
+          /* 序盤ほど白線の外を探り、回を重ねるほど我慢するようになる。
+             出る総数は変えずに、出る時期だけ前へ寄せている。
+             加算が決まるのが終盤ばかりだと、
+             「次のピットで払う」という仕掛けが働かないため      */
+          const F = D.TRACK_LIMITS.fade;
+          const tlWhen = (1 + F / 2) - F * (lap / laps);
+          const tlP = D.TRACK_LIMITS.base * (e.tlProne || 0) * tlTrack * tlRisk * tlWhen *
+                      (wx.wet ? D.TRACK_LIMITS.wetMul : 1);
+          if (Math.random() < tlP) addTrackLimit(e, lap, events);
+        }
         if (underSC) {
           if (scInfo.virtual) {
             // バーチャル：直前までの差を、コンマ1くらいの揺れで保つ
@@ -13578,12 +13764,25 @@ GP.race = (function () {
           const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
           const fumbled = Math.random() < e.pitFumble;
           if (fumbled) e.pitSlow = (e.pitSlow || 0) + 1;   // レース後のひとことに使う
-          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0);
+          /* 加算はここで払う。ジャッキが上がったまま、
+             決められた秒数だけ誰も車に触れない               */
+          const served = e.penServe || 0;
+          if (served > 0) {
+            e.penServe = 0;
+            e.penPaidLap = lap;
+            if (e.isPlayer) e.radioPaid = lap;
+          }
+          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0) + served;
           const lane = e.pitLane * laneMul;
           const loss = lane + stand;
           t += loss;
           pitAdd = loss;
           e.pits.push(lap);
+          if (served > 0) {
+            events.push({ lap: lap, type: 'penalty', car: e,
+              text: '⚖️ ' + e.driver.name + ' が ' + served + '秒のペナルティを消化（静止 ' +
+                    stand.toFixed(1) + '秒）' });
+          }
           // ピットレーンでの速度超過。慌てているチームほど出る
           if (Math.random() < 0.012 * (e.isPlayer
                 ? Math.max(0.35, 1 - strategist * 0.22 - myPit.skill * 0.018) : 1)) {
@@ -13614,6 +13813,10 @@ GP.race = (function () {
         e.cum[lap - 1] = prev + t + (e.penPending || 0);
         e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + (e.penPending || 0);
         e.penPending = 0;
+        /* この周を終えた時点で、白線をいくつ数えられているか。
+           観戦画面はあとから周を追いかけるので、
+           そのときどきの回数を控えておかないと出せない        */
+        e.tlLap[lap - 1] = (e.tl || 0) + (e.penServe > 0 ? 100 : 0);
         // ラップタイム・区間タイム・ベストは、この周の持ち時間が
         // ブロックやセーフティカーで動いたあと、syncLapTime で確定させる
       });
@@ -13703,8 +13906,8 @@ GP.race = (function () {
                   text: say(SAY.missPush, { A: atk.driver.name, C: lm(track) }) +
                         '（-' + miss.toFixed(1) + '秒）' });
               }
-              // はみ出したまま順位を保っていると、審査が入る
-              if (Math.random() < 0.24 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) givePenalty(atk, 'limits', lap, events, laps);
+              // はみ出したまま順位を保っていると、回数として数えられる
+              if (Math.random() < 0.34 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) addTrackLimit(atk, lap, events);
             }
           }
         }
@@ -14019,6 +14222,23 @@ GP.race = (function () {
       posHistory.push(newOrder.map(e => e.id));
       order = newOrder.concat(order.filter(e => e.dnf));
     }
+
+    /* ---- 払いきれなかった加算 ----
+       ピットに入らないまま終われば、そのまま総時間に足される。
+       終盤にもらった5秒がいちばん重いのは、これがあるから      */
+    entries.forEach(e => {
+      if (!(e.penServe > 0) || e.dnf) return;
+      const last = laps - 1;
+      if (e.cum[last] != null) {
+        e.cum[last] += e.penServe;
+        e.penSec[last] = (e.penSec[last] || 0) + e.penServe;
+      }
+      e.penUnserved = e.penServe;
+      e.penServe = 0;
+      events.push({ lap: laps, type: 'penalty', car: e,
+        text: '⚖️ ' + e.driver.name + ' はペナルティを消化できないまま終わり、' +
+              e.penUnserved + '秒が総時間に加算された' });
+    });
 
     // 最終結果
     const finishers = entries.filter(e => !e.dnf).sort((a, b) => a.cum[laps - 1] - b.cum[laps - 1]);
@@ -16174,6 +16394,22 @@ GP.raceview = (function () {
       '</div>';
   }
 
+  /* ---- トラックリミットの回数 ----
+     100 を足してあるのは「5秒の加算を抱えている」印。
+     払うまでは、回数ではなくそちらを出す                  */
+  function tlChip(e, lap) {
+    if (!e.tlLap) return '';
+    const i = Math.max(0, Math.min(res.laps, lap || 1) - 1);
+    const v2 = e.tlLap[i];
+    if (v2 == null) return '';
+    if (v2 >= 100) return '<b class="tb-tl pen" title="5秒の加算を抱えている">⚖️5s</b>';
+    if (!v2) return '';
+    const TL = GP.data.TRACK_LIMITS;
+    const near = v2 >= TL.strike - 1;
+    return '<b class="tb-tl' + (near ? ' near' : '') +
+      '" title="トラックリミット ' + v2 + '回（' + TL.strike + '回で ' + TL.sec + '秒）">🚧' + v2 + '</b>';
+  }
+
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
@@ -16200,7 +16436,8 @@ GP.raceview = (function () {
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
-      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b></span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
+      '<b class="tb-tl" title="トラックリミットの回数">🚧</b></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
       '<span class="tb-br"></span>' +
@@ -16251,7 +16488,8 @@ GP.raceview = (function () {
         '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
           '<i style="background:' + e.color + '"></i>' +
           '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
-          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b></span>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
+          tlChip(e, li.lap) + '</span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +
@@ -19801,10 +20039,10 @@ GP.screens.dev = function (A) {
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
-    // ---- 車体開発 ----
+    // ---- インテグレート（まとめ上げ） ----
     // 上限は項目ごと。コンセプトに逆らう項目は、ここが低い
-    const cap = S.bodyCap(g);
-    // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
+    const capAll = S.bodyCap(g);
+    // 1回でどれだけまとまるか（パーツと同じ式から出す）
     const bodyStep = a => {
       const facBonus = 1 + g.facilities.factory * 0.10;
       const engBonus = 1 + S.devPower(g) * 0.14;
@@ -19815,35 +20053,101 @@ GP.screens.dev = function (A) {
       const fc = S.focusOf(g);
       return { now: gain * fc.cur, next: gain * fc.next };
     };
-    body += '</div><div class="sub">車体の熟成</div>' +
-      '<p class="desc">パーツが<b>速さ</b>なら、車体は<b>壊れにくさ・タイヤの保ち・乗りやすさ・ピット作業</b>です。' +
-      '効き方は「その項目の上限に対して何割まで煮詰めたか」で決まります。<br>' +
-      '車体の各項目の上限は、いまのマシン（' + D.CAR_GENS[g.carGen].name + '）で <b>' + cap + '</b>' +
-      '（パーツの上限とは別ものです）。世代が上がると、ここも上がります。' +
-      'ライバルはおおむね<b>50%</b>の仕上がりなので、そこを超えたぶんが差になります。</p><div class="pick">';
-    D.BODY_ATTRS.forEach(a => {
-      const v = (g.body && g.body[a.key]) || 0;
-      const cost = bodyCost(v);
-      const capped = v >= cap;
-      const ok = useTicket || (g.funds >= cost && g.rp >= 8);
-      const pct = Math.min(100, v / cap * 100);
-      const st = bodyStep(a);
-      const pct2 = Math.min(100, (v + st.now) / cap * 100);
-      body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-        '<span class="pb-body"><b>' + a.name +
-        (pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
-        '<small>' + a.desc +
-        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
-        '<u style="left:50%"></u></span>' +
-        '<span class="devnow">仕上がり <b>' + Math.round(pct) + '%</b>' +
-        '（' + (Math.round(v * 10) / 10) + ' / ' + cap + '）　' + a.eff + '</span>' +
-        '<span class="devup">1回で ' + Math.round(pct) + '% → <b>' + Math.round(pct2) + '%</b>' +
-        (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
-        (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
-        '</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+    /* ---- インテグレート ----
+       ここは「速さの成り立ち」の × のところそのもの。
+       項目の説明より先に、押すと掛け算が何％動くのかを出す。
+       そうしないと、この一覧が何のためにあるのか分からない     */
+    const itNow = S.integrateRate(g);
+    // いま持っているもの（速さの成り立ちの帯と同じ勘定）
+    const rawHave = (function () {
+      const tot = s2 => s2.speed + s2.corner + s2.accel;
+      let pp = 0;
+      D.PART_CATS.forEach(c => {
+        const p = g.equipped[c.key];
+        if (!p) return;
+        const ps = S.partStats(p, g);
+        const f = (c.key === 'pu' ? S.puForm(g) : (0.82 + p.cond / 100 * 0.18));
+        pp += (ps.speed + ps.corner + ps.accel) * f;
+      });
+      return tot(S.chassisStats(g)) + pp + tot(S.bodyStats(g));
+    })();
+    /* その項目を1回ぶん進めたら、まとめ上げが何％になるか。
+       式を立て直すのではなく、実際に足して測り、すぐ戻す。
+       継ぎ目にも噛み合いにも効くので、
+       ここを通さないと正しい数字にならない                   */
+    const rateIfUp = (key, add) => {
+      if (!g.body) return itNow.rate;
+      const bak = g.body[key];
+      g.body[key] = (bak || 0) + add;
+      const v2 = S.integrateRate(g).rate;
+      g.body[key] = bak;
+      return v2;
+    };
+    const asleep = rawHave * (1 - itNow.rate);
+
+    body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
+      '<p class="desc">この一覧が、「速さの成り立ち」の <b>×</b> のところです。' +
+      'パーツをいくら良くしても、まとめ上げていなければ出てきません。' +
+      'いま持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
+      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
+      '</b> は眠ったままです。<br>' +
+      '同じ扇の中なら、どれを押してもまとめ上げは同じだけ進みます。' +
+      'ちがうのは<b>値段</b>（薄いところほど安い）と、<b>おまけに付いてくるもの</b>です。' +
+      U.helpLink('car') + '</p>' +
+      '<div class="intsum">' +
+        '<b>いまのインテグレート <u>' + Math.round(itNow.rate * 100) + '%</u></b>' +
+        '<span><i style="width:' + Math.round(itNow.inner * 100) + '%"></i>扇の中 ' +
+          Math.round(itNow.inner * 100) + '%<em>この一覧で上がります</em></span>' +
+        '<span><i style="width:' + Math.round(itNow.bridge * 100) + '%"></i>継ぎ目 ' +
+          Math.round(itNow.bridge * 100) + '%<em>隣り合う扇が両方とも厚いときに育ちます</em></span>' +
+        '<span><i style="width:' + Math.round(itNow.mesh * 100) + '%"></i>噛み合い ' +
+          Math.round(itNow.mesh * 100) + '%<em>パーツとの組が揃って育ちます</em></span>' +
+      '</div>';
+
+    /* 扇ごとに並べる。どの扇が足を引っぱっているかが、そのまま見える */
+    D.PART_GROUPS.forEach(gr => {
+      const inner = S.integrateOf(g, gr.key);
+      body += '<div class="intgrp" style="border-left-color:' + gr.color + '">' +
+        '<b style="color:' + gr.color + '">' + gr.icon + ' ' + gr.name + '</b>' +
+        '<em>この扇のまとめ ' + Math.round(inner * 100) + '%</em>' +
+        '<small>' + esc(gr.note) + '</small></div><div class="pick">';
+      gr.body.forEach(key => {
+        const a = D.BODY_ATTRS.filter(x => x.key === key)[0];
+        if (!a) return;
+        const v = (g.body && g.body[a.key]) || 0;
+        const myCap = Math.max(1, S.bodyCapOf(g, a.key));
+        const cost = bodyCost(v);
+        const capped = v >= myCap;
+        const ok = useTicket || (g.funds >= cost && g.rp >= 8);
+        const pct = Math.min(100, v / myCap * 100);
+        const st = bodyStep(a);
+        const r2 = rateIfUp(a.key, st.now);
+        const up = (r2 - itNow.rate) * rawHave;      // 眠っていた速さが、いくつ起きるか
+        const thin = pct < 34;
+        body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+          '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
+          '<span class="pb-body"><b>' + a.name +
+          (thin ? '<em class="warn">ここが薄い</em>'
+                : pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
+          '<small>' +
+          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
+          '<u style="left:50%"></u></span>' +
+          '<span class="devnow">まとめ <b>' + Math.round(pct) + '%</b>' +
+          '（' + (Math.round(v * 10) / 10) + ' / ' + myCap + '）' +
+          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向きなので上限が低い</em>' : '') +
+          '</span>' +
+          '<span class="devup">1回で　インテグレート ' + (itNow.rate * 100).toFixed(1) +
+          '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
+          '　＝ 眠っていた速さが <b>+' + up.toFixed(1) + '</b> 起きます' +
+          (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
+          (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
+          '<span class="deveff">' + a.eff + '</span>' +
+          '</small></span>' +
+          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+      });
+      body += '</div>';
     });
+    body += '<div class="pick">';
 
     body = techReport() + body;
 
@@ -23312,6 +23616,13 @@ GP.screens.weekend = function (A) {
       extra.push('スタート ' + me.grid + '番手から ' + (moved > 0 ? moved + 'つ順位を上げました' : (-moved) + 'つ落としました'));
     }
     if (me.passes) extra.push('コース上で ' + me.passes + '回、前の車を抜きました');
+    if (me.tlTotal) {
+      extra.push('🚧 トラックリミット ' + me.tlTotal + '回' +
+        (me.penUnserved ? '（' + D.TRACK_LIMITS.strike + '回で加算。払いきれず ' +
+                          me.penUnserved + '秒が総時間に足されました）'
+         : me.penPaidLap ? '（' + me.penPaidLap + '周目のピットで5秒を消化しました）'
+         : '（あと ' + Math.max(0, D.TRACK_LIMITS.strike - (me.tl || 0)) + '回で加算でした）'));
+    }
     if (me.penalty) {
       extra.push('⚖️ 審査で合計 ' + me.penalty + '秒 加算されました（' +
         (me.penalties || []).map(x => x.lap + '周目 ' + x.name).join('、') + '）');
@@ -27311,6 +27622,11 @@ GP.screens.help = function (A) {
       key: 'weekend', icon: '🏁', name: '週末（走行と予選）',
       lead: '金曜に何を走るかが、日曜に何を履けるかを決めます。',
       secs: [
+        { h: '溝つきタイヤと乾いた路面', p: [
+          'インターとウェットには溝があります。溝は水を掻き出すためのもので、乾いた路面では役に立たないどころか、溶けてなくなっていきます。',
+          '乾いた路面でインターを履くと、1周あたり<b>およそ7秒</b>遅く、しかも<b>4周ほどで溝がなくなります</b>。ウェットならもっと極端で、1周30秒以上遅く、2周ももちません。',
+          '逆に、水に対してタイヤが足りない側（大雨なのにインターのまま）は、腕でいくらか粘れます。<b>溶けるほうは、うまさでは止まりません</b>。雨が上がったら、換えるしかありません。'
+        ] },
         { h: 'タイヤの棚', p: [
           '週末に使えるドライタイヤは13セット（ハード2・ミディアム3・ソフト8）です。雨用は別枠で7セット。',
           '金曜と土曜に何を履いて走ったかが、そのまま日曜に残るものを決めます。ソフトばかり走れば決勝用の新品は残りますが、決勝のことは何も分かりません。決勝用を走り込めば読みは決まりますが、日曜に出てくるのは中古ばかりになります。'
@@ -27341,9 +27657,16 @@ GP.screens.help = function (A) {
           'プッシュ・温存・通常の指示が、実際のペースとタイヤの減りを変えます。',
           '信頼が薄いと、指示を飲み込めない周が出ます。'
         ] },
+        { h: 'トラックリミット', p: [
+          '白線をはみ出しても、その場では何も起きません。審査はただ回数を数えていて、<b>5回目で5秒の加算</b>になります。そこで数え直しです。',
+          '加算は<b>次のピットで余計に止まって払います</b>。ジャッキは上がったまま、5秒のあいだ誰も車に触れません。ピットに入らないまま終われば、そのまま総時間に足されます。だから終盤にもらった5秒がいちばん重くなります。',
+          'はみ出しやすさは人によります。安定感のある人は縁石の内側で我慢し、「攻めろ」と言われている車ほど外へ出ます。壁の近い市街地では、はみ出す前にぶつかるので回数は少なめです。',
+          'タイミングモニターの名前の横に 🚧 と回数が出ます。あと1回で加算というところまで来ると色が変わり、加算を抱えている車は ⚖️5s になります。ライバルのぶんも同じように数えられています。'
+        ] },
         { h: 'タイミングモニター', p: [
           '📋 を押すと全車の表に切り替わります。緑は自己ベスト、紫はセッションベストで、実際の中継と同じ読み方です。',
-          '名前は英語3文字で出ます。左がチーム、右がドライバーです。',
+          '名前は英語3文字で出ます。左がチーム、右がドライバーです。フルネームは行にカーソルを載せると出ます。',
+          'モニターを出しているあいだは、実況が右横に並びます。',
           '「先頭と」が1周ぶん以上離れると、秒ではなく「+1周」と出ます。'
         ] },
         { h: 'セーフティカー', p: [

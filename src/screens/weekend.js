@@ -1677,6 +1677,13 @@ GP.screens.weekend = function (A) {
       extra.push('スタート ' + me.grid + '番手から ' + (moved > 0 ? moved + 'つ順位を上げました' : (-moved) + 'つ落としました'));
     }
     if (me.passes) extra.push('コース上で ' + me.passes + '回、前の車を抜きました');
+    if (me.tlTotal) {
+      extra.push('🚧 トラックリミット ' + me.tlTotal + '回' +
+        (me.penUnserved ? '（' + D.TRACK_LIMITS.strike + '回で加算。払いきれず ' +
+                          me.penUnserved + '秒が総時間に足されました）'
+         : me.penPaidLap ? '（' + me.penPaidLap + '周目のピットで5秒を消化しました）'
+         : '（あと ' + Math.max(0, D.TRACK_LIMITS.strike - (me.tl || 0)) + '回で加算でした）'));
+    }
     if (me.penalty) {
       extra.push('⚖️ 審査で合計 ' + me.penalty + '秒 加算されました（' +
         (me.penalties || []).map(x => x.lap + '周目 ' + x.name).join('、') + '）');

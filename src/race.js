@@ -404,6 +404,16 @@ GP.race = (function () {
           '「雨は上がった。ラインの外はまだ濡れている」'],
     pen: ['「{S}秒の加算だ。取り返すぞ、まだ終わっていない」',
           '「裁定が出た。{S}秒。頭を切り替えてくれ」'],
+    tl: ['「トラックリミット、{TN}回目。あと{TR}回で5秒加算だ」',
+         '「白線を越えている。{TN}回目、そろそろ気をつけてくれ」',
+         '「審査が数えている。{TN}回目、残り{TR}回だ」'],
+    tlBack: ['「了解。あそこは縁石が高くて、つい乗ってしまう」',
+             '「分かった。次から内側で我慢する」',
+             '「タイムは出るんだが……ラインを戻す」'],
+    tlPen: ['「トラックリミットで5秒加算。次のピットで払う」',
+            '「5秒だ。ボックスで余計に止まることになる」'],
+    tlPaid: ['「5秒は払った。ここからは普通のレースだ」',
+             '「ペナルティは消化した。前を追うぞ」'],
     ok: ['「大丈夫か？ マシンの状態を教えてくれ」',
          '「いまのは見えた。ダメージはないか」',
          '「落ち着いていこう。何が起きた？」'],
@@ -607,7 +617,9 @@ GP.race = (function () {
         L: Math.max(0, Math.round(ty.life - e.tyreAge)),
         GA: ahead ? (e.cum[lap - 1] - ahead.cum[lap - 1]).toFixed(1) + '秒' : '',
         GB: behind ? (behind.cum[lap - 1] - e.cum[lap - 1]).toFixed(1) + '秒' : '',
-        S: e.penalty || 0
+        S: e.penalty || 0,
+        TN: e.radioTLn || 0,
+        TR: Math.max(0, D.TRACK_LIMITS.strike - (e.radioTLn || 0))
       };
       const push = (pool, from, force) => {
         // 直前と同じ言い回しにならないように、二度までは引き直す
@@ -665,9 +677,23 @@ GP.race = (function () {
       }
       if (e.radioPen === lap) {                         // 加算をもらった
         e.radioPen = -1;
-        push(RADIO.pen, 'pit', true);
+        // 次のピットで払うぶんなら、そう言う
+        push(e.penServe > 0 ? RADIO.tlPen : RADIO.pen, 'pit', true);
         push(RADIO.angry, 'drv', true);
         e.radioCool = 3;
+        return;
+      }
+      if (e.radioTL === lap) {                          // 白線を越えた
+        e.radioTL = -1;
+        push(RADIO.tl, 'pit', true);
+        push(RADIO.tlBack, 'drv', true);
+        e.radioCool = 2;
+        return;
+      }
+      if (e.radioPaid === lap) {                        // 加算を払い終えた
+        e.radioPaid = -1;
+        push(RADIO.tlPaid, 'pit', true);
+        e.radioCool = 2;
         return;
       }
       if (e.orderChanged === lap) {                     // 指示が変わった
@@ -909,7 +935,7 @@ GP.race = (function () {
             return v(a) - v(b);
           })[0] || {}).key : null,
           tyreSkill: S.tyreWear(d),
-          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [],
+          lapTimes: [], cum: [], pits: [], sectors: [], penSec: [], noRec: [], tlLap: [],
         bestSec: [Infinity, Infinity, Infinity],
           dnf: false, dnfLap: -1, dnfReason: '',
           grid: 0, pos: 0, fastest: Infinity
@@ -956,7 +982,9 @@ GP.race = (function () {
      決勝を回しはじめるところで一度だけ読んでおく                    */
   let fiaFav = 0;
 
-  function givePenalty(e, key, lap, events, laps) {
+  /* defer を立てると、その場で持ち時間に足さずに
+     「次のピットで余計に止まって払う」ぶんとして積んでおく    */
+  function givePenalty(e, key, lap, events, laps, defer) {
     const P = D.PENALTIES.find(x => x.key === key) || D.PENALTIES[0];
     /* 同じ場面でも、見る人によって見え方は変わる。
        こっそり流してもらえることもあれば、ことさら厳しく取られることもある */
@@ -971,21 +999,63 @@ GP.race = (function () {
     }
     e.penalty = (e.penalty || 0) + sec;
     e.penalties = (e.penalties || []).concat([{ lap: lap, key: P.key, name: P.name, sec: sec }]);
-    // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
-    if (e.cum[lap - 1] != null) {
+    if (defer) {
+      // 払うのはピットの中。持ち時間はまだ動かさない
+      e.penServe = (e.penServe || 0) + sec;
+    } else if (e.cum[lap - 1] != null) {
+      // 持ち時間に足す。この周の集計が済んでいれば直接、まだなら次の集計で足す
       e.cum[lap - 1] += sec;
       e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + sec;
     } else e.penPending = (e.penPending || 0) + sec;
     if (e.isPlayer) {
       e.radioPen = lap;                       // 無線でひとこと交わすための目印
+    }
+    /* 裁定はライバルのぶんも実況に出す。
+       「あいつが5秒もらった」は、こちらの順位の話でもあるから */
+    if (e.isPlayer || defer) {
       events.push({ lap: lap, type: 'penalty', car: e,
         text: P.icon + ' ' + e.driver.name + ' に' + sec + '秒加算 — ' + P.text +
+              (defer ? '（次のピットで消化）' : '') +
               (sec > P.sec ? '（重く取られた）' : '') });
+    }
+  }
+
+  /* ---------- トラックリミット ----------
+     はみ出した回数を数えるだけ。時間は失わない
+     （はみ出したほうが速いからこそ、回数で縛られている）。
+     決められた回数に届いたところで、はじめて5秒の加算になる。
+     そこで数え直しになるのも、実際の裁定と同じ           */
+  function addTrackLimit(e, lap, events) {
+    const TL = D.TRACK_LIMITS;
+    e.tl = (e.tl || 0) + 1;
+    e.tlTotal = (e.tlTotal || 0) + 1;
+    const n = e.tl;
+    if (n >= TL.strike) {
+      e.tl = 0;
+      givePenalty(e, 'limits', lap, events, null, true);
+      return;
+    }
+    if (e.isPlayer) {
+      if (n >= TL.warnFrom) { e.radioTL = lap; e.radioTLn = n; }
+      events.push({ lap: lap, type: 'limits', car: e,
+        text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目（' +
+              TL.strike + '回で ' + TL.sec + '秒加算）' });
+    } else if (n >= TL.showRival) {
+      events.push({ lap: lap, type: 'limits', car: e,
+        text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目' });
     }
   }
 
   /* ライバルの車体はこのくらい仕上がっている、という基準。
      プレイヤーの車体効果はすべてここを 0 として増減する */
+  /* ---- そのコースで白線をはみ出しやすいか ----
+     壁の近い市街地では、はみ出す前にぶつかる。
+     高速コーナーの連続する広いコースほど、縁石の外へ出ていく      */
+  function trackLimitMul(track) {
+    return S.clamp(0.55 + ((track.weight && track.weight.corner) || 0.33) * 1.5 -
+                   ((track.risk || 1) - 1) * 1.2, 0.30, 1.80);
+  }
+
   const RIVAL_BODY_REF = 0.40;
   /* いちばん傷んでいた部位から、壊れかたを決める */
   const MECH_BY_CAT = {
@@ -1500,7 +1570,12 @@ GP.race = (function () {
     function wetGap(ty, w, e) {
       if (!isFinite(w)) w = 0;
       const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
-      const tol = (ty.wetTol != null ? ty.wetTol : 0.2) * (1 + (e ? e.wetSkill : 0) * 0.45);
+      const base = ty.wetTol != null ? ty.wetTol : 0.2;
+      /* 腕で広げられるのは「水に対してタイヤが足りない」側だけ。
+         路面のほうが乾いていて溝が溶けていくとき、
+         うまさは何の役にも立たない                              */
+      const tooLittle = w > ideal;
+      const tol = base * (tooLittle ? (1 + (e ? e.wetSkill : 0) * 0.45) : 1);
       return Math.max(0, Math.abs(w - ideal) - tol);
     }
     /* 担当範囲から外れたぶんの、1周あたりの損。
@@ -1509,8 +1584,11 @@ GP.race = (function () {
     function wetLoss(ty, w, e) {
       const gap = wetGap(ty, w, e);
       if (gap <= 0) return 0;
-      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2)
-           * (1 - (e ? e.wetSkill : 0) * 0.35);
+      const ideal = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+      const tooLittle = w > ideal;
+      // 滑るほうは腕でいなせる。溶けるほうは、そのぶん重くする
+      const soft = tooLittle ? (1 - (e ? e.wetSkill : 0) * 0.35) : D.WET_ON_DRY_PACE;
+      return (gap * D.WET_MISMATCH + gap * gap * D.WET_MISMATCH2) * soft;
     }
 
     /* 溝のないタイヤが、掻き出せない水の上に取り残されている量。
@@ -1610,6 +1688,7 @@ GP.race = (function () {
        縮められるのは後者だけ。だから隊列が遅いセーフティカー中は、
        走るぶんだけが安くなり、止まるぶんは変わらずかかる。            */
     const pitLane = track.pitLane || 18;
+    const tlTrack = trackLimitMul(track);        // このコースの白線の越えやすさ
     const myPit = S.pitCrew(g);
     /* 読み（何をすべきか分かる）と、現場の余力（実際に動ける）は別もの。
        疲れきったクルーでは、正しい指示も間に合わない                  */
@@ -1722,6 +1801,15 @@ GP.race = (function () {
                   D.PIT_STAND_MIN, 6.2);
       e.pitFumble = e.isPlayer ? myPit.fumble : 0.045;
       e.pitLoss = e.pitLane + e.pitStand;      // 平常時の目安。表示と「遅かった」判定に使う
+      /* ---- その日どれだけ白線に近いところを走るか ----
+         安定感のある人ほど縁石の内側で我慢する。
+         レースのあいだ変わらない癖なので、ここで一度だけ引く。
+         「攻めろ」と言われたぶんは、そのつど周ごとに掛ける       */
+      e.tlProne = S.clamp(
+        (D.TRACK_LIMITS.proneMid + S.rnd(-D.TRACK_LIMITS.proneSpread, D.TRACK_LIMITS.proneSpread)) *
+        (D.TRACK_LIMITS.careHalf / (D.TRACK_LIMITS.careHalf + Math.max(0, S.careOf(e.driver)))),
+        0, 2.6);
+      e.tl = 0; e.tlTotal = 0; e.penServe = 0;
       e.tyreAge = 0;
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
@@ -2096,14 +2184,26 @@ GP.race = (function () {
            軽い車体とダウンフォースは、この「齢の進みかた」そのものを
            遅くする。だから残量の表示も、実際に長く保つようになる     */
         e.tyreAge += (e.wearCar || 1);
-        // 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる
-        if (ty.wet) e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
+        /* 溝のあるタイヤを乾いた路面で使うと、溝が一気に溶けてなくなる。
+           溶けるのは路面のほうが乾いているときだけで、
+           大雨でインターが苦しいのは水に浮くからであって、溝の話ではない */
+        const idealW = ty.wetIdeal != null ? ty.wetIdeal : (ty.wet ? 0.7 : 0);
+        // 溝が残っていないタイヤは、それ以上は溶けようがない
+        if (ty.wet && wx.level < idealW && e.tyreAge < ty.life * 1.6) {
+          e.tyreAge += wetGap(ty, wx.level, e) * D.ENV.wetMelt;
+        }
         /* 走った周回ぶんの落ち。ここが浅いと、中古のタイヤも
            寿命を過ぎたタイヤも「ちょっと遅いだけ」になってしまう。
            1スティントぶん走ると2秒前後を失う傾きにしてある      */
         t += track.base * e.tyreAge * 0.0014 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
-        if (over > 0) t += track.base * over * over * 0.0011 * e.tyreSkill;   // 落ちきってからは加速度的に
+        if (over > 0) {
+          /* 落ちきってからは加速度的に。ただし頭は打たせる。
+             二乗のまま伸ばすと、溝を溶かしきったまま走り続けた車が
+             1周10分といった数字を出してしまい、表が読めなくなる   */
+          const o2 = Math.min(over, ty.life * 0.8);
+          t += track.base * o2 * o2 * 0.0011 * e.tyreSkill;
+        }
         e.lapTyre[lap - 1] = { key: e.tyreKey, age: Math.round(e.tyreAge), life: ty.life };
 
         // スタミナ低下（終盤）— アイアンマンは影響を受けない
@@ -2276,7 +2376,8 @@ GP.race = (function () {
                       '（-' + lost.toFixed(1) + '秒）' });
             }
             // 大きく外れたまま順位を保っていると、審査が入る
-            if (big && Math.random() < 0.18) givePenalty(e, 'limits', lap, events, laps);
+            // 大きく外れたなら、白線の外に出ている。回数として数えられる
+            if (big && Math.random() < 0.40) addTrackLimit(e, lap, events);
           }
         }
 
@@ -2289,6 +2390,21 @@ GP.race = (function () {
            バーチャル中なのに差が開いていってしまう。
            指定タイムに合わせて走るのだから、みな同じ1周になる       */
         const underSC = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+        /* ---- 白線をはみ出す ----
+           隊列を流しているあいだは起きない。
+           濡れていれば、そもそも縁石まで攻めない                */
+        if (!underSC && lap > 1) {
+          const tlRisk = 1 + ((e.st ? e.st.risk : 1) - 1) * D.TRACK_LIMITS.riskK;
+          /* 序盤ほど白線の外を探り、回を重ねるほど我慢するようになる。
+             出る総数は変えずに、出る時期だけ前へ寄せている。
+             加算が決まるのが終盤ばかりだと、
+             「次のピットで払う」という仕掛けが働かないため      */
+          const F = D.TRACK_LIMITS.fade;
+          const tlWhen = (1 + F / 2) - F * (lap / laps);
+          const tlP = D.TRACK_LIMITS.base * (e.tlProne || 0) * tlTrack * tlRisk * tlWhen *
+                      (wx.wet ? D.TRACK_LIMITS.wetMul : 1);
+          if (Math.random() < tlP) addTrackLimit(e, lap, events);
+        }
         if (underSC) {
           if (scInfo.virtual) {
             // バーチャル：直前までの差を、コンマ1くらいの揺れで保つ
@@ -2327,12 +2443,25 @@ GP.race = (function () {
           const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
           const fumbled = Math.random() < e.pitFumble;
           if (fumbled) e.pitSlow = (e.pitSlow || 0) + 1;   // レース後のひとことに使う
-          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0);
+          /* 加算はここで払う。ジャッキが上がったまま、
+             決められた秒数だけ誰も車に触れない               */
+          const served = e.penServe || 0;
+          if (served > 0) {
+            e.penServe = 0;
+            e.penPaidLap = lap;
+            if (e.isPlayer) e.radioPaid = lap;
+          }
+          const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0) + served;
           const lane = e.pitLane * laneMul;
           const loss = lane + stand;
           t += loss;
           pitAdd = loss;
           e.pits.push(lap);
+          if (served > 0) {
+            events.push({ lap: lap, type: 'penalty', car: e,
+              text: '⚖️ ' + e.driver.name + ' が ' + served + '秒のペナルティを消化（静止 ' +
+                    stand.toFixed(1) + '秒）' });
+          }
           // ピットレーンでの速度超過。慌てているチームほど出る
           if (Math.random() < 0.012 * (e.isPlayer
                 ? Math.max(0.35, 1 - strategist * 0.22 - myPit.skill * 0.018) : 1)) {
@@ -2363,6 +2492,10 @@ GP.race = (function () {
         e.cum[lap - 1] = prev + t + (e.penPending || 0);
         e.penSec[lap - 1] = (e.penSec[lap - 1] || 0) + (e.penPending || 0);
         e.penPending = 0;
+        /* この周を終えた時点で、白線をいくつ数えられているか。
+           観戦画面はあとから周を追いかけるので、
+           そのときどきの回数を控えておかないと出せない        */
+        e.tlLap[lap - 1] = (e.tl || 0) + (e.penServe > 0 ? 100 : 0);
         // ラップタイム・区間タイム・ベストは、この周の持ち時間が
         // ブロックやセーフティカーで動いたあと、syncLapTime で確定させる
       });
@@ -2452,8 +2585,8 @@ GP.race = (function () {
                   text: say(SAY.missPush, { A: atk.driver.name, C: lm(track) }) +
                         '（-' + miss.toFixed(1) + '秒）' });
               }
-              // はみ出したまま順位を保っていると、審査が入る
-              if (Math.random() < 0.24 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) givePenalty(atk, 'limits', lap, events, laps);
+              // はみ出したまま順位を保っていると、回数として数えられる
+              if (Math.random() < 0.34 * (atk.isPlayer && g.gridClean ? 0.45 : 1)) addTrackLimit(atk, lap, events);
             }
           }
         }
@@ -2768,6 +2901,23 @@ GP.race = (function () {
       posHistory.push(newOrder.map(e => e.id));
       order = newOrder.concat(order.filter(e => e.dnf));
     }
+
+    /* ---- 払いきれなかった加算 ----
+       ピットに入らないまま終われば、そのまま総時間に足される。
+       終盤にもらった5秒がいちばん重いのは、これがあるから      */
+    entries.forEach(e => {
+      if (!(e.penServe > 0) || e.dnf) return;
+      const last = laps - 1;
+      if (e.cum[last] != null) {
+        e.cum[last] += e.penServe;
+        e.penSec[last] = (e.penSec[last] || 0) + e.penServe;
+      }
+      e.penUnserved = e.penServe;
+      e.penServe = 0;
+      events.push({ lap: laps, type: 'penalty', car: e,
+        text: '⚖️ ' + e.driver.name + ' はペナルティを消化できないまま終わり、' +
+              e.penUnserved + '秒が総時間に加算された' });
+    });
 
     // 最終結果
     const finishers = entries.filter(e => !e.dnf).sort((a, b) => a.cum[laps - 1] - b.cum[laps - 1]);

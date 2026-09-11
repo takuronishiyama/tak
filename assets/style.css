@@ -2341,6 +2341,34 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .kartgo{color:#8ef08e}
 .kartlog{height:auto;max-height:120px;margin:8px 0}
 
+/* ---- インテグレート（まとめ上げ）の一覧 ---- */
+/* 見出しへ飛んだとき、貼りついているタブの下に潜らないようにする */
+.modal-body .sub{scroll-margin-top:52px}
+/* いまの掛け算と、その内訳。押す前に「何のための画面か」を見せる */
+.intsum{background:#2b1c0e;border:3px solid var(--ink);border-radius:8px;
+        padding:7px 9px;margin:6px 0 8px;display:flex;flex-direction:column;gap:4px}
+[data-skin="hd"] .intsum{background:#2f2540;border-color:#5b4a74}
+.intsum>b{font-size:12px;color:#ffe9a8}
+.intsum>b u{text-decoration:none;font-size:15px;color:#ffd23a}
+.intsum span{position:relative;display:block;font-size:10.5px;color:#e2d5b6;
+             background:rgba(255,238,196,.08);border-radius:4px;padding:3px 6px;overflow:hidden}
+.intsum span i{position:absolute;left:0;top:0;bottom:0;background:rgba(255,210,58,.22);
+               display:block;border-radius:4px}
+.intsum span em{position:relative;font-style:normal;color:#b7a682;margin-left:6px}
+/* 扇の見出し。どの扇が薄いかを、行の前に置いて分からせる */
+.intgrp{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;
+        border-left:5px solid #888;padding:2px 0 2px 8px;margin:10px 0 4px}
+.intgrp b{font-size:13px}
+.intgrp em{font-style:normal;font-size:11px;color:#ffe9a8;
+           background:rgba(255,238,196,.12);border-radius:4px;padding:1px 6px}
+.intgrp small{font-size:10.5px;color:#b7a682;flex:1 1 100%}
+.devrow .deveff{display:block;font-size:10.5px;color:#b7a682;margin-top:2px}
+.devrow .devnow em.cap{font-style:normal;color:#e0a060}
+@media (max-width:520px){
+  .intsum span{font-size:10px}
+  .intsum span em{display:block;margin-left:0}
+}
+
 /* ---- タイミングモニター（全車） ---- */
 .rv-sectors.board{max-height:230px;overflow-y:auto;padding:2px 4px}
 /* 数字を追う表なので、地の色より「読めること」を優先する。
@@ -2367,6 +2395,14 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
        background:rgba(255,238,196,.10);border-radius:3px;padding:0 3px;line-height:1.45}
 .tb-dv{flex-shrink:0;font-size:11px;letter-spacing:.05em;color:#fff4d8;font-weight:bold}
 .tb-row.me .tb-dv{color:#ffe89a}
+/* 白線をいくつ越えているか。5回目で5秒なので、
+   あと1回のところまで来たら色を変えて知らせる */
+.tb-tl{flex-shrink:0;font-size:9px;font-weight:bold;letter-spacing:0;
+       color:#d8c8a4;background:rgba(255,238,196,.10);border-radius:3px;
+       padding:0 3px;line-height:1.45}
+.tb-tl.near{background:#6a4a12;color:#ffe1a0}
+.tb-tl.pen{background:#7a2a1e;color:#ffd9c8}
+.tb-head .tb-tl{background:none;color:#d8c8a4;font-weight:normal}
 .tb-head .tb-nm i{border-color:transparent;background:none!important}
 .tb-head .tb-tm,.tb-head .tb-dv{background:none;color:#d8c8a4;font-weight:normal;font-size:9px}
 /* 広い画面では折り返さないので、折り目は無いものとして扱う */

@@ -406,10 +406,10 @@ GP.screens.dev = function (A) {
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
     });
-    // ---- 車体開発 ----
+    // ---- インテグレート（まとめ上げ） ----
     // 上限は項目ごと。コンセプトに逆らう項目は、ここが低い
-    const cap = S.bodyCap(g);
-    // 車体は1回でどれだけ煮詰まるか（パーツと同じ式から出す）
+    const capAll = S.bodyCap(g);
+    // 1回でどれだけまとまるか（パーツと同じ式から出す）
     const bodyStep = a => {
       const facBonus = 1 + g.facilities.factory * 0.10;
       const engBonus = 1 + S.devPower(g) * 0.14;
@@ -420,35 +420,101 @@ GP.screens.dev = function (A) {
       const fc = S.focusOf(g);
       return { now: gain * fc.cur, next: gain * fc.next };
     };
-    body += '</div><div class="sub">車体の熟成</div>' +
-      '<p class="desc">パーツが<b>速さ</b>なら、車体は<b>壊れにくさ・タイヤの保ち・乗りやすさ・ピット作業</b>です。' +
-      '効き方は「その項目の上限に対して何割まで煮詰めたか」で決まります。<br>' +
-      '車体の各項目の上限は、いまのマシン（' + D.CAR_GENS[g.carGen].name + '）で <b>' + cap + '</b>' +
-      '（パーツの上限とは別ものです）。世代が上がると、ここも上がります。' +
-      'ライバルはおおむね<b>50%</b>の仕上がりなので、そこを超えたぶんが差になります。</p><div class="pick">';
-    D.BODY_ATTRS.forEach(a => {
-      const v = (g.body && g.body[a.key]) || 0;
-      const cost = bodyCost(v);
-      const capped = v >= cap;
-      const ok = useTicket || (g.funds >= cost && g.rp >= 8);
-      const pct = Math.min(100, v / cap * 100);
-      const st = bodyStep(a);
-      const pct2 = Math.min(100, (v + st.now) / cap * 100);
-      body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-        '<span class="pb-body"><b>' + a.name +
-        (pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
-        '<small>' + a.desc +
-        '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
-        '<u style="left:50%"></u></span>' +
-        '<span class="devnow">仕上がり <b>' + Math.round(pct) + '%</b>' +
-        '（' + (Math.round(v * 10) / 10) + ' / ' + cap + '）　' + a.eff + '</span>' +
-        '<span class="devup">1回で ' + Math.round(pct) + '% → <b>' + Math.round(pct2) + '%</b>' +
-        (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
-        (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
-        '</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+    /* ---- インテグレート ----
+       ここは「速さの成り立ち」の × のところそのもの。
+       項目の説明より先に、押すと掛け算が何％動くのかを出す。
+       そうしないと、この一覧が何のためにあるのか分からない     */
+    const itNow = S.integrateRate(g);
+    // いま持っているもの（速さの成り立ちの帯と同じ勘定）
+    const rawHave = (function () {
+      const tot = s2 => s2.speed + s2.corner + s2.accel;
+      let pp = 0;
+      D.PART_CATS.forEach(c => {
+        const p = g.equipped[c.key];
+        if (!p) return;
+        const ps = S.partStats(p, g);
+        const f = (c.key === 'pu' ? S.puForm(g) : (0.82 + p.cond / 100 * 0.18));
+        pp += (ps.speed + ps.corner + ps.accel) * f;
+      });
+      return tot(S.chassisStats(g)) + pp + tot(S.bodyStats(g));
+    })();
+    /* その項目を1回ぶん進めたら、まとめ上げが何％になるか。
+       式を立て直すのではなく、実際に足して測り、すぐ戻す。
+       継ぎ目にも噛み合いにも効くので、
+       ここを通さないと正しい数字にならない                   */
+    const rateIfUp = (key, add) => {
+      if (!g.body) return itNow.rate;
+      const bak = g.body[key];
+      g.body[key] = (bak || 0) + add;
+      const v2 = S.integrateRate(g).rate;
+      g.body[key] = bak;
+      return v2;
+    };
+    const asleep = rawHave * (1 - itNow.rate);
+
+    body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
+      '<p class="desc">この一覧が、「速さの成り立ち」の <b>×</b> のところです。' +
+      'パーツをいくら良くしても、まとめ上げていなければ出てきません。' +
+      'いま持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
+      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
+      '</b> は眠ったままです。<br>' +
+      '同じ扇の中なら、どれを押してもまとめ上げは同じだけ進みます。' +
+      'ちがうのは<b>値段</b>（薄いところほど安い）と、<b>おまけに付いてくるもの</b>です。' +
+      U.helpLink('car') + '</p>' +
+      '<div class="intsum">' +
+        '<b>いまのインテグレート <u>' + Math.round(itNow.rate * 100) + '%</u></b>' +
+        '<span><i style="width:' + Math.round(itNow.inner * 100) + '%"></i>扇の中 ' +
+          Math.round(itNow.inner * 100) + '%<em>この一覧で上がります</em></span>' +
+        '<span><i style="width:' + Math.round(itNow.bridge * 100) + '%"></i>継ぎ目 ' +
+          Math.round(itNow.bridge * 100) + '%<em>隣り合う扇が両方とも厚いときに育ちます</em></span>' +
+        '<span><i style="width:' + Math.round(itNow.mesh * 100) + '%"></i>噛み合い ' +
+          Math.round(itNow.mesh * 100) + '%<em>パーツとの組が揃って育ちます</em></span>' +
+      '</div>';
+
+    /* 扇ごとに並べる。どの扇が足を引っぱっているかが、そのまま見える */
+    D.PART_GROUPS.forEach(gr => {
+      const inner = S.integrateOf(g, gr.key);
+      body += '<div class="intgrp" style="border-left-color:' + gr.color + '">' +
+        '<b style="color:' + gr.color + '">' + gr.icon + ' ' + gr.name + '</b>' +
+        '<em>この扇のまとめ ' + Math.round(inner * 100) + '%</em>' +
+        '<small>' + esc(gr.note) + '</small></div><div class="pick">';
+      gr.body.forEach(key => {
+        const a = D.BODY_ATTRS.filter(x => x.key === key)[0];
+        if (!a) return;
+        const v = (g.body && g.body[a.key]) || 0;
+        const myCap = Math.max(1, S.bodyCapOf(g, a.key));
+        const cost = bodyCost(v);
+        const capped = v >= myCap;
+        const ok = useTicket || (g.funds >= cost && g.rp >= 8);
+        const pct = Math.min(100, v / myCap * 100);
+        const st = bodyStep(a);
+        const r2 = rateIfUp(a.key, st.now);
+        const up = (r2 - itNow.rate) * rawHave;      // 眠っていた速さが、いくつ起きるか
+        const thin = pct < 34;
+        body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+          '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
+          '<span class="pb-body"><b>' + a.name +
+          (thin ? '<em class="warn">ここが薄い</em>'
+                : pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
+          '<small>' +
+          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
+          '<u style="left:50%"></u></span>' +
+          '<span class="devnow">まとめ <b>' + Math.round(pct) + '%</b>' +
+          '（' + (Math.round(v * 10) / 10) + ' / ' + myCap + '）' +
+          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向きなので上限が低い</em>' : '') +
+          '</span>' +
+          '<span class="devup">1回で　インテグレート ' + (itNow.rate * 100).toFixed(1) +
+          '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
+          '　＝ 眠っていた速さが <b>+' + up.toFixed(1) + '</b> 起きます' +
+          (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
+          (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
+          '<span class="deveff">' + a.eff + '</span>' +
+          '</small></span>' +
+          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+      });
+      body += '</div>';
     });
+    body += '<div class="pick">';
 
     body = techReport() + body;
 

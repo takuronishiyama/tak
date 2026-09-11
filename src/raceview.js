@@ -1784,6 +1784,22 @@ GP.raceview = (function () {
       '</div>';
   }
 
+  /* ---- トラックリミットの回数 ----
+     100 を足してあるのは「5秒の加算を抱えている」印。
+     払うまでは、回数ではなくそちらを出す                  */
+  function tlChip(e, lap) {
+    if (!e.tlLap) return '';
+    const i = Math.max(0, Math.min(res.laps, lap || 1) - 1);
+    const v2 = e.tlLap[i];
+    if (v2 == null) return '';
+    if (v2 >= 100) return '<b class="tb-tl pen" title="5秒の加算を抱えている">⚖️5s</b>';
+    if (!v2) return '';
+    const TL = GP.data.TRACK_LIMITS;
+    const near = v2 >= TL.strike - 1;
+    return '<b class="tb-tl' + (near ? ' near' : '') +
+      '" title="トラックリミット ' + v2 + '回（' + TL.strike + '回で ' + TL.sec + '秒）">🚧' + v2 + '</b>';
+  }
+
   function renderTimingBoard(box) {
     const ord = orderAt(vt);
     const leader = ord[0];
@@ -1810,7 +1826,8 @@ GP.raceview = (function () {
     let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
-      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b></span>' +
+      '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
+      '<b class="tb-tl" title="トラックリミットの回数">🚧</b></span>' +
       '<span class="tb-lap">周</span><span class="tb-ty">タイヤ</span>' +
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
       '<span class="tb-br"></span>' +
@@ -1861,7 +1878,8 @@ GP.raceview = (function () {
         '<span class="tb-nm" title="' + rvEsc(e.team.name + '／' + e.driver.name) + '">' +
           '<i style="background:' + e.color + '"></i>' +
           '<b class="tb-tm">' + rvEsc(GP.data.abbr3(e.team.name)) + '</b>' +
-          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b></span>' +
+          '<b class="tb-dv">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
+          tlChip(e, li.lap) + '</span>' +
         '<span class="tb-lap">' + Math.min(res.laps, li.lap) + '</span>' +
         tychip +
         '<span class="tb-g">' + gapA + '</span>' +
