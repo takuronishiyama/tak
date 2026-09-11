@@ -309,19 +309,28 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
-    /* --- タイヤの温度 --- */
-    tyCold: ['「タイヤが冷えている。まったくグリップが無い」',
-             '「温まらない。曲がりどころでフロントが逃げる」',
-             '「これは冷たすぎる。もう1周ぶん熱を入れさせてくれ」'],
-    tyColdBack: ['「了解、1周だけ大きく振って熱を入れてくれ」',
-                 '「わかった。無理に飛び込まないで、丁寧に温めて」'],
-    tyHot: ['「タイヤが熱を持ちすぎている。表面が終わりかけだ」',
-            '「オーバーヒートしている。このままだと保たない」',
-            '「熱が入りすぎだ。1周だけ落とさせてくれ」'],
-    tyHotBack: ['「了解、1周クールダウン。前とは間隔を空けて」',
-                '「わかった。冷えるまでペースを落として」'],
-    tyGood: ['「入った。いまちょうどいい温度だ」',
-             '「タイヤが目を覚ました。ここから行ける」'],
+    /* --- タイヤの温度 ---
+       何が起きたかではなく、何をしたせいかが分かる言い方にする */
+    tyCold: ['「まったく熱が入らない！ 曲がりどころでフロントが逃げる」',
+             '「冷たい。これじゃ踏めない、グリップが無い」',
+             '「タイヤが寝たままだ。起こさないと話にならない」'],
+    tyColdBack: ['「踏んで入れてくれ。労わっていても目を覚まさない」',
+                 '「1周だけ大きく振って熱を入れて。丁寧にやらなくていい」',
+                 '「わかった、温めよう。無理に飛び込まないで」'],
+    tyHot: ['「攻めすぎだ！ このままだとタイヤが終わる」',
+            '「熱を持ちすぎている。表面が終わりかけだ」',
+            '「オーバーヒートだ。1周落とさせてくれ」'],
+    tyHotBack: ['「1周落とせ。熱を抜こう、前とは間隔を空けて」',
+                '「クールダウン。いま無理をしても、あとで全部返すことになる」',
+                '「了解、ペースを落として。焼き切る前に冷ます」'],
+    tyGone: ['「タイヤが終わってしまった……何も残っていない」',
+             '「もう無い。焼き切った。ここからは耐えるだけだ」',
+             '「表面が完全に終わった。曲がらない、止まらない」'],
+    tyGoneBack: ['「了解。次のピットまで、とにかく持って帰ってくれ」',
+                 '「わかった。無理はしないで、ペースは捨てていい」'],
+    tyGood: ['「入った！ いまちょうどいい温度だ」',
+             '「タイヤが目を覚ました。ここから行ける」',
+             '「グリップが戻ってきた。このリズムで行く」'],
     /* --- チームメイトと作戦を分けたとき --- */
     split: ['「言っておく。{B} とは作戦が違う。向こうは{NS}ストップだ」',
             '「作戦を分けた。{B} は{NS}ストップ、君はこのまま行く」',
@@ -588,6 +597,23 @@ GP.race = (function () {
       if (lap > laps * 0.8 && alone) want += 0.4;
       if (want * bias >= 1.5) return 'cool';
     }
+    /* ---- 温度を直しにいく ----
+       ここは全車が通るので、ライバルも同じように振る舞う。
+       ただし前後が近いときは、温度より順位を取る。
+       焼けると分かっていても踏み続ける——それが「攻めすぎ」になる  */
+    {
+      const TT = D.TYRE_TEMP;
+      const off = e.tyreOff || 0;
+      const fighting = (gapA != null && gapA < TT.fightGap)
+                    || (gapB != null && gapB < TT.fightGap)
+                    || laps - lap <= 2;
+      if (!fighting) {
+        // 焼けている。1周落として熱を抜く
+        if (off >= TT.coolFrom) return off >= TT.coolFrom * 2 ? 'cool' : 'save';
+        // 冷えて食わない。労わっていても目を覚まさないので、逆に踏む
+        if (off <= -TT.warmFrom && left > 2) return 'push';
+      }
+    }
     // タイヤが持たない見込みなら、まず抑える
     if (left < toPit) return 'save';
     // 攻め続けられる時間には限りがある。何周も出しっぱなしにはできない
@@ -779,11 +805,17 @@ GP.race = (function () {
          状態が変わった周にだけ鳴らす                          */
       {
         const off = e.tyreOff || 0;
-        const st2 = off <= -9 ? 'cold' : off >= 8 ? 'hot'
-                  : (off === 0 && (e.radioTemp === 'cold' || e.radioTemp === 'hot')) ? 'ok' : null;
+        /* 「終わった」は、熱で表面を失いきった状態。
+           冷やしても戻らないので、ほかのどれより先に言う      */
+        const gone = (e.heatDeg || 0) >= D.TYRE_GONE.heat
+                  || e.tyreAge > tyreOf(e.tyreKey).life * D.TYRE_GONE.over;
+        const st2 = gone ? 'gone'
+                  : off <= -9 ? 'cold' : off >= 8 ? 'hot'
+                  : (off > -4 && off < 4 && (e.radioTemp === 'cold' || e.radioTemp === 'hot')) ? 'ok' : null;
         if (st2 && st2 !== e.radioTemp && lap > 1) {
           e.radioTemp = st2 === 'ok' ? null : st2;
-          if (st2 === 'cold') { push(RADIO.tyCold, 'drv', true); push(RADIO.tyColdBack, 'pit', true); }
+          if (st2 === 'gone') { push(RADIO.tyGone, 'drv', true); push(RADIO.tyGoneBack, 'pit', true); }
+          else if (st2 === 'cold') { push(RADIO.tyCold, 'drv', true); push(RADIO.tyColdBack, 'pit', true); }
           else if (st2 === 'hot') { push(RADIO.tyHot, 'drv', true); push(RADIO.tyHotBack, 'pit', true); }
           else push(RADIO.tyGood, 'drv', true);
           e.radioCool = 4;
@@ -2328,6 +2360,8 @@ GP.race = (function () {
             // 熱いタイヤは食うが、表面から壊れていく
             t *= 1 + (off / TT.span) * TT.hotPace;
             e.tyreAge += (off / TT.span) * TT.hotWear;
+            // 熱で失った表面は、冷やしても戻らない。積み上げが「終わり」を決める
+            e.heatDeg = (e.heatDeg || 0) + off / TT.span;
           }
         }
 
@@ -2630,6 +2664,8 @@ GP.race = (function () {
           e.tyreAge = (plan0 && plan0.key === e.tyreKey && plan0.age0) || 0;
           // 履いたばかりのタイヤは冷えている。1周目は食わない
           e.tyreTemp = roadAt(lap / laps, rubber) + D.TYRE_TEMP.fresh;
+          e.heatDeg = 0;          // 焼いたのは前のタイヤの話
+          e.radioTemp = null;
           e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);

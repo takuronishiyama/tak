@@ -112,9 +112,13 @@ GP.screens.weekend = function (A) {
           '<u>' + (off < 0 ? 'あと' + Math.round(-off) + '℃' :
                    off > 0 ? '+' + Math.round(off) + '℃' : 'ちょうど') + '</u></span>';
       }).join('');
-      return '<div class="tmpbox"><b>🌡️ 気温 ' + air + '℃／路面 ' + Math.round(road) + '℃</b>' +
+      const w = S.roadWord(road);
+      return '<div class="tmpbox"><b style="color:' + w.color + '">' + w.icon +
+        ' 路面温度が<u>' + w.name + '</u></b>' +
+        '<span class="tmp-num">気温 ' + air + '℃／路面 ' + Math.round(road) + '℃</span>' +
         '<div class="tmp-row">' + rows + '</div>' +
-        '<small>走れば芯に熱が入ります（+7℃ほど）。攻めればさらに上がり、抑えれば抜けます。' +
+        '<small>' + w.note + '。<br>' +
+        '走れば芯に熱が入ります。攻めればさらに上がり、抑えれば抜けます。' +
         'レース終盤は日が傾いて路面が下がります。</small></div>';
     }
     const cls = pc >= 65 ? 'hi' : pc >= 35 ? 'mid' : 'lo';

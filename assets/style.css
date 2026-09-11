@@ -3416,3 +3416,5 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tmp-ty u{text-decoration:none;opacity:.75}
 .tmpbox small{display:block;margin-top:4px;opacity:.8;line-height:1.5}
 [data-skin="hd"] .tmpbox{background:rgba(0,0,0,.3);border-color:#4a3d63}
+.tmpbox>b u{text-decoration:none;font-size:14px}
+.tmp-num{display:block;font-size:11px;opacity:.7;margin:-2px 0 5px}

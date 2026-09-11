@@ -1984,6 +1984,20 @@ GP.state = (function () {
       ? { key: 'peak', name: 'ど真ん中', icon: '🎯', color: '#2e8b30' }
       : { key: 'ok',   name: '作動域',   icon: '🟢', color: '#4ea63f' };
   }
+  /* 路面温度を言葉にする。数字は添えるだけ */
+  function roadWord(road) {
+    if (road >= 48) return { name: '焼けている', icon: '🔥', color: '#e0442a',
+                             note: 'やわらかい銘柄は自分の熱で終わる。攻めれば一瞬で焼ける' };
+    if (road >= 40) return { name: '高い', icon: '♨️', color: '#e08a2a',
+                             note: 'タイヤに熱が入りやすい。踏み続けると持たない' };
+    if (road >= 30) return { name: 'ほどよい', icon: '🎯', color: '#2e8b30',
+                             note: 'どの銘柄も素直に働く。作戦のとおりに運べる' };
+    if (road >= 22) return { name: '低い', icon: '❄️', color: '#6aa8e0',
+                             note: '硬い銘柄は目を覚ましにくい。熱を入れる周が要る' };
+    return { name: '冷たい', icon: '🧊', color: '#4a86d8',
+             note: 'やわらかい銘柄でないと、まず食わない。出口で待っていられない' };
+  }
+
   /* いま履いている銘柄は、この路面温度に合っているか（0..1、1が最良）。
      金曜の見立てと、週末の画面で使う                          */
   function tyreTempFit(ty, road) {
@@ -4453,7 +4467,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
-    driverOut, airTemp, roadTemp, tyreBand, tyreOff, tempTier, tyreTempFit, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    driverOut, airTemp, roadTemp, tyreBand, tyreOff, tempTier, roadWord, tyreTempFit, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
