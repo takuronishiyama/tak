@@ -6333,7 +6333,7 @@ GP.data = (function () {
     proneSpread: 0.85,
     fade: 0.95,         // 序盤ほど出て、警告が重なるほど我慢するようになる
     warnFrom: 2,        // 何回目から無線で言うか
-    showRival: 3        // ライバルは何回目から実況に出すか
+    showRival: 4        // ライバルは何回目から実況に出すか（あと1回で加算のとき）
   };
 
   const PENALTIES = [
@@ -12653,8 +12653,12 @@ GP.race = (function () {
       givePenalty(e, 'limits', lap, events, null, true);
       return;
     }
+    /* 1回目はいちいち言わない。
+       実況を数えたら1レースに8行も出ていて、
+       ほかのできごとが流れて読めなくなっていた                */
     if (e.isPlayer) {
-      if (n >= TL.warnFrom) { e.radioTL = lap; e.radioTLn = n; }
+      if (n < TL.warnFrom) return;
+      e.radioTL = lap; e.radioTLn = n;
       events.push({ lap: lap, type: 'limits', car: e,
         text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目（' +
               TL.strike + '回で ' + TL.sec + '秒加算）' });
@@ -19972,15 +19976,18 @@ GP.screens.dev = function (A) {
   function cmdCar() {
     const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
+    /* 選ぶものを先に置く。
+       この画面は「どれを1週ぶん使うか」を決めに来る場所で、
+       輪の絵と成り立ちは、その判断の材料。
+       横向きのスマホで測ったら、画面8.7枚ぶんスクロールしないと
+       ボタンに届かなかった。順番が逆だった            */
     let body =
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
-      carMixHTML() +
-      mechMapHTML(g) + mechReadHTML(g) +
-      '<div class="sub">何をしますか</div>' +
-      '<p class="desc">どれも1週ぶんのコマンドで、' +
-      '<b>上の輪のどこを動かすか</b>がそれぞれ違います。' +
-      '内側から順に、パーツ・インテグレート・コンセプトです。</p>' +
+      /* 見出しも案内文も置かない。
+         題が「🏎️ 車体」で、下に3つ並んでいれば分かる。
+         横向きのスマホは縦が 320px しかなく、
+         28px の見出しひとつで3つ目が画面の外へ出てしまう      */
       '<div class="pick">' +
       carPickHTML('📐', '開発', '⬤ 内側の輪 ― パーツ',
         '新しいパーツを作り、いま積んでいるものを煮詰める。' +
@@ -19991,7 +19998,11 @@ GP.screens.dev = function (A) {
       carPickHTML('🔬', '研究', '◯ いちばん外の輪 ― コンセプト',
         '方針が引いた線そのものを押し広げる。' +
         '「この車では行けない」はずだった向きへ、行けるようになります', 'res') +
-      '</div>';
+      '</div>' +
+      // ここから下は、その判断の材料
+      '<div class="sub">いまの車</div>' +
+      carMixHTML() +
+      mechMapHTML(g) + mechReadHTML(g);
     U.modal('🏎️ 車体', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
@@ -20402,18 +20413,32 @@ GP.screens.dev = function (A) {
     return body;
   }
 
-  function cmdImprove() {
+  /* 改良のタブ。まとめ上げる作業と、噛み合いの見取り図で分ける */
+  let impTab = 'int';
+  function cmdImprove(tab) {
+    if (tab) impTab = tab;
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
-    let body = interiorHTML('factory');
-    // ---- 機構の噛み合い ----
+    const it0 = S.integrateRate(g);
+    const ITABS = [
+      ['int',  '🔗', 'まとめ上げ', Math.round(it0.rate * 100) + '%'],
+      ['mesh', '🧩', '噛み合い',   '']
+    ];
+    let body = interiorHTML('factory') +
+      '<div class="tabs qtabs bastabs">' + ITABS.map(t =>
+        '<button class="tab' + (impTab === t[0] ? ' on' : '') + '" data-itab="' + t[0] + '">' +
+        t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+    // ---- 機構の噛み合い（見取り図のタブ） ----
+    if (impTab === 'mesh') {
     body += '<div class="sub">🔗 機構の噛み合い</div>' +
       '<p class="desc">部位どうしにも、人と同じで「片方だけ厚くしても意味がない」' +
       '組み合わせがあります。<b>弱いほうの仕上がり</b>で効き目が決まるので、' +
       '噛み合う相手ごと育てたほうが、同じ数字でも速くなります。</p>' +
       mechMapHTML(g) + mechReadHTML(g);
+    }
 
     // ---- インテグレート（まとめ上げ） ----
+    if (impTab === 'int') {
     // 上限は項目ごと。コンセプトに逆らう項目は、ここが低い
     const capAll = S.bodyCap(g);
     // 1回でどれだけまとまるか（パーツと同じ式から出す）
@@ -20523,6 +20548,8 @@ GP.screens.dev = function (A) {
     });
     body += '<div class="pick">';
 
+    }
+
     body = techReport() + body;
 
     // ---- 規則変更の予告 ----
@@ -20565,6 +20592,9 @@ GP.screens.dev = function (A) {
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
+    });
     bindPick(k => {
       const [kind, key] = k.split(':');
       if (kind === 'bdy') doBody(key);
@@ -20576,21 +20606,36 @@ GP.screens.dev = function (A) {
      「新しいものを作る」側。ここでは技術（タグ）を積み上げ、
      新しいパーツを設計する。格（レアリティ）は改良の担当。
      ======================================================= */
-  function cmdDesign() {
+  /* 開発のタブ。パーツを叩く話・新しく作る話・土台の話で分ける */
+  let desTab = 'imp';
+  function cmdDesign(tab) {
+    if (tab) desTab = tab;
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
-    let body = interiorHTML('factory');
+    const ideaN = S.ideaList(g).length;
+    const DTABS = [
+      ['imp',  '🔧', '煮詰める', ''],
+      ['make', '📐', '作る',     ideaN ? '💡' + ideaN : ''],
+      ['base', '🏭', '土台',     '']
+    ];
+    let body = interiorHTML('factory') +
+      '<div class="tabs qtabs bastabs">' + DTABS.map(t =>
+        '<button class="tab' + (desTab === t[0] ? ' on' : '') + '" data-dtab="' + t[0] + '">' +
+        t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
 
-    // ---- 開発の腰まわりと、いま積んでいるパーツ ----
-    body += devHeadHTML() + partsBoxHTML();
+    if (desTab === 'imp') {
+      // いま積んでいるものを、上限へ近づける
+      body += partsBoxHTML();
+    } else if (desTab === 'make') {
+      // 掘り当てたものを形にし、新しいパーツを設計する
+      body += ideaBoxHTML();
+    } else {
+      // 配分・素材・技術。すぐには速くならないが、あとで効く
+      body += devHeadHTML() + matBoxHTML();
+    }
 
-    // ---- 抱えているひらめき ----
-    body += ideaBoxHTML();
-
-    // ---- 素材 ----
-    body += matBoxHTML();
-
-    // ---- 技術開発 ----
+    // ---- 技術開発（土台のタブ） ----
+    if (desTab === 'base') {
     body += '<div class="sub">技術の開発</div>' +
       '<p class="desc">ここで積み上げるのは<b>チームの技術</b>です。' +
       '一度ものにした技術は、パーツを作り替えても、載せ替えても失われません。' +
@@ -20619,7 +20664,10 @@ GP.screens.dev = function (A) {
     });
     body += '</div>';
 
-    // ---- パーツの設計 ----
+    }
+
+    // ---- パーツの設計（作るタブ） ----
+    if (desTab === 'make') {
     const dc = designCost();
     body += trendBoxHTML();
     body += '<div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
@@ -20639,12 +20687,16 @@ GP.screens.dev = function (A) {
             '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
     });
     body += '</div>';
+    }
 
     U.modal('📐 開発', body, [
       { label: '🔧 改良へ', fn: () => { U.closeModal(); cmdImprove(); } },
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-dtab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdDesign(b.dataset.dtab); };
+    });
     const tg2 = $('tkToggle');
     if (tg2) tg2.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDesign(); };
     // 開発リソースの配分も、パーツを叩く話なのでここで決める

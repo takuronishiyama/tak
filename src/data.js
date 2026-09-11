@@ -2338,7 +2338,7 @@ GP.data = (function () {
     proneSpread: 0.85,
     fade: 0.95,         // 序盤ほど出て、警告が重なるほど我慢するようになる
     warnFrom: 2,        // 何回目から無線で言うか
-    showRival: 3        // ライバルは何回目から実況に出すか
+    showRival: 4        // ライバルは何回目から実況に出すか（あと1回で加算のとき）
   };
 
   const PENALTIES = [

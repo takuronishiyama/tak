@@ -1037,8 +1037,12 @@ GP.race = (function () {
       givePenalty(e, 'limits', lap, events, null, true);
       return;
     }
+    /* 1回目はいちいち言わない。
+       実況を数えたら1レースに8行も出ていて、
+       ほかのできごとが流れて読めなくなっていた                */
     if (e.isPlayer) {
-      if (n >= TL.warnFrom) { e.radioTL = lap; e.radioTLn = n; }
+      if (n < TL.warnFrom) return;
+      e.radioTL = lap; e.radioTLn = n;
       events.push({ lap: lap, type: 'limits', car: e,
         text: '🚧 ' + e.driver.name + ' トラックリミット ' + n + '回目（' +
               TL.strike + '回で ' + TL.sec + '秒加算）' });
