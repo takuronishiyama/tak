@@ -1313,7 +1313,10 @@ GP.state = (function () {
       const src = D.RIVALS.find(x => x.name === r.name) || { power: 1, bias: { speed: 1, corner: 1, accel: 1 } };
       const power = src.power;
       // 世代0のマシンで、いまのシーズンに見合った水準
-      const base = 18 * power + g2.season * 4 * power + rnd(-3, 3);
+      /* 世代0の車で、その年に見合った水準。makeRivals と同じ物差し。
+         規則が変わった年だけ水準が飛ばないよう、ここも通す        */
+      const d2 = diffOf(g2);
+      const base = rivalLevel(power, g2.season, 0, d2.rivalPower, d2.rivalGrow, d2.tight || 0);
       ['speed', 'corner', 'accel'].forEach(k => {
         // 強豪はやはり強い、ぶんだけ少し上乗せする
         r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
@@ -1686,9 +1689,13 @@ GP.state = (function () {
          そのうえで、規則を読めたかどうかを掛ける             */
       const RD = D.RIVAL_DEV;
       const money = Math.pow(power, RD.moneyK);
+      /* 器が6倍になれば、1週の伸びも6倍でないと話にならない。
+         足し算のままだと、高い世代では何もしていないのと同じになる */
+      const capMul = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g2.carGen || 0)].cap
+                   / D.CAR_GENS[0].cap;
       const step = (RD.floor + money * RD.byMoney) * eraFitOf(g2, r)
-                 * (diff.rivalGrow || 1) * atr * relief
-                 * (1 + g2.season * 0.04 + (g2.carGen || 0) * 0.09);
+                 * (diff.rivalGrow || 1) * atr * relief * capMul
+                 * (1 + g2.season * 0.04);
       const behind = (ad.level && (rivalRank[r.name] || 6) > 1)
         ? Math.max(0, topScore - sum(r.stats)) : 0;
       const catchUp = behind * D.ADUO_CATCH * ad.level / 3;   // 3項目に振り分ける
@@ -3239,19 +3246,35 @@ GP.state = (function () {
   /* ---------- ライバルチーム生成 ---------- */
   /* 技術の世代は業界全体で進む。自分だけが新しいマシンに乗るわけではない。
      ここが無いと、世代を上げた瞬間に永久に一方的な展開になる            */
+  /* ---- ライバルの水準 ----
+     その世代を上限まで埋めた車を「満」として、
+     先頭がそのどこまで来るか、後ろがどこまで落ちるかで置く。
+     器そのものに比例するので、世代が上がっても置いていかれない。
+     規則変更のときの巻き戻しも、同じここを通す               */
+  function rivalLevel(power, season, gen, dp, dg, tg) {
+    const RL = D.RIVAL_LEVEL;
+    const capNow = D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, Math.max(0, gen || 0))].cap;
+    const full = RL.fill * capNow;
+    // 地力 0.70〜1.00 を tail〜1.00 に写す。横並びの年はここも潰す
+    const rel0 = RL.tail + ((power - 0.70) / 0.30) * (1 - RL.tail);
+    const rel = 1 + (rel0 - 1) * (1 - (tg || 0));
+    // 規則の年数ぶんの底上げ。変わった直後はみな低いところから
+    const age = RL.seed + Math.min(3, Math.max(0, (season || 1) - 1)) * RL.ramp;
+    return full * RL.reach * rel * age * (dp == null ? 1 : dp) * (dg == null ? 1 : dg)
+         + rnd(-1, 1) * full * RL.noise * (1 - (tg || 0) * 0.75);
+  }
+
   function makeRivals(season, keepNames, diff, era) {
     resetNames(keepNames);
     const dp = diff ? diff.rivalPower : 1;
     const dg = diff ? diff.rivalGrow : 1;
-    const ep = (era || 0) * D.ERA_STEP;
     /* 規則が固まりきった年は、どのチームも同じところに行き着く。
        チームごとの地力の差を、そのぶんだけ 1 に寄せて横並びにする */
     const tg = (diff && diff.tight) || 0;
     return D.RIVALS.map((r, i) => {
       const pw = 1 + (r.power - 1) * (1 - tg);
       const lv = (3 + season * 2.1 * dg) * pw * dp;
-      const base = (18 * pw + (season * 4 + ep) * pw * dg) * dp
-                 + rnd(-4, 4) * (1 - tg * 0.75);
+      const base = rivalLevel(r.power, season, era, dp, dg, tg);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
@@ -3379,6 +3402,7 @@ GP.state = (function () {
       owner: null,
       reg: 0,                       // レギュレーション世代（4シーズンごとに変わる）
       regFrom: diff.regFrom || 0,   // 規則の何年目から始めるか（ヘルは最終年から）
+      rivalScaled: 1,               // 新しい物差しで作ってある（古いセーブの乗せ替え用）
       history: [],
       carGen: 0,
       body: null,
@@ -4209,6 +4233,24 @@ GP.state = (function () {
         g.research = {};
       }
       if (!g.ideas) g.ideas = [];
+      /* ライバルの水準を、世代の器を基準にした物差しへ乗せ替えた。
+         古いセーブは低いままなので、ここで一度だけ高さを揃える。
+         向きの配分はそのチームらしさなので、比だけ保って伸ばす   */
+      if (!g.rivalScaled && (g.rivals || []).length) {
+        const d3 = diffOf(g);
+        g.rivals.forEach(r => {
+          const src = D.RIVALS.find(x => x.name === r.name);
+          if (!src || !r.stats) return;
+          const want = rivalLevel(src.power, g.season || 1, g.carGen || 0,
+                                  d3.rivalPower, d3.rivalGrow, d3.tight || 0);
+          const now = (r.stats.speed + r.stats.corner + r.stats.accel) / 3;
+          if (!(now > 0)) return;
+          const mul = Math.max(1, want / now);
+          ['speed', 'corner', 'accel'].forEach(k => { r.stats[k] *= mul; });
+          r.base0 = null;
+        });
+        g.rivalScaled = 1;
+      }
       // 規則の読みかたは、途中から入れたぶんを引いておく
       if ((g.rivals || []).some(r => r.eraRoll == null)) rollEraFit(g);
       if (!g.mat) g.mat = {};
