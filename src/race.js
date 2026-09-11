@@ -873,6 +873,8 @@ GP.race = (function () {
         const pmul = form[ti]
                    * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
                                  * ((strategy && strategy.setup) || 1)
+                                 // 遠征チームが厚いほど、現地の支度が進んでいる
+                                 * S.depotSetup(g)
                                  : rl.perf);
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);

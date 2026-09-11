@@ -669,7 +669,7 @@ GP.screens.biz = function (A) {
       '<b>道具そのものを卸してくれる相手</b>です。毎週いくらか払う代わりに、' +
       '<b>装備の値段</b>と<b>維持費</b>がまとめて下がります。' +
       '付き合いが長くなるほど、値引きは深くなります。<br>' +
-      '契約枠 <b>' + on.length + ' / ' + slots + '</b>（物流倉庫がLv.4になると1つ増えます）</p>';
+      '契約枠 <b>' + on.length + ' / ' + slots + '</b>（遠征チームがLv.4になると1つ増えます）</p>';
     h += '<div class="upbox"><span>🔧 いまの維持費 <b>💰' + money(up.net) + '万／週</b></span>' +
       '<span>割引 <b>' + (up.cut > 0 ? '-' + Math.round(up.cut * 100) + '%' : 'なし') + '</b></span>' +
       '<span>契約料 <b>💰' + money(S.supplyFee(g)) + '万／週</b></span></div>';

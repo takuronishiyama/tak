@@ -1905,10 +1905,14 @@ GP.state = (function () {
       mission: lv > 0, missionLv: lv, cover: cover
     };
   }
-  /* 物流倉庫。荷造りが速くなり、輸送費も遅延も減る */
+  /* 遠征チーム。荷造りが速くなり、輸送費も遅延も減る */
   function depotLv(g2) {
     return Math.max(0, (g2.facilities && g2.facilities.depot) || 0)
          * rigMul(g2, 'depot');
+  }
+  /* 現地での支度の進み。遠征チームが厚いほど、着いた翌朝から動ける */
+  function depotSetup(g2) {
+    return 1 + depotLv(g2) * D.DEPOT.setup;
   }
   function depotCut(g2) {
     return clamp(depotLv(g2) * D.DEPOT.cut + (hasGear(g2, 'depot', 'crate') ? 0.08 : 0), 0, 0.55);
@@ -4092,7 +4096,7 @@ GP.state = (function () {
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
-    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
+    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf, depotSetup,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,

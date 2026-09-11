@@ -358,8 +358,8 @@ GP.screens.home = function (A) {
       const k = GP.base.hit(x, y);
       if (k) {
         baseSel = k;
-        // 事業を見ている最中に建物を押したら、その施設の話へ戻す
-        if (baseTab === 'est') baseTab = 'fac';
+        // 事業や遠征を見ている最中に建物を押したら、その施設の話へ戻す
+        if (baseTab === 'est' || baseTab === 'logi') baseTab = 'fac';
         GP.sound.play('tap');
         drawBase();
       }
@@ -726,9 +726,13 @@ GP.screens.home = function (A) {
     /* ---- 種類ごとに分ける ----
        広げる（レベル）／備品（施設に据える道具）／事業（外に持つ店）は
        別のもの。ひと続きに積むと、どれを見ているのか分からなくなる  */
+    /* 遠征も本拠地の仕事なので、ここに並べる。
+       選んでいる手配が一目で分かるように、札に出しておく       */
+    const lp = S.logiPlan(g);
     const TABS = [
       ['fac',  '🏗️', '広げる', 'Lv.' + lv],
       ['gear', '🧰', '備品',   gearGot + '/' + gearAll],
+      ['logi', '🚚', '遠征',   lp.icon],
       ['est',  '💼', '事業',   owned ? owned + '件' : '']
     ];
     let h = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
@@ -737,6 +741,8 @@ GP.screens.home = function (A) {
 
     if (baseTab === 'est') {
       h += estateBoxHTML();
+    } else if (baseTab === 'logi') {
+      h += logiBoxHTML();
     } else {
       h += facPickHTML() +
         '<div class="sub">' + f.icon + ' ' + f.name + '</div>';
@@ -766,13 +772,15 @@ GP.screens.home = function (A) {
        同じ .basewrap があるので、範囲を絞らないとそちらを消してしまう */
     const bw = document.querySelector('#modalBody .basewrap');
     const bi = document.querySelector('#modalBody .baseinfo');
-    if (bw) bw.style.display = baseTab === 'est' ? 'none' : '';
-    if (bi) bi.style.display = baseTab === 'est' ? 'none' : '';
+    const wide = baseTab === 'est' || baseTab === 'logi';
+    if (bw) bw.style.display = wide ? 'none' : '';
+    if (bi) bi.style.display = wide ? 'none' : '';
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-btab]'), b => {
       b.onclick = () => { baseTab = b.dataset.btab; GP.sound.play('tap'); drawBase(); };
     });
     bindGear();
     bindEstate();
+    if (baseTab === 'logi') bindLogi();
 
     const up = $('baseUp');
     if (up) up.onclick = () => {
@@ -1858,8 +1866,8 @@ GP.screens.home = function (A) {
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
-    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる', short: '倉庫',
-               fn: () => openFacility('depot') },
+    depot:   { icon: '🚚', label: '遠征チーム',  to: '手配',   short: '遠征',
+               fn: () => { baseTab = 'logi'; openFacility('depot'); } },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
                fn: () => openFacility('mission') },
     meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる', short: '会議室',
@@ -2241,7 +2249,15 @@ GP.screens.home = function (A) {
     });
   }
 
+  /* 遠征の手配。施設画面のタブとして貼るので、
+     組み立てと配線を分けてある                              */
   function cmdLogi() {
+    // 遠征も本拠地の仕事のひとつ。施設画面のタブとして開く
+    baseTab = 'logi';
+    cmdFacility();
+  }
+
+  function logiBoxHTML() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
     const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
@@ -2373,8 +2389,9 @@ GP.screens.home = function (A) {
     }
     body += '</div><p class="desc">遠いコースほど輸送費も遅延の危険も上がります。' +
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
-      '🏗️ <b>物流倉庫</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
-      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗も減ります。' +
+      '🚚 <b>遠征チーム</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
+      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗が減り、' +
+      '現地の支度も <b>+' + ((S.depotSetup(g) - 1) * 100).toFixed(1) + '%</b> 進んでいます。' +
       '📦 <b>ロジスティシャン</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
       '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
       '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
@@ -2382,7 +2399,12 @@ GP.screens.home = function (A) {
         ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
 
     body += kitBoxHTML();
-    U.modal('🚚 遠征', body, [{ label: '閉じる', fn: U.closeModal }]);
+    return body;
+  }
+
+  /* 遠征のタブを開いたあとの配線 */
+  function bindLogi() {
+    const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
@@ -2403,7 +2425,7 @@ GP.screens.home = function (A) {
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
       }
       GP.sound.play('confirm');
-      S.save(g); render(); cmdLogi();
+      S.save(g); render(); drawBase();
     });
   }
   return {

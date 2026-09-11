@@ -4790,8 +4790,9 @@ GP.data = (function () {
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', desc: '若手の成長が速くなり、枠も増える', base: 2400 },
     { key: 'mission', name: 'ミッションコントロール', icon: '🛰️', base: 2600,
       desc: '本国に残った人間が、回線の向こうからレースに加わる。作戦と天候の読みが伸びる' },
-    { key: 'depot',   name: '物流倉庫',       icon: '📦', base: 1700,
-      desc: '機材と予備をここに集める。輸送費と遅延が減り、クルーの積み下ろしも軽くなる' },
+    { key: 'depot',   name: '遠征チーム',     icon: '🚚', base: 1700,
+      desc: '機材と予備を集める倉庫と、それを世界中へ運んで組み立てる面々。' +
+            '輸送費と遅延が減り、クルーの消耗も軽くなって、現地の支度が速く進む' },
     { key: 'meeting', name: 'ミーティングルーム', icon: '🗣️', base: 1500,
       desc: 'ブリーフィングとデブリーフィングをここでやる。' +
             'ドライバーの言い分が形になり、話が届くようになる' }
@@ -5010,13 +5011,18 @@ GP.data = (function () {
     coverLv:   0.070,  // 同・レベル1あたり
     fatigue: -0.4      // 現地の人数が減るぶん、クルーの消耗も軽くなる
   };
-  /* ---------- 物流倉庫 ----------
-     機材と予備をここに集めておく。荷造りが速くなり、
-     輸送費も遅延も減る。積み下ろしでクルーが消耗する量も減っていく。 */
+  /* ---------- 遠征チーム ----------
+     倉庫（モノ）と、運んで組み立てる面々（ヒト）をひとつに持つ。
+     レベルを上げると、安く・確実に運べるようになるだけでなく、
+     現地に着いてからの支度そのものが速くなる                 */
   const DEPOT = {
     cut:     0.035,    // レベル1あたり、輸送費がどれだけ安くなるか
     delay:   0.060,    // 同・遅延の危険がどれだけ減るか
     fatigue: -0.5,     // 同・クルーの消耗
+    /* 同・現地の支度の進み。慣れた面々ほど、金曜の朝から走り出せる。
+       運びかたの選択が -2.2%〜+1.6% なので、
+       Lv.10 で +1.8% と、だいたい同じ重みにしてある            */
+    setup:   0.0018,
     spareAt: 6         // このレベルから、予備をもう1点よけいに持てる
   };
 
@@ -5368,7 +5374,7 @@ GP.data = (function () {
       desc: '一流の総合サプライヤー。ここと組めれば、装備の話で困ることはなくなる' }
   ];
   const SUPPLY = {
-    slots: 2,        // 同時に結べる本数（マーケ室ではなく、物流倉庫の規模で増える）
+    slots: 2,        // 同時に結べる本数（マーケ室ではなく、遠征チームの規模で増える）
     deep: 0.10,      // 付き合いが1シーズン延びるごとに、値引きがこれだけ深くなる
     deepCap: 0.45,   // 深まりの上限
     breakFee: 6      // 途中で切ると、残り契約1シーズンにつき週あたり契約料の何週ぶんか
@@ -9200,10 +9206,14 @@ GP.state = (function () {
       mission: lv > 0, missionLv: lv, cover: cover
     };
   }
-  /* 物流倉庫。荷造りが速くなり、輸送費も遅延も減る */
+  /* 遠征チーム。荷造りが速くなり、輸送費も遅延も減る */
   function depotLv(g2) {
     return Math.max(0, (g2.facilities && g2.facilities.depot) || 0)
          * rigMul(g2, 'depot');
+  }
+  /* 現地での支度の進み。遠征チームが厚いほど、着いた翌朝から動ける */
+  function depotSetup(g2) {
+    return 1 + depotLv(g2) * D.DEPOT.setup;
   }
   function depotCut(g2) {
     return clamp(depotLv(g2) * D.DEPOT.cut + (hasGear(g2, 'depot', 'crate') ? 0.08 : 0), 0, 0.55);
@@ -11387,7 +11397,7 @@ GP.state = (function () {
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
-    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
+    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf, depotSetup,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,
@@ -12303,6 +12313,8 @@ GP.race = (function () {
         const pmul = form[ti]
                    * (t.isPlayer ? (g.logi && g.logi.late ? 0.990 : S.logiPlan(g).perf)
                                  * ((strategy && strategy.setup) || 1)
+                                 // 遠征チームが厚いほど、現地の支度が進んでいる
+                                 * S.depotSetup(g)
                                  : rl.perf);
         const perf = (t.car * 0.60 + drv * 0.40) * pmul
                    + (t.isPlayer ? S.puPerf(g) : 0);
@@ -16800,7 +16812,7 @@ GP.base = (function () {
     { key: 'meeting', label: 'ミーティングルーム' },
     { key: 'pit',     label: 'ピット設備' },
     { key: 'factory', label: 'ファクトリー' },
-    { key: 'depot',   label: '物流倉庫' },
+    { key: 'depot',   label: '遠征チーム' },
     { key: 'mission', label: 'ミッションコントロール' },
     { key: 'tunnel',  label: '風洞' },
     { key: 'sim',     label: 'シミュレーター' },
@@ -25010,7 +25022,7 @@ GP.screens.biz = function (A) {
       '<b>道具そのものを卸してくれる相手</b>です。毎週いくらか払う代わりに、' +
       '<b>装備の値段</b>と<b>維持費</b>がまとめて下がります。' +
       '付き合いが長くなるほど、値引きは深くなります。<br>' +
-      '契約枠 <b>' + on.length + ' / ' + slots + '</b>（物流倉庫がLv.4になると1つ増えます）</p>';
+      '契約枠 <b>' + on.length + ' / ' + slots + '</b>（遠征チームがLv.4になると1つ増えます）</p>';
     h += '<div class="upbox"><span>🔧 いまの維持費 <b>💰' + money(up.net) + '万／週</b></span>' +
       '<span>割引 <b>' + (up.cut > 0 ? '-' + Math.round(up.cut * 100) + '%' : 'なし') + '</b></span>' +
       '<span>契約料 <b>💰' + money(S.supplyFee(g)) + '万／週</b></span></div>';
@@ -25526,8 +25538,8 @@ GP.screens.home = function (A) {
       const k = GP.base.hit(x, y);
       if (k) {
         baseSel = k;
-        // 事業を見ている最中に建物を押したら、その施設の話へ戻す
-        if (baseTab === 'est') baseTab = 'fac';
+        // 事業や遠征を見ている最中に建物を押したら、その施設の話へ戻す
+        if (baseTab === 'est' || baseTab === 'logi') baseTab = 'fac';
         GP.sound.play('tap');
         drawBase();
       }
@@ -25894,9 +25906,13 @@ GP.screens.home = function (A) {
     /* ---- 種類ごとに分ける ----
        広げる（レベル）／備品（施設に据える道具）／事業（外に持つ店）は
        別のもの。ひと続きに積むと、どれを見ているのか分からなくなる  */
+    /* 遠征も本拠地の仕事なので、ここに並べる。
+       選んでいる手配が一目で分かるように、札に出しておく       */
+    const lp = S.logiPlan(g);
     const TABS = [
       ['fac',  '🏗️', '広げる', 'Lv.' + lv],
       ['gear', '🧰', '備品',   gearGot + '/' + gearAll],
+      ['logi', '🚚', '遠征',   lp.icon],
       ['est',  '💼', '事業',   owned ? owned + '件' : '']
     ];
     let h = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
@@ -25905,6 +25921,8 @@ GP.screens.home = function (A) {
 
     if (baseTab === 'est') {
       h += estateBoxHTML();
+    } else if (baseTab === 'logi') {
+      h += logiBoxHTML();
     } else {
       h += facPickHTML() +
         '<div class="sub">' + f.icon + ' ' + f.name + '</div>';
@@ -25934,13 +25952,15 @@ GP.screens.home = function (A) {
        同じ .basewrap があるので、範囲を絞らないとそちらを消してしまう */
     const bw = document.querySelector('#modalBody .basewrap');
     const bi = document.querySelector('#modalBody .baseinfo');
-    if (bw) bw.style.display = baseTab === 'est' ? 'none' : '';
-    if (bi) bi.style.display = baseTab === 'est' ? 'none' : '';
+    const wide = baseTab === 'est' || baseTab === 'logi';
+    if (bw) bw.style.display = wide ? 'none' : '';
+    if (bi) bi.style.display = wide ? 'none' : '';
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-btab]'), b => {
       b.onclick = () => { baseTab = b.dataset.btab; GP.sound.play('tap'); drawBase(); };
     });
     bindGear();
     bindEstate();
+    if (baseTab === 'logi') bindLogi();
 
     const up = $('baseUp');
     if (up) up.onclick = () => {
@@ -27026,8 +27046,8 @@ GP.screens.home = function (A) {
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
     tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
-    depot:   { icon: '📦', label: '物流倉庫',    to: '広げる', short: '倉庫',
-               fn: () => openFacility('depot') },
+    depot:   { icon: '🚚', label: '遠征チーム',  to: '手配',   short: '遠征',
+               fn: () => { baseTab = 'logi'; openFacility('depot'); } },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
                fn: () => openFacility('mission') },
     meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる', short: '会議室',
@@ -27409,7 +27429,15 @@ GP.screens.home = function (A) {
     });
   }
 
+  /* 遠征の手配。施設画面のタブとして貼るので、
+     組み立てと配線を分けてある                              */
   function cmdLogi() {
+    // 遠征も本拠地の仕事のひとつ。施設画面のタブとして開く
+    baseTab = 'logi';
+    cmdFacility();
+  }
+
+  function logiBoxHTML() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
     const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
@@ -27541,8 +27569,9 @@ GP.screens.home = function (A) {
     }
     body += '</div><p class="desc">遠いコースほど輸送費も遅延の危険も上がります。' +
       '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
-      '🏗️ <b>物流倉庫</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
-      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗も減ります。' +
+      '🚚 <b>遠征チーム</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
+      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗が減り、' +
+      '現地の支度も <b>+' + ((S.depotSetup(g) - 1) * 100).toFixed(1) + '%</b> 進んでいます。' +
       '📦 <b>ロジスティシャン</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
       '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
       '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
@@ -27550,7 +27579,12 @@ GP.screens.home = function (A) {
         ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
 
     body += kitBoxHTML();
-    U.modal('🚚 遠征', body, [{ label: '閉じる', fn: U.closeModal }]);
+    return body;
+  }
+
+  /* 遠征のタブを開いたあとの配線 */
+  function bindLogi() {
+    const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');
@@ -27571,7 +27605,7 @@ GP.screens.home = function (A) {
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
       }
       GP.sound.play('confirm');
-      S.save(g); render(); cmdLogi();
+      S.save(g); render(); drawBase();
     });
   }
   return {
@@ -27729,6 +27763,10 @@ GP.screens.help = function (A) {
       key: 'logi', icon: '🚚', name: '遠征',
       lead: 'レースごとに、マシンと機材を世界中へ運びます。運び方が週末の出来に効きます。',
       secs: [
+        { h: 'どこで決めるか', p: [
+          '遠征も本拠地の仕事のひとつなので、<b>🏗️ 施設 → 🚚 遠征</b>のタブで決めます。コマンドバーの「🚚 遠征」を押しても、同じところが開きます。',
+          '同じ施設の「広げる」で、<b>遠征チーム</b>そのものを大きくできます。機材を集める倉庫と、それを運んで組み立てる面々をまとめて持っている部署です。レベルが上がると、輸送費と遅延が減り、積み下ろしでのクルーの消耗も軽くなり、現地での支度が速く進むようになります。'
+        ] },
         { h: '運び方', p: [
           '安く運べば資金は残りますが、クルーが消耗し、現地でのセットアップ時間も削られます。チャーターで先乗りすれば、金曜の時点で他より進んだ状態から始められます。',
           '予選のグリッド表に出る ✈️🚢 の印が、そのチームの運び方です。チャーターで先乗りしたチームはセットアップが進んでいます。'

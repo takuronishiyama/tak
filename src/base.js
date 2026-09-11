@@ -47,7 +47,7 @@ GP.base = (function () {
     { key: 'meeting', label: 'ミーティングルーム' },
     { key: 'pit',     label: 'ピット設備' },
     { key: 'factory', label: 'ファクトリー' },
-    { key: 'depot',   label: '物流倉庫' },
+    { key: 'depot',   label: '遠征チーム' },
     { key: 'mission', label: 'ミッションコントロール' },
     { key: 'tunnel',  label: '風洞' },
     { key: 'sim',     label: 'シミュレーター' },
