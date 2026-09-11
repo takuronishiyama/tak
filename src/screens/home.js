@@ -2285,6 +2285,7 @@ GP.screens.home = function (A) {
     cmdFacility();
   }
 
+  let logiTab = 'plan';
   function logiBoxHTML() {
     const cur = S.logiPlan(g);
     const cw = S.crewPenalty(g);
@@ -2325,6 +2326,16 @@ GP.screens.home = function (A) {
       (nowRisk > 0.18 ? 'bad' : nowRisk > 0.08 ? 'warn' : 'good') + '">' +
       Math.round(nowRisk * 100) + '%</b></span></div>';
 
+    /* ---- タブ ----
+       上の2つ（疲労と次戦の費用）は、どのタブでも見えている。
+       三つの選択が合わさって、あの数字になるので            */
+    const LT = [['plan', '🚚', '運びかた'], ['load', '📦', '積荷'],
+                ['crew', '🧑‍🔧', '編成'], ['kit', '🧰', '装備']];
+    body += '<div class="tabs qtabs bastabs">' + LT.map(t =>
+      '<button class="tab' + (logiTab === t[0] ? ' on' : '') + '" data-ltab="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + '</button>').join('') + '</div>';
+
+    if (logiTab === 'plan') {
     body += '<div class="sub">運びかた</div><div class="pick">';
     D.LOGI_PLANS.forEach(pl => {
       const cost = withChoice(pl.key, g.logi.load, () => S.logiCost(g, nextTrack));
@@ -2347,6 +2358,9 @@ GP.screens.home = function (A) {
     });
     body += '</div>';
 
+    }
+
+    if (logiTab === 'load') {
     body += '<div class="sub">積荷</div>' +
       '<p class="desc">予備とツールをどれだけ持っていくか。'
       + U.helpLink('logi') + '</p><div class="pick">';
@@ -2370,8 +2384,10 @@ GP.screens.home = function (A) {
     });
     body += '</div>';
 
+    }
+
     // ---- 遠征の編成 ----
-    {
+    if (logiTab === 'crew') {
       const curP = S.logiCrew(g);
       const mission = S.hasMission(g);
       body += '<div class="sub">遠征の編成</div>' +
@@ -2415,24 +2431,27 @@ GP.screens.home = function (A) {
         tk.country + '<b>' + esc(tk.name.slice(0, 7)) + '</b>' +
         '<em>💰' + money(c) + '</em></span>';
     }
-    body += '</div><p class="desc">遠いコースほど輸送費も遅延の危険も上がります。' +
-      '近場のうちは船便で浮かせ、遠征と大一番はチャーターで確実に——という組み立てもできます。<br>' +
-      '🚚 <b>遠征チーム</b>（いま Lv.' + (g.facilities.depot || 1) + '）で輸送費が <b>-' +
-      Math.round(S.depotCut(g) * 100) + '%</b>、遅延と積み下ろしの消耗が減り、' +
-      '現地の支度も <b>+' + ((S.depotSetup(g) - 1) * 100).toFixed(1) + '%</b> 進んでいます。' +
-      '📦 <b>ロジスティシャン</b>（いま ' + S.logiPower(g).toFixed(1) + '）と' +
-      '🚚 ロジスティクス責任者は、そこにさらに乗ります。<br>' +
-      '✈️ 航空・物流のスポンサーと組むと、輸送費そのものが割り引かれます' +
+    /* 効いているものを一行に畳む。仕組みの説明はヘルプへ回して、
+       ここには「いま何％効いているか」だけを残す                */
+    body += '</div><p class="desc">' +
+      '🚚 遠征チーム Lv.' + (g.facilities.depot || 1) + '（輸送費 <b>-' +
+      Math.round(S.depotCut(g) * 100) + '%</b>／現地の支度 <b>+' +
+      ((S.depotSetup(g) - 1) * 100).toFixed(1) + '%</b>）　' +
+      '📦 ロジスティシャン <b>' + S.logiPower(g).toFixed(1) + '</b>' +
       (S.perkCut(g, 'logi') > 0
-        ? '（いま <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>）' : '') + '。</p>';
+        ? '　✈️ スポンサー割引 <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>' : '') +
+      U.helpLink('logi') + '</p>';
 
-    body += kitBoxHTML();
+    if (logiTab === 'kit') body += kitBoxHTML();
     return body;
   }
 
   /* 遠征のタブを開いたあとの配線 */
   function bindLogi() {
     const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-ltab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); logiTab = b.dataset.ltab; cmdFacility(); };
+    });
     bindKit();
     bindPick(k => {
       const [kind, key] = k.split(':');

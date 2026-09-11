@@ -29,6 +29,20 @@ GP.screens.biz = function (A) {
   /* =======================================================
      コマンド：営業（スポンサー）
      ======================================================= */
+  let spTab = 'deal';
+  /* タブとボタンの配線。どのタブから開いても同じものを結ぶ */
+  function bindSponsor() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); spTab = b.dataset.stab; cmdSponsor(); };
+    });
+    bindPick(k => {
+      if (k === '__ad') return doPromo();
+      if (k === '__offer') return doAcceptOffer();
+      if (k.indexOf('ttl:') === 0) return doTitleSponsor(k.slice(4));
+      doSign(k);
+    });
+    bindSupply();
+  }
   function cmdSponsor() {
     const slots = 2 + g.facilities.market;
     const have = g.sponsors.map(s => s.name);
@@ -38,11 +52,29 @@ GP.screens.biz = function (A) {
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
-      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。<br>' +
-      '<b>🏭 サプライヤー型</b>は現金こそ少ないものの、自分たちが売っているものを安く入れてくれます。' +
-      '設備の導入費や新品PUの代金は、まとまると効きます。</p>' + perkBoxHTML();
+      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。' +
+      U.helpLink('money') + '</p>';
 
-    if (g.sponsorOffer) {
+    /* ---- タブ ----
+       枠と注目度はどの話にも要るので上に残す。
+       そこから下は、結ぶ相手・冠・効いている割引の三つに分ける  */
+    const STABS = [
+      ['deal',  '🤝', 'スポンサー', g.sponsors.length + '/' + slots],
+      ['title', '👑', 'タイトル',   S.titleOf(g) ? '契約中' : ''],
+      ['perk',  '🏭', '割引と供給', '']
+    ];
+    body += '<div class="tabs qtabs bastabs">' + STABS.map(t =>
+      '<button class="tab' + (spTab === t[0] ? ' on' : '') + '" data-stab="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    if (spTab === 'perk') {
+      body += perkBoxHTML() + supplyBoxHTML() +
+        '<p class="desc"><b>🏭 サプライヤー型</b>は現金こそ少ないものの、' +
+        '自分たちが売っているものを安く入れてくれます。' +
+        '設備の導入費や新品PUの代金は、まとまると効きます。</p>';
+    }
+
+    if (spTab === 'deal' && g.sponsorOffer) {
       const sp = D.SPONSORS.find(x => x.name === g.sponsorOffer.name);
       if (sp) {
         body += '<div class="sub">📞 届いているオファー</div><div class="pick">' +
@@ -56,10 +88,9 @@ GP.screens.biz = function (A) {
           '<span class="pb-cost">受ける</span></button></div>';
       }
     }
-    body += supplyBoxHTML();
-
     // ---- タイトルスポンサー ----
     const cur = S.titleOf(g);
+    if (spTab === 'title') {
     body += '<div class="sub">👑 タイトルスポンサー</div>';
     if (cur) {
       body += '<div class="titlebox on"><b>' + cur.icon + ' ' + esc(cur.name) + '</b>' +
@@ -85,6 +116,15 @@ GP.screens.biz = function (A) {
           '<span class="pb-cost">' + (ok ? '交渉する' : '—') + '</span></button>';
       });
       body += '</div>';
+    }
+
+    }
+
+    if (spTab !== 'deal') {
+      U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
+      paintInterior();
+      bindSponsor();
+      return;
     }
 
     body += '<div class="pick"><button class="pickbtn" data-k="__ad"><span class="pb-ic" style="background:#f0a020">📣</span>' +
@@ -115,12 +155,7 @@ GP.screens.biz = function (A) {
     body += '</div>';
     U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
     paintInterior();
-    bindPick(k => {
-      if (k === '__ad') return doPromo();
-      if (k === '__offer') return doAcceptOffer();
-      if (k.indexOf('ttl:') === 0) return doTitleSponsor(k.slice(4));
-      doSign(k);
-    });
+    bindSponsor();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-drop]'), b => {
       b.onclick = () => {
         g.sponsors = g.sponsors.filter(s => s.name !== b.dataset.drop);
@@ -128,7 +163,6 @@ GP.screens.biz = function (A) {
         cmdSponsor();
       };
     });
-    bindSupply();
   }
   /* ---- いま効いているサプライヤー特典 ----
      契約の値打ちは、毎戦の入金だけでは測れない                  */
@@ -772,25 +806,45 @@ GP.screens.biz = function (A) {
       '</div>';
   }
 
-  function cmdInfo() {
-    let body = stakeBlock(false);
-    body += mgmtReportHTML();
-    body += teamDiag();
-    body += U.finance(g);
-    body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
-    body += U.standings(g);
-    body += '<div class="sub">今季のレース結果</div>';
-    if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
-    g.results.slice().reverse().forEach(r => {
-      const mine = r.rows.filter(x => x.isPlayer);
-      body += '<div class="hist"><b>第' + r.round + '戦 ' + esc(r.track) + '</b> <small>' + r.weather + '</small><br>' +
-        mine.map(m => (m.dnf ? 'DNF' : m.pos + '位') + ' ' + esc(m.name) + (m.pts ? '（+' + m.pts + 'pt）' : '')).join(' ／ ') + '</div>';
-    });
-    body += diffSwitchHTML();
-    body += '<div class="sub">チームの歩み</div>';
-    if (!g.history.length) body += '<p class="desc">まだ1シーズンも終えていません。</p>';
-    g.history.forEach(h => { body += '<div class="hist">シーズン' + h.season + '：コンストラクターズ ' + h.rank + '位（' + h.points + 'pt）</div>'; });
-    body += '<div class="sub">通算タイトル</div><p class="desc">コンストラクターズ ' + g.titles.teams + ' 回／ドライバーズ ' + g.titles.drivers + ' 回</p>';
+  let infoTab = 'team';
+  function cmdInfo(tab) {
+    if (tab) infoTab = tab;
+    /* ---- タブ ----
+       4つに割る。チームの様子・お金・順位・これまで。
+       「いま困っていること」と「今季どうだったか」は
+       見たい場面がちがうので、同じ紙に載せない          */
+    const done = (g.results || []).length;
+    const TABS = [
+      ['team',  '🏢', 'チーム',  ''],
+      ['money', '💰', '収支',    ''],
+      ['rank',  '🏆', '選手権',  g.points ? g.points + 'pt' : ''],
+      ['log',   '📜', '記録',    done ? done + '戦' : '']
+    ];
+    let body = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
+      '<button class="tab' + (infoTab === t[0] ? ' on' : '') + '" data-itab2="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    if (infoTab === 'team') {
+      body += stakeBlock(false) + mgmtReportHTML() + teamDiag();
+    } else if (infoTab === 'money') {
+      body += U.finance(g);
+    } else if (infoTab === 'rank') {
+      body += U.standings(g);
+      body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
+    } else {
+      body += '<div class="sub">今季のレース結果</div>';
+      if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
+      g.results.slice().reverse().forEach(r => {
+        const mine = r.rows.filter(x => x.isPlayer);
+        body += '<div class="hist"><b>第' + r.round + '戦 ' + esc(r.track) + '</b> <small>' + r.weather + '</small><br>' +
+          mine.map(m => (m.dnf ? 'DNF' : m.pos + '位') + ' ' + esc(m.name) + (m.pts ? '（+' + m.pts + 'pt）' : '')).join(' ／ ') + '</div>';
+      });
+      body += '<div class="sub">チームの歩み</div>';
+      if (!g.history.length) body += '<p class="desc">まだ1シーズンも終えていません。</p>';
+      g.history.forEach(h => { body += '<div class="hist">シーズン' + h.season + '：コンストラクターズ ' + h.rank + '位（' + h.points + 'pt）</div>'; });
+      body += '<div class="sub">通算タイトル</div><p class="desc">コンストラクターズ ' + g.titles.teams + ' 回／ドライバーズ ' + g.titles.drivers + ' 回</p>';
+      body += diffSwitchHTML();
+    }
     U.modal('📖 チーム情報', body, [
       { label: '💾 セーブ', fn: () => { S.save(g); U.toast('💾 セーブしました', 'good'); } },
       { label: '閉じる', fn: U.closeModal },
@@ -800,6 +854,9 @@ GP.screens.biz = function (A) {
             { label: 'いいえ', fn: U.closeModal }]);
         } }
     ], { wide: true });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab2]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdInfo(b.dataset.itab2); };
+    });
     // 難易度の付け替え（調整用）
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-diff]'), b => {
       b.onclick = () => {
