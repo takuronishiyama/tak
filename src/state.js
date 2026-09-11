@@ -233,6 +233,8 @@ GP.state = (function () {
           + analystPower(g2) * R2.analyst)
          * (1 + (g2.facilities.tunnel || 1) * R2.tunnel)
          * (hasEstate(g2, 'lab') ? R2.lab : 1)
+         // 路面が動く試験台。止まった床では出なかった数字が出る
+         * (hasGear(g2, 'tunnel', 'rolling') ? 1.14 : 1)
          * rigMul(g2, 'tunnel')
          * devRate(g2);
   }
@@ -423,7 +425,9 @@ GP.state = (function () {
     const dz = designPower(g) + (g.designEdge || 0) * 1.4;
     const base = m.mid
                + workshopOf(g).rar * Q.rig
-               + dz * Q.eng;
+               + dz * Q.eng
+               // 塵ひとつない部屋で組むと、同じ図面でも出来が揃う
+               + (hasGear(g, 'factory', 'clean') ? 0.05 : 0);
     // 運。上振れのほうがわずかに長い尻尾を持たせてある
     const luck = rnd(-Q.spread * 0.9, Q.spread * 1.1);
     return clamp(Math.round((base + luck) * 1000) / 1000, Q.min, Q.max);
@@ -1912,6 +1916,8 @@ GP.state = (function () {
     // ひとり雇って 0.3 台、腕利きを揃えて 0.9 近くまで、なだらかに伸ばす
     return clamp(0.20 + readPower(g2) * 0.075 + osk(g2, 'call') * 0.06
                + (hasGear(g2, 'sim', 'eye') ? 0.04 : 0)
+               + (hasGear(g2, 'sim', 'twin') ? 0.06 : 0)
+               + (hasGear(g2, 'mission', 'radar') ? 0.05 : 0)
                + crewEff(g2).fore
                + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
@@ -2016,7 +2022,8 @@ GP.state = (function () {
   }
   /* 現地での支度の進み。遠征チームが厚いほど、着いた翌朝から動ける */
   function depotSetup(g2) {
-    return 1 + depotLv(g2) * D.DEPOT.setup;
+    // 置きっぱなしの箱があると、着いた日から動ける
+    return (1 + depotLv(g2) * D.DEPOT.setup) * (hasGear(g2, 'depot', 'hub') ? 1.025 : 1);
   }
   function depotCut(g2) {
     return clamp(depotLv(g2) * D.DEPOT.cut + (hasGear(g2, 'depot', 'crate') ? 0.08 : 0), 0, 0.55);
@@ -2039,7 +2046,9 @@ GP.state = (function () {
     const soft = 1 - Math.min(0.85, mgr(g2, 'logistics') * 0.020 + osk(g2, 'money') * 0.02
                                  + logiPower(g2) * 0.030
                                  + Math.min(0.55, depotLv(g2) * D.DEPOT.delay)
-                                 + (hasGear(g2, 'depot', 'rack') ? 0.20 : 0));
+                                 + (hasGear(g2, 'depot', 'rack') ? 0.20 : 0)
+                                 // 置きっぱなしの箱があると、通関でも止まりにくい
+                                 + (hasGear(g2, 'depot', 'hub') ? 0.20 : 0));
     return clamp(base * (0.55 + far * 0.55) * soft, 0, 0.60);
   }
   /* 実際に遅れたかどうかを1戦ぶん判定する */
@@ -2261,7 +2270,9 @@ GP.state = (function () {
                              + crewEff(g2).pit) * rigMul(g2, 'pit');
     const cw = crewPenalty(g2);
     // 軽いホイールガンは、腕とは別に一律で削れる
-    const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0) + kitEff(g2, 'wall', 'stand');
+    const gun = (hasGear(g2, 'pit', 'gun') ? 0.12 : 0)
+              + (hasGear(g2, 'pit', 'jack') ? 0.18 : 0)
+              + kitEff(g2, 'wall', 'stand');
     const stand = Math.max(D.PIT_STAND_MIN,
       D.PIT_STAND_MIN + (D.PIT_STAND_BASE - D.PIT_STAND_MIN)
       / (1 + skill * D.PIT_STAND_CURVE) + cw.pit - gun);
@@ -2967,7 +2978,9 @@ GP.state = (function () {
     if (v > 0) {
       // 名の知れたスタッフを抱えていると、それだけで話題になる
       const stars = (g2.staff || []).filter(s2 => stTrait(s2, 'star')).length;
-      v = v * (1 + osk(g2, 'fame') * 0.20) * (1 + stars * 0.07);
+      v = v * (1 + osk(g2, 'fame') * 0.20) * (1 + stars * 0.07)
+          // ガレージの中をそのまま流すと、数字より先に顔が知られる
+          * (hasGear(g2, 'market', 'sns') ? 1.18 : 1);
     }
     g2.hype = clamp((g2.hype || 0) + v, 0, 100);
     return g2.hype;
@@ -3610,7 +3623,9 @@ GP.state = (function () {
   function roomPower(g2) {
     return meetingLv(g2)
          + (hasGear(g2, 'meeting', 'wall3') ? 1.2 : 0)
-         + (hasGear(g2, 'meeting', 'rec') ? 1.0 : 0);
+         + (hasGear(g2, 'meeting', 'rec') ? 1.0 : 0)
+         // 全員の前に同じ絵が出ると、声の大きさで決まらなくなる
+         + (hasGear(g2, 'meeting', 'board') ? 0.8 : 0);
   }
   function trustOf(d) {
     return d.trust == null ? D.TRUST.start : d.trust;
@@ -3883,6 +3898,8 @@ GP.state = (function () {
       const ageMul = d.age <= 21 ? 1 : d.age <= 23 ? 0.55 : 0.12;
       const gearMul = 1 + (hasGear(g2, 'youth', 'dorm') ? 0.15 : 0)
                         + (hasGear(g2, 'youth', 'lab') ? 0.10 : 0)
+                        // 毎日いくらでも走れる場所。素質は走った距離で開く
+                        + (hasGear(g2, 'youth', 'ykart') ? 0.14 : 0)
                         + (hasEstate(g2, 'kart') ? 0.12 : 0)
                         + (hasEstate(g2, 'academy') ? 0.20 : 0);
       const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05)

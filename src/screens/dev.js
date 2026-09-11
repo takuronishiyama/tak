@@ -309,8 +309,59 @@ GP.screens.dev = function (A) {
         '</small></span></div>';
     });
     if (!(g.drivers || []).length) body += '<p class="desc">シートが空いています。</p>';
-    body += '</div>' +
-      '<div class="sub">何をしますか</div>' +
+    body += '</div>';
+
+    /* ---- リザーブ ----
+       万一のときに走る控え。ここに居ることが見えていないと、
+       置いたこと自体を忘れる                                   */
+    body += '<div class="sub">🪑 リザーブ</div>';
+    if (g.reserve) {
+      const r = g.reserve;
+      const openSeat = (g.drivers || []).length < 2;
+      body += '<div class="pick"><div class="pickbtn done">' +
+        '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
+        '<span class="pb-body"><b>' + esc(r.name) +
+        (openSeat ? '<em class="free">昇格できます</em>' : '') + '</b><small>' +
+        S.nationOf(r).flag + ' 総合 ' + Math.round(S.driverRating(r)) + '／' + r.age + '歳／' +
+        S.persOf(r).icon + S.persOf(r).name +
+        (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
+        '<br>' + (openSeat
+          ? '正ドライバーの席が空いています。人事から昇格させられます'
+          : '誰かが欠場したとき、この人が走ります') + '</small></span>' +
+        '<span class="pb-cost">週' + money(r.salary) + '万</span></div></div>';
+    } else {
+      body += '<p class="desc">リザーブはいません。' +
+        '下部組織の若手か、市場のドライバーを置けます（人事 → ドライバー）。</p>';
+    }
+
+    /* ---- 育成の若手 ----
+       契約した子が、ここに出てこないと「どこへ行った」になる      */
+    const ys = (g.youth || []).slice().sort((a, b) => S.driverRating(b) - S.driverRating(a));
+    body += '<div class="sub">🎓 育成の若手（' + ys.length + '/' + S.youthSlots(g) + '）</div>';
+    if (!ys.length) {
+      body += '<p class="desc">下部組織に誰もいません。' +
+        'ここで育てた子が、上の席を埋めていきます（人事 → 育成）。</p>';
+    } else {
+      body += '<div class="pick">';
+      ys.forEach(d => {
+        const p3 = S.potOf(d);
+        const canUp = (g.drivers || []).length < 2;
+        body += '<div class="pickbtn done">' +
+          '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) +
+          '<em class="ychip">' + d.age + '歳</em>' +
+          (canUp ? '<em class="free">昇格できます</em>' : '') + '</b><small>' +
+          S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) +
+          '／素質 <b style="color:' + p3.color + '">' + p3.name + '</b>' +
+          '<br>' + (canUp
+            ? '正ドライバーの席が空いています。人事から昇格させられます'
+            : '席が空いたとき、ここから昇格させられます') + '</small></span>' +
+          '<span class="pb-cost">週' + money(d.salary || 0) + '万</span></div>';
+      });
+      body += '</div>';
+    }
+
+    body += '<div class="sub">何をしますか</div>' +
       '<p class="desc">乗りやすいマシンほど、ドライバーは持っているものをそのまま出せます。' +
       '車体の<b>ドライバビリティ</b>を上げるのも、腕を上げるのと同じだけ効きます。</p>' +
       '<div class="pick">' +

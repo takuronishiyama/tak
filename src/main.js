@@ -393,7 +393,36 @@ window.GP = window.GP || {};
     { p: 0.03, run: () => { const c = S.pick(D.PART_CATS); const p = g.equipped[c.key]; if (!p) return null;
         p.power = Math.round((p.power + 2) * 10) / 10; return '📐 ' + p.name + 'の設計を見直した！ 性能+2'; } },
     { p: 0.02, run: () => { const f = Math.round(g.fans * 0.06) + 50; g.fans += f; return '🎪 ファン感謝祭が大盛況！ ファン +' + money(f); } },
-    { p: 0.02, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.exp += 25; levelCheck(d); return '📚 ' + d.name + ' が自主練に励んだ！'; } }
+    { p: 0.02, run: () => { const d = S.pick(g.drivers); if (!d) return null; d.exp += 25; levelCheck(d); return '📚 ' + d.name + ' が自主練に励んだ！'; } },
+    /* ---- ここから増やしたぶん ----
+       どれも、そのチームに起きてはじめて意味があるものにしてある */
+    { p: 0.035, run: () => { if (!(g.staff || []).length) return null;
+        const p2 = S.pick(g.staff); p2.exp = (p2.exp || 0) + S.rint(18, 40);
+        return '🧑‍🔧 ' + p2.name + ' が現場で腕を上げた'; } },
+    { p: 0.03, run: () => { const m = Math.round(g.fans * 0.35) + 200; g.funds += m;
+        return '🎫 地元の観戦ツアーが組まれた。入場料の分け前 +' + money(m) + '万'; } },
+    { p: 0.03, run: () => { const c = S.pick(D.PART_CATS); const p2 = g.equipped[c.key]; if (!p2) return null;
+        p2.cond = S.clamp(p2.cond + S.rint(10, 20), 10, 100);
+        return '🧽 手すきの日に ' + p2.name + ' を丁寧に洗い出した。コンディションが戻った'; } },
+    { p: 0.03, run: () => { if ((g.hype || 0) < 8) return null; S.addHype(g, -S.rnd(2, 5));
+        return '📰 根も葉もない噂を書かれた…（注目度が少し落ちた）'; } },
+    { p: 0.025, run: () => { const d = S.pick(g.drivers); if (!d) return null;
+        S.addTrust(g, d, S.rint(4, 9));
+        return '🍽️ ' + d.name + ' とクルーで飯を食った。ピットへの信頼が少し上がった'; } },
+    { p: 0.025, run: () => { if (!(g.inventory || []).length) return null;
+        const p2 = S.pick(g.inventory); const m = Math.round(200 + p2.power * 22); g.funds += m;
+        g.inventory = g.inventory.filter(x => x.id !== p2.id);
+        return '📦 保管していた ' + p2.name + ' を下位チームが買っていった +' + money(m) + '万'; } },
+    { p: 0.025, run: () => { S.restCrew(g, S.rnd(6, 12));
+        return '🏖️ 連戦のあいだに休みが取れた。クルーの疲れが抜けた'; } },
+    { p: 0.02, run: () => { if ((g.youth || []).length < 1) return null;
+        const y = g.youth[0]; y.exp = (y.exp || 0) + 40;
+        return '🎓 ' + y.name + ' が下部カテゴリで表彰台に乗った'; } },
+    { p: 0.02, run: () => { const c = S.pick(D.PART_CATS);
+        S.addMatPoint(g, c.key, S.rint(4, 9));
+        return '🧪 ' + c.name + 'の作りかたで、ひとつ勘所が見えた'; } },
+    { p: 0.02, run: () => { const m = S.rint(500, 1800); g.funds -= m;
+        return '⚖️ 車検で細かい指摘を受け、直しに費用がかかった… -' + money(m) + '万'; } }
   ];
   /* ---------- その場で決める小事件 ----------
      結果が流れるだけのイベントとは別に、こちらは選ばせる。
@@ -485,6 +514,164 @@ window.GP = window.GP || {};
             return '📺 密着が入った。注目度 +9／ファン +' + money(f) + '（開発は少し遅れた）'; } },
         { label: '断る', note: '静かに仕事ができる',
           run: () => { staffExp('engineer', 8); return '📺 断った。現場は落ち着いて仕事ができた'; } }
+      ]
+    },
+    /* ================= ここから増やしたぶん =================
+       2シーズンで6種類しか出ていなかったので、8つ足す。
+       どれも、そのときのチームの状況でしか出ない       */
+    {
+      key: 'supplier', p: 0.045, icon: '🏭',
+      when: () => (g.sponsors || []).length >= 1,
+      title: 'スポンサーからの注文',
+      text: () => '契約しているスポンサーから「次の週末、うちの新製品を車に載せて走ってほしい」' +
+                  'と言ってきた。試したいだけで、速くなる保証はない。',
+      opts: () => [
+        { label: '載せてみる', note: '当たれば大きい。外せば重りを積んで走ることになる',
+          run: () => { const c = S.pick(D.PART_CATS); const q = g.equipped[c.key];
+            if (!q) return '🏭 載せる場所がなかった';
+            if (Math.random() < 0.55) { q.power = Math.round((q.power + S.rnd(2, 5)) * 10) / 10;
+              return '🏭 これが当たった。' + q.name + ' の性能が上がった'; }
+            q.cond = S.clamp(q.cond - S.rint(10, 22), 10, 100);
+            return '🏭 まるで合わなかった。' + q.name + ' を痛めただけに終わった'; } },
+        { label: '丁重に断る', note: '関係は少し冷える',
+          run: () => { S.addHype(g, -1.5);
+            return '🏭 断った。先方は納得していない顔だった'; } }
+      ]
+    },
+    {
+      key: 'rainmaker', p: 0.04, icon: '🌧️',
+      when: () => g.nextRace < D.RACES,
+      title: '週間予報',
+      text: () => '気象班から「次の週末、荒れるかもしれません」と報告が来た。' +
+                  '雨用の準備に手を回すか、いつもどおり進めるか。',
+      opts: () => [
+        { label: '雨の支度をする（💰900万）', note: '降れば効く。降らなければ無駄になる',
+          run: () => { if (g.funds < 900) return '💸 資金が足りず、いつもどおりにした';
+            g.funds -= 900;
+            g.wetReady = (g.wetReady || 0) + 1;
+            return '🌧️ 雨の支度を整えた。降ったときの備えができている'; } },
+        { label: 'いつもどおり進める', note: '何も起きない',
+          run: () => { staffExp('mechanic', 8);
+            return '☀️ いつもどおり進めた。予報は予報でしかない'; } }
+      ]
+    },
+    {
+      key: 'clash', p: 0.045, icon: '💢',
+      when: () => (g.drivers || []).length >= 2,
+      title: 'ドライバー同士の衝突',
+      text: () => (g.drivers[0] || {}).name + ' と ' + (g.drivers[1] || {}).name +
+                  ' が、ガレージの奥で言い合いになった。どちらにも言い分がある。',
+      opts: () => [
+        { label: '序列をはっきりさせる', note: '速いほうが伸びる。もう一方の信頼は落ちる',
+          run: () => { const a = g.drivers[0], b = g.drivers[1];
+            const one = S.driverRating(a) >= S.driverRating(b) ? a : b;
+            const two = one === a ? b : a;
+            S.addTrust(g, one, 10); S.addTrust(g, two, -12);
+            one.form = S.clamp(one.form + 8, 62, 122);
+            return '💢 ' + one.name + ' を軸に据えた。' + two.name + ' は黙って席を立った'; } },
+        { label: '二人とも呼んで話す', note: 'どちらも少し落ち着く。時間は取られる',
+          run: () => { g.drivers.forEach(d => S.addTrust(g, d, 5));
+            S.restCrew(g, -S.rnd(3, 6));
+            return '🗣️ 二人と話した。角は取れたが、週の半分が消えた'; } },
+        { label: '放っておく', note: '現場に任せる。転ぶかもしれない',
+          run: () => { if (Math.random() < 0.45) { g.drivers.forEach(d => S.addTrust(g, d, -6));
+              return '💢 放っておいたら、そのまま溝になった'; }
+            return '💢 翌朝には二人とも忘れていた'; } }
+      ]
+    },
+    {
+      key: 'audit', p: 0.035, icon: '⚖️',
+      when: () => g.season >= 1 && (g.points || 0) > 0,
+      title: '抜き打ちの車検',
+      text: () => 'FIAの技術委員が予告なしにファクトリーへ来た。' +
+                  '灰色のところがないとは、言い切れない。',
+      opts: () => [
+        { label: 'すべて見せる', note: '疑いは晴れるが、手の内も見られる',
+          run: () => { S.addHype(g, 2);
+            if (Math.random() < 0.35) { const c = S.pick(D.PART_CATS); const q = g.equipped[c.key];
+              if (q) q.power = Math.max(1, Math.round((q.power - S.rnd(1, 3)) * 10) / 10);
+              return '⚖️ 潔白は証明された。ただ、解釈をひとつ直させられた'; }
+            return '⚖️ 何も出なかった。委員は拍子抜けした顔で帰っていった'; } },
+        { label: '見せられる範囲にとどめる', note: '手の内は守れるが、心証は悪い',
+          run: () => { S.addHype(g, -3);
+            return '⚖️ 一部を伏せた。委員は何も言わずにメモを取っていた'; } }
+      ]
+    },
+    {
+      key: 'market', p: 0.04, icon: '🗞️',
+      when: () => (g.staff || []).length >= 3,
+      title: '移籍市場の噂',
+      text: () => 'よそのチームで、まとまった数の人間が動くらしい。' +
+                  'いま声をかければ、腕のいいのが取れるかもしれない。',
+      opts: () => [
+        { label: '声をかけて回る（💰1,200万）', note: '人事の市場が入れ替わる',
+          run: () => { if (g.funds < 1200) return '💸 動くだけの金がなかった';
+            g.funds -= 1200;
+            A.refreshMarkets(true);        // 人事の顔ぶれが、そのまま入れ替わる
+            return '🗞️ 何人かと話をつけた。人事の顔ぶれが入れ替わっている'; } },
+        { label: '静観する', note: 'いまの面々に集中する',
+          run: () => { (g.staff || []).forEach(p2 => { p2.exp = (p2.exp || 0) + 8; });
+            return '🗞️ 動かなかった。いまいる面々が、そのぶん育った'; } }
+      ]
+    },
+    {
+      key: 'homegp', p: 0.05, icon: '🏠',
+      when: () => g.nextRace < D.RACES && (g.fans || 0) >= 400,
+      title: '地元の応援団',
+      text: () => '地元の後援会から「次の週末、応援バスを出したい」と連絡が来た。' +
+                  '出てくれるのはありがたいが、期待も背負うことになる。',
+      opts: () => [
+        { label: '来てもらう', note: 'ファンが増え、ドライバーが奮い立つ。結果が出ないと反動も大きい',
+          run: () => { const f = Math.round(g.fans * 0.07) + 180; g.fans += f;
+            (g.drivers || []).forEach(d => { d.form = S.clamp(d.form + 6, 62, 122); });
+            return '🏠 応援バスが出ることになった。ファン +' + money(f) + '（二人とも気合が入っている）'; } },
+        { label: '今回は見送ってもらう', note: '静かに戦える',
+          run: () => { S.restCrew(g, 4);
+            return '🏠 丁重に見送ってもらった。現場は落ち着いている'; } }
+      ]
+    },
+    {
+      key: 'parts', p: 0.04, icon: '📦',
+      when: () => (g.inventory || []).length >= 2,
+      title: '保管庫の整理',
+      text: () => '保管庫が手狭になってきた。' +
+                  '古いパーツを外に出せば金になるが、規則が変わる年には元手にもなる。',
+      opts: () => [
+        { label: '売って身軽になる', note: 'まとまった金になる',
+          run: () => { const sell = (g.inventory || []).slice()
+              .sort((a, b) => a.power - b.power).slice(0, 2);
+            let m = 0;
+            sell.forEach(p2 => { m += Math.round(260 + p2.power * 26);
+              g.inventory = g.inventory.filter(x => x.id !== p2.id); });
+            g.funds += m;
+            return '📦 ' + sell.length + '点を手放した +' + money(m) + '万'; } },
+        { label: 'ばらして調べる', note: '研究ポイントになる。ものは残らない',
+          run: () => { const p2 = (g.inventory || []).slice()
+              .sort((a, b) => b.power - a.power)[0];
+            if (!p2) return '📦 何もなかった';
+            const r = Math.round(12 + p2.power * 1.4); g.rp += r;
+            g.inventory = g.inventory.filter(x => x.id !== p2.id);
+            return '📦 ' + p2.name + ' をばらして調べた。研究P +' + r; } },
+        { label: 'そのまま置いておく', note: '何もしない',
+          run: () => '📦 まだ使い道があるかもしれない。そのままにした' }
+      ]
+    },
+    {
+      key: 'sim', p: 0.035, icon: '🕹️',
+      when: () => (g.facilities || {}).sim >= 2 && (g.drivers || []).length >= 1,
+      title: '週末前のシミュレーター',
+      text: () => '次のコースを、シミュレーターで走り込んでおくかどうか。' +
+                  '走り込めば読みは深まるが、本人は週末前に消耗する。',
+      opts: () => [
+        { label: '走り込ませる', note: 'セットアップが進む。ドライバーは少し疲れる',
+          run: () => { const d = S.pick(g.drivers); if (!d) return '🕹️ 走らせる人がいなかった';
+            g.simGain = (g.simGain || 0) + 1;
+            d.form = S.clamp(d.form - 4, 62, 122);
+            staffExp('engineer', 10);
+            return '🕹️ ' + d.name + ' が走り込んだ。週末の支度が進んでいる'; } },
+        { label: '休ませる', note: '調子を保つ',
+          run: () => { (g.drivers || []).forEach(d => { d.form = S.clamp(d.form + 5, 62, 122); });
+            return '🕹️ 休ませた。二人とも顔つきがいい'; } }
       ]
     }
   ];
