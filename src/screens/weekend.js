@@ -525,33 +525,41 @@ GP.screens.weekend = function (A) {
 
   /* ---- フリー走行 ----
      限られた走行時間を、何に使うか。ひとつだけ選べる。 */
+  /* 走行時間の使い道。q が土曜（予選一発）、r が日曜（レースペース）。
+     どちらもどちらに効くが、度合いが違う。
+     短い時間を削って一発を合わせにいくのか、
+     長い距離を走ってレースの足を作るのか——そこが選択になる  */
   const PRACTICE = [
-    { k: 'setup', icon: '🔧', label: 'セットアップを詰める', setup: 1.014,
-      note: 'マシンの仕上がりが上がる。いちばん素直な使い方',
-      run: () => { staffExp('engineer', 10); return 'セットアップが決まった（今日のマシンが少し速い）'; } },
-    { k: 'rookie', icon: '🎓', label: 'ルーキーを走らせる', setup: 1.004,
-      note: '下部組織の若手に実車を走らせる。そのぶんセットアップは進まない',
+    { k: 'setup', icon: '🔧', label: 'セットアップを詰める', q: 1.017, r: 1.005,
+      note: '一発のためにマシンを合わせ込む。予選にいちばん効く',
+      run: () => { staffExp('engineer', 10); return 'セットアップが決まった（土曜の一発が速い）'; } },
+    { k: 'rookie', icon: '🎓', label: '育成の若手を走らせる', q: 1.004, r: 1.004,
+      note: '下部組織の若手に実車を走らせる。持ち帰る情報は、その子の力しだい',
       avail: () => (g.youth || []).length > 0,
       run: () => {
-        // 乗せるのは自分たちで育てている若手だけ。
-        // いちばん若い（=伸びしろの残っている）一人に走らせる
-        const d = (g.youth || []).slice().sort((a, b) =>
-          (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0];
-        if (!d) return null;
-        const keys = ['speed', 'technique', 'stamina', 'mental'];
-        const ups = [];
-        keys.forEach(k => {
-          if (Math.random() < 0.6) {
-            const up = S.rnd(1.4, 3.2) * S.potOf(d).growth;
-            d[k] = S.clamp(d[k] + up, 1, 199);
-            ups.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] + ' +' + up.toFixed(1));
-          }
+        const picked = rookiePick();
+        if (!picked.length) return null;
+        /* 二人で乗れば、走る時間は分け合うことになる。
+           一人あたりの伸びは減るが、チームが持ち帰る情報は増える */
+        const share = picked.length > 1 ? 0.62 : 1;
+        const msgs = [];
+        picked.forEach(d => {
+          const keys = ['speed', 'technique', 'stamina', 'mental'];
+          const ups = [];
+          keys.forEach(k => {
+            if (Math.random() < 0.6) {
+              const up = S.rnd(1.4, 3.2) * S.potOf(d).growth * share;
+              d[k] = S.clamp(d[k] + up, 1, 199);
+              ups.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] + ' +' + up.toFixed(1));
+            }
+          });
+          d.exp = (d.exp || 0) + Math.round(20 * share);
+          msgs.push(d.name + '（' + (ups.join('／') || '手応えを得た') + '）');
         });
-        d.exp = (d.exp || 0) + 20;
         staffExp('trainer', 10);
-        return d.name + ' が実車を走らせた（' + (ups.join('／') || '手応えを得た') + '）';
+        return '実車を走らせた：' + msgs.join('、');
       } },
-    { k: 'tyre', icon: '🛞', label: 'タイヤを試す', setup: 1.007,
+    { k: 'tyre', icon: '🛞', label: 'タイヤを試す', q: 1.004, r: 1.011,
       note: 'このコースでの摩耗が分かる。ストップ数の読みが正確になる',
       run: () => {
         const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
@@ -560,21 +568,46 @@ GP.screens.weekend = function (A) {
         g.drivers.forEach(d => { d.technique = S.clamp(d.technique + S.rnd(0.6, 1.6), 1, 199); });
         return 'タイヤの持ちを確かめた（このコースは ' + stops + 'ストップが軸／ドライバーの技術も少し上がった）';
       } },
-    { k: 'save', icon: '🛞', label: '走らずにタイヤを残す', setup: 1.000,
-      note: 'ほとんどコースに出ない。セットアップは進まないが、日曜に手つかずのタイヤが残る',
+    { k: 'save', icon: '🛞', label: '走らずにタイヤを残す', q: 1.000, r: 1.000,
+      note: 'ほとんどコースに出ない。何も進まないが、日曜に手つかずのタイヤが残る',
       run: () => {
         staffExp('strategist', 6);
         return 'ガレージで過ごした（決勝のタイヤを温存した）';
       } },
-    { k: 'long', icon: '📊', label: 'ロングランでデータを取る', setup: 1.005,
-      note: '走り込んでデータを集める。研究ポイントが入る',
+    { k: 'long', icon: '📊', label: 'ロングランでデータを取る', q: 1.003, r: 1.016,
+      note: '長い距離を走って日曜の足を作る。レースペースにいちばん効く',
       run: () => {
         const rp = Math.max(4, Math.round(6 + S.analystPower(g) * 2.4 + S.osk(g, 'eye') * 1.5));
         g.rp += rp;
         staffExp('analyst', 12);
-        return 'ロングランのデータが取れた（研究P +' + rp + '）';
+        return 'ロングランのデータが取れた（日曜の足が見えた／研究P +' + rp + '）';
       } }
   ];
+
+  /* ---- 育成の若手 ----
+     誰を乗せるかは自分で選ぶ。最大2人まで。
+     選んでいなければ、いちばん伸びしろの残っている子が乗る  */
+  const ROOKIE_MAX = 2;
+  function youthSorted() {
+    return (g.youth || []).slice().sort((a, b) =>
+      (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth));
+  }
+  function rookiePick() {
+    const ys = youthSorted();
+    const ids = pendingStrategy.rookies || [];
+    const chosen = ys.filter(d => ids.indexOf(d.id) >= 0).slice(0, ROOKIE_MAX);
+    return chosen.length ? chosen : ys.slice(0, 1);
+  }
+  /* 乗せた子が持ち帰るものの量。腕のある子ほど、的確なことを言う。
+     二人乗せれば見る目は増えるが、一人あたりの走行時間は減る    */
+  function rookieGain() {
+    const picked = rookiePick();
+    if (!picked.length) return 0;
+    const avg = picked.reduce((a, d) => a + S.driverRating(d), 0) / picked.length;
+    const skill = S.clamp(avg / 70, 0.35, 1.25);
+    const many = picked.length > 1 ? 1.45 : 1;     // 二人ぶんの目
+    return 0.004 + 0.009 * skill * many;
+  }
 
   /* ---- 週末のタイヤ棚 ----
      いま何本残っていて、そのうち何本が手つかずなのか。
@@ -673,6 +706,38 @@ GP.screens.weekend = function (A) {
   function cmdPractice() {
     const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
     if (!pendingStrategy.fpt) pendingStrategy.fpt = 'mix';
+  /* 予選ぶんと決勝ぶん、どちらにどれだけ効くかを並べて出す */
+  function fpEffHTML(x) {
+    const e = fpEff(x);
+    const p = v => ((v - 1) * 100).toFixed(1);
+    const bar = v => Math.round(Math.min(1, (v - 1) / 0.017) * 100);
+    return '<i class="fpq">予選 <b>+' + p(e.q) + '%</b>' +
+           '<u style="width:' + bar(e.q) + '%"></u></i>' +
+           '<i class="fpr">決勝 <b>+' + p(e.r) + '%</b>' +
+           '<u style="width:' + bar(e.r) + '%"></u></i>';
+  }
+  /* 誰を乗せるか。最大2人まで選べる */
+  function rookieBoxHTML() {
+    const ys = youthSorted();
+    if (!ys.length) return '';
+    const ids = pendingStrategy.rookies || [];
+    let h = '<div class="sub small">🎓 育成の若手を乗せるなら（最大' + ROOKIE_MAX + '人）</div>' +
+      '<p class="desc">選んだ子が実車を走らせます。持ち帰る情報の量は、その子の力しだい。' +
+      '二人乗せれば見る目は増えますが、一人あたりの走行時間は減ります。' +
+      '選ばなければ、いちばん伸びしろの残っている子が乗ります。</p><div class="rkpick">';
+    ys.forEach(d => {
+      const on = ids.indexOf(d.id) >= 0;
+      const p3 = S.potOf(d);
+      h += '<button class="rk' + (on ? ' on' : '') + '" data-rk="' + d.id + '">' +
+        '<span class="rk-ic">' + U.face(d, 26) + '</span>' +
+        '<b>' + esc(d.name) + '</b>' +
+        '<small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／素質 ' +
+        '<em style="color:' + p3.color + '">' + p3.name + '</em></small>' +
+        (on ? '<i class="rk-on">乗せる</i>' : '') + '</button>';
+    });
+    return h + '</div>';
+  }
+
     let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
       t.country + ' ' + esc(t.name) + '</span></div>' +
       fpTyreHTML() +
@@ -690,16 +755,27 @@ GP.screens.weekend = function (A) {
         '<span class="pb-body"><b>' + x.label + '</b><small>' + x.note +
         (ok ? '' : '<br><em class="warn">下部組織に若手がいません（「👥 人事」→「🎓 育成」で獲得）</em>') +
         (x.k === 'rookie' && ok ? '<br><em class="free">' +
-          esc((g.youth || []).slice().sort((a, b) =>
-            (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0].name) +
-          ' が乗ります</em>' : '') +
+          esc(rookiePick().map(d => d.name).join('、')) + ' が乗ります</em>' : '') +
         '</small></span>' +
-        '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%' +
-        '<br><i class="tyuse">🛞' + sets + '本</i></span></button>';
+        '<span class="pb-cost fp-eff">' + fpEffHTML(x) +
+        '<i class="tyuse">🛞' + sets + '本</i></span></button>';
     });
     body += '</div>';
+    body += rookieBoxHTML();
     U.modal('🔧 フリー走行', body, [], { wide: true });
     bindPick(k => doPractice(+k.split(':')[1]));
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rk]'), b => {
+      b.onclick = () => {
+        const id = b.dataset.rk;
+        let ids = (pendingStrategy.rookies || []).slice();
+        const at = ids.indexOf(id);
+        if (at >= 0) ids.splice(at, 1);
+        else { ids.push(id); if (ids.length > ROOKIE_MAX) ids.shift(); }
+        pendingStrategy.rookies = ids;
+        GP.sound.play('tap');
+        cmdPractice();
+      };
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-fpt]'), wrap => {
       Array.prototype.forEach.call(wrap.children, b => {
         b.onclick = () => {
@@ -711,12 +787,21 @@ GP.screens.weekend = function (A) {
     });
   }
 
+  /* その使い道が、予選と決勝にどれだけ効くか。
+     育成走行だけは、乗せる子の力で決まる                    */
+  function fpEff(x) {
+    if (x.k === 'rookie') { const v = rookieGain(); return { q: 1 + v, r: 1 + v }; }
+    return { q: x.q, r: x.r };
+  }
   function doPractice(i) {
     const x = PRACTICE[i];
     if (!x || (x.avail && !x.avail())) return;
     // 荷が遅れた週は、走れる時間そのものが足りない
     const late = !!(g.logi && g.logi.late);
-    pendingStrategy.setup = late ? 1 + (x.setup - 1) * 0.4 : x.setup;
+    const eff = fpEff(x);
+    const cut = v => late ? 1 + (v - 1) * 0.4 : v;
+    pendingStrategy.setup = cut(eff.q);     // 土曜（予選一発）に効くぶん
+    pendingStrategy.setupR = cut(eff.r);    // 日曜（レースペース）に効くぶん
     pendingStrategy.fp = x.k;              // 予選後のレポートの精度に効く
     const msg = x.run();
     if (msg) { U.log(g, x.icon + ' ' + msg); U.toast(x.icon + ' ' + msg, 'good'); }
@@ -2311,6 +2396,6 @@ GP.screens.weekend = function (A) {
     name: 'weekend',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdRace: cmdRace, beginRace: beginRace, startRace: startRace, paidChip: paidChip, trustChip: trustChip, PERF_TO_SEC: PERF_TO_SEC, stakeBlock: stakeBlock, doDebrief: doDebrief }
+    api: { cmdRace: cmdRace, cmdPractice: cmdPractice, beginRace: beginRace, startRace: startRace, paidChip: paidChip, trustChip: trustChip, PERF_TO_SEC: PERF_TO_SEC, stakeBlock: stakeBlock, doDebrief: doDebrief }
   };
 };

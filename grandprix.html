@@ -3439,6 +3439,29 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tmpbox>b u{text-decoration:none;font-size:14px}
 .tmp-num{display:block;font-size:11px;opacity:.7;margin:-2px 0 5px}
 
+/* ---- フリー走行：予選ぶんと決勝ぶん ---- */
+.fp-eff{display:flex;flex-direction:column;gap:2px;align-items:stretch;min-width:88px}
+.fp-eff i{display:block;position:relative;font-style:normal;font-size:9px;line-height:1.3;
+  padding:1px 4px 3px;border-radius:4px;background:rgba(0,0,0,.10);text-align:left}
+.fp-eff i b{font-size:10px}
+.fp-eff i u{position:absolute;left:4px;bottom:1px;height:2px;border-radius:2px;text-decoration:none}
+.fp-eff .fpq u{background:#3a7ad9}
+.fp-eff .fpr u{background:#e0642a}
+.fp-eff .tyuse{background:none;padding:0;text-align:right;font-size:9px}
+
+/* ---- 育成の若手を選ぶ ---- */
+.rkpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.rkpick .rk{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;
+  border:3px solid var(--ink);background:var(--paper3);text-align:left;position:relative}
+.rkpick .rk.on{background:linear-gradient(#ffd76a,var(--yellow));box-shadow:0 0 0 2px rgba(0,0,0,.18) inset}
+.rkpick .rk b{font-size:12px;display:block}
+.rkpick .rk small{display:block;font-size:10px;opacity:.8}
+.rkpick .rk em{font-style:normal;font-weight:700}
+.rkpick .rk-on{position:absolute;top:-8px;right:6px;font-style:normal;font-size:9px;
+  font-weight:700;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 5px}
+[data-skin="hd"] .rkpick .rk{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .rkpick .rk.on{background:linear-gradient(#6a5220,#3d2e12)}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -9534,8 +9557,8 @@ GP.state = (function () {
     const b = tyreBand(ty), off = tyreOff(ty, temp);
     if (off <= -14) return { key: 'icy',  name: '冷えきっている', icon: '🧊', color: '#4a86d8' };
     if (off < 0)    return { key: 'cold', name: '冷えている',     icon: '❄️', color: '#6aa8e0' };
-    if (off >= 14)  return { key: 'melt', name: 'オーバーヒート', icon: '🔥', color: '#e0442a' };
-    if (off > 0)    return { key: 'hot',  name: '熱を持っている', icon: '♨️', color: '#e08a2a' };
+    if (off >= 14)  return { key: 'melt', name: '減りが一気に早い', icon: '🔥', color: '#e0442a' };
+    if (off > 0)    return { key: 'hot',  name: '減りが早い',     icon: '♨️', color: '#e08a2a' };
     // 域の中。真ん中に近いほど良い
     const d = Math.abs(temp - b.mid) / Math.max(1, (b.hi - b.lo) / 2);
     return d < 0.45
@@ -9544,10 +9567,10 @@ GP.state = (function () {
   }
   /* 路面温度を言葉にする。数字は添えるだけ */
   function roadWord(road) {
-    if (road >= 48) return { name: '焼けている', icon: '🔥', color: '#e0442a',
-                             note: 'やわらかい銘柄は自分の熱で終わる。攻めれば一瞬で焼ける' };
+    if (road >= 48) return { name: 'とても高い', icon: '🔥', color: '#e0442a',
+                             note: 'やわらかい銘柄は減りがとても早い。攻めれば一気に無くなる' };
     if (road >= 40) return { name: '高い', icon: '♨️', color: '#e08a2a',
-                             note: 'タイヤに熱が入りやすい。踏み続けると持たない' };
+                             note: 'タイヤに熱が入りやすく、減りが早い。踏み続けると持たない' };
     if (road >= 30) return { name: 'ほどよい', icon: '🎯', color: '#2e8b30',
                              note: 'どの銘柄も素直に働く。作戦のとおりに運べる' };
     if (road >= 22) return { name: '低い', icon: '❄️', color: '#6aa8e0',
@@ -12401,15 +12424,15 @@ GP.race = (function () {
     tyColdBack: ['「踏んで入れてくれ。労わっていても目を覚まさない」',
                  '「1周だけ大きく振って熱を入れて。丁寧にやらなくていい」',
                  '「わかった、温めよう。無理に飛び込まないで」'],
-    tyHot: ['「攻めすぎだ！ このままだとタイヤが終わる」',
-            '「熱を持ちすぎている。表面が終わりかけだ」',
-            '「オーバーヒートだ。1周落とさせてくれ」'],
-    tyHotBack: ['「1周落とせ。熱を抜こう、前とは間隔を空けて」',
-                '「クールダウン。いま無理をしても、あとで全部返すことになる」',
-                '「了解、ペースを落として。焼き切る前に冷ます」'],
+    tyHot: ['「攻めすぎだ！ この使い方だと最後まで持たない」',
+            '「熱を持ちすぎている。減りが一気に早くなっている」',
+            '「このペースだとタイヤが先に無くなる。落とさせてくれ」'],
+    tyHotBack: ['「1周落とせ。タイヤを持たせたいから、前とは間隔を空けて」',
+                '「ペースを落として。いま削ったぶんは、あとで全部返すことになる」',
+                '「了解、抑えよう。最後まで持たせるほうが速い」'],
     tyGone: ['「タイヤが終わってしまった……何も残っていない」',
-             '「もう無い。焼き切った。ここからは耐えるだけだ」',
-             '「表面が完全に終わった。曲がらない、止まらない」'],
+             '「もう無い。使い切った。ここからは耐えるだけだ」',
+             '「完全に終わった。曲がらない、止まらない」'],
     tyGoneBack: ['「了解。次のピットまで、とにかく持って帰ってくれ」',
                  '「わかった。無理はしないで、ペースは捨てていい」'],
     tyGood: ['「入った！ いまちょうどいい温度だ」',
@@ -13740,6 +13763,23 @@ GP.race = (function () {
       grid.sort((a, b) => a.grid - b.grid);
       grid.forEach((e, i) => { e.grid = i + 1; });
       entries.sort((a, b) => a.grid - b.grid);
+    }
+    /* ---- 金曜の使い道を、日曜ぶんに差し替える ----
+       entries は予選で組んだものを使い回すので、
+       そこには「土曜に効くぶん」が入ったままになっている。
+       セットアップを詰めた週末は予選で速く、ロングランを走った週末は
+       日曜で速い——それを成立させるために、ここで掛け直す。
+       グリッドはもう決まっているので、並びには触らない          */
+    if (strategy && strategy.setupR && strategy.setup) {
+      const k2 = strategy.setupR / strategy.setup;
+      if (Math.abs(k2 - 1) > 1e-6) {
+        entries.forEach(e => {
+          if (!e.isPlayer) return;
+          e.pmul *= k2;
+          e.perf *= k2;
+          if (e.secPerf) e.secPerf = e.secPerf.map(v => v * k2);
+        });
+      }
     }
     const laps = Math.max(4, Math.round(track.laps * (special ? special.lapMul : 1)));
     const events = [];
@@ -23754,33 +23794,41 @@ GP.screens.weekend = function (A) {
 
   /* ---- フリー走行 ----
      限られた走行時間を、何に使うか。ひとつだけ選べる。 */
+  /* 走行時間の使い道。q が土曜（予選一発）、r が日曜（レースペース）。
+     どちらもどちらに効くが、度合いが違う。
+     短い時間を削って一発を合わせにいくのか、
+     長い距離を走ってレースの足を作るのか——そこが選択になる  */
   const PRACTICE = [
-    { k: 'setup', icon: '🔧', label: 'セットアップを詰める', setup: 1.014,
-      note: 'マシンの仕上がりが上がる。いちばん素直な使い方',
-      run: () => { staffExp('engineer', 10); return 'セットアップが決まった（今日のマシンが少し速い）'; } },
-    { k: 'rookie', icon: '🎓', label: 'ルーキーを走らせる', setup: 1.004,
-      note: '下部組織の若手に実車を走らせる。そのぶんセットアップは進まない',
+    { k: 'setup', icon: '🔧', label: 'セットアップを詰める', q: 1.017, r: 1.005,
+      note: '一発のためにマシンを合わせ込む。予選にいちばん効く',
+      run: () => { staffExp('engineer', 10); return 'セットアップが決まった（土曜の一発が速い）'; } },
+    { k: 'rookie', icon: '🎓', label: '育成の若手を走らせる', q: 1.004, r: 1.004,
+      note: '下部組織の若手に実車を走らせる。持ち帰る情報は、その子の力しだい',
       avail: () => (g.youth || []).length > 0,
       run: () => {
-        // 乗せるのは自分たちで育てている若手だけ。
-        // いちばん若い（=伸びしろの残っている）一人に走らせる
-        const d = (g.youth || []).slice().sort((a, b) =>
-          (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0];
-        if (!d) return null;
-        const keys = ['speed', 'technique', 'stamina', 'mental'];
-        const ups = [];
-        keys.forEach(k => {
-          if (Math.random() < 0.6) {
-            const up = S.rnd(1.4, 3.2) * S.potOf(d).growth;
-            d[k] = S.clamp(d[k] + up, 1, 199);
-            ups.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] + ' +' + up.toFixed(1));
-          }
+        const picked = rookiePick();
+        if (!picked.length) return null;
+        /* 二人で乗れば、走る時間は分け合うことになる。
+           一人あたりの伸びは減るが、チームが持ち帰る情報は増える */
+        const share = picked.length > 1 ? 0.62 : 1;
+        const msgs = [];
+        picked.forEach(d => {
+          const keys = ['speed', 'technique', 'stamina', 'mental'];
+          const ups = [];
+          keys.forEach(k => {
+            if (Math.random() < 0.6) {
+              const up = S.rnd(1.4, 3.2) * S.potOf(d).growth * share;
+              d[k] = S.clamp(d[k] + up, 1, 199);
+              ups.push({ speed: '速さ', technique: '技術', stamina: '体力', mental: '精神' }[k] + ' +' + up.toFixed(1));
+            }
+          });
+          d.exp = (d.exp || 0) + Math.round(20 * share);
+          msgs.push(d.name + '（' + (ups.join('／') || '手応えを得た') + '）');
         });
-        d.exp = (d.exp || 0) + 20;
         staffExp('trainer', 10);
-        return d.name + ' が実車を走らせた（' + (ups.join('／') || '手応えを得た') + '）';
+        return '実車を走らせた：' + msgs.join('、');
       } },
-    { k: 'tyre', icon: '🛞', label: 'タイヤを試す', setup: 1.007,
+    { k: 'tyre', icon: '🛞', label: 'タイヤを試す', q: 1.004, r: 1.011,
       note: 'このコースでの摩耗が分かる。ストップ数の読みが正確になる',
       run: () => {
         const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
@@ -23789,21 +23837,46 @@ GP.screens.weekend = function (A) {
         g.drivers.forEach(d => { d.technique = S.clamp(d.technique + S.rnd(0.6, 1.6), 1, 199); });
         return 'タイヤの持ちを確かめた（このコースは ' + stops + 'ストップが軸／ドライバーの技術も少し上がった）';
       } },
-    { k: 'save', icon: '🛞', label: '走らずにタイヤを残す', setup: 1.000,
-      note: 'ほとんどコースに出ない。セットアップは進まないが、日曜に手つかずのタイヤが残る',
+    { k: 'save', icon: '🛞', label: '走らずにタイヤを残す', q: 1.000, r: 1.000,
+      note: 'ほとんどコースに出ない。何も進まないが、日曜に手つかずのタイヤが残る',
       run: () => {
         staffExp('strategist', 6);
         return 'ガレージで過ごした（決勝のタイヤを温存した）';
       } },
-    { k: 'long', icon: '📊', label: 'ロングランでデータを取る', setup: 1.005,
-      note: '走り込んでデータを集める。研究ポイントが入る',
+    { k: 'long', icon: '📊', label: 'ロングランでデータを取る', q: 1.003, r: 1.016,
+      note: '長い距離を走って日曜の足を作る。レースペースにいちばん効く',
       run: () => {
         const rp = Math.max(4, Math.round(6 + S.analystPower(g) * 2.4 + S.osk(g, 'eye') * 1.5));
         g.rp += rp;
         staffExp('analyst', 12);
-        return 'ロングランのデータが取れた（研究P +' + rp + '）';
+        return 'ロングランのデータが取れた（日曜の足が見えた／研究P +' + rp + '）';
       } }
   ];
+
+  /* ---- 育成の若手 ----
+     誰を乗せるかは自分で選ぶ。最大2人まで。
+     選んでいなければ、いちばん伸びしろの残っている子が乗る  */
+  const ROOKIE_MAX = 2;
+  function youthSorted() {
+    return (g.youth || []).slice().sort((a, b) =>
+      (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth));
+  }
+  function rookiePick() {
+    const ys = youthSorted();
+    const ids = pendingStrategy.rookies || [];
+    const chosen = ys.filter(d => ids.indexOf(d.id) >= 0).slice(0, ROOKIE_MAX);
+    return chosen.length ? chosen : ys.slice(0, 1);
+  }
+  /* 乗せた子が持ち帰るものの量。腕のある子ほど、的確なことを言う。
+     二人乗せれば見る目は増えるが、一人あたりの走行時間は減る    */
+  function rookieGain() {
+    const picked = rookiePick();
+    if (!picked.length) return 0;
+    const avg = picked.reduce((a, d) => a + S.driverRating(d), 0) / picked.length;
+    const skill = S.clamp(avg / 70, 0.35, 1.25);
+    const many = picked.length > 1 ? 1.45 : 1;     // 二人ぶんの目
+    return 0.004 + 0.009 * skill * many;
+  }
 
   /* ---- 週末のタイヤ棚 ----
      いま何本残っていて、そのうち何本が手つかずなのか。
@@ -23902,6 +23975,38 @@ GP.screens.weekend = function (A) {
   function cmdPractice() {
     const t = D.TRACKS[Math.min(raceCtx.trackIndex, D.TRACKS.length - 1)];
     if (!pendingStrategy.fpt) pendingStrategy.fpt = 'mix';
+  /* 予選ぶんと決勝ぶん、どちらにどれだけ効くかを並べて出す */
+  function fpEffHTML(x) {
+    const e = fpEff(x);
+    const p = v => ((v - 1) * 100).toFixed(1);
+    const bar = v => Math.round(Math.min(1, (v - 1) / 0.017) * 100);
+    return '<i class="fpq">予選 <b>+' + p(e.q) + '%</b>' +
+           '<u style="width:' + bar(e.q) + '%"></u></i>' +
+           '<i class="fpr">決勝 <b>+' + p(e.r) + '%</b>' +
+           '<u style="width:' + bar(e.r) + '%"></u></i>';
+  }
+  /* 誰を乗せるか。最大2人まで選べる */
+  function rookieBoxHTML() {
+    const ys = youthSorted();
+    if (!ys.length) return '';
+    const ids = pendingStrategy.rookies || [];
+    let h = '<div class="sub small">🎓 育成の若手を乗せるなら（最大' + ROOKIE_MAX + '人）</div>' +
+      '<p class="desc">選んだ子が実車を走らせます。持ち帰る情報の量は、その子の力しだい。' +
+      '二人乗せれば見る目は増えますが、一人あたりの走行時間は減ります。' +
+      '選ばなければ、いちばん伸びしろの残っている子が乗ります。</p><div class="rkpick">';
+    ys.forEach(d => {
+      const on = ids.indexOf(d.id) >= 0;
+      const p3 = S.potOf(d);
+      h += '<button class="rk' + (on ? ' on' : '') + '" data-rk="' + d.id + '">' +
+        '<span class="rk-ic">' + U.face(d, 26) + '</span>' +
+        '<b>' + esc(d.name) + '</b>' +
+        '<small>総合 ' + Math.round(S.driverRating(d)) + '／' + d.age + '歳／素質 ' +
+        '<em style="color:' + p3.color + '">' + p3.name + '</em></small>' +
+        (on ? '<i class="rk-on">乗せる</i>' : '') + '</button>';
+    });
+    return h + '</div>';
+  }
+
     let body = '<div class="racehead"><b>🔧 フリー走行</b><span>' +
       t.country + ' ' + esc(t.name) + '</span></div>' +
       fpTyreHTML() +
@@ -23919,16 +24024,27 @@ GP.screens.weekend = function (A) {
         '<span class="pb-body"><b>' + x.label + '</b><small>' + x.note +
         (ok ? '' : '<br><em class="warn">下部組織に若手がいません（「👥 人事」→「🎓 育成」で獲得）</em>') +
         (x.k === 'rookie' && ok ? '<br><em class="free">' +
-          esc((g.youth || []).slice().sort((a, b) =>
-            (a.age - b.age) || (S.potOf(b).growth - S.potOf(a).growth))[0].name) +
-          ' が乗ります</em>' : '') +
+          esc(rookiePick().map(d => d.name).join('、')) + ' が乗ります</em>' : '') +
         '</small></span>' +
-        '<span class="pb-cost">マシン<br>+' + ((x.setup - 1) * 100).toFixed(1) + '%' +
-        '<br><i class="tyuse">🛞' + sets + '本</i></span></button>';
+        '<span class="pb-cost fp-eff">' + fpEffHTML(x) +
+        '<i class="tyuse">🛞' + sets + '本</i></span></button>';
     });
     body += '</div>';
+    body += rookieBoxHTML();
     U.modal('🔧 フリー走行', body, [], { wide: true });
     bindPick(k => doPractice(+k.split(':')[1]));
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rk]'), b => {
+      b.onclick = () => {
+        const id = b.dataset.rk;
+        let ids = (pendingStrategy.rookies || []).slice();
+        const at = ids.indexOf(id);
+        if (at >= 0) ids.splice(at, 1);
+        else { ids.push(id); if (ids.length > ROOKIE_MAX) ids.shift(); }
+        pendingStrategy.rookies = ids;
+        GP.sound.play('tap');
+        cmdPractice();
+      };
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-fpt]'), wrap => {
       Array.prototype.forEach.call(wrap.children, b => {
         b.onclick = () => {
@@ -23940,12 +24056,21 @@ GP.screens.weekend = function (A) {
     });
   }
 
+  /* その使い道が、予選と決勝にどれだけ効くか。
+     育成走行だけは、乗せる子の力で決まる                    */
+  function fpEff(x) {
+    if (x.k === 'rookie') { const v = rookieGain(); return { q: 1 + v, r: 1 + v }; }
+    return { q: x.q, r: x.r };
+  }
   function doPractice(i) {
     const x = PRACTICE[i];
     if (!x || (x.avail && !x.avail())) return;
     // 荷が遅れた週は、走れる時間そのものが足りない
     const late = !!(g.logi && g.logi.late);
-    pendingStrategy.setup = late ? 1 + (x.setup - 1) * 0.4 : x.setup;
+    const eff = fpEff(x);
+    const cut = v => late ? 1 + (v - 1) * 0.4 : v;
+    pendingStrategy.setup = cut(eff.q);     // 土曜（予選一発）に効くぶん
+    pendingStrategy.setupR = cut(eff.r);    // 日曜（レースペース）に効くぶん
     pendingStrategy.fp = x.k;              // 予選後のレポートの精度に効く
     const msg = x.run();
     if (msg) { U.log(g, x.icon + ' ' + msg); U.toast(x.icon + ' ' + msg, 'good'); }
@@ -25540,7 +25665,7 @@ GP.screens.weekend = function (A) {
     name: 'weekend',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdRace: cmdRace, beginRace: beginRace, startRace: startRace, paidChip: paidChip, trustChip: trustChip, PERF_TO_SEC: PERF_TO_SEC, stakeBlock: stakeBlock, doDebrief: doDebrief }
+    api: { cmdRace: cmdRace, cmdPractice: cmdPractice, beginRace: beginRace, startRace: startRace, paidChip: paidChip, trustChip: trustChip, PERF_TO_SEC: PERF_TO_SEC, stakeBlock: stakeBlock, doDebrief: doDebrief }
   };
 };
 
@@ -29165,6 +29290,22 @@ GP.screens.help = function (A) {
       ]
     },
     {
+      key: 'friday', icon: '🔧', name: '金曜をどう使うか',
+      lead: '走行時間の使い道は、土曜に効くものと日曜に効くものに分かれます。',
+      secs: [
+        { h: '予選ぶんと決勝ぶん', p: [
+          'ボタンの右に「予選 +1.7%／決勝 +0.5%」のように二段で出ます。どちらにも効きますが、度合いが違います。',
+          '🔧 セットアップを詰める は一発を合わせにいくので予選に強く（+1.7%／+0.5%）、📊 ロングランでデータを取る は長い距離を走って日曜の足を作るので決勝に強い（+0.3%／+1.6%）。🛞 タイヤを試す はその中間で、決勝寄り（+0.4%／+1.1%）。',
+          'グリッドを1つでも前に出したい週末と、決勝で前に出たい週末は、違う選択になります。'
+        ] },
+        { h: '育成の若手を走らせる', p: [
+          '予選にも決勝にも同じだけ効きますが、効き目はその子の力しだいです。腕のある子ほど的確なことを持ち帰ります（およそ +0.9% 〜 +1.5%）。',
+          '最大2人まで選べます。二人乗せれば見る目が増えて効き目は上がりますが、走行時間を分け合うぶん、一人あたりの成長は 62% に減ります。',
+          '選ばなければ、いちばん伸びしろの残っている子が乗ります。'
+        ] }
+      ]
+    },
+    {
       key: 'temp', icon: '🌡️', name: '路面温度とタイヤの作動域',
       lead: '同じソフトでも、寒い日と暑い日では別のタイヤになります。',
       secs: [
@@ -29174,21 +29315,21 @@ GP.screens.help = function (A) {
         ] },
         { h: '銘柄ごとの作動域', p: [
           'ソフト 28〜44℃、ミディアム 34〜54℃、ハード 42〜66℃。やわらかいほど低い温度で働き、硬いほど熱が要ります。',
-          'だから寒い日のハードは、最後まで目を覚ましません。「保つから」でハードを選ぶと、そこに嵌まります。逆に暑い日のソフトは、速いぶん自分の熱で終わる。',
+          'だから寒い日のハードは、最後まで目を覚ましません。「保つから」でハードを選ぶと、そこに嵌まります。逆に暑い日のソフトは、速いぶん減りが早くて最後まで持たない。',
           '決勝の空模様のところに、その日の温度と、銘柄ごとに「あと何℃で入るか」が出ます。金曜のうちに見てください。'
         ] },
         { h: '走らせかたで動く', p: [
           '芯の温度は路面だけで決まるわけではありません。全開で攻めれば熱が入り（+19℃）、抑えれば抜けます（-9℃）。前の車に詰まっていると空気が乱れて冷えず、セーフティカーで隊列を流すと一気に抜ける。履き替えた直後のタイヤは冷えていて、1周は食いません。',
           'タイヤに厳しい車ほど、同じ走りかたでも熱が入ります。',
-          '冷えていると食わないうえにミスが出ます。熱すぎると食いますが、表面から壊れてタレが速くなる。観戦画面のタイヤの印に細い帯が出ていて、青が冷えすぎ、緑がちょうど、赤が熱すぎです。'
+          '冷えていると食わないうえにミスが出ます。熱が入りすぎると食いはしますが、減りが一気に早くなる。観戦画面のタイヤの印に細い帯が出ていて、青が冷えすぎ、緑がちょうど、赤が熱すぎです。'
         ] },
         { h: '直しにいく、あるいは我慢する', p: [
-          '焼けてしまったら1周落として熱を抜き、冷えて食わないなら逆に踏んで熱を入れる——ピットウォールは自動でそう判断します。労わっていても、冷えたタイヤは目を覚ましません。',
-          'ただし前後が1.2秒以内にいるとき、そして残り2周を切ったときは、温度より順位を取ります。焼けると分かっていても踏み続ける。それが「攻めすぎだ」と言われる周です。',
+          '減りが早くなってきたら1周落としてタイヤを持たせ、冷えて食わないなら逆に踏んで熱を入れる——ピットウォールは自動でそう判断します。労わっていても、冷えたタイヤは目を覚ましません。',
+          'ただし前後が1.2秒以内にいるとき、そして残り2周を切ったときは、温度より順位を取ります。最後まで持たないと分かっていても踏み続ける。それが「攻めすぎだ」と言われる周です。',
           'ライバルも同じ判断をしています。だから暑い日は、前の車が先に音を上げることがあります。'
         ] },
         { h: 'タイヤが終わる', p: [
-          '熱を持ったまま走り続けると、表面を失ったぶんは冷やしても戻りません。ここまで来ると「タイヤが終わってしまった」と言われ、そのスティントはもう何をしても戻らない。履き替えるまで耐えるだけです。',
+          '熱を持ったまま走り続けると、削れたぶんは冷やしても戻りません。ここまで来ると「タイヤが終わってしまった」と言われ、そのスティントはもう何をしても戻らない。履き替えるまで耐えるだけです。',
           '寿命を大きく超えて走り続けたときも同じことが起きます。原因は違っても、走り手にとっては同じ「終わった」です。'
         ] }
       ]

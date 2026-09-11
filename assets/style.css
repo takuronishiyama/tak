@@ -3423,3 +3423,26 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .tmpbox{background:rgba(0,0,0,.3);border-color:#4a3d63}
 .tmpbox>b u{text-decoration:none;font-size:14px}
 .tmp-num{display:block;font-size:11px;opacity:.7;margin:-2px 0 5px}
+
+/* ---- フリー走行：予選ぶんと決勝ぶん ---- */
+.fp-eff{display:flex;flex-direction:column;gap:2px;align-items:stretch;min-width:88px}
+.fp-eff i{display:block;position:relative;font-style:normal;font-size:9px;line-height:1.3;
+  padding:1px 4px 3px;border-radius:4px;background:rgba(0,0,0,.10);text-align:left}
+.fp-eff i b{font-size:10px}
+.fp-eff i u{position:absolute;left:4px;bottom:1px;height:2px;border-radius:2px;text-decoration:none}
+.fp-eff .fpq u{background:#3a7ad9}
+.fp-eff .fpr u{background:#e0642a}
+.fp-eff .tyuse{background:none;padding:0;text-align:right;font-size:9px}
+
+/* ---- 育成の若手を選ぶ ---- */
+.rkpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.rkpick .rk{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;
+  border:3px solid var(--ink);background:var(--paper3);text-align:left;position:relative}
+.rkpick .rk.on{background:linear-gradient(#ffd76a,var(--yellow));box-shadow:0 0 0 2px rgba(0,0,0,.18) inset}
+.rkpick .rk b{font-size:12px;display:block}
+.rkpick .rk small{display:block;font-size:10px;opacity:.8}
+.rkpick .rk em{font-style:normal;font-weight:700}
+.rkpick .rk-on{position:absolute;top:-8px;right:6px;font-style:normal;font-size:9px;
+  font-weight:700;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 5px}
+[data-skin="hd"] .rkpick .rk{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .rkpick .rk.on{background:linear-gradient(#6a5220,#3d2e12)}

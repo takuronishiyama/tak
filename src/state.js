@@ -1976,8 +1976,8 @@ GP.state = (function () {
     const b = tyreBand(ty), off = tyreOff(ty, temp);
     if (off <= -14) return { key: 'icy',  name: '冷えきっている', icon: '🧊', color: '#4a86d8' };
     if (off < 0)    return { key: 'cold', name: '冷えている',     icon: '❄️', color: '#6aa8e0' };
-    if (off >= 14)  return { key: 'melt', name: 'オーバーヒート', icon: '🔥', color: '#e0442a' };
-    if (off > 0)    return { key: 'hot',  name: '熱を持っている', icon: '♨️', color: '#e08a2a' };
+    if (off >= 14)  return { key: 'melt', name: '減りが一気に早い', icon: '🔥', color: '#e0442a' };
+    if (off > 0)    return { key: 'hot',  name: '減りが早い',     icon: '♨️', color: '#e08a2a' };
     // 域の中。真ん中に近いほど良い
     const d = Math.abs(temp - b.mid) / Math.max(1, (b.hi - b.lo) / 2);
     return d < 0.45
@@ -1986,10 +1986,10 @@ GP.state = (function () {
   }
   /* 路面温度を言葉にする。数字は添えるだけ */
   function roadWord(road) {
-    if (road >= 48) return { name: '焼けている', icon: '🔥', color: '#e0442a',
-                             note: 'やわらかい銘柄は自分の熱で終わる。攻めれば一瞬で焼ける' };
+    if (road >= 48) return { name: 'とても高い', icon: '🔥', color: '#e0442a',
+                             note: 'やわらかい銘柄は減りがとても早い。攻めれば一気に無くなる' };
     if (road >= 40) return { name: '高い', icon: '♨️', color: '#e08a2a',
-                             note: 'タイヤに熱が入りやすい。踏み続けると持たない' };
+                             note: 'タイヤに熱が入りやすく、減りが早い。踏み続けると持たない' };
     if (road >= 30) return { name: 'ほどよい', icon: '🎯', color: '#2e8b30',
                              note: 'どの銘柄も素直に働く。作戦のとおりに運べる' };
     if (road >= 22) return { name: '低い', icon: '❄️', color: '#6aa8e0',
