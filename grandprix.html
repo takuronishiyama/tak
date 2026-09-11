@@ -2561,6 +2561,19 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .rv-sectors,.rv-loglist,.rv-ctrl{flex-shrink:0}
 .rv-wrap.timing .rv-side{display:none}
 .rv-wrap.timing .rv-canvaswrap{margin:0 auto}
+/* モニターを出しているあいだは、表のほうが主役。
+   コース図は画面の3割までに抑える。ここを幅の条件の中に
+   置いていたので、小さめのデスクトップ窓では効かず、
+   表と操作ボタンが画面の外へ押し出されていた               */
+.rv-wrap.timing .rv-body{flex:0 1 auto;max-height:30vh;min-height:0;overflow:hidden}
+/* 入れ物を抑えるだけでは足りない。中のコース図も、
+   その高さに合わせて縮むようにする（縦横比は保つ）         */
+.rv-wrap.timing .rv-canvaswrap{flex:0 1 auto;min-width:0;min-height:0;
+  display:flex;align-items:flex-start}
+.rv-wrap.timing #raceCanvas{width:auto;height:auto;max-width:100%;max-height:100%}
+/* モニターを読んでいるあいだ、カメラの選択は要らない。
+   縮んだ canvas より横に広いので、出したままだと外へはみ出す */
+.rv-wrap.timing .rv-cam{display:none}
 .rv-sectors.board{max-height:min(30vh,244px)}
 .rv-wrap.timing .rv-loglist{height:56px}
 @media (max-width:520px), (hover:none) and (pointer:coarse){
@@ -2583,8 +2596,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(168px,27%,300px);
   height:auto;max-height:min(30vh + 46px,300px);justify-content:flex-end}
 /* 横に置くと何の欄か分かりにくいので、見出しを貼りつけておく */
+.rv-wrap.timing .rv-mon .rv-loglist{padding-top:0}
 .rv-wrap.timing .rv-mon .rv-loglist::before{content:'実況';display:block;
-  position:sticky;top:-4px;margin:-4px -6px 2px;padding:2px 6px;
+  position:sticky;top:0;margin:0 -6px 3px;padding:2px 6px;
   background:#2b1c0e;color:#d8c8a4;font-size:9px;letter-spacing:.08em;
   border-bottom:1px dashed rgba(255,238,196,.34);z-index:2}
 /* 縦に持つ端末では並べきれないので、これまでどおり積む */
@@ -3461,6 +3475,19 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   font-weight:700;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 5px}
 [data-skin="hd"] .rkpick .rk{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
 [data-skin="hd"] .rkpick .rk.on{background:linear-gradient(#6a5220,#3d2e12)}
+
+
+/* ---- スマホを横にして、タイミングモニターを出したとき ----
+   canvas は 124×90 まで縮んで、もう何も読み取れない。
+   畳んで、空いたぶんを表と実況に回す。
+   この上書きは、上のほうにある同じ強さの指定に負けないよう末尾に置く */
+@media (max-height:560px) and (orientation:landscape){
+  .rv-wrap.timing .rv-body{display:none}
+  .rv-wrap.timing .rv-mon{flex:1 1 auto;min-height:0;align-items:stretch}
+  .rv-wrap.timing .rv-mon .rv-sectors,
+  .rv-wrap.timing .rv-mon .rv-sectors.board,
+  .rv-wrap.timing .rv-mon .rv-loglist{max-height:none;height:auto}
+}
 
 </style>
 <!--
