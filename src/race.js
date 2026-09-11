@@ -309,6 +309,19 @@ GP.race = (function () {
      {GA}=前との差／{GB}=後ろとの差／{L}=タイヤの残り周回／{S}=秒数
      ========================================================= */
   const RADIO = {
+    /* --- タイヤの温度 --- */
+    tyCold: ['「タイヤが冷えている。まったくグリップが無い」',
+             '「温まらない。曲がりどころでフロントが逃げる」',
+             '「これは冷たすぎる。もう1周ぶん熱を入れさせてくれ」'],
+    tyColdBack: ['「了解、1周だけ大きく振って熱を入れてくれ」',
+                 '「わかった。無理に飛び込まないで、丁寧に温めて」'],
+    tyHot: ['「タイヤが熱を持ちすぎている。表面が終わりかけだ」',
+            '「オーバーヒートしている。このままだと保たない」',
+            '「熱が入りすぎだ。1周だけ落とさせてくれ」'],
+    tyHotBack: ['「了解、1周クールダウン。前とは間隔を空けて」',
+                '「わかった。冷えるまでペースを落として」'],
+    tyGood: ['「入った。いまちょうどいい温度だ」',
+             '「タイヤが目を覚ました。ここから行ける」'],
     /* --- チームメイトと作戦を分けたとき --- */
     split: ['「言っておく。{B} とは作戦が違う。向こうは{NS}ストップだ」',
             '「作戦を分けた。{B} は{NS}ストップ、君はこのまま行く」',
@@ -760,6 +773,23 @@ GP.race = (function () {
         e.radioCool = 4;
         return;
       }
+      /* ---- タイヤの温度 ----
+         冷えて食わない、あるいは熱を持ちすぎている。
+         同じことを繰り返し言われても仕方がないので、
+         状態が変わった周にだけ鳴らす                          */
+      {
+        const off = e.tyreOff || 0;
+        const st2 = off <= -9 ? 'cold' : off >= 8 ? 'hot'
+                  : (off === 0 && (e.radioTemp === 'cold' || e.radioTemp === 'hot')) ? 'ok' : null;
+        if (st2 && st2 !== e.radioTemp && lap > 1) {
+          e.radioTemp = st2 === 'ok' ? null : st2;
+          if (st2 === 'cold') { push(RADIO.tyCold, 'drv', true); push(RADIO.tyColdBack, 'pit', true); }
+          else if (st2 === 'hot') { push(RADIO.tyHot, 'drv', true); push(RADIO.tyHotBack, 'pit', true); }
+          else push(RADIO.tyGood, 'drv', true);
+          e.radioCool = 4;
+          return;
+        }
+      }
       if (e.radioBlue === lap) {                        // 周回遅れの列
         e.radioBlue = -1;
         push(RADIO.blue, 'pit', true);
@@ -1118,7 +1148,7 @@ GP.race = (function () {
   /* このスティント（区間）を走りきるのに向いたタイヤを選ぶ。
      攻めるチームは寿命ぎりぎりの速いタイヤを、
      堅実なチームは余裕のある硬いタイヤを選ぶ                        */
-  function pickTyre(stintLaps, weather, prefer, bias) {
+  function pickTyre(stintLaps, weather, prefer, bias, road) {
     if (weather.key === 'storm') return 'wet';
     if (weather.key === 'rain') return 'inter';
     if (prefer && D.DRY_TYRES.indexOf(prefer) >= 0) return prefer;
@@ -1128,8 +1158,20 @@ GP.race = (function () {
     const fit = D.DRY_TYRES.map(k => tyreOf(k)).filter(t => t.life >= stintLaps * margin);
     // どれも保たないなら、いちばん保つものを履くしかない
     if (!fit.length) return D.DRY_TYRES[D.DRY_TYRES.length - 1];
-    // 保つもののうち、いちばんやわらかい＝いちばん速いもの
-    return fit[0].key;
+    /* ---- その日の温度で目を覚ますか ----
+       寒い日にハードを履いても、最後まで食わない。
+       保つかどうかだけで選ぶと、そこに嵌まる。
+       走れば少し熱が入るぶん（+7℃）を見込んで、
+       作動域からの外れがいちばん小さいものを選ぶ           */
+    if (road == null) return fit[0].key;
+    const core = road + 7;
+    let best = fit[0], bs = -9;
+    fit.forEach((t, i) => {
+      // やわらかいほど速いので、同じくらい合っているなら前のものを採る
+      const sc = S.tyreTempFit(t, core) - i * 0.06;
+      if (sc > bs) { bs = sc; best = t; }
+    });
+    return best.key;
   }
 
   /* ---- ライバルの作戦 ----
@@ -1598,6 +1640,9 @@ GP.race = (function () {
     const radio = [];                 // チーム無線。自チームのぶんだけ積む
     // 天候の急変。降り出す／上がるで、履いているタイヤの正解が入れ替わる
     let wx = { key: weather.key, grip: weather.grip, chaos: weather.chaos, wet: weather.wetTyres };
+    /* その日の気温の当たり外れ。週末を通して動かさない */
+    const tempRoll = S.rnd(-1, 1);
+    const roadAt = (prog, rub) => S.roadTemp(track, weather, tempRoll, prog, rub);
     let wxTo = null, wxAt = 0;
     const wxInfo = { at: 0, from: weather.name, to: '', icon: '' };
     /* ---- 路面の濡れ具合 ----
@@ -1690,7 +1735,9 @@ GP.race = (function () {
       // 読みが浅いと、いまの路面に引きずられ、しかも当て推量が混じる
       const f = e.foresight == null ? 0.5 : e.foresight;
       const ahead = S.clamp(w + (truth - w) * f + S.rnd(-0.24, 0.24) * (1 - f), 0, 1);
-      const dry = pickTyre(laps - lap, { key: 'sunny' }, D.DRY_TYRES.indexOf(planned) >= 0 ? planned : null, e.tyreBias);
+      const dry = pickTyre(laps - lap, { key: 'sunny' },
+                           D.DRY_TYRES.indexOf(planned) >= 0 ? planned : null, e.tyreBias,
+                           roadAt(lap / laps, rubber));
       const want = bestWetTyre(ahead, dry, e);
       // 予定どおりで大きく損をしないなら、予定を尊重する
       const lossPlanned = wetLoss(tyreOf(planned), ahead, e);
@@ -1877,6 +1924,10 @@ GP.race = (function () {
         0, 2.6);
       e.tl = 0; e.tlTotal = 0; e.penServe = 0;
       e.tyreAge = 0;
+      /* グリッドではタイヤウォーマーで温めてあるが、
+         路面がそもそも冷えていれば1周目から食わない        */
+      e.tyreTemp = S.roadTemp(track, weather, tempRoll, 0, D.RUBBER.start) + 6;
+      e.lapTemp = [];
       e.startBoost = (e.sk('start') ? 2.2 : 0) + e.driver.technique / 200;
       /* ---- ストラテジストの読み ----
          路面が「いまどうか」ではなく「これからどうなるか」を、
@@ -2253,6 +2304,33 @@ GP.race = (function () {
           tb.laps = (tb.laps || 0) + 1;
         }
 
+        /* ---- 芯温 ----
+           路面を土台に、走らせかたで上下する。
+           1周で一気には動かないので、目標値へ少しずつ寄せる     */
+        {
+          const TT = D.TYRE_TEMP;
+          const road = roadAt(lap / laps, rubber);
+          let want = road
+                   + (e.order === 'push' ? TT.push : 0)
+                   + (e.order === 'save' || e.order === 'cool' ? TT.save : 0)
+                   + ((e.gapAhead != null && e.gapAhead < 1.6) ? TT.dirty : 0)
+                   + ((e.wearCar || 1) - 1) * TT.wearHeat;
+          if (scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps) want += TT.sc;
+          if (e.tyreTemp == null) e.tyreTemp = road;
+          e.tyreTemp += (want - e.tyreTemp) * TT.rate;
+          const off = S.tyreOff(ty, e.tyreTemp);
+          e.tyreOff = off;
+          e.lapTemp[lap - 1] = Math.round(e.tyreTemp);
+          if (off < 0) {
+            // 冷たいタイヤは食わない。グリップが無いぶん、そのまま遅い
+            t *= 1 + (-off / TT.span) * TT.coldPace;
+          } else if (off > 0) {
+            // 熱いタイヤは食うが、表面から壊れていく
+            t *= 1 + (off / TT.span) * TT.hotPace;
+            e.tyreAge += (off / TT.span) * TT.hotWear;
+          }
+        }
+
         /* タイヤ摩耗。寿命を超えると急激にタレる。
            軽い車体とダウンフォースは、この「齢の進みかた」そのものを
            遅くする。だから残量の表示も、実際に長く保つようになる     */
@@ -2421,6 +2499,8 @@ GP.race = (function () {
                  * S.careMissMul(e.driver)               // その人の「まとめる力」
                  * (1.55 - e.driver.mental / 190)
                  * (1 + tyreOver * 0.075)
+                 // 冷えたタイヤは、踏んだところで返ってこない
+                 * (1 + Math.max(0, -(e.tyreOff || 0)) / D.TYRE_TEMP.span * D.TYRE_TEMP.coldMiss)
                  * (0.55 + wx.chaos * 0.45) * (1 - e.wetSkill * wx.level * 0.55)
                  * ((1 - e.bd.drive * 0.25) / (1 - RIVAL_BODY_REF * 0.25))
                  * (e.driver.hurt ? 1.35 : 1)
@@ -2548,6 +2628,8 @@ GP.race = (function () {
              （雨に降られたときなど）は、そのぶん新しいものを出す      */
           const plan0 = e.stints[e.stintIdx];
           e.tyreAge = (plan0 && plan0.key === e.tyreKey && plan0.age0) || 0;
+          // 履いたばかりのタイヤは冷えている。1周目は食わない
+          e.tyreTemp = roadAt(lap / laps, rubber) + D.TYRE_TEMP.fresh;
           e.pitTyre = null;
           if (e.isPlayer) {
             const nt = tyreOf(e.tyreKey);
@@ -3027,6 +3109,10 @@ GP.race = (function () {
 
     return {
       track, trackIndex, weather, laps, grid, entries, classified, finishers,
+      /* その日の温度。画面と無線で使う */
+      airTemp: Math.round(S.airTemp(track, weather, tempRoll)),
+      roadTemp0: Math.round(roadAt(0, D.RUBBER.start)),
+      roadTemp1: Math.round(roadAt(1, rubber)),
       events, radio: radio, wetLog: wetLog, foreLog: foreLog, wxChange: chg, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,

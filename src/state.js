@@ -1932,6 +1932,65 @@ GP.state = (function () {
                + crewEff(g2).fore
                + kitEff(g2, 'weather', 'fore'), 0.10, 0.92);
   }
+  /* =======================================================
+     気温と路面温度
+
+     路面はいつも気温より高い。日が照れば一気に上がり、
+     雨なら冷える。レースが進めば日が傾いて下がり、
+     ゴムが乗ったぶんだけ、わずかに上がる。
+     ======================================================= */
+  function airTemp(track, wx, roll) {
+    const T = D.TEMP;
+    const h = track && track.heat != null ? track.heat : 0.5;
+    return T.airLo + (T.airHi - T.airLo) * h
+         + (roll == null ? 0 : roll) * T.swing
+         + (wx && wx.key === 'rain' ? T.rain * 0.5 : 0)
+         + (wx && wx.key === 'storm' ? T.storm * 0.5 : 0);
+  }
+  /* 路面温度。prog は 0（スタート）〜1（チェッカー）、rub は乗ったゴム 0..1 */
+  function roadTemp(track, wx, roll, prog, rub) {
+    const T = D.TEMP;
+    const key = (wx && wx.key) || 'cloud';
+    const up = key === 'sunny' ? T.sun : key === 'cloud' ? T.cloud
+             : key === 'rain' ? T.rain : T.storm;
+    return airTemp(track, wx, roll) + T.roadBase + up
+         - T.fade * clamp(prog || 0, 0, 1)
+         + T.rubber * clamp(rub || 0, 0, 1);
+  }
+  /* その銘柄の作動域。真ん中がいちばん食う */
+  function tyreBand(ty) {
+    const lo = ty && ty.tLo != null ? ty.tLo : 30;
+    const hi = ty && ty.tHi != null ? ty.tHi : 55;
+    return { lo: lo, hi: hi, mid: (lo + hi) / 2 };
+  }
+  /* 作動域からどれだけ外れているか。
+     負なら冷えすぎ、正なら熱すぎ、0 なら域の中（単位は℃）   */
+  function tyreOff(ty, temp) {
+    const b = tyreBand(ty);
+    if (temp < b.lo) return temp - b.lo;
+    if (temp > b.hi) return temp - b.hi;
+    return 0;
+  }
+  /* 温度の見た目。冷たい青からちょうどの緑、熱い赤まで連続で変える */
+  function tempTier(ty, temp) {
+    const b = tyreBand(ty), off = tyreOff(ty, temp);
+    if (off <= -14) return { key: 'icy',  name: '冷えきっている', icon: '🧊', color: '#4a86d8' };
+    if (off < 0)    return { key: 'cold', name: '冷えている',     icon: '❄️', color: '#6aa8e0' };
+    if (off >= 14)  return { key: 'melt', name: 'オーバーヒート', icon: '🔥', color: '#e0442a' };
+    if (off > 0)    return { key: 'hot',  name: '熱を持っている', icon: '♨️', color: '#e08a2a' };
+    // 域の中。真ん中に近いほど良い
+    const d = Math.abs(temp - b.mid) / Math.max(1, (b.hi - b.lo) / 2);
+    return d < 0.45
+      ? { key: 'peak', name: 'ど真ん中', icon: '🎯', color: '#2e8b30' }
+      : { key: 'ok',   name: '作動域',   icon: '🟢', color: '#4ea63f' };
+  }
+  /* いま履いている銘柄は、この路面温度に合っているか（0..1、1が最良）。
+     金曜の見立てと、週末の画面で使う                          */
+  function tyreTempFit(ty, road) {
+    const off = Math.abs(tyreOff(ty, road));
+    return clamp(1 - off / 22, 0, 1);
+  }
+
   function wetSkillOf(d) {
     if (!d) return 0;
     return clamp((hasSkill(d, 'rain') ? 0.42 : 0)
@@ -4394,7 +4453,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
-    driverOut, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
+    driverOut, airTemp, roadTemp, tyreBand, tyreOff, tempTier, tyreTempFit, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,

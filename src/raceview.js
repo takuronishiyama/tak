@@ -151,6 +151,18 @@ GP.raceview = (function () {
     const li = lapInfo(e, t);
     return (e.lapTyre || [])[li.lap - 1] || (e.lapTyre || [])[0] || null;
   }
+  /* いまのタイヤ温度と、作動域に対する位置（-1 冷え / 0 ちょうど / +1 熱すぎ） */
+  function tempNow(e, t, td) {
+    const li = lapInfo(e, t);
+    const v = (e.lapTemp || [])[li.lap - 1];
+    if (v == null || !td || td.tLo == null) return null;
+    const S2 = GP.state;
+    const off = S2.tyreOff(td, v);
+    const tier = S2.tempTier(td, v);
+    return { temp: v, off: off, tier: tier,
+             // 帯の中での位置（0..1）。外れているぶんは端に張りつく
+             pos: Math.max(0, Math.min(1, (v - td.tLo) / Math.max(1, td.tHi - td.tLo))) };
+  }
 
   function orderAt(t) {
     return res.entries.slice().map(e => {
@@ -1846,10 +1858,23 @@ GP.raceview = (function () {
         const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.7 ? ' old' : '';
         // 溝のないタイヤで濡れた路面に居る車は、ひと目で分かるようにする
         const dry = !td.wet && wetLevelAt(li.lap) > (GP.data.ENV || {}).dryWetFrom;
+        const tp = tempNow(e, vt, td);
+        /* 温度は細い帯で重ねる。銘柄の色を隠さずに、
+           冷えているか・ちょうどか・熱すぎるかが一目で分かる     */
+        const heat = tp
+          ? '<i class="rv-heat" style="background:' + tp.tier.color +
+            ';left:' + Math.round(tp.pos * 100) + '%"></i>'
+          : '';
+        const ttl = tp
+          ? 'タイヤ ' + tp.temp + '℃／' + tp.tier.name +
+            (tp.off < 0 ? '（作動域まで あと' + Math.round(-tp.off) + '℃）'
+                        : tp.off > 0 ? '（作動域を ' + Math.round(tp.off) + '℃ 超過）' : '')
+          : (dry ? '路面に対して溝がない。いつ失ってもおかしくない' : '');
         tychip = '<span class="tb-ty"><b class="rv-ty' + worn + (dry ? ' aqua' : '') +
+          (tp ? ' has-heat ' + tp.tier.key : '') +
           '" style="background:' + td.color + ';color:' + td.text + '"' +
-          (dry ? ' title="路面に対して溝がない。いつ失ってもおかしくない"' : '') + '>' +
-          td.short + '<em>' + ty.age + '</em></b></span>';
+          (ttl ? ' title="' + rvEsc(ttl) + '"' : '') + '>' +
+          td.short + '<em>' + ty.age + '</em>' + heat + '</b></span>';
       }
       const dLap = i === 0 ? 0 : Math.max(0, Math.floor(ord[i - 1].p - o.p + 1e-9));
       const gapA = (o.out || i === 0 || behind[i] == null || behind[i - 1] == null) ? '—'

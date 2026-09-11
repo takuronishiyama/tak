@@ -95,6 +95,28 @@ GP.screens.weekend = function (A) {
     const wx = pre.weather;
     const pc = Math.round(f.p * 100);
     const fo = Math.round(S.foresightOf(g) * 100);
+    /* ---- 今日の温度と、銘柄の目覚め ----
+       走れば少し熱が入るので、そのぶん（+7℃）を見込んだ芯温で見る */
+    function tempBoxHTML(w0) {
+      const t0 = S.trackAt(g, g.nextRace) || D.TRACKS[0];
+      const air = Math.round(S.airTemp(t0, w0, 0));
+      const road = S.roadTemp(t0, w0, 0, 0.2, 0.3);
+      const core = road + 7;
+      const rows = D.DRY_TYRES.map(k => {
+        const ty = D.TYRES.filter(x => x.key === k)[0];
+        const tier = S.tempTier(ty, core);
+        const off = S.tyreOff(ty, core);
+        return '<span class="tmp-ty" title="作動域 ' + ty.tLo + '〜' + ty.tHi + '℃">' +
+          '<b style="background:' + ty.color + ';color:' + ty.text + '">' + ty.short + '</b>' +
+          '<em style="color:' + tier.color + '">' + tier.icon + tier.name + '</em>' +
+          '<u>' + (off < 0 ? 'あと' + Math.round(-off) + '℃' :
+                   off > 0 ? '+' + Math.round(off) + '℃' : 'ちょうど') + '</u></span>';
+      }).join('');
+      return '<div class="tmpbox"><b>🌡️ 気温 ' + air + '℃／路面 ' + Math.round(road) + '℃</b>' +
+        '<div class="tmp-row">' + rows + '</div>' +
+        '<small>走れば芯に熱が入ります（+7℃ほど）。攻めればさらに上がり、抑えれば抜けます。' +
+        'レース終盤は日が傾いて路面が下がります。</small></div>';
+    }
     const cls = pc >= 65 ? 'hi' : pc >= 35 ? 'mid' : 'lo';
     const wet = f.to && (f.to.key === 'rain' || f.to.key === 'storm');
     return '<div class="sub">🌤️ 決勝の空模様</div>' +
@@ -103,6 +125,7 @@ GP.screens.weekend = function (A) {
       '<span class="fc-arrow">→</span>' +
       '<span class="fc-next"><u>この先</u><b>' + (f.to ? f.to.icon : '☁️') + '</b>' +
       '<span>' + (f.to ? f.to.name : 'くもり') + ' <b>' + pc + '%</b></span></span>' +
+      tempBoxHTML(wx) +
       '<small>ピットウォールの読み <b>' + fo + '%</b>' +
       '（🧠ストラテジストと📡天気の設備で上がります）。' +
       '読みが高いほど、この％は本当のことに近づきます。<br>' +
