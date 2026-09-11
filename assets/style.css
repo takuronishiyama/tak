@@ -2908,8 +2908,10 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 
   /* ---- レース画面 ---- */
   .rv-wrap{max-height:100%;height:100%;gap:4px;padding:5px;border-width:3px}
+  /* 横に流す列。中の項目が縮むと重なって読めなくなるので、縮ませない */
   .rv-head{padding:3px 8px;font-size:11px;gap:6px;flex-wrap:nowrap;overflow-x:auto;
            scrollbar-width:none}
+  .rv-head > *{flex:0 0 auto}
   .rv-head::-webkit-scrollbar{display:none}
   .rv-head b{font-size:12px;flex:0 0 auto}
   .rv-head #rvLap{font-size:12px}
@@ -3468,6 +3470,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
    この上書きは、上のほうにある同じ強さの指定に負けないよう末尾に置く */
 @media (max-height:560px) and (orientation:landscape){
   .rv-wrap.timing .rv-body{display:none}
+  /* モニターを伸ばすぶん、ヘッダーは縮ませない。
+     縮むと天気の札が上下に切れて読めなくなる            */
+  .rv-wrap.timing .rv-head{flex:0 0 auto}
   .rv-wrap.timing .rv-mon{flex:1 1 auto;min-height:0;align-items:stretch}
   .rv-wrap.timing .rv-mon .rv-sectors,
   .rv-wrap.timing .rv-mon .rv-sectors.board,

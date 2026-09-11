@@ -1845,7 +1845,14 @@ GP.raceview = (function () {
        0.02周しか離れていない2位まで +1周 と出てしまう。
        数えるのは、あくまで走った距離の差のほう。            */
     const lapsDown = ord.map(o => Math.max(0, Math.floor(leader.p - o.p + 1e-9)));
-    let h = condStripHTML(Math.min(res.laps, Math.floor(leader.p) + 1)) +
+    /* すぐ上のヘッダーが LAP・天気・路面・ゴムを出しているので、
+       同じ帯をもう一段置かない。狭い画面では、そのぶん表が2行増える。
+       濡れているときだけは、セクターごとの濡れ具合という
+       ヘッダーに無いものが乗るので、そこは残す                   */
+    const lapNow = Math.min(res.laps, Math.floor(leader.p) + 1);
+    const wl0 = (res.wetLog || [])[Math.max(0, lapNow - 1)];
+    const wetNow = wl0 && Math.max(wl0[0], wl0[1], wl0[2]) >= 0.08;
+    let h = (wetNow ? condStripHTML(lapNow) : '') +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
       '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
