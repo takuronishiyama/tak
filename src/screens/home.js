@@ -47,8 +47,19 @@ GP.screens.home = function (A) {
      ======================================================= */
   const fuseCost = m => Math.round(400 + m.power * 22);
 
+  /* マシンに積んでいるもの。
+     整備の画面の中にも同じものを貼るので、
+     組み立てと配線を分けてある。
+     戻り先が画面によって違うので、配線のほうは受け取る    */
   function cmdGarage() {
-    let body = '<div class="sub">装着中のパーツ</div><div class="parts">';
+    // 積んでいるものの管理は、整備の2枚目に置いてある
+    A.cmdMaintain('kit');
+  }
+
+  function garageHTML() {
+    let body = '<div class="sub">装着中のパーツ</div>' +
+      '<p class="desc">📐開発で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
+      '降ろしたものは下の保管庫に入ります。' + U.helpLink('car') + '</p><div class="parts">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       const spare = g.inventory.filter(x => x.cat === c.key).length;
@@ -62,7 +73,8 @@ GP.screens.home = function (A) {
 
     body += '<div class="sub">保管パーツ（' + g.inventory.length + ' / 24）</div>';
     if (!g.inventory.length) {
-      body += '<p class="desc">保管パーツはありません。「開発」→「新しいパーツを設計する」で作れます。</p>';
+      body += '<p class="desc">保管パーツはありません。' +
+        '「📐 開発」→「新しいパーツを設計する」で作ると、ここに入ります。</p>';
     } else {
       body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
       g.inventory.forEach(p => {
@@ -79,14 +91,30 @@ GP.screens.home = function (A) {
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
       '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
-      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。</p>' +
+      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。<br>' +
+      'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
       puBoxHTML(null);
 
-    U.modal('🏎️ マシン', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-    bindPuBox(cmdGarage);
+    // ---- シャシーの在庫 ----
+    body += A.spareBoxHTML();
+    return body;
+  }
+
+  /* 画面に貼ったあとの配線。back は、押したあとに開き直す先 */
+  function bindGarage(back) {
+    const again = back || cmdGarage;
+    bindPuBox(again);
     bindAct('data-swap', k => openSwap(k));
-    bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
+    bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
+    bindAct('data-spare', () => {
+      const r2 = S.buySpare(g);
+      if (!r2) return;
+      GP.sound.play('build');
+      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
+      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
+      S.save(g); render(); again();
+    });
     bindAct('data-del', id => {
       const p = g.inventory.find(x => x.id === id);
       if (!p) return;
@@ -94,9 +122,9 @@ GP.screens.home = function (A) {
         { label: '破棄する', cls: 'danger', fn: () => {
             g.inventory = g.inventory.filter(x => x.id !== id);
             U.log(g, '🗑️ ' + p.name + ' を破棄した。');
-            S.save(g); render(); cmdGarage();
+            S.save(g); render(); again();
           } },
-        { label: 'やめる', fn: cmdGarage }
+        { label: 'やめる', fn: again }
       ]);
     });
   }
@@ -2432,6 +2460,7 @@ GP.screens.home = function (A) {
     name: 'home',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdGarage: cmdGarage, bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
+    api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
+           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };

@@ -615,9 +615,6 @@ GP.screens.dev = function (A) {
     // ---- 開発の腰まわりと、いま積んでいるパーツ ----
     body += devHeadHTML() + partsBoxHTML();
 
-    // ---- シャシーの在庫 ----
-    body += spareBoxHTML();
-
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -695,14 +692,6 @@ GP.screens.dev = function (A) {
       else if (kind === 'imp') doImprove(key);
     });
     bindMat();
-    bindAct('data-spare', () => {
-      const r2 = S.buySpare(g);
-      if (!r2) return;
-      GP.sound.play('build');
-      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
-      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
-      S.save(g); render(); cmdDesign();
-    });
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -1791,7 +1780,7 @@ GP.screens.dev = function (A) {
 
     body += customerBoxHTML();
 
-    U.modal('🔌 エンジン供給', body, [{ label: 'とじる', fn: U.closeModal }]);
+    U.modal('🔌 エンジン／パーツ供給', body, [{ label: 'とじる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
       if (k === '__engoff') return doEngineOff();
@@ -2002,7 +1991,15 @@ GP.screens.dev = function (A) {
     const per = (100 - rel) / 100 * 0.0022 * ((t && t.risk) || 1);
     return (1 - Math.pow(1 - per, laps)) * 100;
   }
-  function cmdMaintain() {
+  /* 整備の画面は二枚。
+       🔧 整備する     … 傷んだところを直す（1週）
+       🧩 積んでいるもの … 載せ替え・保管庫・エンジン・シャシーの在庫
+     作ったパーツをどこで積むのかが分からない、という声があった。
+     直す場所と積み替える場所が別々の入口だったのが原因なので、
+     ひとつの画面の中に並べる                                    */
+  let mtTab = 'fix';
+  function cmdMaintain(tab) {
+    if (tab) mtTab = tab;
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
@@ -2023,7 +2020,24 @@ GP.screens.dev = function (A) {
       return v;
     })();
 
-    let body = interiorHTML('pit') +
+    const TABS = [['fix', '🔧', '整備する', ''],
+                  ['kit', '🧩', '積んでいるもの',
+                   (g.inventory || []).length ? '保管 ' + g.inventory.length : '']];
+    const tabsHTML = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
+      '<button class="tab' + (mtTab === t[0] ? ' on' : '') + '" data-mtab="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    /* ---- 積んでいるものの管理 ---- */
+    if (mtTab === 'kit') {
+      let kit = interiorHTML('pit') + tabsHTML + A.garageHTML();
+      U.modal('🛠️ 整備', kit, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+      paintInterior();
+      A.bindGarage(() => cmdMaintain('kit'));
+      bindMtTabs();
+      return;
+    }
+
+    let body = interiorHTML('pit') + tabsHTML +
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
         '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
@@ -2052,11 +2066,17 @@ GP.screens.dev = function (A) {
       '設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) + '%</b> の危うさを打ち消しています）が上がるほど、' +
       '同じコンディションでも壊れにくくなります。</p>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
-    U.modal('🛠️ 分解整備', body, [
+    U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
-    ]);
+    ], { wide: true });
     paintInterior();
+    bindMtTabs();
+  }
+  function bindMtTabs() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdMaintain(b.dataset.mtab); };
+    });
   }
   function doMaintain(cost) {
     g.funds -= cost;
@@ -2381,7 +2401,7 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: {
+    api: { spareBoxHTML: spareBoxHTML,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };

@@ -3467,11 +3467,11 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <button class="cmd" id="cKart" title="自前のカート場でレースを開く。若手が伸び、街の子が見つかる"><span>🏁</span>カート</button>
       <span class="cmd-sep"></span>
       <div class="cmdsubs">
-        <button class="cmd sub" id="cGarage"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cGarage" title="いま積んでいるものを見て、載せ替える"><span>🏎️</span>マシン</button>
         <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
-        <button class="cmd sub" id="cEngine" title="パワーユニットをよそから買うか、こちらから分けるか"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cEngine" title="エンジンとパーツの供給。よそから買うか、こちらから分けるか"><span>🔌</span>供給</button>
         <button class="cmd sub" id="cInfo"><span>📖</span>情報</button>
         <button class="cmd sub" id="cOwner"><span>🎩</span>オーナー</button>
       </div>
@@ -3484,7 +3484,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
         <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
-        <button class="cmd sub" id="cEngineR"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cEngineR" title="エンジンとパーツの供給"><span>🔌</span>供給</button>
         <button class="cmd sub" id="cOwnerR"><span>🎩</span>オーナー</button>
       </div>
     </div>
@@ -3496,7 +3496,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
         <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
-        <button class="cmd sub" id="cEngineO"><span>🔌</span>エンジン</button>
+        <button class="cmd sub" id="cEngineO" title="エンジンとパーツの供給"><span>🔌</span>供給</button>
         <button class="cmd sub" id="cInfoO"><span>📖</span>情報</button>
         <button class="cmd sub" id="cOwnerO"><span>🎩</span>オーナー</button>
       </div>
@@ -20436,9 +20436,6 @@ GP.screens.dev = function (A) {
     // ---- 開発の腰まわりと、いま積んでいるパーツ ----
     body += devHeadHTML() + partsBoxHTML();
 
-    // ---- シャシーの在庫 ----
-    body += spareBoxHTML();
-
     // ---- 素材 ----
     body += matBoxHTML();
 
@@ -20516,14 +20513,6 @@ GP.screens.dev = function (A) {
       else if (kind === 'imp') doImprove(key);
     });
     bindMat();
-    bindAct('data-spare', () => {
-      const r2 = S.buySpare(g);
-      if (!r2) return;
-      GP.sound.play('build');
-      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
-      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
-      S.save(g); render(); cmdDesign();
-    });
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
   }
@@ -21612,7 +21601,7 @@ GP.screens.dev = function (A) {
 
     body += customerBoxHTML();
 
-    U.modal('🔌 エンジン供給', body, [{ label: 'とじる', fn: U.closeModal }]);
+    U.modal('🔌 エンジン／パーツ供給', body, [{ label: 'とじる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
       if (k === '__engoff') return doEngineOff();
@@ -21823,7 +21812,15 @@ GP.screens.dev = function (A) {
     const per = (100 - rel) / 100 * 0.0022 * ((t && t.risk) || 1);
     return (1 - Math.pow(1 - per, laps)) * 100;
   }
-  function cmdMaintain() {
+  /* 整備の画面は二枚。
+       🔧 整備する     … 傷んだところを直す（1週）
+       🧩 積んでいるもの … 載せ替え・保管庫・エンジン・シャシーの在庫
+     作ったパーツをどこで積むのかが分からない、という声があった。
+     直す場所と積み替える場所が別々の入口だったのが原因なので、
+     ひとつの画面の中に並べる                                    */
+  let mtTab = 'fix';
+  function cmdMaintain(tab) {
+    if (tab) mtTab = tab;
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
@@ -21844,7 +21841,24 @@ GP.screens.dev = function (A) {
       return v;
     })();
 
-    let body = interiorHTML('pit') +
+    const TABS = [['fix', '🔧', '整備する', ''],
+                  ['kit', '🧩', '積んでいるもの',
+                   (g.inventory || []).length ? '保管 ' + g.inventory.length : '']];
+    const tabsHTML = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
+      '<button class="tab' + (mtTab === t[0] ? ' on' : '') + '" data-mtab="' + t[0] + '">' +
+      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    /* ---- 積んでいるものの管理 ---- */
+    if (mtTab === 'kit') {
+      let kit = interiorHTML('pit') + tabsHTML + A.garageHTML();
+      U.modal('🛠️ 整備', kit, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+      paintInterior();
+      A.bindGarage(() => cmdMaintain('kit'));
+      bindMtTabs();
+      return;
+    }
+
+    let body = interiorHTML('pit') + tabsHTML +
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
         '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
@@ -21873,11 +21887,17 @@ GP.screens.dev = function (A) {
       '設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) + '%</b> の危うさを打ち消しています）が上がるほど、' +
       '同じコンディションでも壊れにくくなります。</p>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
-    U.modal('🛠️ 分解整備', body, [
+    U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
-    ]);
+    ], { wide: true });
     paintInterior();
+    bindMtTabs();
+  }
+  function bindMtTabs() {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdMaintain(b.dataset.mtab); };
+    });
   }
   function doMaintain(cost) {
     g.funds -= cost;
@@ -22202,7 +22222,7 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: {
+    api: { spareBoxHTML: spareBoxHTML,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
@@ -25379,8 +25399,19 @@ GP.screens.home = function (A) {
      ======================================================= */
   const fuseCost = m => Math.round(400 + m.power * 22);
 
+  /* マシンに積んでいるもの。
+     整備の画面の中にも同じものを貼るので、
+     組み立てと配線を分けてある。
+     戻り先が画面によって違うので、配線のほうは受け取る    */
   function cmdGarage() {
-    let body = '<div class="sub">装着中のパーツ</div><div class="parts">';
+    // 積んでいるものの管理は、整備の2枚目に置いてある
+    A.cmdMaintain('kit');
+  }
+
+  function garageHTML() {
+    let body = '<div class="sub">装着中のパーツ</div>' +
+      '<p class="desc">📐開発で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
+      '降ろしたものは下の保管庫に入ります。' + U.helpLink('car') + '</p><div class="parts">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
       const spare = g.inventory.filter(x => x.cat === c.key).length;
@@ -25394,7 +25425,8 @@ GP.screens.home = function (A) {
 
     body += '<div class="sub">保管パーツ（' + g.inventory.length + ' / 24）</div>';
     if (!g.inventory.length) {
-      body += '<p class="desc">保管パーツはありません。「開発」→「新しいパーツを設計する」で作れます。</p>';
+      body += '<p class="desc">保管パーツはありません。' +
+        '「📐 開発」→「新しいパーツを設計する」で作ると、ここに入ります。</p>';
     } else {
       body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
       g.inventory.forEach(p => {
@@ -25411,14 +25443,30 @@ GP.screens.home = function (A) {
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
       '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
-      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。</p>' +
+      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。<br>' +
+      'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
       puBoxHTML(null);
 
-    U.modal('🏎️ マシン', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-    bindPuBox(cmdGarage);
+    // ---- シャシーの在庫 ----
+    body += A.spareBoxHTML();
+    return body;
+  }
+
+  /* 画面に貼ったあとの配線。back は、押したあとに開き直す先 */
+  function bindGarage(back) {
+    const again = back || cmdGarage;
+    bindPuBox(again);
     bindAct('data-swap', k => openSwap(k));
-    bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
+    bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
+    bindAct('data-spare', () => {
+      const r2 = S.buySpare(g);
+      if (!r2) return;
+      GP.sound.play('build');
+      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
+      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
+      S.save(g); render(); again();
+    });
     bindAct('data-del', id => {
       const p = g.inventory.find(x => x.id === id);
       if (!p) return;
@@ -25426,9 +25474,9 @@ GP.screens.home = function (A) {
         { label: '破棄する', cls: 'danger', fn: () => {
             g.inventory = g.inventory.filter(x => x.id !== id);
             U.log(g, '🗑️ ' + p.name + ' を破棄した。');
-            S.save(g); render(); cmdGarage();
+            S.save(g); render(); again();
           } },
-        { label: 'やめる', fn: cmdGarage }
+        { label: 'やめる', fn: again }
       ]);
     });
   }
@@ -27764,7 +27812,8 @@ GP.screens.home = function (A) {
     name: 'home',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdGarage: cmdGarage, bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
+    api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
+           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };
 
@@ -27858,6 +27907,11 @@ GP.screens.help = function (A) {
           '📐開発では、いま積んでいるパーツの性能を上限へ近づけることもできます。上限は「世代 × そのパーツの品質」で決まっていて、叩いても動きません。',
           '同じ📐開発で、新しいパーツを作ります。同じ図面から作っても出来はそのつどちがい、品質は<b>作った瞬間に決まって、あとから変わりません</b>。上限で詰まったら、作り直して良い個体を引き当てるしかありません。',
           '品質は 並 → 良品 → 上物 → 特上 → 会心作。数字がそのまま上限の倍率です。'
+        ] },
+        { h: '作ったパーツを積む', p: [
+          '📐開発で設計したパーツは、その場では積まれません。いったん<b>保管庫</b>に入ります。',
+          '積み替えるのは <b>🛠️ 整備 →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
+          'コマンドバーの「🏎️ マシン」を押しても、同じところが開きます。'
         ] },
         { h: '素材', p: [
           'パーツを作り、煮詰めるたびに、その扇に勘所が貯まります。溜まったぶんをファクトリーで使うと、その扇の素材が一段上がります（スチール → アルミ合金 → チタン → カーボン → 複合材）。',
@@ -28001,8 +28055,8 @@ GP.screens.help = function (A) {
       ]
     },
     {
-      key: 'engine', icon: '🔌', name: 'エンジン',
-      lead: '買うか、自分で作るか、よそへ配るか。',
+      key: 'engine', icon: '🔌', name: 'エンジンとパーツの供給',
+      lead: '買うか、自分で作るか、よそへ配るか。外とのやりとりは「🔌 供給」でまとめて決めます。',
       secs: [
         { h: '買う', p: [
           '強いチームからパワーユニットを買えます。すぐに速くなるうえ、供給元が開発したぶんが毎週降りてきます。そのかわり、供給元より速くなることはありません。'
