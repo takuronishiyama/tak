@@ -10005,16 +10005,19 @@ GP.state = (function () {
     const after = { speed:  r.stats.speed  + lift * PU.gain.speed,
                     corner: r.stats.corner,
                     accel:  r.stats.accel  + lift * PU.gain.accel };
-    const perfOf = st => carScoreOf(st, track) * 0.60 + 30 * 0.40;
+    /* race.js と同じ 0.60/0.40。ドライバーは、そのチームの速いほうを使う */
+    const drvOf = t => Math.max.apply(null,
+      ((t && t.drivers) || []).map(driverRating).concat([30]));
+    const perfOf = (st, t) => carScoreOf(st, track) * 0.60 + drvOf(t) * 0.40;
     // その顔ぶれの基準。race.js の perfRef と同じ組み立て
     const ref = Math.max.apply(null,
-      (g2.rivals || []).map(x => perfOf(x === r ? after : x.stats))
-        .concat([perfOf(carStats(g2))])) + 4;
+      (g2.rivals || []).map(x => perfOf(x === r ? after : x.stats, x))
+        .concat([perfOf(carStats(g2), { drivers: g2.drivers || [] })])) + 4;
     const lapAt = perf => {
       const rel = (ref - perf) / Math.max(1, ref);
       return track.base * (1 + D.PACE.k * D.PACE.soft * Math.tanh(rel / D.PACE.soft));
     };
-    return Math.max(0, lapAt(perfOf(r.stats)) - lapAt(perfOf(after)));
+    return Math.max(0, lapAt(perfOf(r.stats, r)) - lapAt(perfOf(after, r)));
   }
 
   /* 「分けてほしい」と言ってくるチーム。
@@ -21644,7 +21647,6 @@ GP.screens.dev = function (A) {
     }
 
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
-      (found ? '  🔬研究の知見をひとつ使った' : '') +
       (brk ? '  🔬' + brk + '！' : crit ? '  ✨ひらめき大成功！' : '');
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
@@ -22651,7 +22653,8 @@ GP.screens.dev = function (A) {
     link: link,
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML,
-      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
+      cmdDesign: cmdDesign, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
 

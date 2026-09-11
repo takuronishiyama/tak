@@ -1589,7 +1589,6 @@ GP.screens.dev = function (A) {
     }
 
     const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
-      (found ? '  🔬研究の知見をひとつ使った' : '') +
       (brk ? '  🔬' + brk + '！' : crit ? '  ✨ひらめき大成功！' : '');
     staffExp('engineer', 12); staffExp('designer', 3);
     U.log(g, msg, crit ? 'good' : '');
@@ -2596,6 +2595,7 @@ GP.screens.dev = function (A) {
     link: link,
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML,
-      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
+      cmdDesign: cmdDesign, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
