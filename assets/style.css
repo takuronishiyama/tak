@@ -3274,6 +3274,13 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .carmix{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
         padding:6px 9px;margin-bottom:8px}
 .cm-h{display:block;font-size:11.5px;margin-bottom:4px;color:var(--faceTx)}
+/* この車がどういう車なのか（本体の性格と、パーツの振りかた） */
+.cm-char{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.cm-trait,.cm-dir{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
+  border:2px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;line-height:1.5}
+.cm-trait em{font-style:normal;font-size:9.5px;opacity:.85}
+.cm-char i{font-style:normal;font-size:10.5px;color:var(--faceTx);opacity:.9;min-width:0}
+.cm-amp{display:block;font-size:10.5px;margin-top:3px;color:var(--faceTx);opacity:.9}
 .cm-bar{display:flex;height:12px;border:2px solid var(--ink);border-radius:4px;
         overflow:hidden;background:var(--trough)}
 .cm-seg{display:block;height:100%}

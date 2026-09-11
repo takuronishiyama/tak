@@ -691,7 +691,52 @@ GP.data = (function () {
      新車を出せばここが上がる。
      k はパーツ側との釣り合い。1.4 だと、序盤で全体の3〜4割、
      煮詰まった終盤で2割弱を、本体が担う                        */
-  const CHASSIS = { k: 1.4 };
+  const CHASSIS = {
+    k: 1.4,
+    /* 本体を作るときに引く配分の振れ幅。
+       0.34 が均等で、tilt のぶんだけ強い軸と弱い軸ができる。
+       lean はコンセプトの向きへどれだけ引っぱられるか        */
+    tilt: 0.22, lean: 0.10
+  };
+
+  /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
+  const CHASSIS_TRAITS = [
+    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3a7ad9',
+      note: '伸びる。ただし、曲がるところで貯金を吐き出す' },
+    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4ea63f',
+      note: '荷重が乗る。低速も高速も、コーナーで稼げる' },
+    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0644a',
+      note: '立ち上がりが強い。ストップ&ゴーのコースで生きる' },
+    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#c98b4a',
+      note: '尖ってはいないが、どこへ持って行っても大崩れしない' }
+  ];
+  /* 開きの大きさの呼び名（弱い軸に対する強い軸の比） */
+  /* 実際に2000台引いて、25%点・75%点でおおよそ三等分になる位置に置いてある。
+     ここを決め打ちにすると、tilt を触ったとたんに
+     「どの車も極端」になって言葉の意味がなくなる                */
+  const CHASSIS_EDGE = [
+    { at: 0.00, name: '穏やか' },
+    { at: 1.58, name: 'はっきり' },
+    { at: 2.71, name: '極端' }
+  ];
+
+  /* ---------- パーツをどちらへ振るか ----------
+     本体の強い軸へ積むのが補強、弱い軸を埋めるのが是正。
+     どちらが正しいということはなく、走るコースで向き不向きが出る */
+  const CAR_DIRS = [
+    { key: 'boost', name: '補強', icon: '⬆️', color: '#3a7ad9',
+      note: '本体の得意をさらに伸ばしている。合うコースでは手がつけられない' },
+    { key: 'fix',   name: '是正', icon: '🩹', color: '#4ea63f',
+      note: '本体の苦手を埋めている。どこへ行っても大きくは崩れない' },
+    { key: 'flat',  name: 'そのまま', icon: '➖', color: '#a89878',
+      note: '本体の性格をそのまま引き継いでいる' }
+  ];
+
+  /* ---------- 偏りの増幅 ----------
+     インテグレート率が高いほど、その車の偏りが際立つ。
+     まとまっていない車は、良いところも悪いところも出てこない。
+     合計は変わらない（配分だけが動く）ので、速さそのものは増えない */
+  const AMP = { k: 1.20, mid: 0.72 };
 
   /* ---------- インテグレート率 ----------
      ばらばらの部品と本体を、1台の車としてどれだけ引き出せているか。
@@ -2849,6 +2894,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

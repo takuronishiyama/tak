@@ -683,14 +683,82 @@ GP.state = (function () {
     return out;
   }
 
-  /* ---------- マシン本体（シャシー）の素の能力 ----------
+  /* ---------- マシン本体（シャシー）の配分 ----------
+     車を作るときに一度だけ引く。強い軸と弱い軸ができ、
+     そこからその車の性格が決まる。
+     コンセプトの向きへ少し引っぱられるが、そのとおりにはならない
+     （狙って作っても、出来上がってみないと分からない）        */
+  function rollChassis(g2) {
+    const C = D.CHASSIS;
+    const cn = D.CONCEPTS.filter(x => x.key === conceptOf(g2))[0];
+    const AX = ['speed', 'corner', 'accel'];
+    const w = {};
+    AX.forEach(k => {
+      // コンセプトが名指ししている軸は、少しだけ出やすい
+      const pull = (cn && cn.lead === k) ? C.lean : 0;
+      w[k] = 1 / 3 + pull + rnd(-C.tilt, C.tilt);
+    });
+    const tot = AX.reduce((a, k) => a + Math.max(0.08, w[k]), 0);
+    const out = {};
+    AX.forEach(k => { out[k] = Math.round(Math.max(0.08, w[k]) / tot * 1000) / 1000; });
+    return out;
+  }
+  /* いまの本体の配分。古いセーブや作りたてには、その場で引く */
+  function chassisOf(g2) {
+    if (!g2.chassis || g2.chassis.speed == null) g2.chassis = rollChassis(g2);
+    return g2.chassis;
+  }
+
+  /* ---------- マシン本体の素の能力 ----------
      パーツを1つも載せ替えなくても、車そのものが持っている速さ。
-     世代の器に比例するので、新車を出すとここが跳ね上がる。
-     速さ・コーナー・加速へ均等に配る（偏りはパーツと作り込みが作る） */
+     世代の器に比例するので、新車を出すとここが跳ね上がる       */
   function chassisStats(g2) {
     const gen = D.CAR_GENS[clamp(g2.carGen || 0, 0, D.CAR_GENS.length - 1)];
-    const v = gen.cap * D.CHASSIS.k / 3;
-    return { speed: v, corner: v, accel: v };
+    const tot = gen.cap * D.CHASSIS.k;
+    const c = chassisOf(g2);
+    return { speed: tot * c.speed, corner: tot * c.corner, accel: tot * c.accel };
+  }
+
+  /* 本体の性格。いちばん強い軸と、強い軸／弱い軸の開きで決まる */
+  function chassisTrait(g2) {
+    const c = chassisOf(g2);
+    const AX = ['speed', 'corner', 'accel'];
+    let hi = AX[0], lo = AX[0];
+    AX.forEach(k => { if (c[k] > c[hi]) hi = k; if (c[k] < c[lo]) lo = k; });
+    const edge = c[lo] > 0 ? c[hi] / c[lo] : 1;
+    let ed = D.CHASSIS_EDGE[0];
+    D.CHASSIS_EDGE.forEach(x => { if (edge >= x.at) ed = x; });
+    const key = ed === D.CHASSIS_EDGE[0] ? 'even' : hi;
+    const def = D.CHASSIS_TRAITS.filter(x => x.key === key)[0] || D.CHASSIS_TRAITS[3];
+    return { def: def, hi: hi, lo: lo, edge: edge, edgeName: ed.name };
+  }
+
+  /* ---------- パーツをどちらへ振っているか ----------
+     本体の強い軸へ積んでいれば補強、弱い軸を埋めていれば是正。
+     いま積んでいるパーツの配分と、本体の配分を見比べて決める   */
+  function partsLean(g2) {
+    const s = { speed: 0, corner: 0, accel: 0 };
+    D.PART_CATS.forEach(c => {
+      const p = g2.equipped[c.key];
+      if (!p) return;
+      const ps = partStats(p, g2);
+      s.speed += ps.speed; s.corner += ps.corner; s.accel += ps.accel;
+    });
+    const tot = s.speed + s.corner + s.accel;
+    if (tot <= 0) return { speed: 1 / 3, corner: 1 / 3, accel: 1 / 3 };
+    return { speed: s.speed / tot, corner: s.corner / tot, accel: s.accel / tot };
+  }
+  function carDirection(g2) {
+    const tr = chassisTrait(g2);
+    const pl = partsLean(g2);
+    const c = chassisOf(g2);
+    // 本体の強い軸／弱い軸を、パーツがどれだけ持ち上げているか
+    const up = pl[tr.hi] - c[tr.hi];
+    const dn = pl[tr.lo] - c[tr.lo];
+    const gap = up - dn;                    // ＋なら尖らせ、−なら埋め
+    const key = gap > 0.045 ? 'boost' : gap < -0.045 ? 'fix' : 'flat';
+    const def = D.CAR_DIRS.filter(x => x.key === key)[0];
+    return { def: def, gap: gap, hi: tr.hi, lo: tr.lo, trait: tr };
   }
 
   /* 部位どうしの噛み合いが、満点に対してどこまで来ているか（0..1） */
@@ -740,8 +808,17 @@ GP.state = (function () {
        ここは配分の話なので、掛け算の前に足しておく             */
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
-    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
+    /* ---- 偏りの増幅 ----
+       まとめ上げた車ほど、その車らしさが際立つ。
+       まとまっていない車は、良いところも悪いところも出てこない。
+       合計は動かさず、配分だけを伸び縮みさせる               */
     const it = integrateRate(g).rate;
+    const amp = 1 + D.AMP.k * (it - D.AMP.mid);
+    const mean = (s.speed + s.corner + s.accel) / 3;
+    s.speed = Math.max(0, mean + (s.speed - mean) * amp);
+    s.corner = Math.max(0, mean + (s.corner - mean) * amp);
+    s.accel = Math.max(0, mean + (s.accel - mean) * amp);
+    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
     s.speed *= it; s.corner *= it; s.accel *= it;
     return s;
   }
@@ -881,6 +958,9 @@ GP.state = (function () {
     const stock = g2.nextCar || 0;
     g2.body = makeBody(g2, g2.body, stock);
     g2.nextCar = 0;
+    /* 新造した車は、前の車とは別の性格になる。
+       狙って作っても、出来上がってみないと分からない  */
+    g2.chassis = rollChassis(g2);
     // パーツのコンディションもシェイクダウンで整う
     D.PART_CATS.forEach(c => {
       const p = g2.equipped[c.key];
@@ -3084,6 +3164,7 @@ GP.state = (function () {
     };
     g.calendar = buildCalendar(g);
     D.PART_GROUPS.forEach(gr => { g.mat[gr.key] = 0; g.matP[gr.key] = 0; });
+    g.chassis = rollChassis(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1.0, { power: 10, cond: 92, traits: [] }); });
     g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
     g.body = makeBody(g, null);
@@ -3884,7 +3965,8 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
-    chassisStats, meshScore, integrateRate,
+    chassisStats, chassisOf, chassisTrait, rollChassis,
+    partsLean, carDirection, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,

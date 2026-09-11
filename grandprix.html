@@ -3289,6 +3289,13 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .carmix{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
         padding:6px 9px;margin-bottom:8px}
 .cm-h{display:block;font-size:11.5px;margin-bottom:4px;color:var(--faceTx)}
+/* この車がどういう車なのか（本体の性格と、パーツの振りかた） */
+.cm-char{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.cm-trait,.cm-dir{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
+  border:2px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;line-height:1.5}
+.cm-trait em{font-style:normal;font-size:9.5px;opacity:.85}
+.cm-char i{font-style:normal;font-size:10.5px;color:var(--faceTx);opacity:.9;min-width:0}
+.cm-amp{display:block;font-size:10.5px;margin-top:3px;color:var(--faceTx);opacity:.9}
 .cm-bar{display:flex;height:12px;border:2px solid var(--ink);border-radius:4px;
         overflow:hidden;background:var(--trough)}
 .cm-seg{display:block;height:100%}
@@ -4588,7 +4595,52 @@ GP.data = (function () {
      新車を出せばここが上がる。
      k はパーツ側との釣り合い。1.4 だと、序盤で全体の3〜4割、
      煮詰まった終盤で2割弱を、本体が担う                        */
-  const CHASSIS = { k: 1.4 };
+  const CHASSIS = {
+    k: 1.4,
+    /* 本体を作るときに引く配分の振れ幅。
+       0.34 が均等で、tilt のぶんだけ強い軸と弱い軸ができる。
+       lean はコンセプトの向きへどれだけ引っぱられるか        */
+    tilt: 0.22, lean: 0.10
+  };
+
+  /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
+  const CHASSIS_TRAITS = [
+    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3a7ad9',
+      note: '伸びる。ただし、曲がるところで貯金を吐き出す' },
+    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4ea63f',
+      note: '荷重が乗る。低速も高速も、コーナーで稼げる' },
+    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0644a',
+      note: '立ち上がりが強い。ストップ&ゴーのコースで生きる' },
+    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#c98b4a',
+      note: '尖ってはいないが、どこへ持って行っても大崩れしない' }
+  ];
+  /* 開きの大きさの呼び名（弱い軸に対する強い軸の比） */
+  /* 実際に2000台引いて、25%点・75%点でおおよそ三等分になる位置に置いてある。
+     ここを決め打ちにすると、tilt を触ったとたんに
+     「どの車も極端」になって言葉の意味がなくなる                */
+  const CHASSIS_EDGE = [
+    { at: 0.00, name: '穏やか' },
+    { at: 1.58, name: 'はっきり' },
+    { at: 2.71, name: '極端' }
+  ];
+
+  /* ---------- パーツをどちらへ振るか ----------
+     本体の強い軸へ積むのが補強、弱い軸を埋めるのが是正。
+     どちらが正しいということはなく、走るコースで向き不向きが出る */
+  const CAR_DIRS = [
+    { key: 'boost', name: '補強', icon: '⬆️', color: '#3a7ad9',
+      note: '本体の得意をさらに伸ばしている。合うコースでは手がつけられない' },
+    { key: 'fix',   name: '是正', icon: '🩹', color: '#4ea63f',
+      note: '本体の苦手を埋めている。どこへ行っても大きくは崩れない' },
+    { key: 'flat',  name: 'そのまま', icon: '➖', color: '#a89878',
+      note: '本体の性格をそのまま引き継いでいる' }
+  ];
+
+  /* ---------- 偏りの増幅 ----------
+     インテグレート率が高いほど、その車の偏りが際立つ。
+     まとまっていない車は、良いところも悪いところも出てこない。
+     合計は変わらない（配分だけが動く）ので、速さそのものは増えない */
+  const AMP = { k: 1.20, mid: 0.72 };
 
   /* ---------- インテグレート率 ----------
      ばらばらの部品と本体を、1台の車としてどれだけ引き出せているか。
@@ -6746,7 +6798,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -7713,14 +7765,82 @@ GP.state = (function () {
     return out;
   }
 
-  /* ---------- マシン本体（シャシー）の素の能力 ----------
+  /* ---------- マシン本体（シャシー）の配分 ----------
+     車を作るときに一度だけ引く。強い軸と弱い軸ができ、
+     そこからその車の性格が決まる。
+     コンセプトの向きへ少し引っぱられるが、そのとおりにはならない
+     （狙って作っても、出来上がってみないと分からない）        */
+  function rollChassis(g2) {
+    const C = D.CHASSIS;
+    const cn = D.CONCEPTS.filter(x => x.key === conceptOf(g2))[0];
+    const AX = ['speed', 'corner', 'accel'];
+    const w = {};
+    AX.forEach(k => {
+      // コンセプトが名指ししている軸は、少しだけ出やすい
+      const pull = (cn && cn.lead === k) ? C.lean : 0;
+      w[k] = 1 / 3 + pull + rnd(-C.tilt, C.tilt);
+    });
+    const tot = AX.reduce((a, k) => a + Math.max(0.08, w[k]), 0);
+    const out = {};
+    AX.forEach(k => { out[k] = Math.round(Math.max(0.08, w[k]) / tot * 1000) / 1000; });
+    return out;
+  }
+  /* いまの本体の配分。古いセーブや作りたてには、その場で引く */
+  function chassisOf(g2) {
+    if (!g2.chassis || g2.chassis.speed == null) g2.chassis = rollChassis(g2);
+    return g2.chassis;
+  }
+
+  /* ---------- マシン本体の素の能力 ----------
      パーツを1つも載せ替えなくても、車そのものが持っている速さ。
-     世代の器に比例するので、新車を出すとここが跳ね上がる。
-     速さ・コーナー・加速へ均等に配る（偏りはパーツと作り込みが作る） */
+     世代の器に比例するので、新車を出すとここが跳ね上がる       */
   function chassisStats(g2) {
     const gen = D.CAR_GENS[clamp(g2.carGen || 0, 0, D.CAR_GENS.length - 1)];
-    const v = gen.cap * D.CHASSIS.k / 3;
-    return { speed: v, corner: v, accel: v };
+    const tot = gen.cap * D.CHASSIS.k;
+    const c = chassisOf(g2);
+    return { speed: tot * c.speed, corner: tot * c.corner, accel: tot * c.accel };
+  }
+
+  /* 本体の性格。いちばん強い軸と、強い軸／弱い軸の開きで決まる */
+  function chassisTrait(g2) {
+    const c = chassisOf(g2);
+    const AX = ['speed', 'corner', 'accel'];
+    let hi = AX[0], lo = AX[0];
+    AX.forEach(k => { if (c[k] > c[hi]) hi = k; if (c[k] < c[lo]) lo = k; });
+    const edge = c[lo] > 0 ? c[hi] / c[lo] : 1;
+    let ed = D.CHASSIS_EDGE[0];
+    D.CHASSIS_EDGE.forEach(x => { if (edge >= x.at) ed = x; });
+    const key = ed === D.CHASSIS_EDGE[0] ? 'even' : hi;
+    const def = D.CHASSIS_TRAITS.filter(x => x.key === key)[0] || D.CHASSIS_TRAITS[3];
+    return { def: def, hi: hi, lo: lo, edge: edge, edgeName: ed.name };
+  }
+
+  /* ---------- パーツをどちらへ振っているか ----------
+     本体の強い軸へ積んでいれば補強、弱い軸を埋めていれば是正。
+     いま積んでいるパーツの配分と、本体の配分を見比べて決める   */
+  function partsLean(g2) {
+    const s = { speed: 0, corner: 0, accel: 0 };
+    D.PART_CATS.forEach(c => {
+      const p = g2.equipped[c.key];
+      if (!p) return;
+      const ps = partStats(p, g2);
+      s.speed += ps.speed; s.corner += ps.corner; s.accel += ps.accel;
+    });
+    const tot = s.speed + s.corner + s.accel;
+    if (tot <= 0) return { speed: 1 / 3, corner: 1 / 3, accel: 1 / 3 };
+    return { speed: s.speed / tot, corner: s.corner / tot, accel: s.accel / tot };
+  }
+  function carDirection(g2) {
+    const tr = chassisTrait(g2);
+    const pl = partsLean(g2);
+    const c = chassisOf(g2);
+    // 本体の強い軸／弱い軸を、パーツがどれだけ持ち上げているか
+    const up = pl[tr.hi] - c[tr.hi];
+    const dn = pl[tr.lo] - c[tr.lo];
+    const gap = up - dn;                    // ＋なら尖らせ、−なら埋め
+    const key = gap > 0.045 ? 'boost' : gap < -0.045 ? 'fix' : 'flat';
+    const def = D.CAR_DIRS.filter(x => x.key === key)[0];
+    return { def: def, gap: gap, hi: tr.hi, lo: tr.lo, trait: tr };
   }
 
   /* 部位どうしの噛み合いが、満点に対してどこまで来ているか（0..1） */
@@ -7770,8 +7890,17 @@ GP.state = (function () {
        ここは配分の話なので、掛け算の前に足しておく             */
     const bs = bodyStats(g);
     s.speed += bs.speed; s.corner += bs.corner; s.accel += bs.accel;
-    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
+    /* ---- 偏りの増幅 ----
+       まとめ上げた車ほど、その車らしさが際立つ。
+       まとまっていない車は、良いところも悪いところも出てこない。
+       合計は動かさず、配分だけを伸び縮みさせる               */
     const it = integrateRate(g).rate;
+    const amp = 1 + D.AMP.k * (it - D.AMP.mid);
+    const mean = (s.speed + s.corner + s.accel) / 3;
+    s.speed = Math.max(0, mean + (s.speed - mean) * amp);
+    s.corner = Math.max(0, mean + (s.corner - mean) * amp);
+    s.accel = Math.max(0, mean + (s.accel - mean) * amp);
+    // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
     s.speed *= it; s.corner *= it; s.accel *= it;
     return s;
   }
@@ -7911,6 +8040,9 @@ GP.state = (function () {
     const stock = g2.nextCar || 0;
     g2.body = makeBody(g2, g2.body, stock);
     g2.nextCar = 0;
+    /* 新造した車は、前の車とは別の性格になる。
+       狙って作っても、出来上がってみないと分からない  */
+    g2.chassis = rollChassis(g2);
     // パーツのコンディションもシェイクダウンで整う
     D.PART_CATS.forEach(c => {
       const p = g2.equipped[c.key];
@@ -10114,6 +10246,7 @@ GP.state = (function () {
     };
     g.calendar = buildCalendar(g);
     D.PART_GROUPS.forEach(gr => { g.mat[gr.key] = 0; g.matP[gr.key] = 0; });
+    g.chassis = rollChassis(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1.0, { power: 10, cond: 92, traits: [] }); });
     g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
     g.body = makeBody(g, null);
@@ -10914,7 +11047,8 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
-    chassisStats, meshScore, integrateRate,
+    chassisStats, chassisOf, chassisTrait, rollChassis,
+    partsLean, carDirection, meshScore, integrateRate,
     matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
@@ -19238,8 +19372,30 @@ GP.screens.dev = function (A) {
     const bar = (label, v, color) =>
       '<i class="cm-seg" style="width:' + (v / Math.max(1, raw) * 100).toFixed(1) +
       '%;background:' + color + '" title="' + label + ' ' + Math.round(v) + '"></i>';
+    const dir = S.carDirection(g);
+    const tr = dir.trait;
+    const AX = { speed: '直線', corner: 'コーナー', accel: '立ち上がり' };
+    const c0 = S.chassisOf(g);
     return '<div class="carmix">' +
       '<b class="cm-h">速さの成り立ち</b>' +
+      /* この車がどういう車なのか。
+         本体を作ったときに決まった性格と、
+         そこへパーツをどちらへ振っているか                   */
+      '<span class="cm-char">' +
+        '<b class="cm-trait" style="border-color:' + tr.def.color + ';color:' + tr.def.color + '"' +
+        ' title="' + esc(tr.def.note) + '">' + tr.def.icon + ' ' + tr.def.name +
+        '<em>' + tr.edgeName + '</em></b>' +
+        '<b class="cm-dir" style="border-color:' + dir.def.color + ';color:' + dir.def.color + '"' +
+        ' title="' + esc(dir.def.note) + '">' + dir.def.icon + ' ' + dir.def.name + '</b>' +
+        '<i>本体 ' + AX.speed + Math.round(c0.speed * 100) + '／' +
+        AX.corner + Math.round(c0.corner * 100) + '／' +
+        AX.accel + Math.round(c0.accel * 100) + '　' +
+        (dir.def.key === 'boost'
+           ? '得意の' + AX[dir.hi] + 'へさらに積んでいます'
+           : dir.def.key === 'fix'
+           ? '苦手な' + AX[dir.lo] + 'を埋めています'
+           : '本体の性格をそのまま引き継いでいます') + '</i>' +
+      '</span>' +
       '<span class="cm-bar">' +
         bar('マシン本体', ch, '#c98b4a') +
         bar('パーツ', parts, '#3a7ad9') +
@@ -19256,7 +19412,11 @@ GP.screens.dev = function (A) {
         '％／噛み合い ' + Math.round(it.mesh * 100) + '％）' +
         '　＝ 実際に出ている <b>' + Math.round(raw * it.rate) + '</b>' +
         (lost > 1 ? '<em>まとめきれずに眠っているぶん ' + Math.round(lost) + '</em>' : '') +
-      '</span></div>';
+      '</span>' +
+      '<span class="cm-amp">まとめ上げるほど、この車は<b>' + tr.def.name +
+        '</b>らしくなります（いまの増幅 ×' +
+        (1 + D.AMP.k * (it.rate - D.AMP.mid)).toFixed(2) + '）</span>' +
+      '</div>';
   }
 
   /* パーツの出来を、ひと目の札にする */
@@ -26797,6 +26957,11 @@ GP.screens.help = function (A) {
           'マシンの速さは「（マシン本体の素の能力 ＋ パーツの合計）× インテグレート率」で決まります。足し算と掛け算の順番が、このゲームの考え方そのものです。',
           'マシン本体は、パーツを1つも載せ替えなくても車そのものが持っている速さです。世代が上がる（新車を出す）と、ここが跳ね上がります。序盤は全体の3〜4割を本体が担い、パーツを煮詰めた終盤でも2割弱を支えています。',
           'インテグレート率は、持っているものをどれだけ引き出せているかです。何もまとめていない車は6割弱しか出せません。「速さの成り立ち」の帯で、眠っているぶんが見えます。'
+        ] },
+        { h: '車体の性格と、パーツの振りかた', p: [
+          '車を作るときに、本体の配分（直線／コーナー／立ち上がり）が決まります。強い軸と弱い軸ができ、そこから「直線番長」「曲がる車」「蹴り出しの車」「素直な車」という性格が付きます。狙って作っても、出来上がってみないと分かりません。',
+          'そのうえで、パーツをどちらへ振るかを選べます。本体の得意へさらに積むのが<b>補強</b>、苦手を埋めるのが<b>是正</b>です。補強した車は合うコースで手がつけられなくなり、合わないコースでは沈みます。是正した車はどこへ行っても大崩れしません。',
+          'インテグレートは、この性格を<b>増幅</b>します。まとめ上げた車ほど「その車らしく」なり、まとまっていない車は良いところも悪いところも出てきません。合計の速さは変わらず、配分だけが伸び縮みします。'
         ] },
         { h: '三つの輪', p: [
           '内側がパーツです。空力・足まわり・シャシー・ブレーキ・パワーユニット・ギヤ・電装の7つ。数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」の目安です。',

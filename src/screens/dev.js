@@ -144,8 +144,30 @@ GP.screens.dev = function (A) {
     const bar = (label, v, color) =>
       '<i class="cm-seg" style="width:' + (v / Math.max(1, raw) * 100).toFixed(1) +
       '%;background:' + color + '" title="' + label + ' ' + Math.round(v) + '"></i>';
+    const dir = S.carDirection(g);
+    const tr = dir.trait;
+    const AX = { speed: '直線', corner: 'コーナー', accel: '立ち上がり' };
+    const c0 = S.chassisOf(g);
     return '<div class="carmix">' +
       '<b class="cm-h">速さの成り立ち</b>' +
+      /* この車がどういう車なのか。
+         本体を作ったときに決まった性格と、
+         そこへパーツをどちらへ振っているか                   */
+      '<span class="cm-char">' +
+        '<b class="cm-trait" style="border-color:' + tr.def.color + ';color:' + tr.def.color + '"' +
+        ' title="' + esc(tr.def.note) + '">' + tr.def.icon + ' ' + tr.def.name +
+        '<em>' + tr.edgeName + '</em></b>' +
+        '<b class="cm-dir" style="border-color:' + dir.def.color + ';color:' + dir.def.color + '"' +
+        ' title="' + esc(dir.def.note) + '">' + dir.def.icon + ' ' + dir.def.name + '</b>' +
+        '<i>本体 ' + AX.speed + Math.round(c0.speed * 100) + '／' +
+        AX.corner + Math.round(c0.corner * 100) + '／' +
+        AX.accel + Math.round(c0.accel * 100) + '　' +
+        (dir.def.key === 'boost'
+           ? '得意の' + AX[dir.hi] + 'へさらに積んでいます'
+           : dir.def.key === 'fix'
+           ? '苦手な' + AX[dir.lo] + 'を埋めています'
+           : '本体の性格をそのまま引き継いでいます') + '</i>' +
+      '</span>' +
       '<span class="cm-bar">' +
         bar('マシン本体', ch, '#c98b4a') +
         bar('パーツ', parts, '#3a7ad9') +
@@ -162,7 +184,11 @@ GP.screens.dev = function (A) {
         '％／噛み合い ' + Math.round(it.mesh * 100) + '％）' +
         '　＝ 実際に出ている <b>' + Math.round(raw * it.rate) + '</b>' +
         (lost > 1 ? '<em>まとめきれずに眠っているぶん ' + Math.round(lost) + '</em>' : '') +
-      '</span></div>';
+      '</span>' +
+      '<span class="cm-amp">まとめ上げるほど、この車は<b>' + tr.def.name +
+        '</b>らしくなります（いまの増幅 ×' +
+        (1 + D.AMP.k * (it.rate - D.AMP.mid)).toFixed(2) + '）</span>' +
+      '</div>';
   }
 
   /* パーツの出来を、ひと目の札にする */
