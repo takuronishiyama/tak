@@ -1092,8 +1092,15 @@ GP.data = (function () {
      安くなる。止まって作業する時間は何があっても同じだけかかる。          */
   const PIT_STAND_BASE  = 5.2;    // 何も揃っていないチームの静止時間（秒）
   const PIT_STAND_MIN   = 1.8;    // どれだけ鍛えてもこれより速くは止まれない
-  const PIT_STAND_CURVE = 0.16;   // 設備とクルーの効きかた（大きいほど早く頭打ち）
+  /* 設備とクルーの効きかた。0.16 だと枠いっぱいまで人を揃えても
+     3.1秒までしか行かず、人を集める意味が薄かった。
+     0.40 にすると、何も無いチームで 5.2秒、揃えたチームで 2.5秒。
+     実際のF1と同じで、ピットは1回で2秒以上ちがう場所になる      */
+  const PIT_STAND_CURVE = 0.40;
   const PIT_STAND_RIVAL = 3.7;    // ライバルチームの標準的な静止時間
+  /* チームごとのクルーの腕の散らばり（秒）。
+     車の速さとは別に持つ。金のないチームが人で勝てる道は、まずここ */
+  const PIT_STAND_SPREAD = 0.95;
   /* 隊列を流しているあいだの周回時間。
      先導車の後ろは、まともに走っているときよりずっと遅い。
      ここを入れていないと「みんな全開のまま、入った車だけ20秒損する」
@@ -2591,6 +2598,27 @@ GP.data = (function () {
     noise: 0.05    // 同じ年でも、出来には振れ幅がある（水準に対する割合）
   };
 
+  /* ---------- オーナーの交代 ----------
+     下位が続けば身売りされ、上位が続けば後ろ盾に飽きられる。
+     10年遊べるようにするなら、序列そのものが動かないと退屈になる */
+  const RIVAL_OWNER = {
+    lowFrom:   7,     // このあたりより下が「下位」
+    lowYears:  2,     // 何年続いたら話が来るか
+    lowChance: 0.34,  // その年に実際に替わる確率
+    lowGain:   0.16,  // 替わったチームの地力が上がる幅
+    topTo:     2,     // このあたりより上が「上位」
+    topYears:  4,     // 長く上にいると、出資者は次の刺激を探しはじめる
+    topChance: 0.22,
+    topLoss:   0.10,
+    /* 買われたのに、また下位に沈んだとき。
+       新しいオーナーも、いつまでも待ってはくれない          */
+    failChance: 0.50,
+    failLoss:   0.13,
+    min: 0.62, max: 1.10,   // 地力の上下限
+    /* 新しいオーナーは、まず人を買う。ドライバーの水準もここだけ上がる */
+    drvGain: 1.18
+  };
+
   const RIVAL_DEV = {
     floor:   0.018,   // 誰でも進むぶん
     byMoney: 0.145,   // 資金力（地力）に比例するぶん
@@ -2637,6 +2665,11 @@ GP.data = (function () {
      weight ＝ どれだけ食いつく話題か                              */
   const PRESS_FRESH = 6;      // 何週前までを「最近のこと」として扱うか
   const PRESS = [
+    { key: 'owner', weight: 6, icon: '💰',
+      q: '「{W}。うちとしては脅威ではありませんか？」',
+      a: [['😤 「金で買えないものを、うちは持っています」', 16, 3, '新興勢力を挑発した'],
+          ['🙂 「強いチームが増えるのは、この競技にとって良いことです」', 8, 2, '新興勢力を歓迎した'],
+          ['🤐 「よそのことより、うちの車です」', 3, 0, '新興勢力については語らなかった']] },
     { key: 'tdLost', weight: 9, icon: '⚖️',
       q: '「{W} の使用が禁止されました。抗議はしないのですか？」',
       a: [['😤 「規則の運用に疑問が残る」', 15, 2, '裁定に不満を口にした'],
@@ -3122,7 +3155,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

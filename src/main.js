@@ -791,6 +791,7 @@ window.GP = window.GP || {};
                   car: S.carScoreOf(r.stats, track),
                   // いまの規則をどれだけ読めているか（開発ペースに出る）
                   era: S.eraReadOf(g, r),
+                  owner: r.owner || null,
                   style: r.style, pts: r.points });
     });
     rows.sort((a, b) => b.car - a.car);
@@ -815,7 +816,9 @@ window.GP = window.GP || {};
         '<span class="t-nm">' + esc(r.name) + (st ? ' <em>' + st.icon + st.name + '</em>' : '') +
           (r.era ? ' <em class="erachip" style="color:' + r.era.color + '" title="' +
             'いまの規則をどれだけ読めているか。開発の速さに出ます">' +
-            r.era.icon + r.era.name + '</em>' : '') + '</span>' +
+            r.era.icon + r.era.name + '</em>' : '') +
+          (r.owner ? ' <em class="ownchip" title="このチームに金を出している相手">💰' +
+            esc(r.owner) + '</em>' : '') + '</span>' +
         '<span class="t-bar"><i style="width:' + Math.round(r.car / top * 100) + '%"></i>' +
           '<b>' + Math.round(r.car) + '</b></span>' +
         '<span class="t-mix" title="最高速／コーナー／加速">' +
@@ -984,8 +987,32 @@ window.GP = window.GP || {};
       U.log(g, '🎩 ' + st.name + '（' + t.name + '／' + st.age + '歳）が現場を去った。長いあいだお疲れさま。', 'warn');
     });
     if (left.length) U.toast('🎩 ' + left.map(x => x.name).join('、') + ' が引退', 'warn');
-    // ライバル強化
-    g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name), S.diffOf(g), g.carGen);
+    /* ---- オーナーの交代 ----
+       下位が続いたチームには買い手がつき、
+       長く上位にいたチームは後ろ盾に飽きられる。
+       ライバルを作り直す前に回して、新しい地力を持ち越す      */
+    const owners = S.tickRivalOwners(g);
+    const carry = S.rivalCarry(g);
+    g.rivals = S.makeRivals(g.season, g.drivers.map(d => d.name), S.diffOf(g), g.carGen, carry);
+    owners.forEach(o => {
+      if (o.kind === 'buy') {
+        U.log(g, '💰 ' + o.team + ' が身売りされた。新しいオーナーは「' + o.owner + '」。' +
+          o.why + '。地力 ' + o.from + ' → ' + o.to + '。', 'warn');
+        S.pushNews(g, 'owner', o.team + ' に新オーナー — ' + o.owner);
+      } else if (o.kind === 'fail') {
+        U.log(g, '📉 ' + o.team + ' から「' + o.owner + '」が手を引いた。' +
+          '金は入れたが、結果は最後まで出なかった。地力 ' + o.from + ' → ' + o.to + '。', 'warn');
+        S.pushNews(g, 'owner', o.team + ' のオーナーが撤退');
+      } else {
+        U.log(g, '📉 ' + o.team + ' が後ろ盾を失った。長く上位にいたぶん、' +
+          '出資者は次の刺激を探しに行った。地力 ' + o.from + ' → ' + o.to + '。', 'warn');
+        S.pushNews(g, 'owner', o.team + ' がメインスポンサーを失う');
+      }
+    });
+    if (owners.length) {
+      U.toast('💰 ' + owners.map(o => o.team).join('、') + ' の体制が変わった', 'warn');
+    }
+    g.ownerNews = owners;
     A.refreshMarkets(true);
     U.log(g, '🚩 シーズン' + g.season + ' 開幕！', 'good');
     GP.sound.play('confirm');

@@ -1843,7 +1843,12 @@ GP.race = (function () {
       e.pitLane = pitLane * (1 - (e.bd.drive - RIVAL_BODY_REF) * 0.06);
       e.pitStand = e.isPlayer
         ? Math.max(D.PIT_STAND_MIN, myPit.stand - (e.bd.svc - RIVAL_BODY_REF) * 1.8)
-        : S.clamp(D.PIT_STAND_RIVAL - (e.carScore - carRef) * 0.020,
+        /* 車の速さから逆算していたのをやめる。
+           それだと「速い車のチームはピットも速い」ことになり、
+           人で勝つ道がそもそも無かった。チームごとのクルーの腕で決める */
+        : S.clamp(D.PIT_STAND_RIVAL
+                  + (0.5 - (e.team && e.team.crew != null ? e.team.crew : 0.5)) * 2 * D.PIT_STAND_SPREAD
+                  - (e.carScore - carRef) * 0.006,
                   D.PIT_STAND_MIN, 6.2);
       e.pitFumble = e.isPlayer ? myPit.fumble : 0.045;
       e.pitLoss = e.pitLane + e.pitStand;      // 平常時の目安。表示と「遅かった」判定に使う

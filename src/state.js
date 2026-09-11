@@ -1316,7 +1316,10 @@ GP.state = (function () {
       /* 世代0の車で、その年に見合った水準。makeRivals と同じ物差し。
          規則が変わった年だけ水準が飛ばないよう、ここも通す        */
       const d2 = diffOf(g2);
-      const base = rivalLevel(power, g2.season, 0, d2.rivalPower, d2.rivalGrow, d2.tight || 0);
+      /* オーナーが替わって手に入れた地力は、規則が変わっても失われない。
+         白紙に戻るのはマシンであって、金と人ではない            */
+      const pw2 = r.pw != null ? r.pw : power;
+      const base = rivalLevel(pw2, g2.season, 0, d2.rivalPower, d2.rivalGrow, d2.tight || 0);
       ['speed', 'corner', 'accel'].forEach(k => {
         // 強豪はやはり強い、ぶんだけ少し上乗せする
         r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
@@ -1677,8 +1680,9 @@ GP.state = (function () {
       // シーズン開始時の水準を覚えておく（どれだけ伸びたかを見せるため）
       if (!r.base0) r.base0 = { speed: r.stats.speed, corner: r.stats.corner, accel: r.stats.accel };
       // 横並びの年は、伸びかたの差も潰しておく（放っておくとまた開く）
-      const power = 1 + (((D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power) - 1)
-                      * (1 - (diff.tight || 0));
+      const own = r.pw != null ? r.pw
+                : ((D.RIVALS.find(x => x.name === r.name) || { power: 1 }).power);
+      const power = 1 + (own - 1) * (1 - (diff.tight || 0));
       // 1週あたりの伸び。season が進むほど全体の水準も上がる。
       // 掃引して決めた値。これより速いとプレイヤーが永久に追いつけず、
       // 遅いとシーズン半ばで一方的になる。
@@ -3264,7 +3268,87 @@ GP.state = (function () {
          + rnd(-1, 1) * full * RL.noise * (1 - (tg || 0) * 0.75);
   }
 
-  function makeRivals(season, keepNames, diff, era) {
+  /* ---------- オーナーの交代 ----------
+     成績の履歴を見て、身売りと撤退を決める。
+     呼ぶのはシーズンの変わり目、makeRivals より前。
+     返すのは、画面と記録に出すための出来事の一覧            */
+  const NEW_OWNERS = [
+    { n: '産油国の投資ファンド',   w: '金に糸目をつけない。ただし結果を待つ気は長くない' },
+    { n: '自動車メーカーの本体',   w: '本社が本気で乗り出してきた。設備も人も一気に入れ替わる' },
+    { n: '成功した実業家',         w: '子どもの頃からの夢だったという。私財を注ぎ込んでいる' },
+    { n: '大手飲料ブランド',       w: '広告費の桁が変わった。若い才能を集めはじめている' },
+    { n: '古参のレース屋の連合',   w: '現場あがりの人間が金を出しあった。無駄が消えた' },
+    { n: '半導体メーカー',         w: '計算機を持ち込んできた。風洞より先にシミュレータが建った' }
+  ];
+  function tickRivalOwners(g2) {
+    const O = D.RIVAL_OWNER;
+    const out = [];
+    const table = constructorTable(g2);
+    const rank = {};
+    table.forEach((t, i) => { rank[t.name] = i + 1; });
+    (g2.rivals || []).forEach(r => {
+      const at = rank[r.name] || O.lowFrom;
+      r.lowRun = at >= O.lowFrom ? (r.lowRun || 0) + 1 : 0;
+      r.topRun = at <= O.topTo ? (r.topRun || 0) + 1 : 0;
+      const pw = r.pw != null ? r.pw : ((D.RIVALS.find(x => x.name === r.name) || {}).power || 1);
+      /* ---- 撤退（期待に届かなかった側）----
+         買われたのに、また下位に沈んだ。
+         新しいオーナーも、いつまでも待ってはくれない        */
+      if (r.owner && r.lowRun >= O.lowYears && Math.random() < O.failChance) {
+        const gone = r.owner;
+        r.pw = Math.max(O.min, pw - O.failLoss);
+        r.drvMul = Math.max(0.8, (r.drvMul || 1) * 0.90);
+        r.owner = null;
+        r.lowRun = 0; r.topRun = 0;
+        out.push({ team: r.name, color: r.color, kind: 'fail', owner: gone,
+                   from: Math.round(pw * 100), to: Math.round(r.pw * 100) });
+        return;
+      }
+      /* ---- 身売り ----
+         下位が続くと、チームそのものに値がつく。
+         買うほうは、勝つために買う                       */
+      if (r.lowRun >= O.lowYears && pw < O.max && Math.random() < O.lowChance) {
+        const o = pick(NEW_OWNERS);
+        r.pw = Math.min(O.max, pw + O.lowGain);
+        r.drvMul = Math.min(1.6, (r.drvMul || 1) * O.drvGain);
+        // 新しいオーナーは、まず現場に人と道具を入れる
+        r.crew = clamp((r.crew != null ? r.crew : 0.5) + 0.18, 0, 1);
+        r.owner = o.n;
+        r.lowRun = 0; r.topRun = 0;
+        out.push({ team: r.name, color: r.color, kind: 'buy', owner: o.n, why: o.w,
+                   from: Math.round(pw * 100), to: Math.round(r.pw * 100) });
+        return;
+      }
+      /* ---- 撤退 ----
+         勝ち続けたチームは、出資者にとって「もう見た」ものになる */
+      if (r.topRun >= O.topYears && pw > O.min && Math.random() < O.topChance) {
+        r.pw = Math.max(O.min, pw - O.topLoss);
+        r.drvMul = Math.max(0.8, (r.drvMul || 1) * 0.94);
+        r.owner = null;
+        r.lowRun = 0; r.topRun = 0;
+        out.push({ team: r.name, color: r.color, kind: 'out',
+                   from: Math.round(pw * 100), to: Math.round(r.pw * 100) });
+        return;
+      }
+      if (r.pw == null) r.pw = pw;
+    });
+    return out;
+  }
+  /* チームごとに、来季へ持ち越すもの一式。
+     makeRivals はライバルを作り直すので、ここに載せ替えないと
+     「下位が何年続いたか」まで毎年ゼロに戻ってしまう           */
+  function rivalCarry(g2) {
+    const out = {};
+    (g2.rivals || []).forEach(r => {
+      out[r.name] = {
+        pw: r.pw, drvMul: r.drvMul, owner: r.owner || null,
+        lowRun: r.lowRun || 0, topRun: r.topRun || 0, crew: r.crew
+      };
+    });
+    return out;
+  }
+
+  function makeRivals(season, keepNames, diff, era, carry) {
     resetNames(keepNames);
     const dp = diff ? diff.rivalPower : 1;
     const dg = diff ? diff.rivalGrow : 1;
@@ -3272,11 +3356,20 @@ GP.state = (function () {
        チームごとの地力の差を、そのぶんだけ 1 に寄せて横並びにする */
     const tg = (diff && diff.tight) || 0;
     return D.RIVALS.map((r, i) => {
-      const pw = 1 + (r.power - 1) * (1 - tg);
-      const lv = (3 + season * 2.1 * dg) * pw * dp;
-      const base = rivalLevel(r.power, season, era, dp, dg, tg);
+      // そのチームがいま持っている地力。オーナーが替われば動く
+      const c = (carry && carry[r.name]) || {};
+      const own = c.pw != null ? c.pw : r.power;
+      const dmul = c.drvMul || 1;
+      const pw = 1 + (own - 1) * (1 - tg);
+      const lv = (3 + season * 2.1 * dg) * pw * dp * dmul;
+      const base = rivalLevel(own, season, era, dp, dg, tg);
       const t = {
         name: r.name, color: r.color, isPlayer: false, char: r.char,
+        pw: own, drvMul: dmul, owner: c.owner || null,
+        lowRun: c.lowRun || 0, topRun: c.topRun || 0,
+        /* ピットクルーの腕（0..1）。車の速さとは別に持つ。
+           持ち越すので、そのチームらしさとして残る              */
+        crew: c.crew != null ? c.crew : clamp(0.5 + rnd(-0.42, 0.42) + (own - 0.85) * 0.30, 0, 1),
         // 3性能の絶対値。コース適性込みの速さは carScoreOf() で算出する
         stats: {
           speed:  base * 3 * r.bias.speed,
@@ -4290,7 +4383,7 @@ GP.state = (function () {
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
     joinFIA, fiaFavor, fiaWarmAll, fiaVisit, fiaDrift,
-    makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, driverRating, resetNames, growStaff,
+    makeRivalStaff, poachFee, poachAttempt, keepStaff, loseStaff, makeRivals, developRivals, tickRivalOwners, rivalCarry, driverRating, resetNames, growStaff,
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,

@@ -3377,3 +3377,10 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* ひらめきから生まれたパーツの札 */
 .pickbtn.ideamark{border-color:#b06fd0}
 .pickbtn.ideamark .pb-body>b{color:#e9a8ff}
+
+/* いまチームに金を出している相手。急に速くなった理由が、ここに出る */
+.t-nm .ownchip{display:inline-block;margin-left:4px;padding:0 4px;border-radius:4px;
+  background:rgba(240,176,32,.16);color:#c98c14;font-size:10px;font-style:normal;
+  font-weight:700;vertical-align:middle;max-width:11em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+[data-skin="hd"] .t-nm .ownchip{background:rgba(240,196,90,.18);color:#f0c45a}
