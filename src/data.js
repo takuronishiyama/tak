@@ -1181,6 +1181,49 @@ GP.data = (function () {
                             1周2%だと4割のレースで出て多すぎたので、
                             10レースに1回くらいになるまで落としてある */
   };
+  /* ---------- 追い越しの決まりやすさ ----------
+     射程（0.9秒以内）に入ってから、その周に決まる確率。
+
+     大事なのは、これを「車の点数の差」ではなく
+     「1周あたり何秒速いか」で決めていること。
+     点数の差だと、年を追って水準が上がるほど
+     同じ点差の意味が薄くなってしまう。
+
+     実測では、隣同しの車の差は
+     中央0.04秒・8割で0.15秒・上位5%では0.45秒。
+     だから scale を 0.45 に置くと
+     「はっきり速い車は抜けるが、互角なら抜けない」になる。
+     抜けないからこそ、アンダーカットも隊列中のピットも意味を持つ   */
+  const PASS = {
+    flat:     0.014,   // 速さが同じでも、まれには決まる
+    merit:    1.150,   // 速さの差がものを言うところ（飽きるまでの幅）
+    scale:    0.36,    // この差（秒／周）で、効きがちょうど半分になる
+    sharp:    1.70,    // 大きいほど「あるところから急に」効く
+    slipFloor: 0.20,   // 互角の相手に対しては、直線の利きもこれだけ
+    straight: 0.026,   // 直線勝負になったときの上積み
+    ers:      0.100,   // 電気が残っているほど伸びる
+    slip:     0.260,   // 長い直線のスリップストリーム
+    stuck:    0.075,   // 張りついている周数ごとに、しびれを切らす
+    stuckMax: 0.80,
+    cap:      0.68     // どんなに速くても、一周で必ずは抜けない
+  };
+  /* ---------- アンダーカットの秤 ----------
+     これまでは「詰まっていたら、ときどき仕掛ける」だけだった。
+     同じレースを二回走らせて測ったところ、
+     そのやりかたでは得がちょうどゼロで、
+     しかも6割は「相手のタイヤのほうが新しい」ときに
+     仕掛けていた——つまり、勝てない勝負をしていた。
+
+     アンダーカットが成り立つのは、
+     「相手のタイヤのほうが古い」ときだけ。
+     新しいタイヤで出た直後の数周で稼ぐ秒数が、
+     早めたぶん最後を古いタイヤで走る損を上回れば、仕掛ける */
+  const UC = {
+    perLap: 0.135,   // タイヤ1周分の古さが、だいたい何秒／周になるか
+    laps:   2.40,    // 新しいタイヤの利きが効く、出た直後の周数
+    early:  1.05,    // 1周早めるごとに、最後に払う秒数
+    blur:   1.60     // 読みのぶれ（ストラテジストの腔で小さくなる）
+  };
   const PIT_FUMBLE_BASE = 0.115;  // 作業をしくじる確率（腕が上がるほど下がる）
   const PIT_FUMBLE_MIN  = 0.014;
 
@@ -3317,7 +3360,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

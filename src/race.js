@@ -2838,11 +2838,30 @@ GP.race = (function () {
           // 射程に入ってからが長い。詰めるところまでは速さの差で行けるが、
           // 最後の数十センチは、直線の長さと電気の残りが決める。
           // 「近づけるのに抜けない」時間は、ここで生まれる
-          const merit = Math.max(0, atk.perf - def.perf);
-          let p = 0.010 + merit * 0.010;
+          /* 速さの差は、点数ではなく「1周あたり何秒」で見る。
+             点数のままだと、年を追って水準が上がるほど
+             同じ点差の意味が薄くなってしまう。
+             そして飽かせる——どんなに速くても、
+             前の車が居る以上は一周で必ずは抜けない             */
+          const PS = D.PASS;
+          const meritSec = Math.max(0,
+            (paceGap(def.perf, refPerf) - paceGap(atk.perf, refPerf)) * track.base);
+          /* 速さの差の効き方。平らに上げるのではなく、
+             あるところから急に効く形にする。
+             こうしてはじめて「互角なら抜けないが、
+             はっきり速ければ抜ける」になる。
+             平らに下げるだけだと、速い車も抜けなくなって
+             ただの行列になってしまう                            */
+          const ms = Math.pow(meritSec, PS.sharp);
+          const hill = ms / (ms + Math.pow(PS.scale, PS.sharp));
+          let p = PS.flat + PS.merit * hill;
           if (onStraight) {
-            // 直線：電気が残っているほど伸びる。スリップストリームも効く
-            p += 0.050 + batt * 0.15 + geo.longestShare * 0.42;
+            /* 直線：電気が残っているほど伸びる。スリップストリームも効く。
+               ただし、速さが互角の相手にはこれだけでは足りない。
+               直線は「速さの差を拡大する場所」であって、
+               それ自体が追い越しを生むわけではない        */
+            p += (PS.straight + batt * PS.ers + geo.longestShare * PS.slip)
+               * (PS.slipFloor + (1 - PS.slipFloor) * hill);
           } else {
             // コーナー：腕とマシンのコーナー性能がものを言う
             p += (atk.driver.technique - def.driver.technique) * 0.004
@@ -2866,8 +2885,8 @@ GP.race = (function () {
             p *= Math.max(0.05, 1 - shA[yel.sec] * D.SECTOR_YELLOW.passCut);
           }
           // 何周も張りついていると、しびれを切らして強引に行く
-          p *= 1 + Math.min(0.9, (atk.stuckLaps || 0) * 0.12);
-          p = S.clamp(p, 0.005, 0.72);
+          p *= 1 + Math.min(PS.stuckMax, (atk.stuckLaps || 0) * PS.stuck);
+          p = S.clamp(p, 0.004, PS.cap);
 
           if (Math.random() < p) {
             // 成功：前に出る。詰まっていた時間もここで解ける
@@ -2922,8 +2941,26 @@ GP.race = (function () {
         const me = running[i], ahead = running[i - 1];
         if (!me.dnf && me.pitPlan.length && gap > 0 && gap < 2.6 && passEase < 0.95) {
           const next = me.pitPlan.find(l => l > lap);
-          if (next != null && next - lap <= 3 && next > lap + 1 &&
-              Math.random() < me.react * 0.34) {
+          /* 仕掛ける価値があるかを、秒で量る。
+             稼ぎ：相手のタイヤが自分より古いほど、
+                   新しいタイヤで出た直後に詰められる。
+             代金：早めたぶん、最後を古いタイヤで走ることになる。
+             この二つを見ないと、相手のタイヤのほうが新しいときに
+             仕掛けてしまう（実測では、それが6割だった）        */
+          const UC = D.UC;
+          const edgeLaps = (ahead.tyreAge || 0) - (me.tyreAge || 0);
+          const ucEarly = next == null ? 0 : next - lap - 1;
+          const ucWin  = Math.max(0, edgeLaps) * UC.perLap * UC.laps;
+          const ucNet  = ucWin - ucEarly * UC.early;
+          /* 読みの確かさ。腕のいいストラテジストほど、
+             この秤を正しく読む                              */
+          const ucEye = me.isPlayer
+            ? S.clamp(0.20 + strategist * 0.055 + S.osk(g, 'call') * 0.08, 0.12, 0.94)
+            : S.clamp(0.22 + (me.react || 0.4) * 0.55, 0.12, 0.90);
+          const ucSeen = ucNet + S.rnd(-1, 1) * (1 - ucEye) * UC.blur;
+          me.ucCall = { edgeLaps: edgeLaps, early: ucEarly, win: ucWin,
+                        net: ucNet, gap: gap, eye: ucEye, took: ucSeen > 0 };
+          if (next != null && next - lap <= 3 && next > lap + 1 && ucSeen > 0) {
             me.pitPlan[me.pitPlan.indexOf(next)] = lap + 1;
             me.pitPlan.sort((a, b) => a - b);
             me.undercut = (me.undercut || 0) + 1;
