@@ -1282,14 +1282,16 @@ window.GP = window.GP || {};
       '<small>いま <b>' + tk + '枚</b> 持っています</small></span></div>' +
       '<p class="desc">入賞から遠ざかっているチームに、' +
       '連盟から届く券です。</p>' +
-      '<div class="popcost"><span>使うと</span><span><b>開発・設計を1回ぶん無料に</b></span></div>' +
+      '<div class="popcost"><span>使うと</span><span><b>その1回で週が進みません</b></span></div>' +
+      '<div class="popcost"><span>資金と研究P</span><span>いつもどおりかかります</span></div>' +
       '<div class="popcost"><span>使える場所</span><span>🔧 開発 の中の<br>' +
       '設計室・工房・ガレージ・研究所</span></div>' +
       '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
       d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +
-      '<p class="note">金も研究ポイントも減りません。' +
-      'ただし週は1つ使います。' +
-      '高いものに使うほど得です。</p>';
+      '<p class="note">このゲームで一番足りないのは金ではなく、' +
+      '<b>レースまでに動ける回数</b>です。' +
+      'だからこの券は、その1回を丸ごと肩代わりします——' +
+      'つまり<b>その週は、開発ともうひとつを両方やれる</b>ということ。</p>';
     U.popup('🎫 開発チケット', h,
       [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
   }

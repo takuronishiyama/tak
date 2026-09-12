@@ -54,8 +54,7 @@ GP.screens.dev = function (A) {
   let devRow = {};          // 'imp:eng' など → その行の中身
 
   /* 足りないものを、そのまま言う */
-  function devWhy(m, rp, free) {
-    if (free) return '';
+  function devWhy(m, rp) {
     const a = [];
     if (m && g.funds < m) a.push('資金があと 💰' + money(m - g.funds) + '万');
     if (rp && g.rp < rp) a.push('研究ポイントがあと 🔬' + Math.ceil(rp - g.rp));
@@ -72,12 +71,12 @@ GP.screens.dev = function (A) {
     (d.lines || []).forEach(l => {
       h += '<div class="popcost"><span>' + l[0] + '</span><span>' + l[1] + '</span></div>';
     });
-    h += '<div class="popcost"><span>費用</span><span>' +
-      (d.free ? '<b class="free">🎫 開発チケットで無料</b>'
-              : '<b>💰' + money(d.money || 0) + '万</b>' +
-                (d.rp ? '　<b>🔬' + d.rp + '</b>' : '')) +
-      '</span></div>' +
-      '<div class="popcost"><span>使う週</span><span><b>1週</b></span></div>';
+    h += '<div class="popcost"><span>費用</span><span><b>💰' +
+      money(d.money || 0) + '万</b>' +
+      (d.rp ? '　<b>🔬' + d.rp + '</b>' : '') + '</span></div>' +
+      '<div class="popcost"><span>使う週</span><span>' +
+      (d.free ? '<b class="free">🎫 0週（開発チケット）</b>'
+              : '<b>1週</b>') + '</span></div>';
     if (d.why) h += '<p class="note"><b class="warn">' + d.why + '</b></p>';
     U.popup(d.head, h, [
       { label: d.doLabel, cls: 'primary', disabled: !d.can,
@@ -155,7 +154,7 @@ GP.screens.dev = function (A) {
       const dc = designCost();
       const cost = Math.round(dc.money * 1.15);
       const left = S.ideaLeft(g, it);
-      const ok = useTicket || (g.funds >= cost && g.rp >= dc.rp);
+      const ok = g.funds >= cost && g.rp >= dc.rp;
       h += '<button class="pickbtn ideamark" data-idea="' + it.id + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
         '<span class="pb-body"><b>' + esc(it.name) +
@@ -163,8 +162,8 @@ GP.screens.dev = function (A) {
         '<small>' + c.icon + ' ' + c.name + ' として形にします' +
         (left <= 8 ? '<br><b class="warn">そろそろ古びます。作るなら今です</b>' : '') +
         '</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
-          : '💰' + money(cost) + '<br>🔬' + dc.rp) + '</span></button>';
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
+          '💰' + money(cost) + '<br>🔬' + dc.rp + '</span></button>';
     });
     return h + '</div>';
   }
@@ -482,13 +481,6 @@ GP.screens.dev = function (A) {
           ? '仕込みぶんが乗って <b class="up">' + nv.withStock + '</b>（+' + nv.gain + '）になります。'
           : 'まだ仕込みは乗っていません。') +
         '<br>次のマシンでの上限は ' + nv.cap + ' です。') + '</p>';
-    if (tk) {
-      body += '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
-        '<span class="tk-ic">🎫</span>' +
-        '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
-        '<small>1枚使うと、次の開発・設計を資金も研究Pも使わずに行えます</small></span>' +
-        '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
-    }
     // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている。
     // どれも似た仕上がりのときは、わざわざ名指ししない
     let weakest = null;
@@ -546,7 +538,7 @@ GP.screens.dev = function (A) {
       }
       const cost = improveCost(p), cap = S.partCap(g, p);
       const capped = p.power >= cap;
-      const ok = useTicket || (g.funds >= cost && g.rp >= c.rp);
+      const ok = g.funds >= cost && g.rp >= c.rp;
       // 供給を受けているパワーユニットは、こちらでは手を入れられない
       const locked = c.key === 'pu' && p.supplied;
       const pv = improvePreview(c);
@@ -571,7 +563,7 @@ GP.screens.dev = function (A) {
         note: capped ? '上限に届いています。これ以上は伸びが3割まで落ちます。' : '',
         free: !!useTicket, money: cost, rp: c.rp,
         why: locked ? '供給中のパワーユニットは、こちらでは開発できません。'
-                     : devWhy(cost, c.rp, useTicket),
+                     : devWhy(cost, c.rp),
         can: ok && !locked, doLabel: '🔧 煮詰める',
         fn: () => doImprove(c.key)
       };
@@ -603,7 +595,8 @@ GP.screens.dev = function (A) {
           (capped ? '　<b class="warn">作り直せば、もっと良い個体が出るかもしれません</b>' : '') +
           '</span>') +
         '</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬' + c.rp) + '</span></button>';
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
+          '💰' + money(cost) + '<br>🔬' + c.rp + '</span></button>';
     });
     return body;
   }
@@ -719,7 +712,7 @@ GP.screens.dev = function (A) {
         const myCap = Math.max(1, S.bodyCapOf(g, a.key));
         const cost = bodyCost(v);
         const capped = v >= myCap;
-        const ok = useTicket || (g.funds >= cost && g.rp >= 8);
+        const ok = g.funds >= cost && g.rp >= 8;
         const pct = Math.min(100, v / myCap * 100);
         const st = bodyStep(a);
         const r2 = rateIfUp(a.key, st.now);
@@ -736,7 +729,7 @@ GP.screens.dev = function (A) {
           note: myCap < capAll
             ? 'コンセプトに逆らう向きなので、上限が低くなっています。' : '',
           free: !!useTicket, money: cost, rp: 8,
-          why: devWhy(cost, 8, useTicket),
+          why: devWhy(cost, 8),
           can: ok, doLabel: '🔧 まとめる',
           fn: () => doBody(a.key)
         };
@@ -759,7 +752,8 @@ GP.screens.dev = function (A) {
           (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
           '<span class="deveff">' + a.eff + '</span>' +
           '</small></span>' +
-          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>' : '💰' + money(cost) + '<br>🔬8') + '</span></button>';
+          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
+            '💰' + money(cost) + '<br>🔬8' + '</span></button>';
       });
       body += '</div>';
     });
@@ -809,6 +803,7 @@ GP.screens.dev = function (A) {
 
     body += '</div>';
     body += interiorHTML('factory');
+    body = ticketBarHTML() + body;
     U.modal('🔧 ガレージ', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -816,6 +811,7 @@ GP.screens.dev = function (A) {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
     });
+    bindTicket(() => cmdImprove());
     bindPick(k => {
       if (devPop(k)) return;          // 小窓で見せてから決めてもらう
       const [kind, key] = k.split(':');
@@ -875,7 +871,7 @@ GP.screens.dev = function (A) {
     S.techList(g).forEach(t => {
       const c = S.techCost(g, t.key);
       const maxed = t.lv >= t.max;
-      const ok = !maxed && (useTicket || (g.funds >= c.money && g.rp >= c.rp));
+      const ok = !maxed && g.funds >= c.money && g.rp >= c.rp;
       const step = S.techStep(g);
       const left = maxed ? 0 : Math.max(1, Math.ceil((1 - t.p) / Math.max(0.001, step)));
       const now = t.lv > 0 ? (t.per >= 1 ? '+' + (t.lv * t.per).toFixed(1)
@@ -890,7 +886,7 @@ GP.screens.dev = function (A) {
         note: esc(t.desc) + '一度ものにした技術は、' +
               'パーツを作り替えても失われません。',
         free: !!useTicket, money: c.money, rp: c.rp,
-        why: maxed ? 'もう最高の Lv. です。' : devWhy(c.money, c.rp, useTicket),
+        why: maxed ? 'もう最高の Lv. です。' : devWhy(c.money, c.rp),
         can: ok, doLabel: '🔬 進める',
         fn: () => doTech(t.key)
       };
@@ -905,14 +901,15 @@ GP.screens.dev = function (A) {
                  '<em class="pnote">' + esc(t.note) + '</em></span>') +
         '</small></span>' +
         '<span class="pb-cost">' + (maxed ? '—'
-          : useTicket ? '<b class="free">🎫 無料</b>'
-          : '💰' + money(c.money) + '<br>🔬' + c.rp) + '</span></button>';
+          : (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
+            '💰' + money(c.money) + '<br>🔬' + c.rp) + '</span></button>';
     });
     body += '</div>';
 
     }
 
     body += interiorHTML('factory');
+    body = ticketBarHTML() + body;
     U.modal('🖊️ 設計室', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -920,8 +917,7 @@ GP.screens.dev = function (A) {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-dtab]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdDesign(b.dataset.dtab); };
     });
-    const tg2 = $('tkToggle');
-    if (tg2) tg2.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdDesign(); };
+    bindTicket(() => cmdDesign());
     // 開発リソースの配分も、パーツを叩く話なのでここで決める
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
       b.onclick = () => {
@@ -988,11 +984,10 @@ GP.screens.dev = function (A) {
     if (!t) return;
     if (S.techLv(g, key) >= D.TECH.max) return;
     const c = S.techCost(g, key);
-    const free = spendTicket();
-    if (!free) {
-      if (g.funds < c.money || g.rp < c.rp) return;
-      g.funds -= c.money; g.rp -= c.rp; capSpend(c.money);
-    }
+    /* 金と研究Pは、券を使ってもいつもどおり払う */
+    if (g.funds < c.money || g.rp < c.rp) return;
+    const noWeek = spendTicket();
+    g.funds -= c.money; g.rp -= c.rp; capSpend(c.money);
     const r = S.advanceTech(g, key);
     staffExp('designer', 12); staffExp('engineer', 4);
     U.closeModal();
@@ -1007,7 +1002,7 @@ GP.screens.dev = function (A) {
       U.log(g, t.icon + ' 「' + t.name + '」の開発を進めた（+' + Math.round(r.gain * 100) + '%）');
       GP.sound.play('confirm');
     }
-    endWeek();
+    endDev(noWeek);
   }
 
   const bodyCost = v => Math.round(380 + v * 34);
@@ -1019,11 +1014,10 @@ GP.screens.dev = function (A) {
     // コンセプトに逆らう項目は、上限そのものが低い
     const cap = S.bodyCapOf(g, key);
     const cost = bodyCost(v);
-    const free = spendTicket();
-    if (!free) {
-      if (g.funds < cost || g.rp < 8) return;
-      g.funds -= cost; g.rp -= 8; capSpend(cost);
-    }
+    /* 金と研究Pは、券を使ってもいつもどおり払う */
+    if (g.funds < cost || g.rp < 8) return;
+    const noWeek = spendTicket();
+    g.funds -= cost; g.rp -= 8; capSpend(cost);
     const facBonus = (1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06)
                    * S.rigMul(g, 'tunnel');
     const engBonus = 1 + S.devPower(g) * 0.12;
@@ -1074,17 +1068,55 @@ GP.screens.dev = function (A) {
         ? 'いまのコンセプトでは、' + a.name + 'はここまでです。方針を変えるなら車を作り直します。'
         : 'この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
     }
-    endWeek();
+    endDev(noWeek);
   }
 
-  /* チケットを1枚消費する。使わない場合は false を返す */
+  /* ---- 開発チケットの帯 ----
+     券が肩代わりするのが「週」になったので、
+     どの作業場でも切り替えられないと困る。
+     以前は1画面にしか置いていなかった              */
+  function ticketBarHTML() {
+    const tk = g.tickets || 0;
+    if (!tk) return '';
+    return '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
+      '<span class="tk-ic">🎫</span>' +
+      '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+      '<small>1枚使うと、次の1回で<b>週が進みません</b>。' +
+      '資金と研究Pはいつもどおりかかります</small></span>' +
+      '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
+  }
+  /* 帯を押したら切り替えて、その画面を描き直す */
+  function bindTicket(reopen) {
+    const tg = $('tkToggle');
+    if (tg) tg.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); reopen(); };
+  }
+
+  /* チケットを1枚使う。使わない場合は false を返す。
+
+     以前は「資金と研究Pがタダになる」券だったが、
+     このゲームで一番足りないのは金ではなく週だ。
+     （レースまでに動ける回数が、そのまま週数）
+     だから付け替えた——金と研究Pはいつもどおり払い、
+     そのかわり「1回ぶんの手」を券が肩代わりする。        */
   function spendTicket() {
     if (!useTicket || !(g.tickets > 0)) return false;
     g.tickets--;
     useTicket = false;
     GP.sound.play('coin');
-    U.log(g, '🎫 開発チケットを1枚使った。（残り ' + g.tickets + ' 枚）');
+    U.log(g, '🎫 開発チケットを1枚使った。' +
+             'この作業で週は進まない（残り ' + g.tickets + ' 枚）', 'good');
+    U.toast('🎫 今週は減らない！', 'good');
     return true;
+  }
+
+  /* 開発が終わったあとの後始末。
+     券を使ったときは週を進めない。
+     ただし徹夜は、仕事をした以上ちゃんと使い切る——
+     さもないと徹夜が居座って、次の仕事にも乗ってしまう   */
+  function endDev(noWeek) {
+    if (!noWeek) return endWeek();
+    crunchConsume(true);
+    S.save(g); render();
   }
 
   /* ---- 徹夜 ----
@@ -1650,11 +1682,10 @@ GP.screens.dev = function (A) {
     const p = g.equipped[key];
     if (!p) return;
     const cost = improveCost(p), cap = S.partCap(g, p);
-    const free = spendTicket();
-    if (!free) {
-      if (g.funds < cost || g.rp < c.rp) return;
-      g.funds -= cost; g.rp -= c.rp; capSpend(cost);
-    }
+    /* 金と研究Pは、券を使ってもいつもどおり払う */
+    if (g.funds < cost || g.rp < c.rp) return;
+    const noWeek = spendTicket();
+    g.funds -= cost; g.rp -= c.rp; capSpend(cost);
 
     const wind = (key === 'aero' || key === 'susp');
     const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
@@ -1713,7 +1744,7 @@ GP.screens.dev = function (A) {
       sub: brk ? '🔬 ' + brk : c.name,
       from: p.power - gain, to: p.power, cap: cap, gain: gain, crit: crit,
       next: toNext > 0.05 ? toNext : 0
-    }, endWeek);
+    }, () => endDev(noWeek));
   }
 
   /* ---- 開発の手応え ----
@@ -1770,10 +1801,9 @@ GP.screens.dev = function (A) {
     if (!c) return;
     const dc = designCost();
     const cost = Math.round(dc.money * 1.15);
-    const free = useTicket && (g.tickets || 0) > 0;
-    if (!free && (g.funds < cost || g.rp < dc.rp)) return U.toast('資金か研究Pが足りません', 'bad');
-    if (free) g.tickets--;
-    else { g.funds -= cost; g.rp -= dc.rp; capSpend(cost); }
+    if (g.funds < cost || g.rp < dc.rp) return U.toast('資金か研究Pが足りません', 'bad');
+    const noWeek = spendTicket();
+    g.funds -= cost; g.rp -= dc.rp; capSpend(cost);
     S.useIdea(g, id);
 
     const q = Math.min(D.QUAL.max, S.rollQuality(g, c.key) + D.IDEA.qual);
@@ -1794,18 +1824,17 @@ GP.screens.dev = function (A) {
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
     S.save(g);
-    endWeek();
+    endDev(noWeek);
   }
 
   function doDesign(key) {
     const c = D.PART_CATS.find(x => x.key === key);
     const dc = designCost(key);
     if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。「マシン」で合成・破棄しましょう。', 'warn'); return; }
-    const free = spendTicket();
-    if (!free) {
-      if (g.funds < dc.money || g.rp < dc.rp) return;
-      g.funds -= dc.money; g.rp -= dc.rp; capSpend(dc.money);
-    }
+    /* 金と研究Pは、券を使ってもいつもどおり払う */
+    if (g.funds < dc.money || g.rp < dc.rp) return;
+    const noWeek = spendTicket();
+    g.funds -= dc.money; g.rp -= dc.rp; capSpend(dc.money);
 
     const hinted = (g.designEdge || 0) > 0;
     /* ---- 出来 ----
@@ -1851,7 +1880,7 @@ GP.screens.dev = function (A) {
     if (!cur || S.partScore(part, g) > S.partScore(cur, g)) {
       U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
     }
-    endWeek();
+    endDev(noWeek);
   }
 
   /* ---- 製造ライン ----
@@ -1903,7 +1932,7 @@ GP.screens.dev = function (A) {
     D.PART_CATS.forEach(c => {
       const dc = designCost(c.key);
       const ln = S.lineOf(g, c.key);
-      const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
+      const ok = g.funds >= dc.money && g.rp >= dc.rp;
       devRow['des:' + c.key] = {
         ic: U.partIcon(c.key, 26, 0), bg: c.color,
         head: '🏭 パーツを作る',
@@ -1913,7 +1942,7 @@ GP.screens.dev = function (A) {
                 ['できたものは', '保管され、「マシン」から装着・合成できます']],
         note: esc(S.partNote(c.key, g.carGen)),
         free: !!useTicket, money: dc.money, rp: dc.rp,
-        why: devWhy(dc.money, dc.rp, useTicket),
+        why: devWhy(dc.money, dc.rp),
         can: ok, doLabel: '🏭 作る',
         fn: () => doDesign(c.key)
       };
@@ -1924,9 +1953,9 @@ GP.screens.dev = function (A) {
         (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '') + '</em>' +
         '<br><em class="pnote">' + esc(S.partNote(c.key, g.carGen)) +
         '</em></small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
-          : (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
-            '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
+          (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
+          '💰' + money(dc.money) + '<br>🔬' + dc.rp + '</span></button>';
     });
     return h + '</div>';
   }
@@ -1963,6 +1992,7 @@ GP.screens.dev = function (A) {
     }
 
     body += interiorHTML('factory');
+    body = ticketBarHTML() + body;
     U.modal('🏭 工房', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -1970,8 +2000,7 @@ GP.screens.dev = function (A) {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stab2]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdShop(b.dataset.stab2); };
     });
-    const tg3 = $('tkToggle');
-    if (tg3) tg3.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdShop(); };
+    bindTicket(() => cmdShop());
     bindPick(k => {
       if (devPop(k)) return;
       const [kind, key] = k.split(':');
@@ -2108,8 +2137,10 @@ GP.screens.dev = function (A) {
       '<small>買う・売る・契約を切る</small></span>' +
       '<span class="pb-cost">›</span></button></div>';
 
+    body = ticketBarHTML() + body;
     U.modal('🔬 研究所', body, [{ label: 'やめる', fn: U.closeModal }]);
     paintInterior();
+    bindTicket(() => cmdResearch());
     bindPick(k => {
       if (k === '__gain') return doResearchGain();
       if (k.indexOf('res:') === 0) return doResearch(k.slice(4));

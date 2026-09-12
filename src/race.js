@@ -3722,7 +3722,7 @@ GP.race = (function () {
         if (g.dryStreak >= diff.ticket) {
           g.dryStreak = 0;
           g.tickets = (g.tickets || 0) + 1;
-          notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回無料で行える）');
+          notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回、週を使わずに行える）');
           res.gotTicket = true;
         }
       }
