@@ -566,6 +566,11 @@ body.preboot .topbar{visibility:hidden}
 .pickbtn:hover:not(:disabled){background:#fff6da}
 .pickbtn:active:not(:disabled){transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .pickbtn:disabled{opacity:.42;cursor:not-allowed}
+/* 「いまはできない」けれど、押せる。
+   押すと小窓が開いて、何が足りないのかを言う。
+   押せないと、理由を読む手がない               */
+.pickbtn.cant{opacity:.62}
+.pickbtn.cant:active{opacity:.8}
 .pickbtn.done{opacity:.9;box-shadow:none;background:var(--paper2)}
 .pickbtn.small{flex:1;justify-content:center;font-size:11px;padding:4px}
 .pb-ic{width:30px;height:30px;display:flex;align-items:center;justify-content:center;

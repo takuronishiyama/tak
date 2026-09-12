@@ -39,6 +39,54 @@ GP.screens.dev = function (A) {
      噛み合いの図と見立てを先に見せて、そこから選ばせる。
      ここを開くだけでは週は進まない。
      ======================================================= */
+  /* =======================================================
+     開発の小窓
+
+     施設と同じ考えかた。二つある。
+
+     ひとつ、押した瞬間に1週と数千万が出ていくのをやめる。
+     スマホでは、指が当たっただけでそれが起きていた。
+
+     もうひとつ、できないものも押せるようにする。
+     前は disabled で、押しても何も起きなかった。
+     「なぜできないのか」を読む手がどこにもなかったということ。
+     ======================================================= */
+  let devRow = {};          // 'imp:eng' など → その行の中身
+
+  /* 足りないものを、そのまま言う */
+  function devWhy(m, rp, free) {
+    if (free) return '';
+    const a = [];
+    if (m && g.funds < m) a.push('資金があと 💰' + money(m - g.funds) + '万');
+    if (rp && g.rp < rp) a.push('研究ポイントがあと 🔬' + Math.ceil(rp - g.rp));
+    return a.length ? a.join('、') + ' 足りません。' : '';
+  }
+
+  function devPop(k) {
+    const d = devRow[k];
+    if (!d) return false;
+    let h = '<div class="popsum"><span class="pb-ic" style="background:' + d.bg + '">' +
+      d.ic + '</span><span class="popsum-b"><b>' + d.name + '</b>' +
+      '<small>' + (d.sub || '') + '</small></span></div>';
+    if (d.note) h += '<p class="desc">' + d.note + '</p>';
+    (d.lines || []).forEach(l => {
+      h += '<div class="popcost"><span>' + l[0] + '</span><span>' + l[1] + '</span></div>';
+    });
+    h += '<div class="popcost"><span>費用</span><span>' +
+      (d.free ? '<b class="free">🎫 開発チケットで無料</b>'
+              : '<b>💰' + money(d.money || 0) + '万</b>' +
+                (d.rp ? '　<b>🔬' + d.rp + '</b>' : '')) +
+      '</span></div>' +
+      '<div class="popcost"><span>使う週</span><span><b>1週</b></span></div>';
+    if (d.why) h += '<p class="note"><b class="warn">' + d.why + '</b></p>';
+    U.popup(d.head, h, [
+      { label: d.doLabel, cls: 'primary', disabled: !d.can,
+        fn: () => { U.closePopup(); d.fn(); } },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+    return true;
+  }
+
   function cmdCar() {
     const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
@@ -51,7 +99,7 @@ GP.screens.dev = function (A) {
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
       /* 見出しも案内文も置かない。
-         題が「🏎️ 車体」で、下に3つ並んでいれば分かる。
+         題が「🔧 開発」で、下に3つ並んでいれば分かる。
          横向きのスマホは縦が 320px しかなく、
          28px の見出しひとつで3つ目が画面の外へ出てしまう      */
       /* 場所ひとつに仕事ひとつ。
@@ -76,7 +124,7 @@ GP.screens.dev = function (A) {
       '<div class="sub">いまの車</div>' +
       carMixHTML() +
       mechMapHTML(g) + mechReadHTML(g);
-    U.modal('🏎️ 車体', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    U.modal('🔧 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
@@ -511,8 +559,24 @@ GP.screens.dev = function (A) {
       const upLine = [['速さ', pv.dSpeed], ['コーナー', pv.dCorner], ['加速', pv.dAccel]]
         .filter(x => Math.abs(x[1]) > 0.02)
         .map(x => x[0] + ' ' + num(x[1])).join('／');
+      devRow['imp:' + c.key] = {
+        ic: U.partIcon(c.key, 26, 0), bg: c.color, head: '🔧 煮詰める',
+        name: esc(p.name) + ' を煮詰める', sub: c.name,
+        lines: locked ? [['いまはできません', '供給を受けている間は手を入れられません']]
+          : [['いまの性能', '<b>' + Math.round(p.power) + '</b> / 上限 ' + cap + '（' + pct + '%）'],
+             ['1回で', '性能 <b>+' + (Math.round(pv.gain * 10) / 10) + '</b>' +
+              (upLine ? '<br>' + upLine : '')],
+             ['速さにすると', '<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
+              Math.abs(pv.dSec).toFixed(3) + '秒/周</b>']],
+        note: capped ? '上限に届いています。これ以上は伸びが3割まで落ちます。' : '',
+        free: !!useTicket, money: cost, rp: c.rp,
+        why: locked ? '供給中のパワーユニットは、こちらでは開発できません。'
+                     : devWhy(cost, c.rp, useTicket),
+        can: ok && !locked, doLabel: '🔧 煮詰める',
+        fn: () => doImprove(c.key)
+      };
       body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
-        '" data-k="imp:' + c.key + '"' + ((ok && !locked) ? '' : ' disabled') + '>' +
+        ((ok && !locked) ? '' : ' cant') + '" data-k="imp:' + c.key + '">' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' +
           U.partIcon(c.key, 26, S.qualStars(S.qualOf(p))) + '</span>' +
         '<span class="pb-body"><b>' + esc(p.name) +
@@ -661,7 +725,22 @@ GP.screens.dev = function (A) {
         const r2 = rateIfUp(a.key, st.now);
         const up = (r2 - itNow.rate) * rawHave;      // 眠っていた速さが、いくつ起きるか
         const thin = pct < 34;
-        body += '<button class="pickbtn devrow" data-k="bdy:' + a.key + '"' + (ok ? '' : ' disabled') + '>' +
+        devRow['bdy:' + a.key] = {
+          ic: a.icon, bg: a.color, head: '🔧 まとめる',
+          name: a.name + ' をまとめる', sub: a.eff,
+          lines: [['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
+                   (Math.round(v * 10) / 10) + ' / ' + myCap + '）'],
+                  ['1回で', 'インテグレート ' + (itNow.rate * 100).toFixed(1) +
+                   '% → <b>' + (r2 * 100).toFixed(1) + '%</b>'],
+                  ['眠っていた速さが', '<b>+' + up.toFixed(1) + '</b> 起きます']],
+          note: myCap < capAll
+            ? 'コンセプトに逆らう向きなので、上限が低くなっています。' : '',
+          free: !!useTicket, money: cost, rp: 8,
+          why: devWhy(cost, 8, useTicket),
+          can: ok, doLabel: '🔧 まとめる',
+          fn: () => doBody(a.key)
+        };
+        body += '<button class="pickbtn devrow' + (ok ? '' : ' cant') + '" data-k="bdy:' + a.key + '">' +
           '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
           '<span class="pb-body"><b>' + a.name +
           (thin ? '<em class="warn">ここが薄い</em>'
@@ -738,6 +817,7 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
     });
     bindPick(k => {
+      if (devPop(k)) return;          // 小窓で見せてから決めてもらう
       const [kind, key] = k.split(':');
       if (kind === 'bdy') doBody(key);
     });
@@ -800,7 +880,21 @@ GP.screens.dev = function (A) {
       const left = maxed ? 0 : Math.max(1, Math.ceil((1 - t.p) / Math.max(0.001, step)));
       const now = t.lv > 0 ? (t.per >= 1 ? '+' + (t.lv * t.per).toFixed(1)
                                          : '+' + Math.round(t.lv * t.per * 100) + '%') : '—';
-      body += '<button class="pickbtn techrow" data-k="tec:' + t.key + '"' + (ok ? '' : ' disabled') + '>' +
+      devRow['tec:' + t.key] = {
+        ic: t.icon, bg: t.color, head: '🔬 技術を進める',
+        name: t.name + 'を進める', sub: 'Lv.' + t.lv + ' / ' + t.max,
+        lines: maxed ? [['これ以上', '上がりません']]
+          : [['いまの効き', '<b>' + now + '</b>'],
+             ['次の Lv.' + (t.lv + 1) + 'まで', '<b>あと ' + left + '回</b>'],
+             ['上がると', esc(t.eff)]],
+        note: esc(t.desc) + '一度ものにした技術は、' +
+              'パーツを作り替えても失われません。',
+        free: !!useTicket, money: c.money, rp: c.rp,
+        why: maxed ? 'もう最高の Lv. です。' : devWhy(c.money, c.rp, useTicket),
+        can: ok, doLabel: '🔬 進める',
+        fn: () => doTech(t.key)
+      };
+      body += '<button class="pickbtn techrow' + (ok ? '' : ' cant') + '" data-k="tec:' + t.key + '">' +
         '<span class="pb-ic" style="background:' + t.color + '">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + t.name +
           '<em class="techlv">Lv.' + t.lv + ' / ' + t.max + '</em></b>' +
@@ -839,6 +933,7 @@ GP.screens.dev = function (A) {
       };
     });
     bindPick(k => {
+      if (devPop(k)) return;
       const [kind, key] = k.split(':');
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
@@ -1809,7 +1904,20 @@ GP.screens.dev = function (A) {
       const dc = designCost(c.key);
       const ln = S.lineOf(g, c.key);
       const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
-      h += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
+      devRow['des:' + c.key] = {
+        ic: U.partIcon(c.key, 26, 0), bg: c.color,
+        head: '🏭 パーツを作る',
+        name: esc(S.partModel(c.key, g.carGen)) + ' を作る', sub: c.name,
+        lines: [['ライン', ln.icon + ' ' + esc(ln.name) +
+                 (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '')],
+                ['できたものは', '保管され、「マシン」から装着・合成できます']],
+        note: esc(S.partNote(c.key, g.carGen)),
+        free: !!useTicket, money: dc.money, rp: dc.rp,
+        why: devWhy(dc.money, dc.rp, useTicket),
+        can: ok, doLabel: '🏭 作る',
+        fn: () => doDesign(c.key)
+      };
+      h += '<button class="pickbtn' + (ok ? '' : ' cant') + '" data-k="des:' + c.key + '">' +
         '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
         '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を作る</b>' +
         '<small>' + c.name + '　<em class="ln-tag">' + ln.icon + ' ' + esc(ln.name) +
@@ -1865,6 +1973,7 @@ GP.screens.dev = function (A) {
     const tg3 = $('tkToggle');
     if (tg3) tg3.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdShop(); };
     bindPick(k => {
+      if (devPop(k)) return;
       const [kind, key] = k.split(':');
       if (kind === 'des') doDesign(key);
       else if (kind === 'imp') doImprove(key);

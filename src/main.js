@@ -1271,6 +1271,29 @@ window.GP = window.GP || {};
     });
   }
 
+  /* ---- 開発チケットの札 ----
+     上のバーに出ているのに、押せないし名前もないので、
+     何の絵なのか分からなかった。押したら答えるようにする   */
+  function openTicketInfo() {
+    const tk = g.tickets || 0;
+    const d = S.diffOf(g);
+    const h = '<div class="popsum"><span class="pb-ic" style="background:#c9a227">🎫</span>' +
+      '<span class="popsum-b"><b>開発チケット</b>' +
+      '<small>いま <b>' + tk + '枚</b> 持っています</small></span></div>' +
+      '<p class="desc">入賞から遠ざかっているチームに、' +
+      '連盟から届く券です。</p>' +
+      '<div class="popcost"><span>使うと</span><span><b>開発・設計を1回ぶん無料に</b></span></div>' +
+      '<div class="popcost"><span>使える場所</span><span>🔧 開発 の中の<br>' +
+      '設計室・工房・ガレージ・研究所</span></div>' +
+      '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
+      d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +
+      '<p class="note">金も研究ポイントも減りません。' +
+      'ただし週は1つ使います。' +
+      '高いものに使うほど得です。</p>';
+    U.popup('🎫 開発チケット', h,
+      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+  }
+
   function bindCommands() {
     const map = {
       cCar: A.cmdCar, cDriver: A.cmdDriverMenu, cMaintain: A.cmdMaintain,
@@ -1281,7 +1304,7 @@ window.GP = window.GP || {};
       cOffGo: A.doOffNext, cStaffO: A.cmdStaff, cInfoO: A.cmdInfo,
       cGarageO: A.cmdGarage, cFacilityO: A.cmdFacility, cFacilityR: A.cmdFacility,
       cOwner: A.cmdOwner, cOwnerR: A.cmdOwner, cOwnerO: A.cmdOwner,
-      cCrunch: A.cmdCrunch, cKart: A.askKart,
+      cCrunch: A.cmdCrunch, cKart: A.askKart, tTicketBox: openTicketInfo,
       cEngine: A.cmdEngine, cEngineR: A.cmdEngine, cEngineO: A.cmdEngine
     };
     /* いま開いている画面がどのコマンドのものかを控えておく。

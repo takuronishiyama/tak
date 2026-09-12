@@ -430,8 +430,11 @@ GP.screens.home = function (A) {
     list.forEach(x => {
       const can = !x.owned && x.open && g.funds >= x.price;
       const off = x.price < x.cost;
-      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-gear="' + fac + ':' + x.key + '"' +
-        (can ? '' : ' disabled') + '>' +
+      /* 買えないものも押せるようにしてある。
+         押せないと「なぜ買えないのか」を読む手がない。
+         小窓のほうで、足りないものを言う           */
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : can ? '' : ' cant') +
+        '" data-gear="' + fac + ':' + x.key + '">' +
         '<span class="pb-ic">' + x.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(x.name) +
           (x.owned ? '<em class="gowned">導入済み</em>'
@@ -465,8 +468,8 @@ GP.screens.home = function (A) {
     list.forEach(x => {
       const can = !x.owned && g.funds >= x.cost;
       const kart = x.key === 'kart' && x.owned;
-      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : '') + '" data-est="' + x.key + '"' +
-        ((can || kart) ? '' : ' disabled') + '>' +
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : can ? '' : ' cant') +
+        '" data-est="' + x.key + '">' +
         '<span class="pb-ic" style="background:#8a5a2a">' + x.icon + '</span>' +
         '<span class="pb-body"><b>' + esc(x.name) +
           (x.owned ? '<em class="gowned">所有</em>' : '') + '</b>' +
