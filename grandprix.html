@@ -21577,12 +21577,17 @@ GP.screens.dev = function (A) {
     };
     const asleep = rawHave * (1 - itNow.rate);
 
+    /* 上に残すのは要点の一行だけ。
+       「何のための一覧か」の説明と内訳は、押したあとに読むもの     */
     body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
+      '<p class="desc"><b>いまのまとめ上げ ' + Math.round(itNow.rate * 100) + '%</b>　' +
+      '持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
+      Math.round(rawHave * itNow.rate) + '</b>。<b>' + Math.round(asleep) +
+      '</b> が眠ったままです。</p>';
+    // ↓ 一覧の下に回すぶん
+    const intRead =
       '<p class="desc">この一覧が、「速さの成り立ち」の <b>×</b> のところです。' +
-      'パーツをいくら良くしても、まとめ上げていなければ出てきません。' +
-      'いま持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
-      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
-      '</b> は眠ったままです。<br>' +
+      'パーツをいくら良くしても、まとめ上げていなければ出てきません。<br>' +
       '同じ扇の中なら、どれを押してもまとめ上げは同じだけ進みます。' +
       'ちがうのは<b>値段</b>（薄いところほど安い）と、<b>おまけに付いてくるもの</b>です。' +
       U.helpLink('car') + '</p>' +
@@ -21640,10 +21645,14 @@ GP.screens.dev = function (A) {
       body += '</div>';
     });
     body += '<div class="pick">';
+    // 読みものは一覧のあとに
+    body += intRead;
 
     }
 
-    body = techReport() + body;
+    /* 技術者からの一言も読みもの。タブより上に積むと、
+       一覧が画面の外へ押し出される                       */
+    body += techReport();
 
     // ---- 規則変更の予告 ----
     if (S.regulationNext(g)) {
