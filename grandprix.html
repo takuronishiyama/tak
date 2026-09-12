@@ -15481,6 +15481,28 @@ GP.race = (function () {
                   wxChanged: wxChangedThisLap, wxWet: wx.wet, wetLevel: wx.level || 0 });
       scStarted = false; wxChangedThisLap = false;
 
+      /* ---- 隊列は一列のまま ----
+         セーフティカーの後ろでは、追い越しはできない。
+         SC中も1周のタイムに揺れを入れているので、
+         0.02秒差で並んでいる2台が、ただの揺れで入れ替わることがあった。
+         前の周の並びをそのまま守る。
+         ただしピットに入った車が下がるのは正しいので、そこは触らない  */
+      const scHold = scLaps > 0 && lap >= scFrom && lap < scFrom + scLaps;
+      if (scHold && lap > 1 && posHistory.length) {
+        const prevIds = posHistory[posHistory.length - 1];
+        const held = order.filter(e => !e.dnf && e.cum[lap - 1] != null &&
+                                       e.pitPlan.indexOf(lap) < 0 &&
+                                       prevIds.indexOf(e.id) >= 0)
+          .sort((a, b) => prevIds.indexOf(a.id) - prevIds.indexOf(b.id));
+        for (let i = 1; i < held.length; i++) {
+          const ahead = held[i - 1], me = held[i];
+          // 前にいた車より前へ出ていたら、そのすぐ後ろへ戻す
+          if (me.cum[lap - 1] <= ahead.cum[lap - 1]) {
+            me.cum[lap - 1] = ahead.cum[lap - 1] + 0.08;
+          }
+        }
+      }
+
       // 順位変動の記録
       const newOrder = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
       if (lap > 1) {
@@ -15488,7 +15510,14 @@ GP.race = (function () {
           const prevIdx = posHistory[posHistory.length - 1].indexOf(e.id);
           if (prevIdx >= 0 && prevIdx > i && e.isPlayer) {
             const victim = newOrder[i + 1];
-            if (victim) events.push({ lap, type: 'pass', car: e, text: e.driver.name + ' が ' + victim.driver.name + ' をオーバーテイク！ → ' + (i + 1) + '位' });
+            /* 順位が上がった理由を見てから書く。
+               セーフティカー中は追い越せないし、
+               相手がピットに入って下がっただけなら、抜いたわけではない。
+               どちらも、抜いたと書かずに黙っておく（ピットは別に実況が出る） */
+            const pitted = victim && victim.pitPlan.indexOf(lap) >= 0;
+            if (victim && !scHold && !pitted) {
+              events.push({ lap, type: 'pass', car: e, text: e.driver.name + ' が ' + victim.driver.name + ' をオーバーテイク！ → ' + (i + 1) + '位' });
+            }
           }
         });
       }
