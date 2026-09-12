@@ -3499,13 +3499,44 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-wrap.timing .rv-mon .rv-loglist{max-height:none;height:auto}
 }
 
-/* 縦に持ったスマホでモニターを出したとき。
-   畳むのはコース図だけにする。表と実況の高さの上限は
-   そのままにしておかないと、実況が伸びきって
-   表と操作ボタンを画面の外へ押し出してしまう            */
+/* ---- 縦に持ったスマホで、モニターを出したとき ----
+   コース図とモニターは両方出す。そのうえで高さの取り合いを決める。
+
+   コース図には、縦横比を保ったまま読める高さを固定で渡す。
+   何も言わないと、下の表と実況に押されて帯のように潰れてしまう。
+   そのぶんは実況から借りる。モニターが出ているあいだは表が主役で、
+   実況は流れていくものなので、行数が減っても読める。         */
 @media (max-width:520px) and (orientation:portrait){
-  .rv-wrap.timing .rv-body{display:none}
   .rv-wrap.timing .rv-head{flex:0 0 auto}
+  .rv-wrap.timing .rv-body{display:flex;flex:0 0 auto;max-height:none;height:138px}
+  .rv-wrap.timing .rv-canvaswrap{height:100%;width:100%;
+    align-items:center;justify-content:center}
+  .rv-wrap.timing #raceCanvas{height:100%;width:auto;max-width:100%}
+  /* 表はいちばん背を伸ばし、あふれたぶんは自分で巻き取る */
+  .rv-wrap.timing .rv-sectors{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
+  /* 上のほうに .rv-wrap.timing .rv-mon .rv-loglist という
+     もう一段詳しい指定があるので、こちらも同じ強さで書く。
+     min-height も既定（auto）のままだと、行が増えたぶんだけ
+     実況が膨らんで表の場所を食うので、0 にして縛る          */
+  .rv-wrap.timing .rv-loglist,
+  .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 62px;height:62px;max-height:62px;
+    min-height:0;overflow-y:auto}
+  /* カメラの列は左下の隅に寄せる。左右の両方を入れ物に合わせると
+     幅いっぱいに伸びて、狭いコース図を横切ってしまう          */
+  .rv-wrap.timing .rv-cam{left:5px;right:auto;top:auto;bottom:5px;max-width:calc(100% - 10px)}
+  .rv-wrap.timing .rv-cam button{font-size:9px;padding:1px 5px;min-height:0}
+  /* 無線はいちばん新しいひとつだけ。2つ積むだけで、
+     この高さのコース図はほとんど隠れてしまう                  */
+  /* 狭い画面用の指定で left:6px が付いているので、明示的に外す。
+     外さないと左右に突っ張って、カメラの列の上に重なる。
+     無線は右上、カメラは左下——と隅を分けて、
+     コース図の真ん中（車が走っているところ）を空けておく    */
+  .rv-wrap.timing .rv-radio{width:min(170px,50%);gap:2px;
+    left:auto;right:5px;top:5px;bottom:auto}
+  .rv-wrap.timing .rv-radio .rvr{padding:2px 6px}
+  .rv-wrap.timing .rv-radio .rvr b{font-size:8px}
+  .rv-wrap.timing .rv-radio .rvr span{font-size:10px;line-height:1.35}
+  .rv-wrap.timing .rv-radio .rvr:nth-last-child(n+2){display:none}
 }
 
 /* ---- 製造ライン ----
