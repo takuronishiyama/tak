@@ -27182,11 +27182,25 @@ GP.screens.home = function (A) {
     if (g.equipped[m.cat]) cands.push({ p: g.equipped[m.cat], where: '装着中' });
     g.inventory.forEach(p => { if (p.cat === m.cat && p.id !== m.id) cands.push({ p: p, where: '保管' }); });
 
-    let body = '<p class="lead">素材：<b>' + esc(m.name) + '</b>（' + U.stars(m.rarity) + '／性能 ' + Math.round(m.power) + '）<br>' +
+    /* 素材の出来。パーツは品質（数値）で持っているので、そこから読む。
+       ここで m.rarity を見ていたために NaN が出ていた            */
+    const mq = S.qualOf(m);
+    const gainNow = Math.round(m.power * 0.45 * 10) / 10;
+    /* 器が広がる確率。doFuse と同じ式をここでも使う。
+       別々に書いていたので、画面の数字が実際と違っていた        */
+    const upChance = 0.18 + Math.max(0, mq - 1) * 0.30;
+    const short = Math.max(0, cost - g.funds);
+    let body = '<p class="lead">素材：<b>' + esc(m.name) + '</b>（' +
+      U.stars(S.qualStars(mq)) + ' ' + esc(S.qualTier(mq).name) + ' ' + mq.toFixed(2) +
+      '／性能 ' + Math.round(m.power) + '）<br>' +
       'この素材を吸収させる ' + c.name + ' を選んでください。</p>' +
-      '<p class="desc">性能を <b>+' + Math.round(m.power * 0.45) + '</b> 引き継ぎ、' +
-      Math.round((0.22 + m.rarity * 0.08) * 100) + '% の確率でレアリティが1段階上がります。<br>' +
-      '費用 💰' + money(cost) + '万（週は消費しません）</p>';
+      '<p class="desc">性能を <b>+' + gainNow.toFixed(1) + '</b> 引き継ぎ、' +
+      Math.round(upChance * 100) + '% の確率で<b>品質そのものが少し広がります</b>' +
+      '（出来の良い素材ほど、拾えるものが多い）。<br>' +
+      '費用 💰' + money(cost) + '万（週は消費しません）</p>' +
+      (short > 0 ? '<p class="note"><b class="warn">資金が足りません。</b>' +
+        'あと <b>💰' + money(short) + '万</b> あれば合成できます。' +
+        '営業でスポンサーを取るか、入賞して賞金を持ち帰りましょう。</p>' : '');
     if (!cands.length) {
       body += '<div class="bigbox">同じ種類のパーツがありません</div>';
     } else {
@@ -27219,6 +27233,7 @@ GP.screens.home = function (A) {
        ここで広がるのは、あくまで削り出しの手直しぶんに留める      */
     let up = false;
     const mq = S.qualOf(m);
+    // 画面に出している確率と同じ式（openFuse の upChance と揃えてある）
     if (Math.random() < 0.18 + Math.max(0, mq - 1) * 0.30) {
       base.quality = Math.min(D.QUAL.max, S.qualOf(base) + S.rnd(0.03, 0.07));
       base.quality = Math.round(base.quality * 1000) / 1000;
@@ -29372,7 +29387,10 @@ GP.screens.home = function (A) {
     name: 'home',
     link: link,
     setG: function (v) { g = v; },
+    /* openFuse も外へ出しておく。出ていなかったせいで、画面を
+       総当たりする検査がここへ一度も入れず、NaN が残っていた   */
     api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
+           openFuse: openFuse,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };
