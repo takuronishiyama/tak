@@ -400,11 +400,15 @@ GP.screens.home = function (A) {
       const y = (ev.clientY - r.top) * (GP.base.H / r.height);
       const k = GP.base.hit(x, y);
       if (k) {
+        const wasFac = baseTab === 'fac';
         baseSel = k;
         // 事業や遠征を見ている最中に建物を押したら、その施設の話へ戻す
         if (baseTab === 'est' || baseTab === 'logi') baseTab = 'fac';
         GP.sound.play('tap');
         drawBase();
+        /* 「広げる」を見ている最中なら、その場で決断を出す。
+           下まで下りていってボタンを探す往復が要らなくなる    */
+        if (wasFac) openFacUp(k);
       }
     };
   }
@@ -475,19 +479,52 @@ GP.screens.home = function (A) {
     });
     return h + '</div>';
   }
+  /* ---- 事業を買う小窓。備品と同じ扱い ---- */
+  function openEstateBuy(key) {
+    const x = (S.estateList(g) || []).filter(y => y.key === key)[0];
+    if (!x) return;
+    const short = Math.max(0, x.cost - g.funds);
+    let h = '<div class="popsum"><span class="pb-ic">' + x.icon + '</span>' +
+      '<span class="popsum-b"><b>' + esc(x.name) + '</b>' +
+      '<small>' + esc(x.note || '') + '</small></span></div>' +
+      '<div class="popcost"><span>効き目</span><span><b>' + esc(x.eff) + '</b></span></div>';
+    if (x.owned) {
+      h += '<div class="popcost"><span>もう持っています</span></div>';
+    } else {
+      h += '<div class="popcost"><span>買う費用</span><span><b>💰' +
+        money(x.cost) + '万</b></span></div>';
+      if (short > 0) {
+        h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+          money(short) + '万</b> です。</p>';
+      }
+    }
+    U.popup('💼 ' + x.icon + ' ' + x.name, h, [
+      { label: x.owned ? '持っています' : '💼 手に入れる　💰' + money(x.cost) + '万',
+        cls: 'primary', disabled: !!x.owned || g.funds < x.cost,
+        fn: () => {
+          const r = S.buyEstate(g, key);
+          if (!r) return;
+          GP.sound.play('build');
+          U.log(g, r.icon + ' ' + r.name + ' を手に入れた（' + r.eff + '）', 'good');
+          U.toast(r.icon + ' ' + r.name + '！', 'good');
+          S.save(g); render();
+          if ($('baseCv')) drawBase();
+          U.closePopup();
+        } },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+  }
+
   function bindEstate() {
     const box = $('baseDetail');
     if (!box) return;
     Array.prototype.forEach.call(box.querySelectorAll('[data-est]'), b => {
       b.onclick = () => {
         const key = b.dataset.est;
+        // すでに持っているカート場は、遊びに行く入口のまま
         if (key === 'kart' && S.hasEstate(g, key)) return askKart();
-        const x = S.buyEstate(g, key);
-        if (!x) return;
-        GP.sound.play('build');
-        U.log(g, x.icon + ' ' + x.name + ' を手に入れた（' + x.eff + '）', 'good');
-        U.toast(x.icon + ' ' + x.name + '！', 'good');
-        S.save(g); render(); drawBase();
+        GP.sound.play('tap');
+        openEstateBuy(key);
       };
     });
   }
@@ -720,19 +757,64 @@ GP.screens.home = function (A) {
     S.save(g);
   }
 
+  /* ---- 備品を買う小窓 ----
+     押した瞬間に数千万が出ていくのは、スマホでは事故になる。
+     何をいくらで買って何が起きるのかを、決める前に一度見せる  */
+  function openGearBuy(fac, key) {
+    const x = (S.gearList(g, fac) || []).filter(y => y.key === key)[0];
+    if (!x) return;
+    const f = D.FACILITIES.find(y => y.key === fac);
+    const short = Math.max(0, x.price - g.funds);
+    const off = x.price < x.cost;
+    let h = '<div class="popsum"><span class="pb-ic">' + x.icon + '</span>' +
+      '<span class="popsum-b"><b>' + esc(x.name) + '</b>' +
+      '<small>' + esc(f ? f.icon + ' ' + f.name + ' に据えます' : '') + '</small></span></div>' +
+      '<p class="desc">' + esc(x.note) + '</p>' +
+      '<div class="popcost"><span>効き目</span><span><b>' + esc(x.eff) + '</b>' +
+      (x.env ? '<br>働きやすさ +' + x.env : '') + '</span></div>';
+    if (x.owned) {
+      h += '<div class="popcost"><span>もう導入済みです</span></div>';
+    } else if (!x.open) {
+      h += '<div class="popcost"><span><b class="warn">' + (f ? f.name : 'この施設') +
+        ' が Lv.' + x.need + ' になってからです</b></span></div>';
+    } else {
+      h += '<div class="popcost"><span>買う費用</span><span>' +
+        (off ? '<s>💰' + money(x.cost) + '</s> ' : '') +
+        '<b>💰' + money(x.price) + '万</b></span></div>' +
+        '<p class="note">買った道具は、置いてあるだけで <b>💰' + money(x.up) +
+        '万／週</b> の維持費がかかります。</p>';
+      if (short > 0) {
+        h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+          money(short) + '万</b> です。</p>';
+      }
+    }
+    const can = !x.owned && x.open && g.funds >= x.price;
+    U.popup('🧰 ' + x.icon + ' ' + x.name, h, [
+      { label: x.owned ? '導入済み' : '🧰 入れる　💰' + money(x.price) + '万',
+        cls: 'primary', disabled: !can,
+        fn: () => {
+          const r = S.buyGear(g, fac, key);
+          if (!r) return;
+          GP.sound.play('build');
+          U.log(g, r.icon + ' ' + r.name + ' を導入した（' + r.eff + '）', 'good');
+          U.toast(r.icon + ' ' + r.name + ' を導入！', 'good');
+          if (r.env) U.pop('働きやすさ +' + r.env, 'good');
+          S.save(g); render();
+          if ($('baseCv')) drawBase();
+          U.closePopup();
+        } },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+  }
+
   function bindGear() {
     const box = $('baseDetail');
     if (!box) return;
     Array.prototype.forEach.call(box.querySelectorAll('[data-gear]'), b => {
       b.onclick = () => {
         const [fac, key] = b.dataset.gear.split(':');
-        const x = S.buyGear(g, fac, key);
-        if (!x) return;
-        GP.sound.play('build');
-        U.log(g, x.icon + ' ' + x.name + ' を導入した（' + x.eff + '）', 'good');
-        U.toast(x.icon + ' ' + x.name + ' を導入！', 'good');
-        if (x.env) U.pop('働きやすさ +' + x.env, 'good');
-        S.save(g); render(); drawBase();
+        GP.sound.play('tap');
+        openGearBuy(fac, key);
       };
     });
   }
@@ -751,6 +833,82 @@ GP.screens.home = function (A) {
         (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
     });
     return h + '</div>';
+  }
+
+  /* ---- 施設を広げる小窓 ----
+     決めるのに要るものだけを、その場に出す。
+     広げたあとも開いたままにして、続けて押せるようにしてある   */
+  function facUpHTML(key) {
+    const f = D.FACILITIES.find(x => x.key === key);
+    const lv = g.facilities[key];
+    const max = lv >= 10;
+    const cost = facilityCost(key);
+    const facCut = S.perkCut(g, 'fac:' + key);
+    const short = Math.max(0, cost - g.funds);
+    const rig = S.rigOf(g, key);
+    let h = '<div class="popsum">' +
+      '<span class="pb-ic">' + f.icon + '</span>' +
+      '<span class="popsum-b"><b>' + esc(f.name) + '</b>' +
+      '<small>' + esc(f.desc) + '</small></span></div>' +
+      '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
+    for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
+    h += '</i><span>' + (max ? 'MAX' : 'Lv.' + (lv + 1) + ' へ') + '</span></div>';
+    // いま据わっている設備と、次の段で入れ替わるもの
+    if (rig && rig.name) {
+      h += '<p class="desc">いま据わっている設備：<b>' + esc(rig.icon + ' ' + rig.name) + '</b></p>';
+    }
+    if (max) {
+      h += '<div class="popcost"><span>これ以上は広げられません</span></div>';
+    } else {
+      h += '<div class="popcost"><span>広げる費用</span><span>' +
+        (facCut > 0 ? '<s>💰' + money(Math.round(cost / (1 - facCut))) + '</s> ' : '') +
+        '<b>💰' + money(cost) + '万</b></span></div>';
+      if (facCut > 0) {
+        h += '<p class="note">🏭 サプライヤーの現物支援で、この設備の導入費が <b>-' +
+          Math.round(facCut * 100) + '%</b> になっています。</p>';
+      }
+      if (short > 0) {
+        h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+          money(short) + '万</b> です。</p>';
+      }
+    }
+    return h;
+  }
+  function openFacUp(key) {
+    baseSel = key;
+    const f = D.FACILITIES.find(x => x.key === key);
+    const lv = g.facilities[key];
+    const cost = facilityCost(key);
+    const max = lv >= 10;
+    U.popup('🏗️ ' + f.icon + ' ' + f.name, facUpHTML(key), [
+      { label: max ? '最大まで広げてある' : '🔨 広げる　💰' + money(cost) + '万',
+        cls: 'primary', disabled: max || g.funds < cost,
+        fn: () => doFacUp(key) },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+  }
+  function doFacUp(key) {
+    const c = facilityCost(key);
+    if (g.funds < c || g.facilities[key] >= 10) return;
+    const before = g.facilities[key];
+    // 設備投資は上限の対象外（建物や設備は開発費とは別枠で扱われる）
+    g.funds -= c; g.facilities[key]++;
+    const fa = D.FACILITIES.find(x => x.key === key);
+    GP.sound.play('build');
+    U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[key] + ' に拡張した！', 'good');
+    grantFame(D.fameOf('facility'), '施設を広げた');
+    U.toast('🏗️ ' + fa.name + ' Lv.' + g.facilities[key] + '！', 'good');
+    S.save(g); render();
+    const sc2 = GP.base.scale(g);
+    if (sc2.rank !== GP.base.scale({ facilities: Object.assign({}, g.facilities, { [key]: before }),
+                                     fans: g.fans, titles: g.titles }).rank) {
+      GP.sound.play('levelup');
+      U.toast('🎊 チーム規模が「' + sc2.rank + '」になった！', 'good');
+      U.log(g, '🎊 チーム規模が「' + sc2.rank + '」に成長した！', 'good');
+    }
+    // 下の画面も追いつかせておく。小窓は開いたまま、次の段に書き換える
+    if ($('baseCv')) drawBase();
+    openFacUp(key);
   }
 
   function drawBase() {
@@ -825,27 +983,18 @@ GP.screens.home = function (A) {
     bindEstate();
     if (baseTab === 'logi') bindLogi();
 
+    /* 下に残してあるボタンは、小窓への入口。
+       決断そのものは小窓の中で行う（doFacUp）           */
     const up = $('baseUp');
-    if (up) up.onclick = () => {
-      const c = facilityCost(baseSel);
-      if (g.funds < c || g.facilities[baseSel] >= 10) return;
-      // 設備投資は上限の対象外（建物や設備は開発費とは別枠で扱われる）
-      g.funds -= c; g.facilities[baseSel]++;
-      const fa = D.FACILITIES.find(x => x.key === baseSel);
-      GP.sound.play('build');
-      U.log(g, '🏗️ ' + fa.name + ' を Lv.' + g.facilities[baseSel] + ' に拡張した！', 'good');
-      grantFame(D.fameOf('facility'), '施設を広げた');
-      U.toast('🏗️ ' + fa.name + ' Lv.' + g.facilities[baseSel] + '！', 'good');
-      S.save(g); render(); drawBase();
-      const sc2 = GP.base.scale(g);
-      if (sc2.rank !== GP.base.scale({ facilities: Object.assign({}, g.facilities, { [baseSel]: g.facilities[baseSel] - 1 }), fans: g.fans, titles: g.titles }).rank) {
-        GP.sound.play('levelup');
-        U.toast('🎊 チーム規模が「' + sc2.rank + '」になった！', 'good');
-        U.log(g, '🎊 チーム規模が「' + sc2.rank + '」に成長した！', 'good');
-      }
-    };
+    if (up) up.onclick = () => { GP.sound.play('tap'); openFacUp(baseSel); };
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-fac]'), b => {
-      b.onclick = () => { baseSel = b.dataset.fac; GP.sound.play('tap'); drawBase(); };
+      b.onclick = () => {
+        const k = b.dataset.fac;
+        const wasFac = baseTab === 'fac';
+        baseSel = k; GP.sound.play('tap'); drawBase();
+        // 備品や事業を見ているときは、選び直すだけに留める
+        if (wasFac) openFacUp(k);
+      };
     });
   }
 
@@ -2497,7 +2646,8 @@ GP.screens.home = function (A) {
     /* openFuse も外へ出しておく。出ていなかったせいで、画面を
        総当たりする検査がここへ一度も入れず、NaN が残っていた   */
     api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
-           openFuse: openFuse,
+           openFuse: openFuse, openFacUp: openFacUp,
+           openGearBuy: openGearBuy, openEstateBuy: openEstateBuy,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };

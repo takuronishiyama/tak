@@ -991,6 +991,38 @@ GP.ui = (function () {
     if (fn) fn(b.getAttribute('data-help'));
   });
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal, coupling, helpLink,
+  /* ---- 決める場面の小窓 ----
+     モーダルの上に重ねる。下の画面は作り直さないので、
+     閉じればさっき見ていたところへそのまま戻ってくる。
+     長い画面の底まで下りていってボタンを押す、という往復が要らなくなる */
+  function popup(title, body, buttons, opts) {
+    opts = opts || {};
+    const m = $('pop');
+    m.className = 'show' + (opts.wide ? ' wide' : '');
+    $('popTitle').innerHTML = title;
+    $('popBody').innerHTML = body;
+    const bar = $('popBtns');
+    bar.innerHTML = '';
+    (buttons || [{ label: '閉じる', fn: closePopup }]).forEach(b => {
+      const el = document.createElement('button');
+      el.className = 'btn ' + (b.cls || '');
+      el.innerHTML = b.label;
+      el.disabled = !!b.disabled;
+      el.onclick = b.fn;
+      bar.appendChild(el);
+    });
+    return $('popBody');
+  }
+  function closePopup() {
+    const m = $('pop');
+    if (m) m.className = '';
+  }
+  function popupOpen() {
+    const m = $('pop');
+    return !!m && /show/.test(m.className);
+  }
+
+  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
+           popup, closePopup, popupOpen, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

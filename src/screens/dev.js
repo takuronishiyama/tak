@@ -555,7 +555,9 @@ GP.screens.dev = function (A) {
       ['int',  '🔗', 'まとめ上げ', Math.round(it0.rate * 100) + '%'],
       ['mesh', '🧩', '噛み合い',   '']
     ];
-    let body = interiorHTML('factory') +
+    /* 工房の絵は、決めたあとの景色。先に出すと一覧が画面の外へ出る。
+       選ぶものを上に、読むものと絵を下に回す                     */
+    let body =
       '<div class="tabs qtabs bastabs">' + ITABS.map(t =>
         '<button class="tab' + (impTab === t[0] ? ' on' : '') + '" data-itab="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
@@ -718,6 +720,7 @@ GP.screens.dev = function (A) {
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     body += '</div>';
+    body += interiorHTML('factory');
     U.modal('🔧 ガレージ', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -757,7 +760,7 @@ GP.screens.dev = function (A) {
       ['idea', '💡', 'ひらめき', ideaN ? String(ideaN) : ''],
       ['base', '🧪', '素材と技術', '']
     ];
-    let body = interiorHTML('factory') +
+    let body =
       '<p class="desc">ここで決めるのは、<b>これから作るもの</b>と、' +
       '<b>チームが持っている技術</b>です。技術はいまの車にもそのまま効きますが、' +
       '<b>パーツ1点ずつには手を入れません</b>。' +
@@ -806,6 +809,7 @@ GP.screens.dev = function (A) {
 
     }
 
+    body += interiorHTML('factory');
     U.modal('🖊️ 設計室', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -1823,7 +1827,7 @@ GP.screens.dev = function (A) {
       ['imp',  '🔧', '煮詰める', ''],
       ['line', '🛠️', 'ライン',   '']
     ];
-    let body = interiorHTML('factory') +
+    let body =
       '<p class="desc">ここは<b>パーツそのものに手を入れる</b>場所です。' +
       '図面を形にして（作る）、できたものを上限へ近づけます（煮詰める）。' +
       '何を作るかは🖊️設計室で決め、車に載せて作り込むのは🔧ガレージです。</p>' +
@@ -1837,9 +1841,11 @@ GP.screens.dev = function (A) {
     } else if (shopTab === 'line') {
       body += lineBoxHTML();
     } else {
-      body += trendBoxHTML() + makeBoxHTML();
+      // 流行の話は、何を作るか決めたあとに効いてくるもの。一覧の下へ
+      body += makeBoxHTML() + trendBoxHTML();
     }
 
+    body += interiorHTML('factory');
     U.modal('🏭 工房', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);

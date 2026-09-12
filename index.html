@@ -212,6 +212,16 @@
   </div>
 </div>
 
+<!-- 決める場面だけを、その場に出す小窓。モーダルの上に重ねる。
+     下の画面は消さないので、閉じればさっき見ていた場所に戻る -->
+<div id="pop">
+  <div class="pop-box">
+    <div class="pop-h"><span id="popTitle"></span><button id="popClose" class="modal-x">✕</button></div>
+    <div id="popBody" class="pop-body"></div>
+    <div id="popBtns" class="pop-btns"></div>
+  </div>
+</div>
+
 <div id="toastLayer"></div>
 
 <script src="src/sound.js"></script>

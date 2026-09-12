@@ -1296,6 +1296,10 @@ window.GP = window.GP || {};
       };
     });
     $('modalClose').onclick = U.closeModal;
+    /* 小窓。✕と、外側の暗いところを触れば閉じる。
+       下のモーダルは触らないので、閉じれば元の場所に戻る   */
+    $('popClose').onclick = () => { GP.sound.play('tap'); U.closePopup(); };
+    $('pop').onclick = ev => { if (ev.target === $('pop')) U.closePopup(); };
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     /* じっくり（既定）を基準に、そこから3段だけ速くできる。
        数字は「レース全体を何秒で見せるか」 */
