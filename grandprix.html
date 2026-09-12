@@ -3508,6 +3508,31 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-wrap.timing .rv-head{flex:0 0 auto}
 }
 
+/* ---- 製造ライン ----
+   パーツごとに一本ずつ。いまどの段で、次まであと何本かを一目で。 */
+.linelist{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.linerow{display:flex;align-items:center;gap:8px;padding:6px 8px;
+  background:rgba(255,248,227,.72);border:2px solid var(--ink);border-radius:8px}
+.ln-ic{flex:0 0 auto;width:34px;height:34px;border-radius:7px;display:flex;
+  align-items:center;justify-content:center;border:2px solid var(--ink)}
+.ln-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+/* 直下の見出しだけ。small の中の <b> まで flex にすると、
+   「作った数 3 本」が一語ずつ改行されて読めなくなる        */
+.ln-body > b{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
+.ln-lv{font-style:normal;font-size:10px;font-weight:700;background:var(--ink);
+  color:#ffeec4;border-radius:4px;padding:1px 6px}
+.ln-body small{font-size:10px;line-height:1.45}
+.ln-eff{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.5}
+.ln-tag{font-style:normal;font-size:9px;background:rgba(0,0,0,.10);
+  border-radius:4px;padding:0 4px}
+[data-skin="hd"] .linerow{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .ln-lv{background:#6a5220;color:#ffeec4}
+[data-skin="hd"] .ln-tag{background:rgba(255,255,255,.12)}
+@media (max-width:520px){
+  .ln-eff{font-size:9px}
+  .ln-ic{width:28px;height:28px}
+}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -4483,6 +4508,34 @@ GP.data = (function () {
      rig  … 工作機械の世代ぶん   eng … 設計陣の腕ぶん
      spread … 運の幅（ここがあるから「当たりを引く」が起きる） */
   const QUAL = { min: 0.74, max: 1.52, rig: 0.030, eng: 0.0014, spread: 0.13 };
+
+  /* ---------- 製造ライン ----------
+     パーツの種類ごとに、それを削り出す一本のライン。
+     素材が「何で作るか」（扇ごと）を受け持つのに対して、
+     ラインは「どれだけ作り慣れているか」（パーツごと）を受け持つ。
+
+     そこで作るほど勘所が溜まり、段が上がる。段が上がると
+     出来上がりの底（品質）と、性能に乗る精度が上がり、費用も少し下がる。
+     一点ものを気まぐれに作るより、同じところを作り続けたほうが
+     良いものが出てくる——という、工場のあたりまえをそのまま入れてある。
+
+     need はその段へ上がるのに要る「そのラインで作った回数」。 */
+  const LINE = {
+    max: 5,
+    need: [0, 3, 8, 16, 28],
+    qual: 0.032,     // 段ごとに、出来上がりの底がどれだけ上がるか
+    prec: 0.024,     // 段ごとに、性能へ乗る倍率
+    cut:  0.05,      // 段ごとに、作る費用がどれだけ安くなるか
+    names: ['間に合わせの台', '専用の治具', '一貫ライン', '無人ライン', '職人のライン'],
+    icons: ['🪚', '🗜️', '🏭', '🤖', '🏅'],
+    notes: [
+      '汎用の台を使い回している。作るたびに段取りからやり直す',
+      'この部品のためだけの治具がある。同じ寸法が、同じように出る',
+      '削りから組み付けまで一本で通る。手戻りが無くなった',
+      '夜のあいだも止まらない。人は次の図面のほうへ回れる',
+      'この部品なら、どこにも負けない。よそから見学が来る'
+    ]
+  };
 
   /* ---------- 素材 ----------
      扇（空気と足／骨と制動／動力）ごとに、いま何で作れるか。
@@ -7354,7 +7407,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, PIT_LANE_SC, PIT_LANE_VSC, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -8058,6 +8111,41 @@ GP.state = (function () {
      底は素材が決める。そこに工作機械の世代と設計陣の腕が乗り、
      最後に運の幅がつく。だから同じ図面でも、出来上がりは毎回ちがう。
      底が上がっているほど、外れを引いてもそこそこのものになる */
+  /* ---------- 製造ライン ----------
+     パーツの種類ごとに、そこで何回作ったかを覚えている。
+     作り慣れたラインほど、出来上がりの底が上がる  */
+  function lineMade(g2, catKey) {
+    return Math.max(0, Math.round(((g2 && g2.lines) || {})[catKey] || 0));
+  }
+  function lineLv(g2, catKey) {
+    const made = lineMade(g2, catKey);
+    let lv = 0;
+    D.LINE.need.forEach((n, i) => { if (made >= n) lv = i; });
+    return Math.min(D.LINE.max - 1, lv);
+  }
+  function lineOf(g2, catKey) {
+    const L = D.LINE;
+    const lv = lineLv(g2, catKey);
+    const made = lineMade(g2, catKey);
+    const nextNeed = lv + 1 < L.max ? L.need[lv + 1] : null;
+    return {
+      lv: lv, made: made,
+      name: L.names[lv], icon: L.icons[lv], note: L.notes[lv],
+      qual: lv * L.qual,          // 出来上がりの底へ足すぶん
+      prec: 1 + lv * L.prec,      // 性能へ乗る倍率
+      cut: 1 - lv * L.cut,        // 費用にかかる倍率
+      next: nextNeed,
+      left: nextNeed == null ? 0 : Math.max(0, nextNeed - made),
+      isTop: lv >= L.max - 1
+    };
+  }
+  /* そのラインで1本作った。勘所が溜まる */
+  function addLineMade(g2, catKey) {
+    if (!g2.lines) g2.lines = {};
+    g2.lines[catKey] = lineMade(g2, catKey) + 1;
+    return lineOf(g2, catKey);
+  }
+
   function rollQuality(g, catKey) {
     const Q = D.QUAL;
     const m = D.MATERIALS[matOf(g, groupOfPart(catKey))] || D.MATERIALS[0];
@@ -8065,6 +8153,8 @@ GP.state = (function () {
     const base = m.mid
                + workshopOf(g).rar * Q.rig
                + dz * Q.eng
+               // 作り慣れたラインは、同じ図面でも良いものを出す
+               + lineOf(g, catKey).qual
                // 塵ひとつない部屋で組むと、同じ図面でも出来が揃う
                + (hasGear(g, 'factory', 'clean') ? 0.05 : 0);
     // 運。上振れのほうがわずかに長い尻尾を持たせてある
@@ -12117,6 +12207,7 @@ GP.state = (function () {
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    lineOf, lineLv, lineMade, addLineMade,
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
@@ -20843,14 +20934,21 @@ GP.screens.dev = function (A) {
          題が「🏎️ 車体」で、下に3つ並んでいれば分かる。
          横向きのスマホは縦が 320px しかなく、
          28px の見出しひとつで3つ目が画面の外へ出てしまう      */
+      /* 場所ひとつに仕事ひとつ。
+         「開発・改良・研究」はどれも同じ意味に読めてしまい、
+         どれを押せばいいか決められなかった。
+         決める→作る→仕上げる、と場所の名前で並べ直してある  */
       '<div class="pick">' +
-      carPickHTML('📐', '開発', '⬤ 内側の輪 ― パーツ',
-        '新しいパーツを作り、いま積んでいるものを煮詰める。' +
-        'パーツの輪が動くのは、ここだけです', 'des') +
-      carPickHTML('🔧', '改良', '◎ 真ん中の輪 ― インテグレート',
+      carPickHTML('🖊️', '設計室', '① 何を作るか決める',
+        'ひらめきを図面に落とし、素材と技術を選ぶ。' +
+        'ここでは車は速くなりません。決まるのは<b>これから作るもの</b>です', 'des') +
+      carPickHTML('🏭', '工房', '② 図面を形にする',
+        'パーツを作り、いま積んでいるものを煮詰める。' +
+        '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop') +
+      carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
         '扇の中をまとめ、扇どうしをつなぐ。' +
-        '持っているものが、そのぶん外へ出てくるようになります', 'imp') +
-      carPickHTML('🔬', '研究', '◯ いちばん外の輪 ― コンセプト',
+        '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp') +
+      carPickHTML('🔬', '研究所', '― 行ける向きを増やす',
         '方針が引いた線そのものを押し広げる。' +
         '「この車では行けない」はずだった向きへ、行けるようになります', 'res') +
       '</div>' +
@@ -20859,7 +20957,7 @@ GP.screens.dev = function (A) {
       carMixHTML() +
       mechMapHTML(g) + mechReadHTML(g);
     U.modal('🏎️ 車体', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-    const go = { imp: cmdImprove, des: cmdDesign, res: cmdResearch };
+    const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
@@ -20873,7 +20971,7 @@ GP.screens.dev = function (A) {
     if (!list.length) {
       return '<div class="sub">ひらめき</div>' +
         '<p class="desc">いまは抱えていません。' +
-        '📐開発や🔧改良を続けていると、ときどき何かを掘り当てます。' +
+        '🏭工房や🔧ガレージで手を動かしていると、ときどき何かを掘り当てます。' +
         '掘り当てたものは、ここで<b>形にして</b>はじめて車に載ります。' +
         '規則が新しいうちほど、まだ誰も掘っていないものが残っています。' +
         U.helpLink('car') + '</p>';
@@ -21174,10 +21272,15 @@ GP.screens.dev = function (A) {
      ======================================================= */
   const improveCost = p => S.perkPrice(g, 'improve',
     Math.round(D.PART_CATS.find(c => c.key === p.cat).cost * (1 + p.power / 20)));
-  const designCost = () => ({
-    money: S.perkPrice(g, 'design', Math.round(1000 + g.carGen * 2200)),
-    rp: Math.round(26 + g.carGen * 24)
-  });
+  /* 作り慣れたラインほど、同じものを安く作れる。
+     段取りの時間がそのまま金だから                     */
+  const designCost = catKey => {
+    const cut = catKey ? S.lineOf(g, catKey).cut : 1;
+    return {
+      money: S.perkPrice(g, 'design', Math.round((1000 + g.carGen * 2200) * cut)),
+      rp: Math.round((26 + g.carGen * 24) * cut)
+    };
+  };
 
   let useTicket = false;
 
@@ -21495,8 +21598,7 @@ GP.screens.dev = function (A) {
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     body += '</div>';
-    U.modal('🔧 改良', body, [
-      { label: '📐 開発へ', fn: () => { U.closeModal(); cmdDesign(); } },
+    U.modal('🔧 ガレージ', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
@@ -21516,26 +21618,35 @@ GP.screens.dev = function (A) {
      ======================================================= */
   /* 開発のタブ。パーツを叩く話・新しく作る話・土台の話で分ける */
   let desTab = 'imp';
+  /* =======================================================
+     🖊️ 設計室 ── 何を作るかを決める場所
+
+     ここでは車は1ミリも速くならない。決まるのは図面と素材と技術で、
+     それを形にするのは工房の仕事。決める場所と作る場所を分けてある。
+     ======================================================= */
   function cmdDesign(tab) {
     if (tab) desTab = tab;
+    if (desTab !== 'idea' && desTab !== 'base') desTab = 'idea';
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const ideaN = S.ideaList(g).length;
+    /* 抱えているひらめきが無いなら、空の棚を見せても仕方がない。
+       自分でそのタブを選んだのでなければ、素材と技術のほうを開く  */
+    if (!tab && !ideaN && desTab === 'idea') desTab = 'base';
     const DTABS = [
-      ['imp',  '🔧', '煮詰める', ''],
-      ['make', '📐', '作る',     ideaN ? '💡' + ideaN : ''],
-      ['base', '🏭', '土台',     '']
+      ['idea', '💡', 'ひらめき', ideaN ? String(ideaN) : ''],
+      ['base', '🧪', '素材と技術', '']
     ];
     let body = interiorHTML('factory') +
+      '<p class="desc">ここで決めるのは<b>何を作るか</b>です。' +
+      '決めたものを形にするのは🏭工房、形にしたものを車に載せて' +
+      '作り込むのは🔧ガレージ——と場所が分かれています。</p>' +
       '<div class="tabs qtabs bastabs">' + DTABS.map(t =>
         '<button class="tab' + (desTab === t[0] ? ' on' : '') + '" data-dtab="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
 
-    if (desTab === 'imp') {
-      // いま積んでいるものを、上限へ近づける
-      body += partsBoxHTML();
-    } else if (desTab === 'make') {
-      // 掘り当てたものを形にし、新しいパーツを設計する
+    if (desTab === 'idea') {
+      // 掘り当てたものを図面に落とす
       body += ideaBoxHTML();
     } else {
       // 配分・素材・技術。すぐには速くならないが、あとで効く
@@ -21574,31 +21685,7 @@ GP.screens.dev = function (A) {
 
     }
 
-    // ---- パーツの設計（作るタブ） ----
-    if (desTab === 'make') {
-    const dc = designCost();
-    body += trendBoxHTML();
-    body += '<div class="sub">新しいパーツを設計する</div>' + workshopBoxHTML() +
-      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
-      '格（レアリティ）は、<b>改良で煮詰めて上げるもの</b>です。ここで出るのは出発点です。</p>' +
-      '<div class="pick">';
-    const desCut = S.perkCut(g, 'design');
-    D.PART_CATS.forEach(c => {
-      const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
-      body += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
-        '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を設計</b>' +
-        '<small>' + c.name + '<br><em class="pnote">' + esc(S.partNote(c.key, g.carGen)) +
-        '</em></small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
-          : (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
-            '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
-    });
-    body += '</div>';
-    }
-
-    U.modal('📐 開発', body, [
-      { label: '🔧 改良へ', fn: () => { U.closeModal(); cmdImprove(); } },
+    U.modal('🖊️ 設計室', body, [
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
@@ -21613,7 +21700,7 @@ GP.screens.dev = function (A) {
         g.focus = b.dataset.focus;
         GP.sound.play('tap');
         const f = S.focusOf(g);
-        U.log(g, '📐 開発方針を「' + f.icon + f.name + '」にした。');
+        U.log(g, '🖊️ 開発方針を「' + f.icon + f.name + '」にした。');
         S.save(g); render(); cmdDesign();
       };
     });
@@ -22388,7 +22475,7 @@ GP.screens.dev = function (A) {
        この個体の器は、作った日に決まっている                */
     if (p.power >= cap) {
       U.toast('この個体はここまでです（品質 ' + S.qualOf(p).toFixed(2) +
-        '）。もっと良い出来を狙うなら、📐開発で作り直します。', 'warn');
+        '）。もっと良い出来を狙うなら、🏭工房で作り直します。', 'warn');
     }
     // 手を入れた実感が出るように、伸びを見せてから週を進める
     showDevResult({
@@ -22483,7 +22570,7 @@ GP.screens.dev = function (A) {
 
   function doDesign(key) {
     const c = D.PART_CATS.find(x => x.key === key);
-    const dc = designCost();
+    const dc = designCost(key);
     if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。「マシン」で合成・破棄しましょう。', 'warn'); return; }
     const free = spendTicket();
     if (!free) {
@@ -22502,12 +22589,16 @@ GP.screens.dev = function (A) {
     const part = S.makePart(key, g.carGen, quality, { mat: S.matOf(g, grp) });
     // 作れば作るほど、その扇の勘所が溜まる
     S.addMatPoint(g, key, D.MAT.perDesign);
+    /* そして、そのパーツのラインそのものも作り慣れていく。
+       素材が「何で作るか」なら、こちらは「どれだけ作り慣れたか」 */
+    const ln0 = S.lineOf(g, key);
+    const ln = S.addLineMade(g, key);
     /* 同じ図面でも、どの機械で削ったかで出来が変わる。
        そしてその図面そのものの質が、基本設計能力で決まる。
        （人事の噛み合わせ × 開発責任者とコンセプトの相性）      */
     const dm = S.designMul(g);
     const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
-    part.power = Math.round(part.power * ws.prec * dm * mm * 10) / 10;
+    part.power = Math.round(part.power * ws.prec * ln0.prec * dm * mm * 10) / 10;
     g.inventory.push(part);
 
     const qt = S.qualTier(quality);
@@ -22517,6 +22608,10 @@ GP.screens.dev = function (A) {
       ' ' + quality.toFixed(2) + '）が完成！ 性能 ' + Math.round(part.power),
       star >= 3 ? 'good' : '');
     GP.sound.play(star >= 4 ? 'crit' : 'confirm');
+    if (ln.lv > ln0.lv) {
+      U.log(g, '🏭 ' + c.name + 'のラインが「' + ln.name + '」になった（' + ln.note + '）', 'good');
+      U.toast('🏭 ' + c.name + 'のライン → ' + ln.name, 'good');
+    }
     staffExp('designer', 14); staffExp('engineer', 3);
     if (star >= 4) U.toast('🎉 ' + qt.name + 'の出来！「' + part.name + '」', 'good');
     else U.toast('📐 ' + part.name + '（' + qt.name + '）が完成', star >= 3 ? 'good' : '');
@@ -22528,6 +22623,115 @@ GP.screens.dev = function (A) {
       U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
     }
     endWeek();
+  }
+
+  /* ---- 製造ライン ----
+     パーツの種類ごとに一本ずつ。そこで作るほど勘所が溜まって段が上がり、
+     出来上がりの底と精度が上がって、費用が下がる。
+     「広く浅く作る」か「一つを作り続ける」かが、ここで分かれる     */
+  function lineBoxHTML() {
+    let h = '<div class="sub">🛠️ 製造ライン</div>' +
+      '<p class="desc">パーツの種類ごとに、それを削り出すラインがあります。' +
+      '<b>そこで作った本数だけ</b>段が上がり、出来上がりの底と精度が上がって、' +
+      '作る費用も下がります。<br>' +
+      '素材（設計室）が「<b>何で作るか</b>」なら、ラインは「<b>どれだけ作り慣れたか</b>」です。' +
+      'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。</p>' +
+      '<div class="linelist">';
+    D.PART_CATS.forEach(c => {
+      const ln = S.lineOf(g, c.key);
+      const pct = ln.next == null ? 100
+        : Math.round(Math.min(1, (ln.made - D.LINE.need[ln.lv]) /
+            Math.max(1, ln.next - D.LINE.need[ln.lv])) * 100);
+      h += '<div class="linerow">' +
+        '<span class="ln-ic" style="background:' + c.color + '">' + U.partIcon(c.key, 24, 0) + '</span>' +
+        '<span class="ln-body"><b>' + esc(c.name) +
+          '<em class="ln-lv">' + ln.icon + ' ' + esc(ln.name) + '</em></b>' +
+        '<small><em class="pnote">' + esc(ln.note) + '</em><br>' +
+        '作った数 <b>' + ln.made + '</b>本　' +
+        (ln.isTop ? '<b class="free">これ以上は上がりません</b>'
+                  : 'あと <b>' + ln.left + '</b>本で次の段') +
+        '<span class="techbar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
+        '</small></span>' +
+        '<span class="ln-eff">品質 <b>+' + ln.qual.toFixed(3) + '</b><br>' +
+        '性能 <b>+' + Math.round((ln.prec - 1) * 100) + '%</b><br>' +
+        '<em class="free">費用 ' + Math.round((ln.cut - 1) * 100) + '%</em></span>' +
+        '</div>';
+    });
+    return h + '</div>';
+  }
+
+  /* ---- 新しいパーツを作る ---- */
+  function makeBoxHTML() {
+    let h = '<div class="sub">新しいパーツを作る</div>' + workshopBoxHTML() +
+      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
+      '出来は<b>素材</b>（設計室）×<b>工作機械</b>×<b>そのパーツのライン</b>で決まり、' +
+      '最後に運がひと振り乗ります。ここで出るのは出発点で、' +
+      'そこから先は<b>煮詰めて</b>上げるものです。</p>' +
+      '<div class="pick">';
+    const desCut = S.perkCut(g, 'design');
+    D.PART_CATS.forEach(c => {
+      const dc = designCost(c.key);
+      const ln = S.lineOf(g, c.key);
+      const ok = useTicket || (g.funds >= dc.money && g.rp >= dc.rp);
+      h += '<button class="pickbtn" data-k="des:' + c.key + '"' + (ok ? '' : ' disabled') + '>' +
+        '<span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
+        '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を作る</b>' +
+        '<small>' + c.name + '　<em class="ln-tag">' + ln.icon + ' ' + esc(ln.name) +
+        (ln.lv > 0 ? '（性能 +' + Math.round((ln.prec - 1) * 100) + '%）' : '') + '</em>' +
+        '<br><em class="pnote">' + esc(S.partNote(c.key, g.carGen)) +
+        '</em></small></span>' +
+        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 無料</b>'
+          : (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
+            '💰' + money(dc.money) + '<br>🔬' + dc.rp) + '</span></button>';
+    });
+    return h + '</div>';
+  }
+
+  /* =======================================================
+     🏭 工房 ── 図面を形にする場所
+     ======================================================= */
+  let shopTab = 'make';
+  function cmdShop(tab) {
+    if (tab) shopTab = tab;
+    const tk = g.tickets || 0;
+    if (!tk) useTicket = false;
+    const STABS = [
+      ['make', '📐', '作る',     ''],
+      ['imp',  '🔧', '煮詰める', ''],
+      ['line', '🛠️', 'ライン',   '']
+    ];
+    let body = interiorHTML('factory') +
+      '<p class="desc">ここは<b>図面を形にする</b>場所です。' +
+      '何を作るかは🖊️設計室で決め、できたものを車に載せて作り込むのは🔧ガレージです。</p>' +
+      '<div class="tabs qtabs bastabs">' + STABS.map(t =>
+        '<button class="tab' + (shopTab === t[0] ? ' on' : '') + '" data-stab2="' + t[0] + '">' +
+        t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+
+    if (shopTab === 'imp') {
+      // いま積んでいるものを、上限へ近づける
+      body += partsBoxHTML();
+    } else if (shopTab === 'line') {
+      body += lineBoxHTML();
+    } else {
+      body += trendBoxHTML() + makeBoxHTML();
+    }
+
+    U.modal('🏭 工房', body, [
+      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+    ]);
+    paintInterior();
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stab2]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); cmdShop(b.dataset.stab2); };
+    });
+    const tg3 = $('tkToggle');
+    if (tg3) tg3.onclick = () => { useTicket = !useTicket; GP.sound.play('tap'); cmdShop(); };
+    bindPick(k => {
+      const [kind, key] = k.split(':');
+      if (kind === 'des') doDesign(key);
+      else if (kind === 'imp') doImprove(key);
+    });
+    bindAct('data-copytrend', () => doCopyTrend());
+    bindAct('data-leadcopy', () => doLeadCopy());
   }
 
   /* =======================================================
@@ -22656,7 +22860,7 @@ GP.screens.dev = function (A) {
       '<small>買う・売る・契約を切る</small></span>' +
       '<span class="pb-cost">›</span></button></div>';
 
-    U.modal('🔬 研究開発', body, [{ label: 'やめる', fn: U.closeModal }]);
+    U.modal('🔬 研究所', body, [{ label: 'やめる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
       if (k === '__gain') return doResearchGain();
@@ -23387,7 +23591,7 @@ GP.screens.dev = function (A) {
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
-      cmdDesign: cmdDesign, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
 
@@ -26743,7 +26947,7 @@ GP.screens.home = function (A) {
 
   function garageHTML() {
     let body = '<div class="sub">装着中のパーツ</div>' +
-      '<p class="desc">📐開発で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
+      '<p class="desc">🏭工房で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
       '降ろしたものは下の保管庫に入ります。' + U.helpLink('car') + '</p><div class="parts">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
@@ -26759,7 +26963,7 @@ GP.screens.home = function (A) {
     body += '<div class="sub">保管パーツ（' + g.inventory.length + ' / 24）</div>';
     if (!g.inventory.length) {
       body += '<p class="desc">保管パーツはありません。' +
-        '「📐 開発」→「新しいパーツを設計する」で作ると、ここに入ります。</p>';
+        '「🏭 工房」→「作る」で作ると、ここに入ります。</p>';
     } else {
       body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
       g.inventory.forEach(p => {
@@ -29236,7 +29440,7 @@ GP.screens.help = function (A) {
         { h: '予備シャシーと、土曜の夜', p: [
           'フリー走行や予選で壊すと、土曜の夜に三つの選択肢が出ます。どれを選んでも日曜には走れますが、失うものがちがいます。',
           '🌙 徹夜で直す … クルーの疲労 +22、マシンのコンディション -8。／🔧 予備シャシーに載せ替える … 疲労 +9、コンディション -4、予備を1台使う。／🩹 応急処置で済ます … 疲労 +4だが、コンディション -30。',
-          '予備シャシーは📐開発で組んでおけます。置いてあるだけで金は寝ますが、壊したときにクルーを潰さずに済みます。',
+          '予備シャシーは🛠️整備の「🧩 積んでいるもの」で組んでおけます。置いてあるだけで金は寝ますが、壊したときにクルーを潰さずに済みます。',
           '日曜に<b>期待順位を上回る</b>と、上回った順位ぶんだけクルーの疲れが飛びます（1つにつき2.6、最大16）。しんどい週末でも、結果が出れば取り返せます。'
         ] },
         { h: '三つの輪', p: [
@@ -29244,29 +29448,36 @@ GP.screens.help = function (A) {
           'その外側がインテグレートです。ばらばらの部品と本体を1台の車にまとめる仕事で、扇の中（剛性・軽量化・冷却…）、扇と扇の継ぎ目、部位どうしの噛み合いの3つからできています。部品をいくら良くしても、まとめる側が追いついていなければ出てきません。',
           'いちばん外がコンセプトです。ストレート重視・コーナー重視・加速重視・ドライバビリティ重視の4つから、シーズンごとに選びます。'
         ] },
-        { h: '三つのコマンドと、三つの輪', p: [
-          '車体のコマンドは、輪の絵と1対1で対応しています。どれも1週ぶんです。',
-          '<b>📐 開発</b>＝<b>内側の輪（パーツ）</b>。新しいパーツを作り、いま積んでいるものを煮詰めます。パーツの輪が動くのは、ここだけです。',
-          '<b>🔧 改良</b>＝<b>真ん中の輪（インテグレート）</b>。扇の中をまとめ、扇どうしをつなぎます。持っているものが、そのぶん外へ出てくるようになります。',
-          '<b>🔬 研究</b>＝<b>いちばん外の輪（コンセプト）</b>。方針が引いた線そのものを押し広げます。'
+        { h: '四つの場所と、三つの輪', p: [
+          '車体の仕事は<b>場所で分かれています</b>。場所ひとつに仕事ひとつで、どれも1週ぶんです。',
+          '<b>🖊️ 設計室</b>＝<b>何を作るか決める</b>。ひらめきを図面に落とし、素材と技術を選びます。ここでは車は1ミリも速くなりません。決まるのは、これから作るものです。',
+          '<b>🏭 工房</b>＝<b>図面を形にする</b>＝<b>内側の輪（パーツ）</b>。パーツを作り、いま積んでいるものを煮詰めます。パーツの輪が動くのは、ここだけです。',
+          '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。扇の中をまとめ、扇どうしをつなぎます。持っているものが、そのぶん外へ出てくるようになります。',
+          '<b>🔬 研究所</b>＝<b>行ける向きを増やす</b>＝<b>いちばん外の輪（コンセプト）</b>。方針が引いた線そのものを押し広げます。',
+          '迷ったら、<b>設計室で決めて、工房で作って、ガレージで仕上げる</b>——この順に回してください。'
         ] },
         { h: 'コンセプトの線を押し広げる', p: [
-          '方針に逆らう向きは、<b>上限そのもの</b>が 58% までしかありません。いくら改良しても、その手前で止まります。「ストレート重視なのに曲がる車も欲しい」は、本来なら諦めるしかない相談です。',
+          '方針に逆らう向きは、<b>上限そのもの</b>が 58% までしかありません。いくらガレージで作り込んでも、その手前で止まります。「ストレート重視なのに曲がる車も欲しい」は、本来なら諦めるしかない相談です。',
           '研究は、その線を外へ押していく仕事です。扇（空気と足／骨と制動／動力）をひとつ選んで調べ、溜まった<b>知見</b>を使うと、その扇の線が一段外へ動きます。5回ぶん積めば、押さえつけはなくなります。',
           '1年目はまだ方針を決めていないので、押し広げるものがありません。溜めた知見は消えないので、オフシーズンに方針を決めてから使えます。'
         ] },
-        { h: '改良と開発のちがい', p: [
-          '📐開発では、いま積んでいるパーツの性能を上限へ近づけることもできます。上限は「世代 × そのパーツの品質」で決まっていて、叩いても動きません。',
-          '同じ📐開発で、新しいパーツを作ります。同じ図面から作っても出来はそのつどちがい、品質は<b>作った瞬間に決まって、あとから変わりません</b>。上限で詰まったら、作り直して良い個体を引き当てるしかありません。',
+        { h: '工房でやる二つ ―「作る」と「煮詰める」', p: [
+          '🏭工房の<b>煮詰める</b>では、いま積んでいるパーツの性能を上限へ近づけます。上限は「世代 × そのパーツの品質」で決まっていて、叩いても動きません。',
+          '同じ工房の<b>作る</b>で、新しいパーツを作ります。同じ図面から作っても出来はそのつどちがい、品質は<b>作った瞬間に決まって、あとから変わりません</b>。上限で詰まったら、作り直して良い個体を引き当てるしかありません。',
           '品質は 並 → 良品 → 上物 → 特上 → 会心作。数字がそのまま上限の倍率です。'
         ] },
+        { h: '製造ライン ― 作り慣れるということ', p: [
+          'パーツの種類ごとに、それを削り出す<b>ライン</b>が一本ずつあります。そこで作った本数だけ段が上がり、出来上がりの底（品質）と性能に乗る精度が上がって、作る費用も下がります。',
+          '上がりきると<b>性能 +23%／費用 −20%</b>ほど。素材が「<b>何で作るか</b>」なら、ラインは「<b>どれだけ作り慣れたか</b>」です。',
+          'だから、あれこれ手を出すより<b>一つを作り続けた</b>ほうが、同じ金で良いものが出ます。「うちはエアロを作らせたら速い」というチームの色は、ここでつきます。段は🏭工房の「🛠️ライン」で見られます。'
+        ] },
         { h: 'ひらめきを形にする', p: [
-          '📐開発や🔧改良を続けていると、ときどき何かを掘り当てます。掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。ライバルが「新型フロア」を持ち込むのと同じことです。',
-          '抱えたひらめきは <b>📐 開発 → ひらめき</b>に並びます。形にすると、そのパーツの<b>品質が +0.16</b> 底上げされ、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
+          '🏭工房や🔧ガレージで手を動かしていると、ときどき何かを掘り当てます。掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。ライバルが「新型フロア」を持ち込むのと同じことです。',
+          '抱えたひらめきは <b>🖊️ 設計室 → ひらめき</b>に並びます。形にすると、そのパーツの<b>品質が +0.16</b> 底上げされ、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
           '<b>抱えたままだと古びます</b>（30週）。よそが先に同じものを持ち込めば、もう目新しくありません。掘り当てたら、早めに形にしてください。'
         ] },
         { h: '作ったパーツを積む', p: [
-          '📐開発で設計したパーツは、その場では積まれません。いったん<b>保管庫</b>に入ります。',
+          '🏭工房で作ったパーツは、その場では積まれません。いったん<b>保管庫</b>に入ります。',
           '積み替えるのは <b>🛠️ 整備 →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
           'コマンドバーの「🏎️ マシン」を押しても、同じところが開きます。'
         ] },

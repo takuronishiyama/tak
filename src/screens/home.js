@@ -58,7 +58,7 @@ GP.screens.home = function (A) {
 
   function garageHTML() {
     let body = '<div class="sub">装着中のパーツ</div>' +
-      '<p class="desc">📐開発で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
+      '<p class="desc">🏭工房で作ったパーツは、ここで<b>交換</b>を押すと積み替えられます。' +
       '降ろしたものは下の保管庫に入ります。' + U.helpLink('car') + '</p><div class="parts">';
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
@@ -74,7 +74,7 @@ GP.screens.home = function (A) {
     body += '<div class="sub">保管パーツ（' + g.inventory.length + ' / 24）</div>';
     if (!g.inventory.length) {
       body += '<p class="desc">保管パーツはありません。' +
-        '「📐 開発」→「新しいパーツを設計する」で作ると、ここに入ります。</p>';
+        '「🏭 工房」→「作る」で作ると、ここに入ります。</p>';
     } else {
       body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
       g.inventory.forEach(p => {

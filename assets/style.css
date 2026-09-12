@@ -3492,3 +3492,28 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-wrap.timing .rv-body{display:none}
   .rv-wrap.timing .rv-head{flex:0 0 auto}
 }
+
+/* ---- 製造ライン ----
+   パーツごとに一本ずつ。いまどの段で、次まであと何本かを一目で。 */
+.linelist{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.linerow{display:flex;align-items:center;gap:8px;padding:6px 8px;
+  background:rgba(255,248,227,.72);border:2px solid var(--ink);border-radius:8px}
+.ln-ic{flex:0 0 auto;width:34px;height:34px;border-radius:7px;display:flex;
+  align-items:center;justify-content:center;border:2px solid var(--ink)}
+.ln-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+/* 直下の見出しだけ。small の中の <b> まで flex にすると、
+   「作った数 3 本」が一語ずつ改行されて読めなくなる        */
+.ln-body > b{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
+.ln-lv{font-style:normal;font-size:10px;font-weight:700;background:var(--ink);
+  color:#ffeec4;border-radius:4px;padding:1px 6px}
+.ln-body small{font-size:10px;line-height:1.45}
+.ln-eff{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.5}
+.ln-tag{font-style:normal;font-size:9px;background:rgba(0,0,0,.10);
+  border-radius:4px;padding:0 4px}
+[data-skin="hd"] .linerow{background:#2f2540;color:#efe4cf;border-color:#5b4a74}
+[data-skin="hd"] .ln-lv{background:#6a5220;color:#ffeec4}
+[data-skin="hd"] .ln-tag{background:rgba(255,255,255,.12)}
+@media (max-width:520px){
+  .ln-eff{font-size:9px}
+  .ln-ic{width:28px;height:28px}
+}

@@ -419,6 +419,41 @@ GP.state = (function () {
      底は素材が決める。そこに工作機械の世代と設計陣の腕が乗り、
      最後に運の幅がつく。だから同じ図面でも、出来上がりは毎回ちがう。
      底が上がっているほど、外れを引いてもそこそこのものになる */
+  /* ---------- 製造ライン ----------
+     パーツの種類ごとに、そこで何回作ったかを覚えている。
+     作り慣れたラインほど、出来上がりの底が上がる  */
+  function lineMade(g2, catKey) {
+    return Math.max(0, Math.round(((g2 && g2.lines) || {})[catKey] || 0));
+  }
+  function lineLv(g2, catKey) {
+    const made = lineMade(g2, catKey);
+    let lv = 0;
+    D.LINE.need.forEach((n, i) => { if (made >= n) lv = i; });
+    return Math.min(D.LINE.max - 1, lv);
+  }
+  function lineOf(g2, catKey) {
+    const L = D.LINE;
+    const lv = lineLv(g2, catKey);
+    const made = lineMade(g2, catKey);
+    const nextNeed = lv + 1 < L.max ? L.need[lv + 1] : null;
+    return {
+      lv: lv, made: made,
+      name: L.names[lv], icon: L.icons[lv], note: L.notes[lv],
+      qual: lv * L.qual,          // 出来上がりの底へ足すぶん
+      prec: 1 + lv * L.prec,      // 性能へ乗る倍率
+      cut: 1 - lv * L.cut,        // 費用にかかる倍率
+      next: nextNeed,
+      left: nextNeed == null ? 0 : Math.max(0, nextNeed - made),
+      isTop: lv >= L.max - 1
+    };
+  }
+  /* そのラインで1本作った。勘所が溜まる */
+  function addLineMade(g2, catKey) {
+    if (!g2.lines) g2.lines = {};
+    g2.lines[catKey] = lineMade(g2, catKey) + 1;
+    return lineOf(g2, catKey);
+  }
+
   function rollQuality(g, catKey) {
     const Q = D.QUAL;
     const m = D.MATERIALS[matOf(g, groupOfPart(catKey))] || D.MATERIALS[0];
@@ -426,6 +461,8 @@ GP.state = (function () {
     const base = m.mid
                + workshopOf(g).rar * Q.rig
                + dz * Q.eng
+               // 作り慣れたラインは、同じ図面でも良いものを出す
+               + lineOf(g, catKey).qual
                // 塵ひとつない部屋で組むと、同じ図面でも出来が揃う
                + (hasGear(g, 'factory', 'clean') ? 0.05 : 0);
     // 運。上振れのほうがわずかに長い尻尾を持たせてある
@@ -4478,6 +4515,7 @@ GP.state = (function () {
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    lineOf, lineLv, lineMade, addLineMade,
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
