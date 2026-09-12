@@ -2394,7 +2394,11 @@ GP.state = (function () {
      よけいに1回止まって失うのはピットロードのぶん。そのかわり区間が短くなり、
      やわらかくて速いタイヤを履ける。短いピットロードと長い距離ほど2回が生きる */
   function naturalStops(track, laps, wear) {
-    return laps * (0.42 + wear * 0.24) > (track.pitLane || 18) ? 2 : 1;
+    /* タイヤの落ちが厳しくなれば、そのぶん止まる価値が上がる。
+       ここを見ていないと、デグラを強くしても
+       「おまかせ」が1ストップのままになってしまう           */
+    const k = D.DEG.slope / D.DEG.tuned;
+    return laps * (0.42 + wear * 0.24) * k > (track.pitLane || 18) ? 2 : 1;
   }
 
   /* ---- ピットの静止時間としくじりやすさ ----
@@ -2618,12 +2622,22 @@ GP.state = (function () {
     return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
+  /* 何周のレースを基準に削れるか。
+     ここを 26 と直書きしていたため、周回を増やしたとたんに
+     パワーユニットが4割早く尽きるところだった。
+     コース表の平均を見ることにして、
+     この先周回をいじってもずれないようにする             */
+  function puRefLaps() {
+    const t = D.TRACKS;
+    if (!t || !t.length) return 26;
+    return t.reduce(function (a, x) { return a + (x.laps || 26); }, 0) / t.length;
+  }
   function puWear(g2, track, pushMul) {
-    const laps = (track && track.laps) || 26;
+    const laps = (track && track.laps) || puRefLaps();
     const cool = 1 - bodyRatio(g2, 'cooling') * 0.30;
     const care = 1 - Math.min(0.28, pitPower(g2) * 0.06 + g2.facilities.pit * 0.015);
     const dur = 1 - D.PU_NURSE.durMax * puDur(g2);
-    return D.PU_BASE_WEAR * (laps / 26) * (pushMul || 1) * cool * care
+    return D.PU_BASE_WEAR * (laps / puRefLaps()) * (pushMul || 1) * cool * care
          * puMode(g2).wear * dur;
   }
   /* レースを走り終えたときの処理。使い切ったら次の基数へ */

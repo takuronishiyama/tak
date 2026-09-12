@@ -2495,7 +2495,7 @@ GP.race = (function () {
         /* 走った周回ぶんの落ち。ここが浅いと、中古のタイヤも
            寿命を過ぎたタイヤも「ちょっと遅いだけ」になってしまう。
            1スティントぶん走ると2秒前後を失う傾きにしてある      */
-        t += track.base * e.tyreAge * 0.0014 * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
+        t += track.base * e.tyreAge * D.DEG.slope * track.tyre * e.tyreSkill * e.st.tyre * ty.wear;
         const over = e.tyreAge - ty.life;
         if (over > 0) {
           /* 落ちきってからは加速度的に。ただし頭は打たせる。
