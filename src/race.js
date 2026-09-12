@@ -463,6 +463,13 @@ GP.race = (function () {
     sc: ['「セーフティカー、セーフティカー。デルタを守れ」',
          '「イエロー全面。ペースを落として隊列につけ」',
          '「セーフティカーだ。落ち着いて、デルタ確認」'],
+    /* 区間イエロー。その一区画だけ速度を落として通る */
+    yellow: ['「{K}にイエロー。そこだけ速度を落とせ」',
+             '「{K}でイエロー。追い越しは禁止だ、丁寧に通れ」',
+             '「イエロー、{K}。無理はするな」'],
+    yellowBack: ['「了解、{K}は落とす」', '「見えた、気をつける」'],
+    yellowEnd: ['「{K}のイエロー解除。グリーンだ、行っていい」',
+                '「旗が下がった。もう攻めていい」'],
     /* 隊列が出た瞬間の、入る／入らないの判断 */
     scBox: ['「ボックス、ボックス。いま入れば {S}秒 安い」',
             '「この隊列で入る。ピットロードのロスが {S}秒 縮んでいる」',
@@ -1719,12 +1726,25 @@ GP.race = (function () {
          いまの損 = ピットロード通過時間 − コース側 × 隊列の遅さ          */
     const scPaceMul = virtual =>
       virtual ? D.SC_LAP.vsc * D.SC_PACE.vsc : D.SC_LAP.sc * D.SC_PACE.sc;
-    function pitLaneLoss(e, underSC, virtual) {
+    /* ---- 区間イエロー ----
+       1周のうち、その区間だけが遅くなる。
+       だから1周ぜんたいの遅さは、その区間が占める割合ぶん      */
+    /* 旗を振る。どの区間で起きたかは、その車がいた場所で決める  */
+    let yel = null;   // { sec, from, laps, why }
+    const yelLog = [];          // 何周目にどの区間で振られたか（画面と結果で使う）
+    const SECN = ['S1', 'S2', 'S3'];
+    const yelOn = lap => yel && lap >= yel.from && lap < yel.from + yel.laps;
+    const yelPaceMul = (e, lap) => {
+      if (!yelOn(lap)) return 1;
+      const sh = (e && e.secShare) || geoShare();
+      return 1 + sh[yel.sec] * (D.SECTOR_YELLOW.slow - 1);
+    };
+    function pitLaneLoss(e, paceMul) {
       const P2 = D.PIT_LANE;
-      if (!underSC) return e.pitLane;
+      if (!(paceMul > 1.0001)) return e.pitLane;
       const onTrack = e.pitLane / (P2.ratio - 1);      // 同じ距離をコースで走ったら
       const inLane = onTrack * P2.ratio;               // ピットロードを通る時間（不変）
-      return Math.max(e.pitLane * P2.min, inLane - onTrack * scPaceMul(virtual));
+      return Math.max(e.pitLane * P2.min, inLane - onTrack * paceMul);
     }
     // 金曜と土曜に走ったぶんが、すでに路面に乗っている
     let rubber = (entries && entries.rubber0) || D.RUBBER.start;
@@ -2705,6 +2725,15 @@ GP.race = (function () {
            ピットで止まるぶんはこのあとで足すので、
            「入った車だけが損をする」ことにはならない              */
         if (underSC) t *= scInfo.virtual ? D.SC_PACE.vsc : D.SC_PACE.sc;
+        /* ---- 区間イエロー ----
+           その区間だけ速度を落として通る。
+           1周のうちその区間が占めるぶんだけ、時間がかかる。
+           隊列は組まないので、ほかの区間はふつうに走れる        */
+        else if (yelOn(lap)) {
+          const sh = e.secShare || e.prof.share;
+          e.yelLap = lap;
+          t += t * sh[yel.sec] * (D.SECTOR_YELLOW.slow - 1);
+        }
 
         /* 隊列に詰める／離れるぶんを、この周のタイムとして払う。
            1周で払いきれないぶんは次の周へ持ち越す。
@@ -2735,7 +2764,8 @@ GP.race = (function () {
             if (e.isPlayer) e.radioPaid = lap;
           }
           const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0) + served;
-          const lane = pitLaneLoss(e, underSC, scInfo.virtual);
+          const lane = pitLaneLoss(e, underSC ? scPaceMul(scInfo.virtual)
+                                                : yelPaceMul(e, lap));
           const loss = lane + stand;
           t += loss;
           pitAdd = loss;
@@ -2829,6 +2859,12 @@ GP.race = (function () {
           // 一度でしくじると、次の周は前の乱気流でさらに苦しくなる。
           // 「射程に入っているのに抜けない」時間を作るための締め
           p *= 0.46;
+          /* 旗が振られている区間では仕掛けられない。
+             1周のうちその区間が占めるぶんだけ、機会が減る      */
+          if (yelOn(lap)) {
+            const shA = atk.secShare || atk.prof.share;
+            p *= Math.max(0.05, 1 - shA[yel.sec] * D.SECTOR_YELLOW.passCut);
+          }
           // 何周も張りついていると、しびれを切らして強引に行く
           p *= 1 + Math.min(0.9, (atk.stuckLaps || 0) * 0.12);
           p = S.clamp(p, 0.005, 0.72);
@@ -2991,9 +3027,51 @@ GP.race = (function () {
           if (scLaps <= 0 && lap < laps - 2 && e.dnfReason !== 'コースアウト' &&
               Math.random() < 0.62 + track.risk * 0.18) {
             scPending = true;
+          } else if (scLaps <= 0 && !yelOn(lap) && !yelOn(lap + 1) && lap < laps - 1 &&
+                     Math.random() < D.SECTOR_YELLOW.chance) {
+            /* 走れる状態で戻ってきた（コースアウト）ときや、
+               セーフティカーには至らなかったときは、
+               その一区画だけに旗が振られる                     */
+            yelStart(lap, e.dnfReason || 'コースアウト', e);
           }
         }
       });
+
+      /* ---- 区間イエロー ----
+         旗は次の周から振られ、何周かで下がる。
+         隊列は組まないので、ほかの区間はふつうに走れる       */
+      function yelStart(atLap, why, who) {
+        const Y = D.SECTOR_YELLOW;
+        /* どの区間で起きたか。長い区間のほうが当たりやすい       */
+        const sh = (who && who.secShare) || geoShare();
+        const r2 = Math.random() * (sh[0] + sh[1] + sh[2]);
+        const sec = r2 < sh[0] ? 0 : r2 < sh[0] + sh[1] ? 1 : 2;
+        yel = { sec: sec, from: atLap + 1, laps: S.rint(Y.lapsLo, Y.lapsHi), why: why };
+        yelLog.push({ sec: sec, from: yel.from, laps: yel.laps, why: why });
+        events.push({ lap: atLap, type: 'yellow',
+          text: '🟨 ' + SECN[sec] + ' にイエロー！ ' + why +
+                'のため、その区間だけ速度を落として通る（' + yel.laps + '周）' });
+        order.filter(x => x.isPlayer && !x.dnf).forEach(x => {
+          radio.push({ lap: atLap, from: 'pit', name: x.driver.name, id: x.id,
+                       text: say(RADIO.yellow, { K: SECN[sec] }) });
+          radio.push({ lap: atLap, from: 'drv', name: x.driver.name, id: x.id,
+                       text: say(RADIO.yellowBack, { K: SECN[sec] }) });
+        });
+      }
+      /* 何も起きていなくても、破片で振られることがある */
+      if (scLaps <= 0 && !yelOn(lap) && !yelOn(lap + 1) &&
+          lap > 1 && lap < laps - 1 && Math.random() < D.SECTOR_YELLOW.debris) {
+        yelStart(lap, '飛び散った破片', null);
+      }
+      /* 旗が下がる周 */
+      if (yel && lap === yel.from + yel.laps - 1) {
+        events.push({ lap: lap, type: 'green',
+          text: '🟩 ' + SECN[yel.sec] + ' のイエロー解除。グリーンに戻った' });
+        order.filter(x => x.isPlayer && !x.dnf).forEach(x => {
+          radio.push({ lap: lap, from: 'pit', name: x.driver.name, id: x.id,
+                       text: say(RADIO.yellowEnd, { K: SECN[yel.sec] }) });
+        });
+      }
 
       // ---- セーフティカー ----
       // 隊列が詰まるので、大きなリードも一度リセットされる。
@@ -3033,14 +3111,23 @@ GP.race = (function () {
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
           // ① 浮く秒数
-          const save = e.pitLane - pitLaneLoss(e, true, virtual);
-          // ② 捨てる周（まだ引っぱれたはずのタイヤ）
-          const early = Math.max(0, next - lap - 1) * 1.05;
+          const save = e.pitLane - pitLaneLoss(e, scPaceMul(virtual));
+          /* ② 捨てる周。
+             ここを1周いくらの定額で数えていたので、
+             タイヤの減りかたが判断に入っていなかった。
+             もう終わりかけのタイヤを捨てるのは惜しくないし、
+             履いたばかりのタイヤを捨てるのは高くつく。
+             タイヤに厳しいコースでは同じ周でも残りが少ないので、
+             そのぶん「いま入る」が自然に得になる                  */
+          const ty0 = tyreOf(e.tyreKey);
+          const life0 = Math.max(1, (ty0 && ty0.life) || 20);
+          const left0 = S.clamp(1 - (e.tyreAge || 0) / life0, 0, 1);
+          const early = Math.max(0, next - lap - 1) * 1.05 * (0.25 + left0 * 0.90);
           /* ③ 落とす順位。
              いま入れば、出てきたときには「入らなかった後ろの車」の後ろにいる。
              隊列で詰まっているぶん、失う秒数のわりに台数が大きくなる。
              相手がもうすぐ入る予定なら、どうせ同じことなので数えない      */
-          const lossSec = pitLaneLoss(e, true, virtual) + e.pitStand;
+          const lossSec = pitLaneLoss(e, scPaceMul(virtual)) + e.pitStand;
           const behind = run.filter(x => x !== e && !x.dnf &&
             x.cum[lap - 1] != null && e.cum[lap - 1] != null &&
             x.cum[lap - 1] > e.cum[lap - 1] &&
@@ -3331,6 +3418,8 @@ GP.race = (function () {
       events, radio: radio, wetLog: wetLog, foreLog: foreLog, wxChange: chg, fastestLap: fl, geo: geo, passEase: passEase, special: special || null,
       bestSector: bestSector, bestSectorBy: bestSectorBy,
       safetyCar: scInfo.laps ? scInfo : null,
+      // 何周目にどの区間で旗が振られたか
+      yellows: yelLog,
       hotTeam: entries.hotTeam || '',
       weatherChange: wxInfo.at ? wxInfo : null,
       rubberLog: rubberLog,

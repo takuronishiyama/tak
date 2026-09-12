@@ -3587,3 +3587,16 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .pop-box{max-height:88vh}
   .pop-body{padding:10px}
 }
+
+
+/* ---- 区間イエロー ----
+   振られているあいだだけ、ヘッダーに出す。
+   旗の色そのままで、点滅はさせない（読みづらくなる） */
+.rv-yel{display:inline-flex;gap:4px;align-items:center}
+.rvy{font-style:normal;font-size:10px;font-weight:bold;white-space:nowrap;
+  background:linear-gradient(#ffe14a,#f0c000);color:#3a2a00;
+  border:2px solid #12100c;border-radius:4px;padding:2px 7px;
+  display:inline-flex;align-items:center;gap:5px}
+.rvy em{font-style:normal;font-size:9px;font-weight:normal;
+  background:rgba(0,0,0,.18);border-radius:3px;padding:0 4px}
+@media (max-width:520px){ .rvy{font-size:9px;padding:1px 5px} }

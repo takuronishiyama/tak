@@ -1429,6 +1429,21 @@ GP.raceview = (function () {
       } else { wb.innerHTML = ''; }
     }
 
+    /* ---- 区間イエロー ----
+       どの区間で旗が振られているか。出ていなければ何も置かない。
+       ここが出ていないと、遅くなった理由も、
+       その区間で仕掛けられない理由も分からない            */
+    const yb = document.getElementById('rvYel');
+    if (yb) {
+      const now = (res.yellows || []).filter(y => lap >= y.from && lap < y.from + y.laps)[0];
+      yb.innerHTML = now
+        ? '<i class="rvy" title="' + String(now.why || '').replace(/[<>&"]/g, '') +
+          'のため、この区間だけ速度を落として通ります。' +
+          '追い越しはできません">🟨 S' + (now.sec + 1) + ' イエロー' +
+          '<em>あと' + Math.max(1, now.from + now.laps - lap) + '周</em></i>'
+        : '';
+    }
+
     // いまピットウォールが出している指示。無線で言っていることと同じもの
     const ob = document.getElementById('rvOrders');
     if (ob) {
