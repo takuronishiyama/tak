@@ -463,6 +463,19 @@ GP.race = (function () {
     sc: ['「セーフティカー、セーフティカー。デルタを守れ」',
          '「イエロー全面。ペースを落として隊列につけ」',
          '「セーフティカーだ。落ち着いて、デルタ確認」'],
+    /* 隊列が出た瞬間の、入る／入らないの判断 */
+    scBox: ['「ボックス、ボックス。いま入れば {S}秒 安い」',
+            '「この隊列で入る。ピットロードのロスが {S}秒 縮んでいる」',
+            '「入るぞ。またとない{S}秒だ」'],
+    scBoxBack: ['「了解、入る」', '「ボックス了解」', '「わかった、いま入る」'],
+    scStay: ['「ステイアウト。いま入ると {N}台に前へ出られる」',
+             '「入らない。順位のほうが高くつく」',
+             '「ステイアウト、ステイアウト。position を守る」'],
+    scStayBack: ['「了解、ステイアウト」', '「わかった、このまま行く」',
+                 '「タイヤは保つ。そのまま行く」'],
+    /* 読み違えたとき。あとから見れば入るべきだった */
+    scMiss: ['「……いまのは入るべきだったかもしれない」',
+             '「隊列のうちに入っておきたかったな」'],
     vsc: ['「バーチャルセーフティカー。デルタ、デルタ」',
           '「VSC 発動。指定タイムを外すな」'],
     rain: ['「3コーナー付近に雨。数周で本格的に来る」',
@@ -1695,6 +1708,24 @@ GP.race = (function () {
     const events = [];
     const bestSector = [Infinity, Infinity, Infinity];   // セッション最速（紫）
     let scLaps = 0, scFrom = 0, scPending = false, scDone = false;   // セーフティカー
+
+    /* ---- ピットロードで失う時間 ----
+       ピットロードは速度制限で走るので、通過時間そのものは変わらない。
+       変わるのは「同じ距離をコースで走っていたら何秒か」のほうで、
+       隊列が遅いあいだはそれが伸びる。差がそのまま縮むぶんが、得になる。
+
+         コース側の通過時間 = グリーンでの損 ÷（速度比 − 1）
+         ピットロード通過時間 = コース側 × 速度比
+         いまの損 = ピットロード通過時間 − コース側 × 隊列の遅さ          */
+    const scPaceMul = virtual =>
+      virtual ? D.SC_LAP.vsc * D.SC_PACE.vsc : D.SC_LAP.sc * D.SC_PACE.sc;
+    function pitLaneLoss(e, underSC, virtual) {
+      const P2 = D.PIT_LANE;
+      if (!underSC) return e.pitLane;
+      const onTrack = e.pitLane / (P2.ratio - 1);      // 同じ距離をコースで走ったら
+      const inLane = onTrack * P2.ratio;               // ピットロードを通る時間（不変）
+      return Math.max(e.pitLane * P2.min, inLane - onTrack * scPaceMul(virtual));
+    }
     // 金曜と土曜に走ったぶんが、すでに路面に乗っている
     let rubber = (entries && entries.rubber0) || D.RUBBER.start;
     let rubberWashed = false;
@@ -2661,11 +2692,11 @@ GP.race = (function () {
         if (underSC) {
           if (scInfo.virtual) {
             // バーチャル：直前までの差を、コンマ1くらいの揺れで保つ
-            t = track.base * 1.28 + S.rnd(-0.05, 0.05);
+            t = track.base * D.SC_LAP.vsc + S.rnd(-0.05, 0.05);
             e.tyreAge = Math.max(0, e.tyreAge - 0.2);
           } else {
             // 実車：隊列に詰まっているので、さらに差は動かない
-            t = track.base * 1.34 + S.rnd(-0.03, 0.03);
+            t = track.base * D.SC_LAP.sc + S.rnd(-0.03, 0.03);
             e.tyreAge = Math.max(0, e.tyreAge - 0.35);    // 流している間はタイヤも保つ
           }
         }
@@ -2693,7 +2724,6 @@ GP.race = (function () {
         if (e.pitPlan.indexOf(lap) >= 0) {
           /* 隊列が遅いあいだ、安くなるのは「走るぶん」だけ。
              ジャッキが上がって下りるまでの時間は、何が出ていても変わらない  */
-          const laneMul = underSC ? (scInfo.virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC) : 1;
           const fumbled = Math.random() < e.pitFumble;
           if (fumbled) e.pitSlow = (e.pitSlow || 0) + 1;   // レース後のひとことに使う
           /* 加算はここで払う。ジャッキが上がったまま、
@@ -2705,7 +2735,7 @@ GP.race = (function () {
             if (e.isPlayer) e.radioPaid = lap;
           }
           const stand = e.pitStand + S.rnd(-0.25, 0.75) + (fumbled ? S.rnd(2.5, 8.0) : 0) + served;
-          const lane = e.pitLane * laneMul;
+          const lane = pitLaneLoss(e, underSC, scInfo.virtual);
           const loss = lane + stand;
           t += loss;
           pitAdd = loss;
@@ -2987,7 +3017,7 @@ GP.race = (function () {
              観戦画面で車がコース上を飛ぶように見える              */
           let acc = run.length ? run[0].cum[lap - 1] : 0;
           run.forEach((e, i) => {
-            if (i > 0) acc += S.rnd(0.55, 0.95);
+            if (i > 0) acc += S.rnd(D.SC_QUEUE.lo, D.SC_QUEUE.hi);
             e.scPull = (e.scPull || 0) + (acc - e.cum[lap - 1]);
             e.scBunched = true;
           });
@@ -3002,11 +3032,47 @@ GP.race = (function () {
         run.forEach(e => {
           const next = e.pitPlan.find(l => l > lap);
           if (next == null) return;
-          const save = e.pitLane * (1 - (virtual ? D.PIT_LANE_VSC : D.PIT_LANE_SC));
-          const early = Math.max(0, next - lap - 1) * 1.05;   // 捨てる周のぶん
-          const net = save - early;
-          if (net < 1.0) return;
-          if (Math.random() < 0.30 + (e.react || 0.4) * 0.45 + net * 0.045) {
+          // ① 浮く秒数
+          const save = e.pitLane - pitLaneLoss(e, true, virtual);
+          // ② 捨てる周（まだ引っぱれたはずのタイヤ）
+          const early = Math.max(0, next - lap - 1) * 1.05;
+          /* ③ 落とす順位。
+             いま入れば、出てきたときには「入らなかった後ろの車」の後ろにいる。
+             隊列で詰まっているぶん、失う秒数のわりに台数が大きくなる。
+             相手がもうすぐ入る予定なら、どうせ同じことなので数えない      */
+          const lossSec = pitLaneLoss(e, true, virtual) + e.pitStand;
+          const behind = run.filter(x => x !== e && !x.dnf &&
+            x.cum[lap - 1] != null && e.cum[lap - 1] != null &&
+            x.cum[lap - 1] > e.cum[lap - 1] &&
+            x.cum[lap - 1] - e.cum[lap - 1] < lossSec);
+          const jumped = behind.filter(x => {
+            const n2 = x.pitPlan.find(l => l > lap);
+            return n2 == null || n2 - lap > 4;    // まだ当分入らない相手だけ
+          }).length;
+          /* 1つ順位を落とすことを、何秒ぶんと見るか。
+             後ろの車の多くは自分もこのあと入るので、
+             見えている台数をそのまま勘定すると「入るな」に寄りすぎる。
+             数える台数に上限を置いてある                          */
+          const posCost = Math.min(jumped, D.SC_CALL.posMax) * D.SC_CALL.posSec;
+          const net = save - early - posCost;
+
+          /* ---- 読みの確かさ ----
+             腕のいいストラテジストほど、この秤を正しく読む。
+             悪いほど見積もりがぶれて、入るべきときに入らなかったり、
+             入らなくていいときに入ったりする                         */
+          /* readPower は駆け出しで 1.6、名うてを揃えて 11 あたりまで伸びる。
+             そこに合わせて刻む。前の式は 0.13 倍だったので
+             腕55 で頭打ちになり、そこから上が効いていなかった        */
+          const eye = e.isPlayer
+            ? S.clamp(0.20 + strategist * 0.055 + S.osk(g, 'call') * 0.08, 0.12, 0.94)
+            : S.clamp(0.22 + (e.react || 0.4) * 0.55, 0.12, 0.90);
+          const seen = net + S.rnd(-1, 1) * (1 - eye) * D.SC_CALL.blur;
+          /* 何を天秤にかけたのかを残しておく。
+             レース後にふり返れるし、こちらも模型を確かめられる     */
+          e.scCall = { save: save, early: early, posCost: posCost,
+                       net: net, jumped: jumped, eye: eye, took: seen > 0 };
+
+          if (seen > 0) {
             e.pitPlan[e.pitPlan.indexOf(next)] = lap + 1;
             e.pitPlan.sort((a, b) => a - b);
             e.scPit = true;
@@ -3014,6 +3080,25 @@ GP.race = (function () {
               events.push({ lap: lap + 1, type: 'pit', car: e,
                 text: '🔧 ' + e.driver.name + ' 隊列が遅いうちにピットへ！ ' +
                       'ピットロードのロスが ' + save.toFixed(1) + '秒 小さくなる' });
+              radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
+                           text: say(RADIO.scBox, { S: save.toFixed(1) }) });
+              radio.push({ lap: lap, from: 'drv', name: e.driver.name, id: e.id,
+                           text: say(RADIO.scBoxBack, {}) });
+            }
+          } else if (e.isPlayer) {
+            /* 入らないと決めたときも、黙っていない。
+               何を天秤にかけたのかが分かるように言う                  */
+            e.scStayed = lap;
+            radio.push({ lap: lap, from: 'pit', name: e.driver.name, id: e.id,
+                         text: jumped > 0
+                           ? say(RADIO.scStay, { N: String(jumped) })
+                           : say(RADIO.scStay, { N: '数' }) });
+            radio.push({ lap: lap, from: 'drv', name: e.driver.name, id: e.id,
+                         text: say(RADIO.scStayBack, {}) });
+            // 本当は入るべきだったのに読み違えたときは、あとでそう言う
+            if (net > 2.0) {
+              radio.push({ lap: lap + 1, from: 'pit', name: e.driver.name, id: e.id,
+                           text: say(RADIO.scMiss, {}) });
             }
           }
         });
@@ -3032,7 +3117,7 @@ GP.race = (function () {
           const line = order.filter(e => !e.dnf).sort((a, b) => a.cum[lap - 1] - b.cum[lap - 1]);
           let acc = line.length ? line[0].cum[lap - 1] : 0;
           line.forEach((e, i) => {
-            if (i > 0) acc += S.rnd(0.55, 0.95);
+            if (i > 0) acc += S.rnd(D.SC_QUEUE.lo, D.SC_QUEUE.hi);
             // 出動時の詰め残しは、ここでの並びにもう入っている。足さずに置き換える
             e.scPull = acc - e.cum[lap - 1];
           });
