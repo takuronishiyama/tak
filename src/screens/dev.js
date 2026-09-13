@@ -2675,7 +2675,11 @@ GP.screens.dev = function (A) {
                      + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
                      + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
                 * S.persOf(d).train * S.rigMul(g, 'sim');
-    let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
+    /* 伸びかたを乗せる。
+       これまでは「いまの能力値」しか見ていなかったので、
+       ルーキーもベテランも同じだけ伸びていた       */
+    let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320)
+                          * D.GROWTH.base * S.growCurve(d) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
     d[stat] = S.clamp(d[stat] + gain, 1, 199);

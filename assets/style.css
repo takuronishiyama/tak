@@ -3639,3 +3639,6 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* 開発の入口に置く、三つの言葉の関係 */
 .carmodel{font-size:11px;line-height:1.65;margin:0 0 7px;padding:6px 9px;
   background:var(--paper3);border:2px dashed var(--ink2);border-radius:8px}
+/* 伸びかたの型と、何年目か */
+.drv-grow{white-space:nowrap}
+.drv-grow em{font-style:normal;font-size:9px;margin-left:3px;opacity:.85}

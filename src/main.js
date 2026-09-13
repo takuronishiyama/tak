@@ -910,6 +910,11 @@ window.GP = window.GP || {};
     }
     g.week = 1;
     g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
+    /* みんな1年分、キャリアが進む。
+       伸びかたはこの年数を見ているので、
+       ここを忘れると誰もルーキーのままになる        */
+    [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : [])
+      .forEach(d => { if (d) d.years = (d.years || 0) + 1; });
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
     /* 開発チケットはその年のもの。持ち越せない。
        ただしタダで消すのではなく、連盟が買い取る     */

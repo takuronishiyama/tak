@@ -2,7 +2,7 @@
    Service Worker — オフラインでも遊べるようにする
    ホーム画面に追加したあとは、通信なしで起動できる
    ========================================================= */
-const CACHE = 'gp-monogatari-v170';
+const CACHE = 'gp-monogatari-v171';
 const SHELL = [
   './',
   './index.html',

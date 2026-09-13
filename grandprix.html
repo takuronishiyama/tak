@@ -3654,6 +3654,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* 開発の入口に置く、三つの言葉の関係 */
 .carmodel{font-size:11px;line-height:1.65;margin:0 0 7px;padding:6px 9px;
   background:var(--paper3);border:2px dashed var(--ink2);border-radius:8px}
+/* 伸びかたの型と、何年目か */
+.drv-grow{white-space:nowrap}
+.drv-grow em{font-style:normal;font-size:9px;margin-left:3px;opacity:.85}
 
 </style>
 <!--
@@ -6699,9 +6702,37 @@ GP.data = (function () {
      車が持っている力のうち、そのドライバーが何割を出せるか。
      足し算ではなく掛け算なので、遅い車をいくら名手が転がしても
      速い車には届かない。そのかわり、良い車を持ったときの差は大きい */
+  /* ---------- 伸びかた ----------
+     以前の育成は、いまの能力値しか見ていなかった。
+     年齢も、何年目かも関係なく同じだけ伸びる。
+     それだと「いま育てるべき人」がいなくなる。
+
+     mul = tail + (top - tail) * exp(-((年数 - peak) / wide)^2)
+
+     基本は、ルーキーから3年目あたりがいちばん伸びる形。
+     そこから早熟・大器晚成へ山を前後にずらしてある        */
+  const GROWTH = {
+    /* 全体の強さ。上げすぎると、ルーキーが1年で
+       チャンピオンになってしまって育てる楽しみが消える。
+       ここは控えめにして、伸びの差は曲線のほうで作る   */
+    base: 1.15,
+    types: [
+      { key: 'early',  name: '早熟',     icon: '🌱',
+        peak: 1, wide: 3.2, top: 1.38, tail: 0.34,
+        note: '最初から伸びる。そのかわり、早く止まる' },
+      { key: 'normal', name: '標準',     icon: '📈',
+        peak: 3, wide: 4.5, top: 1.30, tail: 0.58,
+        note: '3年目あたりが、いちばん伸びる' },
+      { key: 'late',   name: '大器晚成', icon: '🌳',
+        peak: 6, wide: 5.5, top: 1.34, tail: 0.72,
+        note: '最初は遅い。そのかわり長く伸び続ける' }
+    ],
+    weight: [0.30, 0.45, 0.25]   // 早熟／標準／大器晚成 の出やすさ
+  };
+
   const DRIVER_OUT = {
     floor: 0.78,   // 腕がなくても、車なりにはこれだけ出る
-    ref:   78,     // 総合がここで 100%（＝車の持ち分をちょうど出しきる）
+    ref:   95,     // 総合がここで 100%（＝車の持ち分をちょうど出しきる）
     /* 腕だけでは 100% が天井。車が持っていないものは出てこない。
        そこを超えられるのは素質の高い人だけで、しかも
        腕が伴っていないと出てこない（段は POTENTIAL に対応）    */
@@ -7697,7 +7728,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -8573,6 +8604,10 @@ GP.state = (function () {
       // 安定感。速さと引き換えになる、その人の性質。練習では上がらない
       care: clamp(Math.round(base - wild * 15 * trade + lift + persCare + rnd(-7, 7)), 5, 190),
       exp: 0, expLv: 1,
+      /* 伸びかたと、デビューからの年数。
+         この二つで、いまが伸び時なのかが決まる   */
+      curve: opts.curve || rollCurve(),
+      years: opts.years != null ? opts.years : Math.max(0, (opts.age || 22) - 21),
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
@@ -10306,6 +10341,33 @@ GP.state = (function () {
     list.forEach(x => { x.lift = lift[x.key]; x.total = x.score * (1 + lift[x.key]); });
     return { list: list, byKey: (k) => list.filter(x => x.key === k)[0],
              syn: syn, scores: scores };
+  }
+
+  /* ---------- 伸びかた ----------
+     以前は「いまの能力値が低いほど伸びる」だけで、
+     年齢も何年目かも見ていなかった。
+     だから「いま育てるべき人」が存在しなかった            */
+  function growTypeOf(d) {
+    const G = D.GROWTH;
+    return G.types.filter(t => t.key === (d && d.curve))[0] || G.types[1];
+  }
+  /* デビューから何年目か。
+     古いセーブには入っていないので、年齢から推し量る   */
+  function drvYears(d) {
+    if (d && d.years != null) return Math.max(0, d.years);
+    return Math.max(0, ((d && d.age) || 22) - 21);
+  }
+  function growCurve(d) {
+    const t = growTypeOf(d), y = drvYears(d);
+    const k = (y - t.peak) / t.wide;
+    return t.tail + (t.top - t.tail) * Math.exp(-k * k);
+  }
+  /* 型を振る。出やすさは GROWTH.weight のとおり */
+  function rollCurve() {
+    const G = D.GROWTH, w = G.weight;
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < G.types.length; i++) { r -= w[i]; if (r <= 0) return G.types[i].key; }
+    return G.types[1].key;
   }
 
   /* ---------- ドライバーが、どれだけ引き出せているか ----------
@@ -12195,8 +12257,10 @@ GP.state = (function () {
                         + (hasGear(g2, 'youth', 'ykart') ? 0.14 : 0)
                         + (hasEstate(g2, 'kart') ? 0.12 : 0)
                         + (hasEstate(g2, 'academy') ? 0.20 : 0);
+      /* 型の分も乗せる。早熟は下部組織のうちから伸び、
+         大器晚成は上がってから伸びる                    */
       const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05)
-                 * ageMul * gearMul * rigMul(g2, 'youth');
+                 * ageMul * gearMul * rigMul(g2, 'youth') * growCurve(d);
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
         const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
         d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * extra * (1 - d[k] / 300), 1, 199);
@@ -12425,6 +12489,13 @@ GP.state = (function () {
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
+      /* 伸びかたと年数はあとから入れたもの。
+         古いセーブにはないので、読むときに埋める   */
+      [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : []).forEach(d => {
+        if (!d) return;
+        if (!d.curve) d.curve = rollCurve();
+        if (d.years == null) d.years = Math.max(0, (d.age || 22) - 21);
+      });
       if (!g.logi) g.logi = { plan: 'std', load: 'std', crew: 0 };
       if (!g.logi.load) g.logi.load = 'std';
       if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
@@ -12528,6 +12599,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
+    growTypeOf, drvYears, growCurve, rollCurve,
     driverOut, airTemp, roadTemp, tyreBand, tyreOff, tempTier, roadWord, tyreTempFit, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,
@@ -24161,7 +24233,11 @@ GP.screens.dev = function (A) {
                      + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
                      + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
                 * S.persOf(d).train * S.rigMul(g, 'sim');
-    let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320) * 10) / 10;
+    /* 伸びかたを乗せる。
+       これまでは「いまの能力値」しか見ていなかったので、
+       ルーキーもベテランも同じだけ伸びていた       */
+    let gain = Math.round(S.rnd(2.2, 4.4) * bonus * (1 - d[stat] / 320)
+                          * D.GROWTH.base * S.growCurve(d) * 10) / 10;
     gain = Math.max(0.5, gain);
     if (Math.random() < 0.10) { gain *= 2.4; U.toast('🔥 特訓が実を結んだ！', 'good'); }
     d[stat] = S.clamp(d[stat] + gain, 1, 199);
@@ -32407,7 +32483,7 @@ GP.ui = (function () {
     const pc = Math.round(fit.out * 100);
     /* この数字は「腕」と「車の乗り味」の掛け算。
        まとめて出すと、ドライバーの札なのに
-       実は車のべうが支配的、ということが起きる。
+       実は車のほうが支配的、ということが起きる。
        新しいチームだと乗り味が -8% ほど引いている。
        だから両方を並べて、どちらのせいか読めるようにする  */
     const arm = Math.round(S.driverOut(S.driverRating(d), d) * 100);
@@ -32425,7 +32501,13 @@ GP.ui = (function () {
       '<span class="drv-id"><span class="drv-nm">' + esc(d.name) + '</span>' +
       '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b>' +
         ' ／ <b class="drv-care" style="color:' + ct.color + '" title="' + esc(ct.note) +
-        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b></span></span>' +
+        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b>' +
+        /* 伸びかたと何年目か。
+           これが見えていないと、「いま育てるべき人」が分からない */
+        (S.growTypeOf ? '／<b class="drv-grow" title="' + esc(S.growTypeOf(d).note) + '">' +
+          S.growTypeOf(d).icon + S.growTypeOf(d).name +
+          '<em>' + (S.drvYears(d) + 1) + '年目</em></b>' : '') +
+        '</span></span>' +
       '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
@@ -34102,6 +34184,11 @@ window.GP = window.GP || {};
     }
     g.week = 1;
     g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
+    /* みんな1年分、キャリアが進む。
+       伸びかたはこの年数を見ているので、
+       ここを忘れると誰もルーキーのままになる        */
+    [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : [])
+      .forEach(d => { if (d) d.years = (d.years || 0) + 1; });
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
     /* 開発チケットはその年のもの。持ち越せない。
        ただしタダで消すのではなく、連盟が買い取る     */

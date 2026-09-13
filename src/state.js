@@ -591,6 +591,10 @@ GP.state = (function () {
       // 安定感。速さと引き換えになる、その人の性質。練習では上がらない
       care: clamp(Math.round(base - wild * 15 * trade + lift + persCare + rnd(-7, 7)), 5, 190),
       exp: 0, expLv: 1,
+      /* 伸びかたと、デビューからの年数。
+         この二つで、いまが伸び時なのかが決まる   */
+      curve: opts.curve || rollCurve(),
+      years: opts.years != null ? opts.years : Math.max(0, (opts.age || 22) - 21),
       form: 100,             // コンディション 60-120
       salary: 0,
       seasonPoints: 0, wins: 0, podiums: 0, races: 0,
@@ -2324,6 +2328,33 @@ GP.state = (function () {
     list.forEach(x => { x.lift = lift[x.key]; x.total = x.score * (1 + lift[x.key]); });
     return { list: list, byKey: (k) => list.filter(x => x.key === k)[0],
              syn: syn, scores: scores };
+  }
+
+  /* ---------- 伸びかた ----------
+     以前は「いまの能力値が低いほど伸びる」だけで、
+     年齢も何年目かも見ていなかった。
+     だから「いま育てるべき人」が存在しなかった            */
+  function growTypeOf(d) {
+    const G = D.GROWTH;
+    return G.types.filter(t => t.key === (d && d.curve))[0] || G.types[1];
+  }
+  /* デビューから何年目か。
+     古いセーブには入っていないので、年齢から推し量る   */
+  function drvYears(d) {
+    if (d && d.years != null) return Math.max(0, d.years);
+    return Math.max(0, ((d && d.age) || 22) - 21);
+  }
+  function growCurve(d) {
+    const t = growTypeOf(d), y = drvYears(d);
+    const k = (y - t.peak) / t.wide;
+    return t.tail + (t.top - t.tail) * Math.exp(-k * k);
+  }
+  /* 型を振る。出やすさは GROWTH.weight のとおり */
+  function rollCurve() {
+    const G = D.GROWTH, w = G.weight;
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < G.types.length; i++) { r -= w[i]; if (r <= 0) return G.types[i].key; }
+    return G.types[1].key;
   }
 
   /* ---------- ドライバーが、どれだけ引き出せているか ----------
@@ -4213,8 +4244,10 @@ GP.state = (function () {
                         + (hasGear(g2, 'youth', 'ykart') ? 0.14 : 0)
                         + (hasEstate(g2, 'kart') ? 0.12 : 0)
                         + (hasEstate(g2, 'academy') ? 0.20 : 0);
+      /* 型の分も乗せる。早熟は下部組織のうちから伸び、
+         大器晚成は上がってから伸びる                    */
       const rate = potOf(d).growth * (0.55 + lv * 0.16 + trainer * 0.05)
-                 * ageMul * gearMul * rigMul(g2, 'youth');
+                 * ageMul * gearMul * rigMul(g2, 'youth') * growCurve(d);
       ['speed', 'technique', 'stamina', 'mental'].forEach(k => {
         const extra = (k === 'stamina' && hasGear(g2, 'youth', 'lab')) ? 1.35 : 1;
         d[k] = clamp(d[k] + rnd(0.15, 0.75) * rate * extra * (1 - d[k] / 300), 1, 199);
@@ -4443,6 +4476,13 @@ GP.state = (function () {
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
       // 車体に項目が増えたセーブを読んだときは、下限まで埋めておく
+      /* 伸びかたと年数はあとから入れたもの。
+         古いセーブにはないので、読むときに埋める   */
+      [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : []).forEach(d => {
+        if (!d) return;
+        if (!d.curve) d.curve = rollCurve();
+        if (d.years == null) d.years = Math.max(0, (d.age || 22) - 21);
+      });
       if (!g.logi) g.logi = { plan: 'std', load: 'std', crew: 0 };
       if (!g.logi.load) g.logi.load = 'std';
       if (!g.pu) g.pu = { used: 1, life: 100, grid: 0, over: 0, n: 1, pool: [] };
@@ -4546,6 +4586,7 @@ GP.state = (function () {
     addStaffExp, addStaffExpAll, retireStaff, stTrait, traitOf, rollStaffTraits,
     promotableRoles, promoteStaff, PROMOTE_MIN,
     paidIncome, isPaid,
+    growTypeOf, drvYears, growCurve, rollCurve,
     driverOut, airTemp, roadTemp, tyreBand, tyreOff, tempTier, roadWord, tyreTempFit, meetingLv, roomPower, trustOf, trustTier, addTrust, trustDrift, ignoreRate, trustDev,
     briefFind, fixOdds, dataOdds,
     schoolList, schoolOpen, courseOpen, enrol, tickSchool, personOf,

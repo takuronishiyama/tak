@@ -303,7 +303,7 @@ GP.ui = (function () {
     const pc = Math.round(fit.out * 100);
     /* この数字は「腕」と「車の乗り味」の掛け算。
        まとめて出すと、ドライバーの札なのに
-       実は車のべうが支配的、ということが起きる。
+       実は車のほうが支配的、ということが起きる。
        新しいチームだと乗り味が -8% ほど引いている。
        だから両方を並べて、どちらのせいか読めるようにする  */
     const arm = Math.round(S.driverOut(S.driverRating(d), d) * 100);
@@ -321,7 +321,13 @@ GP.ui = (function () {
       '<span class="drv-id"><span class="drv-nm">' + esc(d.name) + '</span>' +
       '<span class="drv-sub">' + na.flag + ' ' + d.age + '歳 ／ <b title="' + esc(p.desc) + '">' + p.icon + p.name + '</b>' +
         ' ／ <b class="drv-care" style="color:' + ct.color + '" title="' + esc(ct.note) +
-        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b></span></span>' +
+        '（安定感 ' + Math.round(S.careOf(d)) + '）">' + ct.icon + ct.name + '</b>' +
+        /* 伸びかたと何年目か。
+           これが見えていないと、「いま育てるべき人」が分からない */
+        (S.growTypeOf ? '／<b class="drv-grow" title="' + esc(S.growTypeOf(d).note) + '">' +
+          S.growTypeOf(d).icon + S.growTypeOf(d).name +
+          '<em>' + (S.drvYears(d) + 1) + '年目</em></b>' : '') +
+        '</span></span>' +
       '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
