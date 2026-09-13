@@ -1080,9 +1080,10 @@ GP.screens.dev = function (A) {
     if (!tk) return '';
     return '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
       '<span class="tk-ic">🎫</span>' +
-      '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+      '<span class="tk-body"><b>開発チケット ×' + tk + ' / ' + D.TICKET.max + '</b>' +
       '<small>1枚使うと、次の1回で<b>週が進みません</b>。' +
-      '資金と研究Pはいつもどおりかかります</small></span>' +
+      '資金と研究Pはいつもどおり。' +
+      '<b>年をまたぐと失効</b>します</small></span>' +
       '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
   }
   /* 帯を押したら切り替えて、その画面を描き直す */

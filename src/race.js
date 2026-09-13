@@ -3721,9 +3721,16 @@ GP.race = (function () {
         g.dryStreak = (g.dryStreak || 0) + 1;
         if (g.dryStreak >= diff.ticket) {
           g.dryStreak = 0;
-          g.tickets = (g.tickets || 0) + 1;
-          notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回、週を使わずに行える）');
-          res.gotTicket = true;
+          /* 上限まで持っているときは、券ではなく現金が届く。
+             捨てるのではなく、形を変えて渡す                */
+          const gt = S.grantTicket(g);
+          notes.push(gt.capped
+            ? '🎫 開発チケットはもう' + D.TICKET.max +
+              '枚持っているので、代わりに支援金が届いた（+' +
+              Math.round(gt.cash) + '万）'
+            : '🎫 苦戦が続いたチームに開発チケットが届いた！' +
+              '（開発・設計を1回、週を使わずに行える）');
+          res.gotTicket = !gt.capped;
         }
       }
     }

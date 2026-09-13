@@ -911,6 +911,15 @@ window.GP = window.GP || {};
     g.week = 1;
     g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
+    /* 開発チケットはその年のもの。持ち越せない。
+       ただしタダで消すのではなく、連盟が買い取る     */
+    const tkEnd = S.expireTickets(g);
+    if (tkEnd) {
+      U.log(g, '🎫 使わなかった開発チケット ' + tkEnd.n +
+               '枚は失効し、連盟が買い取った（+' +
+               money(tkEnd.cash) + '万）。', 'warn');
+      U.toast('🎫 券' + tkEnd.n + '枚を買取 +' + money(tkEnd.cash) + '万', 'warn');
+    }
     S.puReset(g);                // パワーユニットの使用基数も新品から数え直す
     const capRes = S.settleCap(g);   // 予算の精算
     capWarned = false;
@@ -1288,10 +1297,16 @@ window.GP = window.GP || {};
       '設計室・工房・ガレージ・研究所</span></div>' +
       '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
       d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +
+      '<div class="popcost"><span>持てる枚数</span><span><b>' + D.TICKET.max +
+      '枚まで</b>。これ以上は、券のかわりに<br>支援金が届きます（+' +
+      money(S.ticketCash(g)) + '万）</span></div>' +
+      '<div class="popcost"><span>年をまたぐと</span><span>失効します。残った1枚は<br>' +
+      '<b>+' + money(S.ticketCash(g)) + '万</b> で連盟が買い取ります</span></div>' +
       '<p class="note">このゲームで一番足りないのは金ではなく、' +
       '<b>レースまでに動ける回数</b>です。' +
       'だからこの券は、その1回を丸ごと肩代わりします——' +
-      'つまり<b>その週は、開発ともうひとつを両方やれる</b>ということ。</p>';
+      'つまり<b>その週は、開発ともうひとつを両方やれる</b>ということ。' +
+      '強い券なので、貯め込めないようにしてあります。</p>';
     U.popup('🎫 開発チケット', h,
       [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
   }

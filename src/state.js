@@ -2622,6 +2622,34 @@ GP.state = (function () {
     return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
+  /* ---------- 開発チケット ----------
+     券が肩代わりするのは週だから、貯められると強すぎる。
+     持てる枚数に上限を置き、年をまたぐと失効させる。
+     ただしタダで消すのではなく、連盟が買い取る——
+     「使えなかった1週」が帰ってくる、という理屈       */
+  function ticketCash(g2) {
+    return Math.round(weeklyCost(g2) * D.TICKET.cashWeeks);
+  }
+  /* 券を1枚出す。上限まで持っているときは、代わりに現金が届く */
+  function grantTicket(g2) {
+    const cash = ticketCash(g2);
+    if ((g2.tickets || 0) >= D.TICKET.max) {
+      g2.funds += cash;
+      return { capped: true, cash: cash, now: g2.tickets };
+    }
+    g2.tickets = (g2.tickets || 0) + 1;
+    return { capped: false, cash: 0, now: g2.tickets };
+  }
+  /* 年をまたいだ券は失効する。残っていたぶんは買い取られる */
+  function expireTickets(g2) {
+    const n = g2.tickets || 0;
+    if (!n) return null;
+    const cash = ticketCash(g2) * n;
+    g2.funds += cash;
+    g2.tickets = 0;
+    return { n: n, cash: cash };
+  }
+
   /* 何周のレースを基準に削れるか。
      ここを 26 と直書きしていたため、周回を増やしたとたんに
      パワーユニットが4割早く尽きるところだった。
@@ -4552,6 +4580,7 @@ GP.state = (function () {
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
+    ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,

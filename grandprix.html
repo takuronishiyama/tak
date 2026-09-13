@@ -5478,6 +5478,21 @@ GP.data = (function () {
        「おまかせ」が1ストップのままになる                */
     tuned: 0.0014
   };
+  /* ---------- 開発チケット ----------
+     券が肩代わりするのは「週」だ。
+     このゲームで一番足りないものなので、
+     何枚でも持てると「貯めて一気に使う」が強すぎる。
+
+     1シーズンは12戦。ノーマルは4戦入賞なしで1枚なので、
+     全戦苦しんでも年に3枚。上限を2枚に置くと、
+     その上限がちゃんと働く                                */
+  const TICKET = {
+    max: 2,           // 持っていられる枚数
+    /* 使わずに終わった1枚を、固定費何週ぶんで買い取るか。
+       金額を直書きせず固定費に紐づけてあるのは、
+       チームが大きくなるほど「1週」の値打ちも上がるから */
+    cashWeeks: 1.5
+  };
   const PIT_FUMBLE_BASE = 0.115;  // 作業をしくじる確率（腕が上がるほど下がる）
   const PIT_FUMBLE_MIN  = 0.014;
 
@@ -7614,7 +7629,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -10521,6 +10536,34 @@ GP.state = (function () {
     return { from: from, to: u.n, life: Math.round(u.life) };
   }
   /* 1戦でどれだけ削れるか。冷却の効いた車体と、腕の良いメカニックほど保つ */
+  /* ---------- 開発チケット ----------
+     券が肩代わりするのは週だから、貯められると強すぎる。
+     持てる枚数に上限を置き、年をまたぐと失効させる。
+     ただしタダで消すのではなく、連盟が買い取る——
+     「使えなかった1週」が帰ってくる、という理屈       */
+  function ticketCash(g2) {
+    return Math.round(weeklyCost(g2) * D.TICKET.cashWeeks);
+  }
+  /* 券を1枚出す。上限まで持っているときは、代わりに現金が届く */
+  function grantTicket(g2) {
+    const cash = ticketCash(g2);
+    if ((g2.tickets || 0) >= D.TICKET.max) {
+      g2.funds += cash;
+      return { capped: true, cash: cash, now: g2.tickets };
+    }
+    g2.tickets = (g2.tickets || 0) + 1;
+    return { capped: false, cash: 0, now: g2.tickets };
+  }
+  /* 年をまたいだ券は失効する。残っていたぶんは買い取られる */
+  function expireTickets(g2) {
+    const n = g2.tickets || 0;
+    if (!n) return null;
+    const cash = ticketCash(g2) * n;
+    g2.funds += cash;
+    g2.tickets = 0;
+    return { n: n, cash: cash };
+  }
+
   /* 何周のレースを基準に削れるか。
      ここを 26 と直書きしていたため、周回を増やしたとたんに
      パワーユニットが4割早く尽きるところだった。
@@ -12451,6 +12494,7 @@ GP.state = (function () {
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
+    ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
@@ -16198,9 +16242,16 @@ GP.race = (function () {
         g.dryStreak = (g.dryStreak || 0) + 1;
         if (g.dryStreak >= diff.ticket) {
           g.dryStreak = 0;
-          g.tickets = (g.tickets || 0) + 1;
-          notes.push('🎫 苦戦が続いたチームに開発チケットが届いた！（開発・設計を1回、週を使わずに行える）');
-          res.gotTicket = true;
+          /* 上限まで持っているときは、券ではなく現金が届く。
+             捨てるのではなく、形を変えて渡す                */
+          const gt = S.grantTicket(g);
+          notes.push(gt.capped
+            ? '🎫 開発チケットはもう' + D.TICKET.max +
+              '枚持っているので、代わりに支援金が届いた（+' +
+              Math.round(gt.cash) + '万）'
+            : '🎫 苦戦が続いたチームに開発チケットが届いた！' +
+              '（開発・設計を1回、週を使わずに行える）');
+          res.gotTicket = !gt.capped;
         }
       }
     }
@@ -22444,9 +22495,10 @@ GP.screens.dev = function (A) {
     if (!tk) return '';
     return '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
       '<span class="tk-ic">🎫</span>' +
-      '<span class="tk-body"><b>開発チケット ×' + tk + '</b>' +
+      '<span class="tk-body"><b>開発チケット ×' + tk + ' / ' + D.TICKET.max + '</b>' +
       '<small>1枚使うと、次の1回で<b>週が進みません</b>。' +
-      '資金と研究Pはいつもどおりかかります</small></span>' +
+      '資金と研究Pはいつもどおり。' +
+      '<b>年をまたぐと失効</b>します</small></span>' +
       '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
   }
   /* 帯を押したら切り替えて、その画面を描き直す */
@@ -33921,6 +33973,15 @@ window.GP = window.GP || {};
     g.week = 1;
     g.aduoLevel = 0; g.aduoNews = null;   // 是正措置は選手権ごとに仕切り直す
     S.restCrew(g, 100);          // オフを挟んでクルーの疲れは抜ける
+    /* 開発チケットはその年のもの。持ち越せない。
+       ただしタダで消すのではなく、連盟が買い取る     */
+    const tkEnd = S.expireTickets(g);
+    if (tkEnd) {
+      U.log(g, '🎫 使わなかった開発チケット ' + tkEnd.n +
+               '枚は失効し、連盟が買い取った（+' +
+               money(tkEnd.cash) + '万）。', 'warn');
+      U.toast('🎫 券' + tkEnd.n + '枚を買取 +' + money(tkEnd.cash) + '万', 'warn');
+    }
     S.puReset(g);                // パワーユニットの使用基数も新品から数え直す
     const capRes = S.settleCap(g);   // 予算の精算
     capWarned = false;
@@ -34298,10 +34359,16 @@ window.GP = window.GP || {};
       '設計室・工房・ガレージ・研究所</span></div>' +
       '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
       d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +
+      '<div class="popcost"><span>持てる枚数</span><span><b>' + D.TICKET.max +
+      '枚まで</b>。これ以上は、券のかわりに<br>支援金が届きます（+' +
+      money(S.ticketCash(g)) + '万）</span></div>' +
+      '<div class="popcost"><span>年をまたぐと</span><span>失効します。残った1枚は<br>' +
+      '<b>+' + money(S.ticketCash(g)) + '万</b> で連盟が買い取ります</span></div>' +
       '<p class="note">このゲームで一番足りないのは金ではなく、' +
       '<b>レースまでに動ける回数</b>です。' +
       'だからこの券は、その1回を丸ごと肩代わりします——' +
-      'つまり<b>その週は、開発ともうひとつを両方やれる</b>ということ。</p>';
+      'つまり<b>その週は、開発ともうひとつを両方やれる</b>ということ。' +
+      '強い券なので、貯め込めないようにしてあります。</p>';
     U.popup('🎫 開発チケット', h,
       [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
   }
