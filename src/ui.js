@@ -304,8 +304,12 @@ GP.ui = (function () {
       '</div>' +
       '<div class="skills">' + skillChips(d) + '</div>' +
       '<div class="drv-stats">' +
-      mini('速さ', d.speed) + mini('技術', d.technique) + mini('体力', d.stamina) + mini('精神', d.mental) +
+      D.DRIVER_ATTRS.map(a => mini(a.name, d[a.key], a.desc)).join('') +
       '</div>' +
+      /* 4つの棒が並んでいるだけだと、何の数字か分からない。
+         このゲームでの意味を一行で言っておく    */
+      '<div class="drv-note">どれも「車から引き出す力」。' +
+      '総合が高いほど、同じ車でも速く走れます</div>' +
       '<div class="drv-foot">' +
       '<span>総合 <b>' + r + '</b></span>' +
       '<span>調子 <b class="' + (d.form >= 108 ? 'good' : d.form <= 88 ? 'bad' : '') + '">' + formLabel(d.form) + '</b></span>' +
@@ -502,8 +506,10 @@ GP.ui = (function () {
     }).join('');
   }
 
-  function mini(n, v) {
-    return '<div class="mst"><span>' + n + '</span><i><b style="width:' + Math.min(100, v / 1.9) + '%"></b></i><em>' + Math.round(v) + '</em></div>';
+  function mini(n, v, tip) {
+    return '<div class="mst"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' +
+      '<span>' + n + '</span><i><b style="width:' + Math.min(100, v / 1.9) + '%"></b></i>' +
+      '<em>' + Math.round(v) + '</em></div>';
   }
   function formLabel(f) {
     if (f >= 112) return '絶好調';

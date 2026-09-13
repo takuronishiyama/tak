@@ -3617,3 +3617,15 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .rvy em{font-style:normal;font-size:9px;font-weight:normal;
   background:rgba(0,0,0,.18);border-radius:3px;padding:0 4px}
 @media (max-width:520px){ .rvy{font-size:9px;padding:1px 5px} }
+
+
+/* ドライバーの能力の下に置く一行。
+   棒グラフだけだと、何の数字か分からない */
+.drv-note{font-size:9.5px;line-height:1.5;color:var(--ink2);margin:2px 0 4px}
+[data-skin="hd"] .drv-note{color:#cbbb9a}
+/* 車体の行に出す「この車の持ち味」 */
+.devchar{display:block;font-size:9.5px;line-height:1.5;margin-top:2px;color:#7a5a2a;font-weight:bold}
+[data-skin="hd"] .devchar{color:#e8c98a}
+/* 開発の入口に置く、三つの言葉の関係 */
+.carmodel{font-size:11px;line-height:1.65;margin:0 0 7px;padding:6px 9px;
+  background:var(--paper3);border:2px dashed var(--ink2);border-radius:8px}

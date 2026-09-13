@@ -464,35 +464,60 @@ GP.data = (function () {
   /* 車体はパーツと同じ土俵で速さを競わない。
      パーツが触らないところ ―― 壊れにくさ、タイヤの保ち、ピット作業、維持費 ――
      を担当する。効果は「今のマシンの上限に対して何割まで煮詰めたか」で効く。 */
+  /* ---------- 車体 ----------
+     ここで決まるのは「どういう車か」。
+     desc がその持ち味（どこが速くなるか、ならないか）、
+     eff はそれに付いてくる、速さ以外のもの。
+
+     以前は desc をどこにも出していなかったので、
+     「剛性＝壊れにくさ」だけに読めてしまっていた。
+     実際はどの項目も、その車の速さそのものを作っている     */
   const BODY_ATTRS = [
     { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
-      desc: 'コーナー性能がわずかに上がる',
+      desc: 'コーナーで踏ん張る車になる',
       eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -20%）',
       gain: { speed: 0.00, corner: 0.18, accel: 0.00 } },
     { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
-      desc: '最高速と加速がわずかに上がる',
+      desc: '最高速と加速が伸びる車になる',
       eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -15%）',
       gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
     { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3a7ad9',
-      desc: 'コーナー性能がわずかに上がる',
-      eff: 'エアロパーツの効きが増し、前車を追いやすくなる（追い抜き +11%）',
+      desc: 'コーナーで曲がる車になる',
+      eff: 'エアロパーツの効きが増し、前車を追いやすい（追い抜き +11%）',
       gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
     { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
-      desc: '加速がごくわずかに上がる',
-      eff: '信頼性 +7、バッテリーの回生が増え、終盤のタレが小さくなる',
+      desc: '加速がわずかに伸びる',
+      eff: '信頼性 +7。電気の回生が増え、終盤のタレが小さい',
       gain: { speed: 0.00, corner: 0.00, accel: 0.06 } },
     { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#f0a020',
-      desc: '最高速と加速がわずかに上がる',
-      eff: '電気の容量と放電量が増え、直線で伸びる',
+      desc: '最高速と加速が伸びる車になる',
+      eff: '電気の容量と放電量が増え、直線の仕掛けが決まりやすい',
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
     { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0644a',
-      desc: 'マシンそのものの速さは変わらない',
-      eff: '素直で乗りやすくなり、腕をそのまま出せる。合わないタイヤでも唐突に失いにくい（ドライバー評価 +12%／ミス -25%／スピンしにくい）',
+      desc: '車そのものは速くならない',
+      eff: '素直で乗りやすくなり、ドライバーが車の持ち分を引き出せる。' +
+           '合わないタイヤでも唐突に失わない（評価 +12%／ミス -25%）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
     { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
-      desc: 'マシンそのものの速さは変わらない',
+      desc: '車そのものは速くならない',
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
+  ];
+  /* ---------- ドライバーの能力 ----------
+     4つとも「車からどれだけ引き出せるか」の内訳で、
+     総合（driverRating）はこの4つを重み付きで足したもの。
+     重みをここに書いておくのは、画面でそのまま見せるため。
+     以前は4つの棒グラフだけが並んでいて、
+     何がどう効くのかどこにも書いていなかった          */
+  const DRIVER_ATTRS = [
+    { key: 'speed',     name: '速さ', icon: '🏎️', w: 0.34,
+      desc: '車が持っている速さを、そのまま出す' },
+    { key: 'technique', name: '技術', icon: '🎯', w: 0.30,
+      desc: 'タイヤと路面を読む。持たせられ、ミスが減る' },
+    { key: 'stamina',   name: '体力', icon: '🫁', w: 0.18,
+      desc: '終盤まで落ちない。長いレースで差が出る' },
+    { key: 'mental',    name: '精神', icon: '🧠', w: 0.18,
+      desc: '競り合いと圧力の中でも、いつもどおりに走る' }
   ];
   /* ---------- 部位のまとまり ----------
      部品は、ばらばらに効いているのではなく、
@@ -3405,6 +3430,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

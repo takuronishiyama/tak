@@ -105,6 +105,14 @@ GP.screens.dev = function (A) {
          「開発・改良・研究」はどれも同じ意味に読めてしまい、
          どれを押せばいいか決められなかった。
          決める→作る→仕上げる、と場所の名前で並べ直してある  */
+      /* 三つの言葉の関係を、入口の上で一度だけ言う。
+         これがないと、車体・パーツ・ドライバーが
+         それぞれ別々の数字に見えてしまう               */
+      '<p class="carmodel">' +
+      '<b>車体</b>がこの車の持ち味を決め、' +
+      '<b>パーツ</b>がそれを補って強めます。' +
+      'そうやってできた速さを、どこまで<b>引き出す</b>かがドライバー。' +
+      'まれに、車の持ち分を<b>超えてくる</b>人がいます。</p>' +
       '<div class="pick">' +
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
         'ひらめきを図面に落とし、素材と技術を積み上げる。' +
@@ -717,8 +725,8 @@ GP.screens.dev = function (A) {
         const thin = pct < 34;
         devRow['bdy:' + a.key] = {
           ic: a.icon, bg: a.color, head: '🔧 まとめる',
-          name: a.name + ' をまとめる', sub: a.eff,
-          lines: [['この項目は', esc(a.eff)],
+          name: a.name + ' をまとめる', sub: esc(a.desc),
+          lines: [['それに付いてくるもの', esc(a.eff)],
                   ['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
                    (Math.round(v * 10) / 10) + ' / ' + myCap + '）'],
                   ['1回で', 'インテグレート ' + (itNow.rate * 100).toFixed(1) +
@@ -744,6 +752,9 @@ GP.screens.dev = function (A) {
           (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向き</em>' : '') +
           (capped ? '　<em class="warn">上限到達</em>' : '') + '</span>' +
           '<span class="devup">1回で 眠っていた速さが <b>+' + up.toFixed(1) + '</b></span>' +
+          /* データにはあったのに、どこにも出していなかった。
+             これがないと「剛性＝壊れにくさ」だけに読めてしまう  */
+          '<span class="devchar">' + esc(a.desc) + '</span>' +
           '</small></span>' +
           '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
             '💰' + money(cost) + '<br>🔬8' + '</span></button>';
