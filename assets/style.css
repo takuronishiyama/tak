@@ -657,15 +657,33 @@ body.preboot .topbar{visibility:hidden}
 .rv-head b{flex:1 1 auto;min-width:7em;white-space:nowrap}
 .rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
-.rv-canvaswrap{position:relative;flex-shrink:0;max-width:100%}
+/* ---- コース図の大きさ ----
+   高さの上限は --rvMap ひとつで決める。画面ごとの指定は、
+   この値を差し替えるだけにする。
+
+   以前は入れ物の側を max-height で抑え、図には max-height:100% と
+   書いていた。割合の上限は「入れ物の高さが決まっていること」が前提で、
+   決まっていない並びに置くと効かない。そこでは図が元の 560×400 のまま
+   広がり、入れ物からあふれたぶんが切り落とされて、
+   草地だけが帯になって見えていた。
+
+   入れ物は図にぴったり合わせる（width:fit-content）。
+   合わせておかないと、隅に置いたカメラの札と無線の吹き出しが、
+   図から外れた余白の上に浮いてしまう。                        */
+.rv-canvaswrap{position:relative;flex:0 1 auto;min-width:0;min-height:0;
+               width:-moz-fit-content;width:fit-content;max-width:100%;
+               margin-left:auto;margin-right:auto}
 #raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
             image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
-            max-width:100%;background:#7fbf5a}
+            width:auto;height:auto;max-width:100%;max-height:var(--rvMap,46vh);
+            background:#7fbf5a}
 /* 無線に右下を譲って、カメラの切り替えは左下へ */
 .rv-cam{position:absolute;left:6px;bottom:6px;display:flex;gap:4px}
 .rv-cam button{background:rgba(255,248,227,.9);border:2px solid var(--ink);border-radius:6px;
                font-size:10px;padding:3px 7px;font-weight:bold;box-shadow:0 2px 0 rgba(74,47,26,.5)}
 .rv-cam button.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 0 0}
+.rv-cam button i{font-style:normal}
+.rv-cam button span{margin-left:3px}
 .rv-side{flex:1;display:flex;flex-direction:column;border:3px solid var(--ink);
          border-radius:8px;overflow:hidden;background:var(--paper3);min-width:150px}
 .rv-order-h{background:var(--ink2);color:#ffeec4;font-size:11px;padding:2px 6px;flex-shrink:0}
@@ -682,6 +700,10 @@ body.preboot .topbar{visibility:hidden}
 .sc-row{display:flex;align-items:center;gap:4px;font-size:11px;color:#ffeec4;
         font-variant-numeric:tabular-nums}
 .sc-row.best{border-top:1px dashed rgba(255,238,196,.3);padding-top:2px;opacity:.9}
+/* 名前は、広いときはフルネーム、狭いときは3文字。
+   出し分けは下の幅の条件でやる                      */
+.sc-ab{display:none}
+.sc-fu{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-nm{flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;
        text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .sc-nm i{width:8px;height:8px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
@@ -699,6 +721,13 @@ body.preboot .topbar{visibility:hidden}
 .sc-t.purple{color:#d88cff;font-weight:bold}
 .sc-t.old{opacity:.42;font-weight:normal}
 .sc-lap{width:74px;text-align:right;color:#fff;font-weight:bold}
+/* 幅が足りない画面では、フルネームではなく3文字のほうを出す。
+   モニターの表と同じ略しかたなので、見比べもできる     */
+@media (max-width:600px){
+  .sc-nm{flex:0 1 auto;min-width:3.4em}
+  .sc-ab{display:inline;font-size:10px}
+  .sc-fu{display:none}
+}
 
 .rv-loglist{height:74px;overflow-y:auto;background:#2b1c0e;border:3px solid var(--ink);
             border-radius:8px;padding:4px 6px;display:flex;flex-direction:column;gap:2px}
@@ -836,17 +865,22 @@ body.preboot .topbar{visibility:hidden}
   #toastLayer{padding-top:calc(var(--topH, 104px) + 10px)}
   .numpop{top:calc(var(--topH, 150px) + 34px)}
   .rv-body{flex-direction:column;align-items:center}
-  .rv-canvaswrap{width:100%}
-  #raceCanvas{width:100%;height:auto}
+  /* 図の下に順位・自車の行・実況・操作ボタンが続く。
+     3割を超えると、横長の画面で操作ボタンが画面の外へ出る */
+  .rv-wrap{--rvMap:30vh}
   .rv-cam button{font-size:9px;padding:2px 5px}
   .rv-radio{width:70%;bottom:34px;right:6px}
   .rvr span{font-size:10px}
   .rv-side{width:100%;min-height:110px;max-height:130px}
-  .sc-t{width:48px;font-size:10px}
-  .sc-ty{width:64px}
+  /* 数字の列を少しずつ削って、名前の欄を確保する。
+     削らないと固定幅の合計が横幅を食い切り、
+     名前の欄が数ピクセルまで潰れて消えていた        */
+  .sc-t{width:44px;font-size:10px}
+  .sc-ty{width:52px}
   .sc-ty em{display:none}
-  .sc-ers{width:40px}
-  .sc-lap{width:60px;font-size:10px}
+  .sc-ers{width:30px}
+  .sc-lap{width:54px;font-size:10px}
+
   .btn{min-width:0;font-size:12px;padding:6px 4px}
 }
 @media (max-width:520px){
@@ -2397,8 +2431,13 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
         border-left:3px solid transparent}
 .tb-row:nth-child(even){background:rgba(255,255,255,.045)}
 .tb-row.tb-head{color:#d8c8a4;font-size:9px;border-bottom:1px dashed rgba(255,238,196,.34);
-                position:sticky;top:0;background:#241a12;z-index:2;
-                background-clip:padding-box}
+                background:#241a12;background-clip:padding-box}
+/* コンディション帯と見出しは、ひとつの塊にして貼りつける。
+   別々に貼りつかせると、帯の高さを数字で決め打ちすることになり、
+   帯が出ない日には隙間が空いて、そこを1位の行が通り抜けていた */
+.rv-sectors.board .tb-fix{position:sticky;top:0;z-index:3;background:#241a12}
+/* 末尾の「セッション最速」は見出しの見た目を借りているだけ。貼りつかせない */
+.tb-row.tb-foot{position:static}
 .tb-row.me{background:rgba(255,216,90,.20);border-left-color:#ffd23a;font-weight:bold;
            color:#fff6dc}
 .tb-row.out{opacity:.45;text-decoration:line-through}
@@ -2532,6 +2571,9 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-cam{top:6px;bottom:auto;right:6px}
   .rv-cam button{min-height:32px;padding:4px 8px}
   .rv-radio .rvr:nth-last-child(n+3){display:none}
+  /* モニターを出しているとコース図が小さい。
+     そこに2つ積むと、走っているところが残らない  */
+  .rv-wrap.timing .rv-radio .rvr:nth-last-child(n+2){display:none}
   .rvr{padding:3px 6px}
   .rvr b{font-size:9px}
   .rvr span{font-size:11px}
@@ -2559,18 +2601,21 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
    コース図は画面の3割までに抑える。ここを幅の条件の中に
    置いていたので、小さめのデスクトップ窓では効かず、
    表と操作ボタンが画面の外へ押し出されていた               */
-.rv-wrap.timing .rv-body{flex:0 1 auto;max-height:30vh;min-height:96px;overflow:hidden}
-/* 入れ物を抑えるだけでは足りない。中のコース図も、
-   その高さに合わせて縮むようにする（縦横比は保つ）         */
-.rv-wrap.timing .rv-canvaswrap{flex:0 1 auto;min-width:0;min-height:0;
-  display:flex;align-items:flex-start}
-.rv-wrap.timing #raceCanvas{width:auto;height:auto;max-width:100%;max-height:100%}
+.rv-wrap.timing{--rvMap:30vh}
+.rv-wrap.timing .rv-body{flex:0 0 auto}
 /* モニターを出しているあいだも、カメラの切り替えは残す。
    はみ出していたのは、絶対配置なのに幅が入れ物に縛られていなかったから。
    幅の上限を入れ物に合わせ、入りきらなければ折り返す。
    左下に置いたままにするのは、無線が右下に出るから        */
+/* モニターを出しているとコース図は画面の3割までしかない。
+   その幅では、カメラの札（左下）と無線の吹き出し（右下）が
+   並びきらずに重なる。札は絵文字だけにして場所を空ける     */
 .rv-wrap.timing .rv-cam{max-width:calc(100% - 12px);flex-wrap:wrap}
 .rv-wrap.timing .rv-cam button{font-size:10px;padding:2px 6px}
+.rv-wrap.timing .rv-cam button span{display:none}
+.rv-wrap.timing .rv-cam button i{font-size:13px}
+/* 吹き出しも2つまで。3つ積むと図がほとんど残らない */
+.rv-wrap.timing .rv-radio .rvr:nth-last-child(n+3){display:none}
 .rv-sectors.board{max-height:min(30vh,244px)}
 .rv-wrap.timing .rv-loglist{height:56px}
 @media (max-width:520px), (hover:none) and (pointer:coarse){
@@ -2594,8 +2639,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   height:auto;max-height:min(30vh + 46px,300px);justify-content:flex-end}
 /* 横に置くと何の欄か分かりにくいので、見出しを貼りつけておく */
 .rv-wrap.timing .rv-mon .rv-loglist{padding-top:0}
+/* 実況は下から積むので（justify-content:flex-end）、
+   何も言わないとこの見出しまで下に引きずられ、
+   空いた欄の真ん中に「実況」だけが浮いていた。
+   余った高さを見出しの下の余白として食わせて、上に留める */
 .rv-wrap.timing .rv-mon .rv-loglist::before{content:'実況';display:block;
-  position:sticky;top:0;margin:0 -6px 3px;padding:2px 6px;
+  position:sticky;top:0;margin:0 -6px auto;padding:2px 6px 3px;
   background:#2b1c0e;color:#d8c8a4;font-size:9px;letter-spacing:.08em;
   border-bottom:1px dashed rgba(255,238,196,.34);z-index:2}
 /* 縦に持つ端末では並べきれないので、これまでどおり積む */
@@ -2728,7 +2777,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 
 
 /* ---- タイミングモニターの上のコンディション行 ---- */
-.tb-cond{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:5px;
+.tb-cond{display:flex;align-items:center;gap:5px;
   flex-wrap:wrap;background:#1b130d;margin:-2px -4px 2px;padding:3px 5px;
   border-bottom:1px solid rgba(255,238,196,.22);font-size:10px;color:#e8dcc0}
 .tb-cond .tbl{background:var(--red);color:#fff;border-radius:4px;padding:0 6px;font-size:11px}
@@ -2741,8 +2790,6 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .tb-cond .tbrub{width:44px;height:7px;border:1px solid;border-radius:4px;overflow:hidden;
   display:inline-block;background:rgba(255,255,255,.08)}
 .tb-cond .tbrub u{display:block;height:100%;text-decoration:none}
-.rv-sectors.board .tb-row.tb-head{top:19px}
-@media (max-width:520px){ .rv-sectors.board .tb-row.tb-head{top:32px} }
 
 .p-cond .p-cl{font-style:normal;font-size:8px;opacity:.7;margin-right:2px}
 .punote{display:block;opacity:.8;margin:2px 0 4px}
@@ -2935,13 +2982,17 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-head::-webkit-scrollbar{display:none}
   .rv-head b{font-size:12px;flex:0 0 auto}
   .rv-head #rvLap{font-size:12px}
-  /* コース図は、縦に収まるところまで縮める（縦横比は保つ） */
   /* 縦画面では縦に積んでいるものを、横画面では横に並べ直す */
   .rv-body{flex:1;min-height:0;flex-direction:row;align-items:stretch}
-  .rv-canvaswrap{flex:0 1 auto;width:auto;min-width:0;min-height:0;
-                 display:flex;align-items:flex-start}
-  /* 高さは、上下の帯を除いた残りに合わせて縮める（縦横比は保つ） */
-  #raceCanvas{width:auto;height:auto;max-width:100%;max-height:100%}
+  /* 上下の帯を除いた残りが、だいたいこのくらい */
+  .rv-wrap{--rvMap:40vh}
+  /* コース図そのものが小さい。札に文字まで乗せると走っているところが
+     見えなくなるので、カメラの切り替えは絵文字だけにする       */
+  .rv-cam button span{display:none}
+  .rv-cam button i{font-size:13px}
+  /* 無線もいちばん新しいひとつだけ。2つ積むと図の半分が埋まる */
+  .rv-radio{width:min(190px,64%);right:6px;bottom:6px;left:auto}
+  .rv-radio .rvr:nth-last-child(n+2){display:none}
   /* 縦画面むけに幅100%へ広げているのを、横画面では列に戻す */
   .rv-side{width:auto;min-width:120px;flex:1 1 120px;min-height:0;max-height:none}
   .rv-ctrl{gap:4px}
@@ -2954,7 +3005,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   /* モニターを出しているあいだは、表のほうが主役。
      コース図は上に少しだけ残し、空いた高さは全部モニターへ渡す。
      横に寝かせた画面で4台しか見えないのでは、表の意味がない       */
-  .rv-wrap.timing .rv-body{flex:0 1 auto;max-height:23vh}
+  .rv-wrap.timing{--rvMap:23vh}
   .rv-wrap.timing .rv-mon .rv-sectors{max-height:48vh}
   .rv-wrap.timing .rv-mon .rv-loglist{max-height:48vh}
   .rv-cam button{font-size:9px;padding:2px 5px}
@@ -3510,10 +3561,16 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
    実況は流れていくものなので、行数が減っても読める。         */
 @media (max-width:520px) and (orientation:portrait){
   .rv-wrap.timing .rv-head{flex:0 0 auto}
-  .rv-wrap.timing .rv-body{display:flex;flex:0 0 auto;max-height:none;height:138px}
-  .rv-wrap.timing .rv-canvaswrap{height:100%;width:100%;
-    align-items:center;justify-content:center}
-  .rv-wrap.timing #raceCanvas{height:100%;width:auto;max-width:100%}
+  .rv-wrap.timing{--rvMap:150px}
+  .rv-wrap.timing .rv-body{display:flex;flex:0 0 auto}
+  /* この大きさのコース図に吹き出しを重ねると、
+     走っているところがまるごと隠れる。図は縦横比を保つので
+     となりに余白が出る。そこを無線の欄にして、図の上を空ける */
+  .rv-wrap.timing .rv-canvaswrap{width:100%;display:flex;align-items:stretch;gap:5px}
+  .rv-wrap.timing #raceCanvas{flex:0 0 auto}
+  .rv-wrap.timing .rv-radio{position:static;flex:1 1 0;min-width:0;width:auto;
+    align-items:stretch;justify-content:flex-end;overflow:hidden;
+    top:auto;right:auto;bottom:auto;left:auto}
   /* 表はいちばん背を伸ばし、あふれたぶんは自分で巻き取る */
   .rv-wrap.timing .rv-sectors{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
   /* 上のほうに .rv-wrap.timing .rv-mon .rv-loglist という
@@ -3526,15 +3583,10 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   /* カメラの列は左下の隅に寄せる。左右の両方を入れ物に合わせると
      幅いっぱいに伸びて、狭いコース図を横切ってしまう          */
   .rv-wrap.timing .rv-cam{left:5px;right:auto;top:auto;bottom:5px;max-width:calc(100% - 10px)}
-  .rv-wrap.timing .rv-cam button{font-size:9px;padding:1px 5px;min-height:0}
-  /* 無線はいちばん新しいひとつだけ。2つ積むだけで、
-     この高さのコース図はほとんど隠れてしまう                  */
-  /* 狭い画面用の指定で left:6px が付いているので、明示的に外す。
-     外さないと左右に突っ張って、カメラの列の上に重なる。
-     無線は右上、カメラは左下——と隅を分けて、
-     コース図の真ん中（車が走っているところ）を空けておく    */
-  .rv-wrap.timing .rv-radio{width:min(170px,50%);gap:2px;
-    left:auto;right:5px;top:5px;bottom:auto}
+  .rv-wrap.timing .rv-cam button{font-size:9px;padding:2px 5px;min-height:0}
+  .rv-wrap.timing .rv-cam button span{display:none}
+  .rv-wrap.timing .rv-cam button i{font-size:13px}
+  .rv-wrap.timing .rv-radio{gap:2px}
   .rv-wrap.timing .rv-radio .rvr{padding:2px 6px}
   .rv-wrap.timing .rv-radio .rvr b{font-size:8px}
   .rv-wrap.timing .rv-radio .rvr span{font-size:10px;line-height:1.35}

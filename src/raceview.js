@@ -1749,8 +1749,14 @@ GP.raceview = (function () {
         erchip = '<span class="sc-ers' + cls + '" title="バッテリー ' + er.level + ' / ' + er.cap + '">' +
           '🔋<i><u style="width:' + pct.toFixed(0) + '%"></u></i></span>';
       }
+      /* 名前は長いほう・短いほうの両方を出しておき、
+         どちらを見せるかは画面の幅に任せる。
+         狭い画面では数字の列だけで幅を使い切ってしまい、
+         名前の欄が 10px まで潰れて、色の四角しか出ていなかった   */
       h += '<div class="sc-row"><span class="sc-nm">' +
-        '<i style="background:' + e.color + '"></i>' + e.driver.name + '</span>' + tychip + erchip;
+        '<i style="background:' + e.color + '"></i>' +
+        '<b class="sc-ab">' + rvEsc(GP.data.abbr3(e.driver.name, true)) + '</b>' +
+        '<em class="sc-fu">' + rvEsc(e.driver.name) + '</em></span>' + tychip + erchip;
       for (let k = 0; k < 3; k++) {
         const v = c.cur[k];
         let cls = '';
@@ -1764,7 +1770,9 @@ GP.raceview = (function () {
       }
       h += '<span class="sc-lap">' + fmtLap(c.lastLap) + '</span></div>';
     });
-    h += '<div class="sc-row best"><span class="sc-nm">セッション最速</span><span class="sc-ty"></span><span class="sc-ers"></span>' +
+    h += '<div class="sc-row best"><span class="sc-nm">' +
+      '<b class="sc-ab">最速</b><em class="sc-fu">セッション最速</em></span>' +
+      '<span class="sc-ty"></span><span class="sc-ers"></span>' +
       [0, 1, 2].map(k => '<span class="sc-t purple">' +
         (liveBest[k] === Infinity ? '--.---' : fmtSec(liveBest[k])) + '</span>').join('') +
       '<span class="sc-lap"></span></div>';
@@ -1867,7 +1875,11 @@ GP.raceview = (function () {
     const lapNow = Math.min(res.laps, Math.floor(leader.p) + 1);
     const wl0 = (res.wetLog || [])[Math.max(0, lapNow - 1)];
     const wetNow = wl0 && Math.max(wl0[0], wl0[1], wl0[2]) >= 0.08;
-    let h = (wetNow ? condStripHTML(lapNow) : '') +
+    /* 貼りつくのは、コンディション帯と見出しのふたつ。
+       別々に貼りつかせると、帯が出ない日（乾いている日）にも
+       帯のぶんの隙間が空いたままになり、そこを1位の行が
+       通り抜けて見えていた。ひとつの塊にして top:0 で貼る    */
+    let h = '<div class="tb-fix">' + (wetNow ? condStripHTML(lapNow) : '') +
       '<div class="tb-row tb-head">' +
       '<span class="tb-p">P</span>' +
       '<span class="tb-nm"><i></i><b class="tb-tm">車</b><b class="tb-dv">選手</b>' +
@@ -1876,7 +1888,7 @@ GP.raceview = (function () {
       '<span class="tb-g">前と</span><span class="tb-g">先頭と</span>' +
       '<span class="tb-br"></span>' +
       '<span class="tb-s">S1</span><span class="tb-s">S2</span><span class="tb-s">S3</span>' +
-      '<span class="tb-t">ラップ</span><span class="tb-t">ベスト</span></div>';
+      '<span class="tb-t">ラップ</span><span class="tb-t">ベスト</span></div></div>';
     ord.forEach((o, i) => {
       const e = o.e;
       const c = liveCar[e.id] || { cur: [null, null, null], best: [Infinity, Infinity, Infinity],
@@ -1949,7 +1961,7 @@ GP.raceview = (function () {
         '<span class="tb-t">' + fmtLap(c.lastLap) + '</span>' +
         '<span class="tb-t' + blCls + '">' + fmtLap(bl) + '</span></div>';
     });
-    h += '<div class="tb-row tb-head"><span class="tb-p"></span>' +
+    h += '<div class="tb-row tb-head tb-foot"><span class="tb-p"></span>' +
       '<span class="tb-nm sess">セッション最速</span>' +
       '<span class="tb-lap"></span><span class="tb-ty"></span>' +
       '<span class="tb-g"></span><span class="tb-g"></span>' +
