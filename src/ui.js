@@ -292,6 +292,27 @@ GP.ui = (function () {
     h += '</div></div>';
     return h;
   }
+  /* この車からどれだけ引き出せているか。
+     100%を超えてくる人が、たまにいる        */
+  function pullLine(d) {
+    const g2 = curG;
+    if (!g2 || !S.driverFit) {
+      return '<div class="drv-note">どれも「車から引き出す力」です</div>';
+    }
+    const fit = S.driverFit(g2, d);
+    const pc = Math.round(fit.out * 100);
+    /* この数字は「腕」と「車の乗り味」の掛け算。
+       まとめて出すと、ドライバーの札なのに
+       実は車のべうが支配的、ということが起きる。
+       新しいチームだと乗り味が -8% ほど引いている。
+       だから両方を並べて、どちらのせいか読めるようにする  */
+    const arm = Math.round(S.driverOut(S.driverRating(d), d) * 100);
+    const dv = Math.round((fit.drive - 1) * 100);
+    return '<div class="drv-pull' + (fit.over ? ' over' : '') + '">' +
+      'この車の力を <b>' + pc + '%</b> 引き出せています' +
+      (fit.over ? '<i>★ 車の持ち分を超えています</i>' : '') +
+      '<small>腕 ' + arm + '%　×　乗り味 ' + (dv >= 0 ? '+' : '') + dv + '%</small></div>';
+  }
   function driverCard(d, i) {
     const r = Math.round(S.driverRating(d));
     const p = S.persOf(d), na = S.nationOf(d), ct = S.careTier(d);
@@ -307,9 +328,10 @@ GP.ui = (function () {
       D.DRIVER_ATTRS.map(a => mini(a.name, d[a.key], a.desc)).join('') +
       '</div>' +
       /* 4つの棒が並んでいるだけだと、何の数字か分からない。
-         このゲームでの意味を一行で言っておく    */
-      '<div class="drv-note">どれも「車から引き出す力」。' +
-      '総合が高いほど、同じ車でも速く走れます</div>' +
+         「この車からどれだけ引き出せているか」を、
+         その人の数字で言う。ガレージにしかなかった表示だが、
+         開発の入口で謳っている話なので、人の札にも出す   */
+      pullLine(d) +
       '<div class="drv-foot">' +
       '<span>総合 <b>' + r + '</b></span>' +
       '<span>調子 <b class="' + (d.form >= 108 ? 'good' : d.form <= 88 ? 'bad' : '') + '">' + formLabel(d.form) + '</b></span>' +

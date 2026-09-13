@@ -3622,6 +3622,16 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* ドライバーの能力の下に置く一行。
    棒グラフだけだと、何の数字か分からない */
 .drv-note{font-size:9.5px;line-height:1.5;color:var(--ink2);margin:2px 0 4px}
+/* 「この車からどれだけ引き出せているか」。
+   超えている人は、見た目で分かるようにする */
+.drv-pull{font-size:10px;line-height:1.5;margin:3px 0 4px;padding:3px 7px;
+  background:var(--paper3);border:2px solid var(--ink2);border-radius:6px}
+.drv-pull b{font-size:12px}
+.drv-pull small{display:block;font-size:9px;opacity:.85}
+.drv-pull i{font-style:normal;display:inline-block;margin-left:5px;font-size:9px;font-weight:bold;
+  background:var(--gold,#c9a227);color:#2a1e06;border:1px solid var(--ink);border-radius:4px;padding:0 5px}
+.drv-pull.over{border-color:#c9a227;background:linear-gradient(#fff6d8,#ffeeb4);color:#3a2a00}
+[data-skin="hd"] .drv-pull.over{background:linear-gradient(#5a4410,#3e2f08);color:#ffe9a8}
 [data-skin="hd"] .drv-note{color:#cbbb9a}
 /* 車体の行に出す「この車の持ち味」 */
 .devchar{display:block;font-size:9.5px;line-height:1.5;margin-top:2px;color:#7a5a2a;font-weight:bold}
