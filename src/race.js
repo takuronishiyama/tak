@@ -1686,10 +1686,15 @@ GP.race = (function () {
     if (!pre) weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = pre ? pre.entries : buildEntries(g, track, weather, strategy);
     const grid = pre ? pre.grid : qualify(entries, track, weather, S.org(g).dept.engineer);
-    // パワーユニットの基数超過による降格。予選のあとに順位を下げる
+    // パワーユニットの基数超過による降格。予選のあとに順位を下げる。
+    // 積み上がりが上限に届いた日は、何番手に居ようと最後尾から
     const gridPen = (g.pu && g.pu.grid) || 0;
+    const gridBack = gridPen >= D.PU_PENALTY_BACK;
     if (gridPen > 0) {
-      grid.filter(e => e.isPlayer).forEach(e => { e.grid += gridPen; e.gridPen = gridPen; });
+      const drop = gridBack ? grid.length : gridPen;
+      grid.filter(e => e.isPlayer).forEach(e => {
+        e.grid += drop; e.gridPen = gridPen; e.gridBack = gridBack;
+      });
       grid.sort((a, b) => a.grid - b.grid);
       grid.forEach((e, i) => { e.grid = i + 1; });
       entries.sort((a, b) => a.grid - b.grid);
@@ -3674,9 +3679,11 @@ GP.race = (function () {
         const puCost = S.puFreshCost(g);
         g.funds -= puCost;
         if (puRes.over) {
+          /* 決勝の途中で使い切った場合も、規則どおりに数える。
+             ここが「選んで入れたわけではないのに降格する」場面 */
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入（' + puCost +
             '万）。使用基数の上限（' + S.puLimit(g) + '基）を超えたため、次戦は ' +
-            puRes.grid + 'グリッド降格。');
+            S.puGridWord(puRes) + '。');
         } else {
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（' + puCost +
             '万／今季あと ' + Math.max(0, S.puLimit(g) - puRes.used) + '基）。');

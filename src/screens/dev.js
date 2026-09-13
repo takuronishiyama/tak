@@ -2609,17 +2609,29 @@ GP.screens.dev = function (A) {
         '<span class="mt-v">' + Math.round(p.cond) + '%<em>→' + Math.round(to) + '</em></span></div>';
     });
     body += '</div>';
-    body += '<p class="note">パワーユニットは分解して組み直せません。ここで戻せるのは補機まわりだけで、' +
-      '元に戻せるのは新品を入れたときだけです。<br>' +
-      '設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) + '%</b> の危うさを打ち消しています）が上がるほど、' +
+    body += '<p class="note">設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) +
+      '%</b> の危うさを打ち消しています）が上がるほど、' +
       '同じコンディションでも壊れにくくなります。</p>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
+
+    /* ---- パワーユニットの耐久 ----
+       持たせるか、基数を使うか。ここが耐久まわりの判断の中心なので、
+       直す場所と同じ画面に置く。載せ替えと出力モードは小窓の中    */
+    const puNow = S.puOf(g);
+    const ceil = Math.round(S.puCeil(g));
+    body += '<div class="sub">⚙️ パワーユニットの耐久</div>' +
+      U.puLine(g) +
+      '<p class="note">分解して組み直すことはできません。整備で戻せるのは補機まわりだけで、' +
+      '走ったぶんの芯の摩耗は残ります（いまの天井 <b>' + ceil + '%</b>／残量 <b>' +
+      Math.round(puNow.life) + '%</b>）。ここまで戻したら、あとは<b>新品を入れる</b>しかありません。<br>' +
+      '出力モードを落とせば減りは遅くなります。押すと、そこまで小窓で決められます。</p>';
     U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
     ], { wide: true });
     paintInterior();
     bindMtTabs();
+    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain('fix')); });
   }
   function bindMtTabs() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {

@@ -971,8 +971,9 @@ GP.screens.weekend = function (A) {
     };
     notes.push('今季は残り <b>' + racesLeft + '戦</b>、使えるユニットは <b>あと' + left + '基</b>。' +
       (canFinish(2) ? '<b class="good">全開で走り切っても基数は足ります。</b>'
-       : canFinish(1) ? '標準なら足りますが、<b class="warn">全開を続けると上限を超えます</b>（1基につき ' +
-                        D.PU_PENALTY + 'グリッド降格）。'
+       : canFinish(1) ? '標準なら足りますが、<b class="warn">全開を続けると上限を超えます</b>' +
+                        '（超過1基目は ' + D.PU_PENALTY + 'グリッド降格、' +
+                        '2基目からは最後尾スタート）。'
        : '<b class="warn">このままでは基数が足りません。</b>温存を混ぜるか、降格を取るレースを選んでください。'));
     const ease = S.overtakeEase(t);
     notes.push('🏁 ' + esc(t.name) + ' は' +
@@ -992,8 +993,8 @@ GP.screens.weekend = function (A) {
       '<small>いまの ' + pu.n + '基目（残り ' + Math.round(pu.life) + '%）を降ろして、' +
       (pu.life >= D.PU_KEEP_MIN ? '取っておきます。' : '廃棄します。') +
       '残量100%から走り出せます。' +
-      (over ? '<b class="warn">今季の上限（' + S.puLimit(g) + '基）を超えるので、' +
-              '次のレースは ' + D.PU_PENALTY + 'グリッド降格になります。</b>'
+      (over ? '<b class="warn">今季の上限（' + S.puLimit(g) + '基）を超えるので、次のレースは ' +
+              S.puPenaltyText(g) + '</b>'
             : '今季の基数を1つ使います（あと' + left + '基）。') +
       (fpStage ? '' : '<br>予選の順位はこのままです（降格ぶんだけ下がります）。') +
       '</small>';
@@ -1026,9 +1027,9 @@ GP.screens.weekend = function (A) {
       g.funds -= cost;
       const r = S.fitFreshPU(g);
       U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
-        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        (r.over ? '基数の上限を超えたため、次のレースは ' + S.puGridWord(r) + '。' : ''),
         r.over ? 'warn' : 'good');
-      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + S.puGridWord(r) + '）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
       GP.sound.play('buy');
       refresh();
     });

@@ -251,7 +251,9 @@ GP.ui = (function () {
         '" style="width:' + life + '%"></i></span>' +
       '<span class="pl-f">残り <b class="' + cls + '">' + life + '%</b>' +
         '　' + mode.icon + ' ' + mode.name +
-        (pu.grid ? '　<b class="bad">次戦 ' + pu.grid + 'グリッド降格</b>' : '') +
+        (pu.grid ? '　<b class="bad">次戦 ' +
+          (pu.grid >= D.PU_PENALTY_BACK ? '最後尾スタート' : pu.grid + 'グリッド降格') +
+          '</b>' : '') +
         '<i class="pl-go">押すと載せ替え・出力モード ▸</i></span>' +
       '</button>';
   }

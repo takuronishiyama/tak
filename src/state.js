@@ -2645,10 +2645,41 @@ GP.state = (function () {
     if (g2.equipped && g2.equipped.pu) g2.equipped.pu.worn = 0;
     const out = { used: pu.used, over: false, grid: 0, fresh: true };
     if (pu.used > puLimit(g2)) {
-      pu.over++; pu.grid += D.PU_PENALTY;
-      out.over = true; out.grid = D.PU_PENALTY;
+      pu.over++;
+      // 超過1基目は重く、そこからは1基ごとに積み上がる
+      const step = pu.over === 1 ? D.PU_PENALTY : D.PU_PENALTY_NEXT;
+      pu.grid += step;
+      out.over = true; out.grid = step; out.total = pu.grid;
+      out.back = pu.grid >= D.PU_PENALTY_BACK;
     }
     return out;
+  }
+  /* 入れたあとの結果を一言で。ログとトーストはこれを使う */
+  function puGridWord(r) {
+    if (!r || !r.over) return '';
+    return r.back ? '最後尾スタート' : r.grid + 'グリッド降格';
+  }
+  /* 「次に新品を入れたら何が起きるか」を一言で。画面はみなこれを使う */
+  function puPenaltyText(g2) {
+    const n = puPenaltyNext(g2);
+    if (!n.over) return '';
+    return n.back
+      ? '次のレースは<b>最後尾スタート</b>になります。'
+      : n.step + 'グリッド降格になります' +
+        (n.total > n.step ? '（積み上がり ' + n.total + '）' : '') +
+        '。もう1基入れると、そこからは最後尾スタートです。';
+  }
+  /* 次に新品を入れたら、どれだけ降格するか。
+     決める前に見せるための値で、ここでは何も変えない */
+  function puPenaltyNext(g2) {
+    const pu = puOf(g2);
+    const has = pu.grid || 0;
+    if (pu.used + 1 <= puLimit(g2)) {
+      return { over: false, step: 0, total: has, back: has >= D.PU_PENALTY_BACK };
+    }
+    const step = (pu.over || 0) === 0 ? D.PU_PENALTY : D.PU_PENALTY_NEXT;
+    const total = has + step;
+    return { over: true, step: step, total: total, back: total >= D.PU_PENALTY_BACK };
   }
   /* 保管してあるユニットに載せ替える。基数は増えないので降格もない */
   function mountPU(g2, idx) {
@@ -4634,7 +4665,7 @@ GP.state = (function () {
     ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
-    puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
+    puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,

@@ -90,7 +90,9 @@ GP.screens.home = function (A) {
     // ---- パワーユニット（基数と載せ替え）----
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
-      '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
+      '新品は基数を1つ使います。上限（' + S.puLimit(g) + '基）を超えると、' +
+      '超過1基目は ' + D.PU_PENALTY + 'グリッド降格、2基目からは最後尾スタートです。' +
+      '<b>決勝の途中で使い切った場合も同じ</b>ように数えられます。<br>' +
       'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
       U.puLine(g);
 
@@ -165,9 +167,12 @@ GP.screens.home = function (A) {
         : 'まだ本来の出力が出ています。 ') +
       (t ? 'このコースを走ると、およそ ' + Math.round(wear) + '% 減ります。' : '') +
       (willSwap ? (left > 0 ? 'このレース中に自動で載せ替えになります。'
-                            : '<b class="warn">上限を超えるため、その次の戦は ' + D.PU_PENALTY + 'グリッド降格になります。</b>')
+                            : '<b class="warn">上限を超えるため、その次の戦は ' +
+                              S.puPenaltyText(g) + '</b>')
                 : '') +
-      (pu.grid ? '<br><b class="warn">次のレースは基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
+      (pu.grid ? '<br><b class="warn">次のレースは基数超過により ' +
+        (pu.grid >= D.PU_PENALTY_BACK ? '最後尾から' : pu.grid + 'グリッド降格で') +
+        'スタートします。</b>' : '') +
       '</small>';
 
     // ---- 出力モード ----
@@ -203,11 +208,14 @@ GP.screens.home = function (A) {
 
     // ---- 載せ替えの選択肢 ----
     h += '<div class="puswap"><b>載せ替える</b>';
-    const overNext = pu.used + 1 > S.puLimit(g);
-    h += '<button class="puopt' + (overNext ? ' pen' : '') + '" data-pufresh="1"' +
+    const pen = S.puPenaltyNext(g);
+    h += '<button class="puopt' + (pen.over ? ' pen' : '') + '" data-pufresh="1"' +
       (g.funds < cost ? ' disabled' : '') + '>' +
       '<i>🆕 新品を投入</i><small>' + money(cost) + '万／残り100%' +
-      (overNext ? '<br><b class="warn">+' + D.PU_PENALTY + 'グリッド降格</b>' : '<br>今季の基数を1つ使う') +
+      (pen.over
+        ? '<br><b class="warn">' + (pen.back ? '最後尾スタート' : '+' + pen.step + 'グリッド降格') + '</b>' +
+          (pen.back ? '' : '<br>積み上がり ' + pen.total + ' / ' + D.PU_PENALTY_BACK)
+        : '<br>今季の基数を1つ使う') +
       '</small></button>';
     pu.pool.forEach((u, i) => {
       h += '<button class="puopt" data-pumount="' + i + '"' +
@@ -237,9 +245,9 @@ GP.screens.home = function (A) {
       g.funds -= cost;                 // PUは供給元から買うもので、上限の対象外
       const r = S.fitFreshPU(g);
       U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
-        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        (r.over ? '基数の上限を超えたため、次のレースは ' + S.puGridWord(r) + '。' : ''),
         r.over ? 'warn' : 'good');
-      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + S.puGridWord(r) + '）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });

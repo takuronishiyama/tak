@@ -6594,7 +6594,17 @@ GP.data = (function () {
      1シーズンに使える基数は決まっていて、超えるとグリッド降格になる。
      速さのために回すか、基数を守って我慢するか、という判断を作る      */
   const PU_LIMIT = 3;              // 1シーズンに使える数
-  const PU_PENALTY = 5;            // 超えた1基につき、次戦のグリッド降格数
+  /* ---------- 基数超過のペナルティ ----------
+     一律で軽いままだと、終盤に新品を入れ続けるのが
+     いつでも正解になってしまう。段を付けて、重くしていく。
+       上限を超えた1基目 … 10グリッド降格
+       2基目から        … 15グリッド＝最後尾スタート
+     同じ週末に2基使えば積み上がる（10 + 15 → 最後尾）。
+     2基目以降を1基目より軽くしてはいけない。
+     使うほど安くなると、上限そのものが意味を失う          */
+  const PU_PENALTY = 10;           // 超過1基目の降格数
+  const PU_PENALTY_NEXT = 15;      // 2基目以降
+  const PU_PENALTY_BACK = 15;      // ここに届いたら最後尾スタート
   const PU_BASE_WEAR = 28;         // 1戦あたりの基本消耗（%）
   /* 載せ替えの判断を作るための値。
      ・へたったユニットは出力も信頼性も落ちる（我慢し続けると遅くなる）
@@ -7817,7 +7827,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -10745,10 +10755,41 @@ GP.state = (function () {
     if (g2.equipped && g2.equipped.pu) g2.equipped.pu.worn = 0;
     const out = { used: pu.used, over: false, grid: 0, fresh: true };
     if (pu.used > puLimit(g2)) {
-      pu.over++; pu.grid += D.PU_PENALTY;
-      out.over = true; out.grid = D.PU_PENALTY;
+      pu.over++;
+      // 超過1基目は重く、そこからは1基ごとに積み上がる
+      const step = pu.over === 1 ? D.PU_PENALTY : D.PU_PENALTY_NEXT;
+      pu.grid += step;
+      out.over = true; out.grid = step; out.total = pu.grid;
+      out.back = pu.grid >= D.PU_PENALTY_BACK;
     }
     return out;
+  }
+  /* 入れたあとの結果を一言で。ログとトーストはこれを使う */
+  function puGridWord(r) {
+    if (!r || !r.over) return '';
+    return r.back ? '最後尾スタート' : r.grid + 'グリッド降格';
+  }
+  /* 「次に新品を入れたら何が起きるか」を一言で。画面はみなこれを使う */
+  function puPenaltyText(g2) {
+    const n = puPenaltyNext(g2);
+    if (!n.over) return '';
+    return n.back
+      ? '次のレースは<b>最後尾スタート</b>になります。'
+      : n.step + 'グリッド降格になります' +
+        (n.total > n.step ? '（積み上がり ' + n.total + '）' : '') +
+        '。もう1基入れると、そこからは最後尾スタートです。';
+  }
+  /* 次に新品を入れたら、どれだけ降格するか。
+     決める前に見せるための値で、ここでは何も変えない */
+  function puPenaltyNext(g2) {
+    const pu = puOf(g2);
+    const has = pu.grid || 0;
+    if (pu.used + 1 <= puLimit(g2)) {
+      return { over: false, step: 0, total: has, back: has >= D.PU_PENALTY_BACK };
+    }
+    const step = (pu.over || 0) === 0 ? D.PU_PENALTY : D.PU_PENALTY_NEXT;
+    const total = has + step;
+    return { over: true, step: step, total: total, back: total >= D.PU_PENALTY_BACK };
   }
   /* 保管してあるユニットに載せ替える。基数は増えないので降格もない */
   function mountPU(g2, idx) {
@@ -12734,7 +12775,7 @@ GP.state = (function () {
     ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
     relCare, relCut, partCondAvg,
-    puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, mountPU, puMode, setPuMode, overtakeEase,
+    puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
@@ -14444,10 +14485,15 @@ GP.race = (function () {
     if (!pre) weather.wetTyres = (weather.key === 'rain' || weather.key === 'storm');
     const entries = pre ? pre.entries : buildEntries(g, track, weather, strategy);
     const grid = pre ? pre.grid : qualify(entries, track, weather, S.org(g).dept.engineer);
-    // パワーユニットの基数超過による降格。予選のあとに順位を下げる
+    // パワーユニットの基数超過による降格。予選のあとに順位を下げる。
+    // 積み上がりが上限に届いた日は、何番手に居ようと最後尾から
     const gridPen = (g.pu && g.pu.grid) || 0;
+    const gridBack = gridPen >= D.PU_PENALTY_BACK;
     if (gridPen > 0) {
-      grid.filter(e => e.isPlayer).forEach(e => { e.grid += gridPen; e.gridPen = gridPen; });
+      const drop = gridBack ? grid.length : gridPen;
+      grid.filter(e => e.isPlayer).forEach(e => {
+        e.grid += drop; e.gridPen = gridPen; e.gridBack = gridBack;
+      });
       grid.sort((a, b) => a.grid - b.grid);
       grid.forEach((e, i) => { e.grid = i + 1; });
       entries.sort((a, b) => a.grid - b.grid);
@@ -16432,9 +16478,11 @@ GP.race = (function () {
         const puCost = S.puFreshCost(g);
         g.funds -= puCost;
         if (puRes.over) {
+          /* 決勝の途中で使い切った場合も、規則どおりに数える。
+             ここが「選んで入れたわけではないのに降格する」場面 */
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットを投入（' + puCost +
             '万）。使用基数の上限（' + S.puLimit(g) + '基）を超えたため、次戦は ' +
-            puRes.grid + 'グリッド降格。');
+            S.puGridWord(puRes) + '。');
         } else {
           notes.push('⚙️ ' + puRes.used + '基目のパワーユニットに載せ替えた（' + puCost +
             '万／今季あと ' + Math.max(0, S.puLimit(g) - puRes.used) + '基）。');
@@ -24381,17 +24429,29 @@ GP.screens.dev = function (A) {
         '<span class="mt-v">' + Math.round(p.cond) + '%<em>→' + Math.round(to) + '</em></span></div>';
     });
     body += '</div>';
-    body += '<p class="note">パワーユニットは分解して組み直せません。ここで戻せるのは補機まわりだけで、' +
-      '元に戻せるのは新品を入れたときだけです。<br>' +
-      '設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) + '%</b> の危うさを打ち消しています）が上がるほど、' +
+    body += '<p class="note">設備とクルーの腕（いま <b>' + Math.round(S.relCut(g) * 100) +
+      '%</b> の危うさを打ち消しています）が上がるほど、' +
       '同じコンディションでも壊れにくくなります。</p>' +
       '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
+
+    /* ---- パワーユニットの耐久 ----
+       持たせるか、基数を使うか。ここが耐久まわりの判断の中心なので、
+       直す場所と同じ画面に置く。載せ替えと出力モードは小窓の中    */
+    const puNow = S.puOf(g);
+    const ceil = Math.round(S.puCeil(g));
+    body += '<div class="sub">⚙️ パワーユニットの耐久</div>' +
+      U.puLine(g) +
+      '<p class="note">分解して組み直すことはできません。整備で戻せるのは補機まわりだけで、' +
+      '走ったぶんの芯の摩耗は残ります（いまの天井 <b>' + ceil + '%</b>／残量 <b>' +
+      Math.round(puNow.life) + '%</b>）。ここまで戻したら、あとは<b>新品を入れる</b>しかありません。<br>' +
+      '出力モードを落とせば減りは遅くなります。押すと、そこまで小窓で決められます。</p>';
     U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
     ], { wide: true });
     paintInterior();
     bindMtTabs();
+    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain('fix')); });
   }
   function bindMtTabs() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {
@@ -25707,8 +25767,9 @@ GP.screens.weekend = function (A) {
     };
     notes.push('今季は残り <b>' + racesLeft + '戦</b>、使えるユニットは <b>あと' + left + '基</b>。' +
       (canFinish(2) ? '<b class="good">全開で走り切っても基数は足ります。</b>'
-       : canFinish(1) ? '標準なら足りますが、<b class="warn">全開を続けると上限を超えます</b>（1基につき ' +
-                        D.PU_PENALTY + 'グリッド降格）。'
+       : canFinish(1) ? '標準なら足りますが、<b class="warn">全開を続けると上限を超えます</b>' +
+                        '（超過1基目は ' + D.PU_PENALTY + 'グリッド降格、' +
+                        '2基目からは最後尾スタート）。'
        : '<b class="warn">このままでは基数が足りません。</b>温存を混ぜるか、降格を取るレースを選んでください。'));
     const ease = S.overtakeEase(t);
     notes.push('🏁 ' + esc(t.name) + ' は' +
@@ -25728,8 +25789,8 @@ GP.screens.weekend = function (A) {
       '<small>いまの ' + pu.n + '基目（残り ' + Math.round(pu.life) + '%）を降ろして、' +
       (pu.life >= D.PU_KEEP_MIN ? '取っておきます。' : '廃棄します。') +
       '残量100%から走り出せます。' +
-      (over ? '<b class="warn">今季の上限（' + S.puLimit(g) + '基）を超えるので、' +
-              '次のレースは ' + D.PU_PENALTY + 'グリッド降格になります。</b>'
+      (over ? '<b class="warn">今季の上限（' + S.puLimit(g) + '基）を超えるので、次のレースは ' +
+              S.puPenaltyText(g) + '</b>'
             : '今季の基数を1つ使います（あと' + left + '基）。') +
       (fpStage ? '' : '<br>予選の順位はこのままです（降格ぶんだけ下がります）。') +
       '</small>';
@@ -25762,9 +25823,9 @@ GP.screens.weekend = function (A) {
       g.funds -= cost;
       const r = S.fitFreshPU(g);
       U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
-        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        (r.over ? '基数の上限を超えたため、次のレースは ' + S.puGridWord(r) + '。' : ''),
         r.over ? 'warn' : 'good');
-      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + S.puGridWord(r) + '）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
       GP.sound.play('buy');
       refresh();
     });
@@ -28123,7 +28184,9 @@ GP.screens.home = function (A) {
     // ---- パワーユニット（基数と載せ替え）----
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
-      '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
+      '新品は基数を1つ使います。上限（' + S.puLimit(g) + '基）を超えると、' +
+      '超過1基目は ' + D.PU_PENALTY + 'グリッド降格、2基目からは最後尾スタートです。' +
+      '<b>決勝の途中で使い切った場合も同じ</b>ように数えられます。<br>' +
       'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
       U.puLine(g);
 
@@ -28198,9 +28261,12 @@ GP.screens.home = function (A) {
         : 'まだ本来の出力が出ています。 ') +
       (t ? 'このコースを走ると、およそ ' + Math.round(wear) + '% 減ります。' : '') +
       (willSwap ? (left > 0 ? 'このレース中に自動で載せ替えになります。'
-                            : '<b class="warn">上限を超えるため、その次の戦は ' + D.PU_PENALTY + 'グリッド降格になります。</b>')
+                            : '<b class="warn">上限を超えるため、その次の戦は ' +
+                              S.puPenaltyText(g) + '</b>')
                 : '') +
-      (pu.grid ? '<br><b class="warn">次のレースは基数超過により ' + pu.grid + 'グリッド降格でスタートします。</b>' : '') +
+      (pu.grid ? '<br><b class="warn">次のレースは基数超過により ' +
+        (pu.grid >= D.PU_PENALTY_BACK ? '最後尾から' : pu.grid + 'グリッド降格で') +
+        'スタートします。</b>' : '') +
       '</small>';
 
     // ---- 出力モード ----
@@ -28236,11 +28302,14 @@ GP.screens.home = function (A) {
 
     // ---- 載せ替えの選択肢 ----
     h += '<div class="puswap"><b>載せ替える</b>';
-    const overNext = pu.used + 1 > S.puLimit(g);
-    h += '<button class="puopt' + (overNext ? ' pen' : '') + '" data-pufresh="1"' +
+    const pen = S.puPenaltyNext(g);
+    h += '<button class="puopt' + (pen.over ? ' pen' : '') + '" data-pufresh="1"' +
       (g.funds < cost ? ' disabled' : '') + '>' +
       '<i>🆕 新品を投入</i><small>' + money(cost) + '万／残り100%' +
-      (overNext ? '<br><b class="warn">+' + D.PU_PENALTY + 'グリッド降格</b>' : '<br>今季の基数を1つ使う') +
+      (pen.over
+        ? '<br><b class="warn">' + (pen.back ? '最後尾スタート' : '+' + pen.step + 'グリッド降格') + '</b>' +
+          (pen.back ? '' : '<br>積み上がり ' + pen.total + ' / ' + D.PU_PENALTY_BACK)
+        : '<br>今季の基数を1つ使う') +
       '</small></button>';
     pu.pool.forEach((u, i) => {
       h += '<button class="puopt" data-pumount="' + i + '"' +
@@ -28270,9 +28339,9 @@ GP.screens.home = function (A) {
       g.funds -= cost;                 // PUは供給元から買うもので、上限の対象外
       const r = S.fitFreshPU(g);
       U.log(g, '⚙️ ' + r.used + '基目の新品パワーユニットを投入した（' + money(cost) + '万）。' +
-        (r.over ? '基数の上限を超えたため、次のレースは ' + r.grid + 'グリッド降格。' : ''),
+        (r.over ? '基数の上限を超えたため、次のレースは ' + S.puGridWord(r) + '。' : ''),
         r.over ? 'warn' : 'good');
-      U.toast(r.over ? '⚙️ 新品PU投入（' + r.grid + 'グリッド降格）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
+      U.toast(r.over ? '⚙️ 新品PU投入（' + S.puGridWord(r) + '）' : '⚙️ 新品PUを投入', r.over ? 'warn' : 'good');
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });
@@ -31142,7 +31211,9 @@ GP.screens.help = function (A) {
         { h: '消耗', p: [
           'パワーユニットは1戦でおよそ15%減ります。1基でだいたい5戦です。',
           '減ったぶんは、整備で全部は戻りません。傷みには「戻らないぶん」と「戻るぶん」があり、整備で戻せるのは後者だけです。開発を進めると、減り方そのものが小さくなり（27%→19%）、性能の落ち方も鈍くなります。',
-          '1シーズンに使える基数には上限があります。超えるとグリッド降格です。'
+          '1シーズンに使える基数には上限があります（いまは3基）。超えると、超過1基目は10グリッド降格、2基目からは15グリッド＝最後尾スタートです。同じ週末に2基使えば積み上がります。',
+          '決勝の途中で使い切って自動で積み替わった場合も、同じように数えられます。「まだ持つだろう」で走り切ると、選んだわけでもないのに降格を背負うことがあります。',
+          '耐久の面倒を見る場所は「🛠️ 整備」です。整備で戻るのは補機まわりだけで、芯の摩耗ぶんは天井として残ります。出力モードを落とせば減りは遅くなります。'
         ] }
       ]
     },
@@ -32819,7 +32890,9 @@ GP.ui = (function () {
         '" style="width:' + life + '%"></i></span>' +
       '<span class="pl-f">残り <b class="' + cls + '">' + life + '%</b>' +
         '　' + mode.icon + ' ' + mode.name +
-        (pu.grid ? '　<b class="bad">次戦 ' + pu.grid + 'グリッド降格</b>' : '') +
+        (pu.grid ? '　<b class="bad">次戦 ' +
+          (pu.grid >= D.PU_PENALTY_BACK ? '最後尾スタート' : pu.grid + 'グリッド降格') +
+          '</b>' : '') +
         '<i class="pl-go">押すと載せ替え・出力モード ▸</i></span>' +
       '</button>';
   }
