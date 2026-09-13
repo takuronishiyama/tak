@@ -128,15 +128,21 @@ GP.screens.dev = function (A) {
         '方針が引いた線そのものを押し広げる。' +
         '「この車では行けない」はずだった向きへ、行けるようになります', 'res', cst.res) +
       '</div>' +
-      // ここから下は、その判断の材料
-      '<div class="sub">いまの車</div>' +
+      /* ここから下は、その判断の材料。
+         見出しで3つに割っておくと、ui.js が畳んで
+         飛び先の並びを付けてくれる（一度に開くのはひとつだけ） */
+      '<div class="sub">🏎️ いまの車</div>' +
       carMixHTML() +
-      mechMapHTML(g) + mechReadHTML(g);
+      '<div class="sub">🔗 部品の噛み合い</div>' +
+      mechMapHTML(g) +
+      '<div class="sub">🔍 見立て</div>' +
+      mechReadHTML(g);
     U.modal('🔧 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
+    bindMech();
   }
   /* ---- ひらめきを形にする ----
      掘り当てただけでは速くならない。
@@ -856,6 +862,7 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
     });
     bindTicket(() => cmdImprove());
+    bindMech();
     bindPick(k => {
       if (devPop(k)) return;          // 小窓で見せてから決めてもらう
       const [kind, key] = k.split(':');
@@ -1535,8 +1542,14 @@ GP.screens.dev = function (A) {
     }).join('');
   }
 
+  /* ---- 部品どうしの噛み合い ----
+     一覧は名前と詰まり具合だけ。継手の絵と、どちらが止めているのかは
+     押したときの小窓に回す。12組ぶんの絵を積んでいたので、
+     ここだけで画面4.3枚あった                                    */
   function mechMapHTML(g2) {
-    const syn = GP.state.mechSynergy(g2).slice()
+    const raw = GP.state.mechSynergy(g2);
+    raw.forEach((x, i) => { x.i = i; });
+    const syn = raw.slice()
       .sort((a, b) => (b.on - a.on) || (b.ratio - a.ratio));
     const st = GP.state.carStats(g2);
     const gen = D.CAR_GENS[g2.carGen];
@@ -1552,24 +1565,48 @@ GP.screens.dev = function (A) {
       '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
       'そこを厚くすると、継手が詰まって効きはじめます。</p>';
 
+    h += '<div class="pick">';
     syn.forEach(x => {
       const W = GP.state.mechName(x.weak);
-      h += '<div class="mlrow' + (x.on ? ' on' : '') + '">' +
-        '<div class="ml-t"><span class="ml-ic">' + x.def.icon + '</span>' +
-        '<b>' + esc(x.def.name) + '</b>' +
-        '<em class="ml-pct' + (x.on ? ' on' : '') + '">' +
-        Math.round(x.ratio * 100) + '%</em></div>' +
-        '<div class="ml-body">' + couplingSVG(x) +
-        '<div class="ml-side">' +
-        '<small>' + esc(x.def.desc) + '</small>' +
-        '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
-        '<div class="ml-weak">' + (x.ratio >= 0.97
-          ? '<span class="ok">✔ ここは出しきっています</span>'
-          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。'
-            + 'ここを詰めると効きはじめます</span>') + '</div>' +
-        '</div></div></div>';
+      h += '<button class="pickbtn mechrow' + (x.on ? ' on' : '') +
+        '" data-mech="' + x.i + '">' +
+        '<span class="pb-ic" style="background:#5a6270">' + x.def.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.def.name) + '</b>' +
+        '<small>' + (x.ratio >= 0.97
+          ? '<em class="ok">✔ ここは出しきっています</em>'
+          : '<em class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません</em>') +
+        '<span class="ml-eff">' + effChips(x.def, x.gain) + '</span>' +
+        '</small></span>' +
+        '<span class="pb-cost"><b>' + Math.round(x.ratio * 100) + '%</b></span></button>';
     });
-    return h + '</div>';
+    return h + '</div></div>';
+  }
+
+  /* 組ひとつぶんの小窓。継手の絵はここで見せる */
+  function openMechPop(i) {
+    const x = S.mechSynergy(g)[+i];
+    if (!x) return;
+    const W = S.mechName(x.weak);
+    const h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' +
+      x.def.icon + '</span><span class="popsum-b"><b>' + esc(x.def.name) + '</b>' +
+      '<small>いまの詰まり具合 ' + Math.round(x.ratio * 100) + '%</small></span></div>' +
+      '<p class="desc">' + esc(x.def.desc) + '</p>' +
+      couplingSVG(x) +
+      '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
+      '<div class="ml-weak">' + (x.ratio >= 0.97
+        ? '<span class="ok">✔ ここは出しきっています</span>'
+        : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。' +
+          'ここを詰めると効きはじめます</span>') + '</div>';
+    U.popup(x.def.icon + ' ' + esc(x.def.name), h,
+      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+  }
+
+  function bindMech() {
+    const box = $('modalBody');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-mech]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openMechPop(b.dataset.mech); };
+    });
   }
 
   /* ---- 見立てと、これからの方向 ----

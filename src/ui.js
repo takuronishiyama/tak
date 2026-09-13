@@ -234,6 +234,28 @@ GP.ui = (function () {
       '</div>';
   }
 
+  /* ---- パワーユニットの一行 ----
+     基数・残量・出力モードは毎週の判断なのに、
+     「マシン」画面のいちばん下に置いてあった。
+     ホームの札にも出して、押せば小窓で載せ替えまでできるようにする */
+  function puLine(g) {
+    const pu = S.puOf(g);
+    const left = Math.max(0, S.puLimit(g) - pu.used);
+    const mode = S.puMode(g);
+    const life = Math.round(pu.life);
+    const cls = pu.grid ? 'bad' : life < 25 ? 'bad' : life < 50 ? 'warn' : 'good';
+    return '<button class="puline' + (pu.grid ? ' pen' : '') + '" data-pu="1">' +
+      '<span class="pl-h">⚙️ パワーユニット' +
+        '<em>' + pu.n + '基目／今季 ' + pu.used + '基（あと ' + left + '基）</em></span>' +
+      '<span class="skbar big"><i class="' + (life < 25 ? 'f2' : life < 50 ? 'f1' : 'f0') +
+        '" style="width:' + life + '%"></i></span>' +
+      '<span class="pl-f">残り <b class="' + cls + '">' + life + '%</b>' +
+        '　' + mode.icon + ' ' + mode.name +
+        (pu.grid ? '　<b class="bad">次戦 ' + pu.grid + 'グリッド降格</b>' : '') +
+        '<i class="pl-go">押すと載せ替え・出力モード ▸</i></span>' +
+      '</button>';
+  }
+
   function carCard(g) {
     const st = S.carStats(g), rel = S.reliability(g);
     const gen = D.CAR_GENS[g.carGen];
@@ -263,7 +285,11 @@ GP.ui = (function () {
       Math.round(g.nextRace < D.RACES
                  ? S.carScore(g, S.trackAt(g, g.nextRace))
                  : (st.speed + st.corner + st.accel) / 3) +
-      '／信頼 ' + Math.round(rel) + '%</b></div><div class="pad">' +
+      '／信頼 ' + Math.round(rel) + '%</b></div>' +
+      /* パワーユニットは毎週の判断なので、札を畳んでいても見えるところに置く。
+         pad の中に入れると、畳んだとたんに隠れてしまう            */
+      puLine(g) +
+      '<div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
       '<span>🔋 バッテリー</span>' +
@@ -923,7 +949,12 @@ GP.ui = (function () {
     };
     secs.forEach((sec, i) => {
       const b = document.createElement('button');
-      b.textContent = (sec.firstChild.textContent || '').trim();
+      /* 見出しに付いている数の札（2人／力 2.0 など）は、飛び先の名前には要らない。
+         入れたままだと札6つで画面の3分の1を使っていた            */
+      const lab = sec.firstChild.cloneNode(true);
+      Array.prototype.forEach.call(lab.querySelectorAll('.gsum,.slotchip,.grp-n,.foldnote'),
+        e => { if (e.parentNode) e.parentNode.removeChild(e); });
+      b.textContent = (lab.textContent || '').trim();
       b.onclick = () => {
         openOnly(sec);
         body.scrollTop = Math.max(0, sec.offsetTop - nav.offsetHeight - 4);
@@ -1084,7 +1115,7 @@ GP.ui = (function () {
     return !!m && /show/.test(m.className);
   }
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, puLine, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
            popup, closePopup, popupOpen, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();

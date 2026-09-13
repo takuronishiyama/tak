@@ -11,7 +11,7 @@ GP.screens.weekend = function (A) {
   const D = GP.data, S = GP.state, U = GP.ui, R = GP.race, RV = GP.raceview;
   let g = null;
   /* ほかの画面と main.js から借りているもの。link() で埋まる */
-  let $, askPoach, bindAct, bindPick, bindPuBox, capSpend, cmdGrid, endWeek, esc, grantFame, gridPeople, leaveGrid, levelCheck, money, puBoxHTML, refreshGrid, render, staffExp, staffExpAll, yardMark;
+  let $, askPoach, bindAct, bindPick, bindPuBox, capSpend, cmdGrid, endWeek, esc, grantFame, gridPeople, leaveGrid, levelCheck, money, openPu, puBoxHTML, refreshGrid, render, staffExp, staffExpAll, yardMark;
   function link() {
     $ = A.$;
     askPoach = A.askPoach;
@@ -28,6 +28,7 @@ GP.screens.weekend = function (A) {
     levelCheck = A.levelCheck;
     money = A.money;
     puBoxHTML = A.puBoxHTML;
+    openPu = A.openPu;
     refreshGrid = A.refreshGrid;
     render = A.render;
     staffExp = A.staffExp;
@@ -352,7 +353,8 @@ GP.screens.weekend = function (A) {
     }
 
     // ---- パワーユニットの状態と載せ替え ----
-    body += puBoxHTML(t);
+    // 決勝前の長い画面なので、ここでは一行だけ。中身は押したときに出す
+    body += U.puLine(g);
 
     const subs = lineup.filter(d => d.standIn || d.hurt);
     if (subs.length) {
@@ -463,17 +465,23 @@ GP.screens.weekend = function (A) {
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
     ]);
 
-    // PUの載せ替えは、決めた作戦を残したままボックスだけ差し替える
+    /* PUの載せ替えは小窓の中で起きる。
+       決めた作戦を残したまま、閉じたときに一行だけ差し替える  */
     (function () {
-      const redraw = () => {
-        const box = $('modalBody').querySelector('.pubox');
-        if (!box) return;
-        const tmp = document.createElement('div');
-        tmp.innerHTML = puBoxHTML(t);
-        box.parentNode.replaceChild(tmp.firstChild, box);
-        bindPuBox(redraw);
+      const bindLine = () => {
+        const el = $('modalBody').querySelector('.puline');
+        if (!el) return;
+        el.onclick = () => { GP.sound.play('tap'); openPu(t, redraw); };
       };
-      bindPuBox(redraw);
+      const redraw = () => {
+        const el = $('modalBody').querySelector('.puline');
+        if (!el) return;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = U.puLine(g);
+        el.parentNode.replaceChild(tmp.firstChild, el);
+        bindLine();
+      };
+      bindLine();
     })();
 
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.stratbtn'), b => {

@@ -399,6 +399,20 @@ table.rank.grid td.dim{opacity:.35}
 .rel small{font-size:10px;opacity:.9}
 /* 明るい紙の上に置くので、少し濃いめにしてある（暗い皮では別に上書きする）*/
 .good{color:#237023}.warn{color:#a86600}.bad{color:#b81a1a}
+/* ---- パワーユニットの一行 ----
+   ホーム・マシン・週末の3か所に同じものを出す。押すと小窓が開く */
+.puline{display:block;width:calc(100% - 16px);text-align:left;margin:0 8px 8px;padding:6px 9px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:8px;
+  box-shadow:0 2px 0 rgba(74,47,26,.35);color:inherit;font:inherit}
+.puline:active{transform:translateY(2px);box-shadow:0 0 0}
+.puline.pen{border-color:var(--red)}
+.puline .pl-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  font-size:12px;font-weight:bold}
+.puline .pl-h em{font-style:normal;font-weight:normal;font-size:10px;opacity:.85}
+.puline .skbar{margin:3px 0}
+.puline .pl-f{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px}
+.puline .pl-go{font-style:normal;font-size:10px;opacity:.7;margin-left:auto}
+[data-skin="hd"] .puline{background:rgba(255,238,196,.08);border-color:var(--gold2)}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
       background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
@@ -2704,6 +2718,13 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .sub .gsum{background:rgba(0,0,0,.3);color:#f2dfae}
 .grpbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
         padding:6px 8px;margin-bottom:8px}
+/* 人事：グループの行と、人の小窓 */
+.grprow .grp-bar{display:block;width:100%;height:6px;margin:3px 0}
+.grprow .pb-cost b{font-size:15px}
+.grprow em.up{color:#2f8a2f;font-style:normal}
+.grprow em.down{color:#b81a1a;font-style:normal}
+.stmini .skbar{width:64px;display:inline-block;vertical-align:middle}
+.stpop .staffrow{pointer-events:none}
 .grp-h{display:flex;align-items:center;gap:8px;font-size:13px}
 .grp-h b{white-space:nowrap}
 .grp-n{font-size:10px;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 6px}

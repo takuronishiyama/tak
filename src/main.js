@@ -1340,6 +1340,17 @@ window.GP = window.GP || {};
         return map[id].apply(this, arguments);
       };
     });
+    /* ホームの札に出したパワーユニットの一行。
+       札は毎週描き直されるので、個々に繋がず、上から一度だけ受ける */
+    document.addEventListener('click', function (ev) {
+      const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;
+      if (!b) return;
+      // 画面（モーダル・週末）の中のものは、その画面が自分で繋いでいる
+      if (b.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      A.openPu();
+    });
     $('modalClose').onclick = U.closeModal;
     /* 小窓。✕と、外側の暗いところを触れば閉じる。
        下のモーダルは触らないので、閉じれば元の場所に戻る   */

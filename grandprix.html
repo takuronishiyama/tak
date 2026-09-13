@@ -414,6 +414,20 @@ table.rank.grid td.dim{opacity:.35}
 .rel small{font-size:10px;opacity:.9}
 /* 明るい紙の上に置くので、少し濃いめにしてある（暗い皮では別に上書きする）*/
 .good{color:#237023}.warn{color:#a86600}.bad{color:#b81a1a}
+/* ---- パワーユニットの一行 ----
+   ホーム・マシン・週末の3か所に同じものを出す。押すと小窓が開く */
+.puline{display:block;width:calc(100% - 16px);text-align:left;margin:0 8px 8px;padding:6px 9px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:8px;
+  box-shadow:0 2px 0 rgba(74,47,26,.35);color:inherit;font:inherit}
+.puline:active{transform:translateY(2px);box-shadow:0 0 0}
+.puline.pen{border-color:var(--red)}
+.puline .pl-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  font-size:12px;font-weight:bold}
+.puline .pl-h em{font-style:normal;font-weight:normal;font-size:10px;opacity:.85}
+.puline .skbar{margin:3px 0}
+.puline .pl-f{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px}
+.puline .pl-go{font-style:normal;font-size:10px;opacity:.7;margin-left:auto}
+[data-skin="hd"] .puline{background:rgba(255,238,196,.08);border-color:var(--gold2)}
 .parts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .part{display:flex;align-items:center;gap:6px;font-size:11px;flex-wrap:wrap;
       background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px}
@@ -2719,6 +2733,13 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .sub .gsum{background:rgba(0,0,0,.3);color:#f2dfae}
 .grpbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
         padding:6px 8px;margin-bottom:8px}
+/* 人事：グループの行と、人の小窓 */
+.grprow .grp-bar{display:block;width:100%;height:6px;margin:3px 0}
+.grprow .pb-cost b{font-size:15px}
+.grprow em.up{color:#2f8a2f;font-style:normal}
+.grprow em.down{color:#b81a1a;font-style:normal}
+.stmini .skbar{width:64px;display:inline-block;vertical-align:middle}
+.stpop .staffrow{pointer-events:none}
 .grp-h{display:flex;align-items:center;gap:8px;font-size:13px}
 .grp-h b{white-space:nowrap}
 .grp-n{font-size:10px;background:var(--ink);color:#ffeec4;border-radius:4px;padding:0 6px}
@@ -20887,6 +20908,111 @@ GP.screens.hr = function (A) {
     return h + '</div>';
   }
 
+  /* =======================================================
+     グループと人の小窓
+
+     施設・備品と同じ考えかた。一覧の行は名前と数字だけにして、
+     中身は押したときに出す。解雇のような取り返しのつかないものは、
+     その場で起きるのをやめて、小窓で一度受け止める。
+     ======================================================= */
+  function stMini(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const rk = S.staffRank(st);
+    const cap = S.staffCap(st);
+    return '<button class="pickbtn stmini" data-stpop="' + st.id + '">' +
+      '<span class="pb-ic" style="background:#7b5a3a">' + (t.icon || '👤') + '</span>' +
+      '<span class="pb-body"><b>' + esc(st.name) +
+      '<em class="stitle">' + rk.icon + ' ' + esc(S.staffTitle(st)) + '</em></b>' +
+      '<small><span class="skbar"><i style="width:' +
+      Math.min(100, st.skill / cap * 100) + '%"></i></span> 技能 <b>' + st.skill +
+      '</b> <em class="scap">/ ' + cap + '</em>　' +
+      (st.age || 34) + '歳　効き方 ×' + rk.mul.toFixed(2) + '</small></span>' +
+      '<span class="pb-cost">週' + money(st.salary) + '万</span></button>';
+  }
+
+  /* ひとりぶんの小窓。昇進と解雇はここでだけ起きる */
+  function openStaffPop(id, back) {
+    const st = (g.staff || []).find(x => x.id === id);
+    if (!st) return;
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const roles = S.promotableRoles(g, st);
+    const fee = st.salary * 4;
+    const h = '<div class="stpop">' + staffRow(st, '', '') + '</div>' +
+      '<div class="popcost"><span>この職種の役目</span><span>' + esc(t.desc || '') + '</span></div>' +
+      (roles.length
+        ? ''
+        : (st.skill >= S.PROMOTE_MIN
+            ? '<p class="note">👔 昇進できる腕はありますが、空いている役職がありません。</p>'
+            : '<p class="note">👔 昇進できるのは、チーフまで来た人だけです。</p>')) +
+      '<p class="note">解雇すると、違約金として <b>💰' + money(fee) + '万</b>（週給の4週ぶん）がかかります。' +
+      '抜けた穴は、その場で部門の力に出ます。</p>';
+    const btns = roles.map(r => {
+      const m = D.MANAGERS.find(y => y.key === r) || {};
+      return { label: '👔 ' + (m.name || r) + 'へ昇進', cls: 'primary',
+        fn: () => {
+          const rr = S.promoteStaff(g, id, r);
+          if (!rr) return;
+          GP.sound.play('levelup');
+          U.log(g, '👔 ' + rr.name + ' が ' + m.name + ' に昇進した！（技能 ' + rr.skill +
+                   '／週' + money(rr.salary) + '万）', 'good');
+          U.toast('👔 ' + rr.name + ' が' + m.name + 'に昇進！', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } };
+    });
+    btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger',
+      fn: () => {
+        g.funds -= fee;
+        g.staff = g.staff.filter(x => x.id !== id);
+        U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(fee) + '万）。');
+        U.toast('👋 ' + st.name + ' を解雇');
+        S.save(g); render(); U.closePopup(); cmdStaff();
+      } });
+    btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } });
+    U.popup((t.icon || '👤') + ' ' + esc(st.name), h, btns);
+  }
+
+  /* グループひとつぶんの小窓。中の噛み合いと、居る人 */
+  function openGroupPop(key) {
+    const gt = S.groupTable(g);
+    const x = gt.byKey(key);
+    if (!x) return;
+    const d = x.def;
+    const pl = D.GROUP_PLACES.filter(y => y.key === d.place)[0] || {};
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' + d.icon +
+      '</span><span class="popsum-b"><b>' + esc(d.name) + '</b>' +
+      '<small>' + (pl.icon || '') + ' ' + esc(pl.name || '') + '　' +
+      x.members.length + '人</small></span></div>' +
+      '<p class="desc">' + esc(d.desc) + '</p>' +
+      '<div class="grp-mul">' +
+        '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
+        '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
+          x.mul.toFixed(2) + '</b></span>' +
+        '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
+          Math.round(x.lift * 100) + '%</b></span>' +
+      '</div>' +
+      '<div class="popcost"><span>出ている力</span><span><b>' + x.total.toFixed(1) + '</b></span></div>';
+    x.notes.forEach(nt => {
+      const amt = nt.amt == null ? '' :
+        '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
+        Math.round(Math.abs(nt.amt) * 100) + '%</em>';
+      h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
+        (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
+        (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
+        '<span class="gn-t">' + esc(nt.text) + '</span></div>';
+    });
+    if (!x.members.length) {
+      h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
+    } else {
+      h += '<div class="sub small">居る人（押すと昇進・解雇）</div><div class="pick">' +
+        x.members.slice().sort((a, b) => b.skill - a.skill).map(stMini).join('') + '</div>';
+    }
+    const box = U.popup(d.icon + ' ' + esc(d.name), h,
+      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-stpop]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openStaffPop(b.dataset.stpop, () => openGroupPop(key)); };
+    });
+  }
+
   function groupsHTML() {
     const gt = S.groupTable(g);
     let h = '';
@@ -20897,51 +21023,38 @@ GP.screens.hr = function (A) {
       h += '<div class="sub">' + pl.icon + ' ' + pl.name +
         '<em class="gsum">' + n + '人／力 ' + tot.toFixed(1) + '</em></div>' +
         '<p class="desc">' + esc(pl.desc) + '</p>';
+      /* 行は名前と数字だけ。中の噛み合い・軋み・居る人は、
+         押したときの小窓に回す。前はここに全部積んでいたので、
+         ファクトリーを開くだけで画面1.8枚ぶんあった        */
+      h += '<div class="pick">';
       mine.forEach(x => {
         const d = x.def;
         const bar = Math.min(100, x.total / 16 * 100);
-        h += '<div class="grpbox">' +
-          '<div class="grp-h"><b>' + d.icon + ' ' + d.name + '</b>' +
-          '<span class="grp-n">' + x.members.length + '人</span>' +
-          '<i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
-          '<em class="grp-v">' + x.total.toFixed(1) + '</em></div>' +
-          '<small class="grp-d">' + esc(d.desc) + '</small>' +
-          '<div class="grp-mul">' +
-            '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
-            '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
-              x.mul.toFixed(2) + '</b></span>' +
-            '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
-              Math.round(x.lift * 100) + '%</b></span>' +
-          '</div>';
-        x.notes.forEach(nt => {
-          // 「誰の、何が、どれだけ」を一列に出す。
-          // 理由だけ書かれても、どこを直せばいいのか分からない
-          const amt = nt.amt == null ? '' :
-            '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
-            Math.round(Math.abs(nt.amt) * 100) + '%</em>';
-          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
-            (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
-            (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
-            '<span class="gn-t">' + esc(nt.text) + '</span></div>';
-        });
-        if (!x.members.length) {
-          h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
-        }
-        h += '<div class="pick grp-mem">';
-        x.members.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
-          const roles = S.promotableRoles(g, st);
-          const up = roles.map(r => {
-            const m = D.MANAGERS.find(y => y.key === r);
-            return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
-              m.icon + ' ' + m.name + 'へ</button>';
-          }).join('');
-          h += staffRow(st,
-            up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
-            st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
-        });
-        h += '</div></div>';
+        const bad = x.notes.filter(nt => nt.bad).length;
+        const good = x.notes.filter(nt => !nt.bad).length;
+        h += '<button class="pickbtn grprow' + (x.members.length ? '' : ' cant') +
+          '" data-grp="' + x.key + '">' +
+          '<span class="pb-ic" style="background:#5a6270">' + d.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) +
+          '<em class="grp-n">' + x.members.length + '人</em></b>' +
+          '<small><i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
+          '素の力 <b>' + x.raw.toFixed(1) + '</b>' +
+          '　<em class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">噛み合い ×' +
+            x.mul.toFixed(2) + '</em>' +
+          '　<em class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかから +' +
+            Math.round(x.lift * 100) + '%</em>' +
+          (x.members.length
+            ? (good || bad
+                ? '<br>' + (good ? '<em class="up">🤝 良い組み合わせ ' + good + '</em>　' : '') +
+                  (bad ? '<em class="down">⚡ 軋み ' + bad + '</em>' : '')
+                : '')
+            : '<br><b class="warn">🕳️ ここに人がいない</b>') +
+          '</small></span>' +
+          '<span class="pb-cost"><b>' + x.total.toFixed(1) + '</b></span></button>';
       });
+      h += '</div>';
     });
+
     // 人 → 部門 → 効き目
     h += '<div class="sub">🔗 人が、どこに効いているか</div>' + orgChainHTML(g);
 
@@ -20983,8 +21096,9 @@ GP.screens.hr = function (A) {
 
   function hrStaff() {
     const q = teamQuality();
-    let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
-      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>' + orgBoxHTML();
+    /* 規模の話は「誰が応募してくるか」の話なので、
+       部門のかみ合いの上ではなく、市場のところに置く */
+    let body = orgBoxHTML();
     body += groupsHTML();
     body += '<p class="desc">技能が上がると肩書きが変わります：' +
       D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
@@ -20998,7 +21112,9 @@ GP.screens.hr = function (A) {
     body += '<div class="sub">スタッフ市場' +
       '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
       (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
-      '<p class="desc">' + (room > 0
+      '<p class="desc">チームの規模が大きいほど、腕の良い人材が応募してきます' +
+      '（いまの規模：<b>' + GP.base.scale(g).rank + '</b>）。<br>' +
+      (room > 0
         ? 'あと <b>' + room + '人</b> 置けます。'
         : '<b class="warn">席が埋まっています。</b>') +
       '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
@@ -21102,11 +21218,8 @@ GP.screens.hr = function (A) {
     // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
     let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
-      '<small>部門はそれぞれ独立していません。<b>上司は部下に掛かり</b>、' +
-      '<b>データは開発・作戦・育成に掛かり</b>、' +
-      '<b>物流はピットと現地の支度に掛かり</b>、' +
-      '<b>現場の疲れは作戦の実行力を削り</b>ます。' +
-      '同じ人件費でも、噛み合わせ次第で出る力が変わります。</small>' +
+      '<small>部門はそれぞれ独立していません。同じ人件費でも、' +
+      '噛み合わせ次第で出る力が変わります。' + U.helpLink('people') + '</small>' +
       '<div class="orglist">';
     rows.forEach(r => {
       const boss = bossOf(r.k);
@@ -21279,6 +21392,9 @@ GP.screens.hr = function (A) {
 
   function bindHrActions() {
     const body = $('modalBody');
+    Array.prototype.forEach.call(body.querySelectorAll('[data-grp]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openGroupPop(b.dataset.grp); };
+    });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
         const d = S.promoteYouth(g, b.dataset.promote);
@@ -21784,15 +21900,21 @@ GP.screens.dev = function (A) {
         '方針が引いた線そのものを押し広げる。' +
         '「この車では行けない」はずだった向きへ、行けるようになります', 'res', cst.res) +
       '</div>' +
-      // ここから下は、その判断の材料
-      '<div class="sub">いまの車</div>' +
+      /* ここから下は、その判断の材料。
+         見出しで3つに割っておくと、ui.js が畳んで
+         飛び先の並びを付けてくれる（一度に開くのはひとつだけ） */
+      '<div class="sub">🏎️ いまの車</div>' +
       carMixHTML() +
-      mechMapHTML(g) + mechReadHTML(g);
+      '<div class="sub">🔗 部品の噛み合い</div>' +
+      mechMapHTML(g) +
+      '<div class="sub">🔍 見立て</div>' +
+      mechReadHTML(g);
     U.modal('🔧 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
     });
+    bindMech();
   }
   /* ---- ひらめきを形にする ----
      掘り当てただけでは速くならない。
@@ -22512,6 +22634,7 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
     });
     bindTicket(() => cmdImprove());
+    bindMech();
     bindPick(k => {
       if (devPop(k)) return;          // 小窓で見せてから決めてもらう
       const [kind, key] = k.split(':');
@@ -23191,8 +23314,14 @@ GP.screens.dev = function (A) {
     }).join('');
   }
 
+  /* ---- 部品どうしの噛み合い ----
+     一覧は名前と詰まり具合だけ。継手の絵と、どちらが止めているのかは
+     押したときの小窓に回す。12組ぶんの絵を積んでいたので、
+     ここだけで画面4.3枚あった                                    */
   function mechMapHTML(g2) {
-    const syn = GP.state.mechSynergy(g2).slice()
+    const raw = GP.state.mechSynergy(g2);
+    raw.forEach((x, i) => { x.i = i; });
+    const syn = raw.slice()
       .sort((a, b) => (b.on - a.on) || (b.ratio - a.ratio));
     const st = GP.state.carStats(g2);
     const gen = D.CAR_GENS[g2.carGen];
@@ -23208,24 +23337,48 @@ GP.screens.dev = function (A) {
       '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
       'そこを厚くすると、継手が詰まって効きはじめます。</p>';
 
+    h += '<div class="pick">';
     syn.forEach(x => {
       const W = GP.state.mechName(x.weak);
-      h += '<div class="mlrow' + (x.on ? ' on' : '') + '">' +
-        '<div class="ml-t"><span class="ml-ic">' + x.def.icon + '</span>' +
-        '<b>' + esc(x.def.name) + '</b>' +
-        '<em class="ml-pct' + (x.on ? ' on' : '') + '">' +
-        Math.round(x.ratio * 100) + '%</em></div>' +
-        '<div class="ml-body">' + couplingSVG(x) +
-        '<div class="ml-side">' +
-        '<small>' + esc(x.def.desc) + '</small>' +
-        '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
-        '<div class="ml-weak">' + (x.ratio >= 0.97
-          ? '<span class="ok">✔ ここは出しきっています</span>'
-          : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。'
-            + 'ここを詰めると効きはじめます</span>') + '</div>' +
-        '</div></div></div>';
+      h += '<button class="pickbtn mechrow' + (x.on ? ' on' : '') +
+        '" data-mech="' + x.i + '">' +
+        '<span class="pb-ic" style="background:#5a6270">' + x.def.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.def.name) + '</b>' +
+        '<small>' + (x.ratio >= 0.97
+          ? '<em class="ok">✔ ここは出しきっています</em>'
+          : '<em class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません</em>') +
+        '<span class="ml-eff">' + effChips(x.def, x.gain) + '</span>' +
+        '</small></span>' +
+        '<span class="pb-cost"><b>' + Math.round(x.ratio * 100) + '%</b></span></button>';
     });
-    return h + '</div>';
+    return h + '</div></div>';
+  }
+
+  /* 組ひとつぶんの小窓。継手の絵はここで見せる */
+  function openMechPop(i) {
+    const x = S.mechSynergy(g)[+i];
+    if (!x) return;
+    const W = S.mechName(x.weak);
+    const h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' +
+      x.def.icon + '</span><span class="popsum-b"><b>' + esc(x.def.name) + '</b>' +
+      '<small>いまの詰まり具合 ' + Math.round(x.ratio * 100) + '%</small></span></div>' +
+      '<p class="desc">' + esc(x.def.desc) + '</p>' +
+      couplingSVG(x) +
+      '<div class="ml-eff">' + effChips(x.def, x.gain) + '</div>' +
+      '<div class="ml-weak">' + (x.ratio >= 0.97
+        ? '<span class="ok">✔ ここは出しきっています</span>'
+        : '<span class="ng">' + W.icon + ' <b>' + esc(W.name) + '</b> が追いついていません。' +
+          'ここを詰めると効きはじめます</span>') + '</div>';
+    U.popup(x.def.icon + ' ' + esc(x.def.name), h,
+      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+  }
+
+  function bindMech() {
+    const box = $('modalBody');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-mech]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openMechPop(b.dataset.mech); };
+    });
   }
 
   /* ---- 見立てと、これからの方向 ----
@@ -24594,7 +24747,7 @@ GP.screens.weekend = function (A) {
   const D = GP.data, S = GP.state, U = GP.ui, R = GP.race, RV = GP.raceview;
   let g = null;
   /* ほかの画面と main.js から借りているもの。link() で埋まる */
-  let $, askPoach, bindAct, bindPick, bindPuBox, capSpend, cmdGrid, endWeek, esc, grantFame, gridPeople, leaveGrid, levelCheck, money, puBoxHTML, refreshGrid, render, staffExp, staffExpAll, yardMark;
+  let $, askPoach, bindAct, bindPick, bindPuBox, capSpend, cmdGrid, endWeek, esc, grantFame, gridPeople, leaveGrid, levelCheck, money, openPu, puBoxHTML, refreshGrid, render, staffExp, staffExpAll, yardMark;
   function link() {
     $ = A.$;
     askPoach = A.askPoach;
@@ -24611,6 +24764,7 @@ GP.screens.weekend = function (A) {
     levelCheck = A.levelCheck;
     money = A.money;
     puBoxHTML = A.puBoxHTML;
+    openPu = A.openPu;
     refreshGrid = A.refreshGrid;
     render = A.render;
     staffExp = A.staffExp;
@@ -24935,7 +25089,8 @@ GP.screens.weekend = function (A) {
     }
 
     // ---- パワーユニットの状態と載せ替え ----
-    body += puBoxHTML(t);
+    // 決勝前の長い画面なので、ここでは一行だけ。中身は押したときに出す
+    body += U.puLine(g);
 
     const subs = lineup.filter(d => d.standIn || d.hurt);
     if (subs.length) {
@@ -25046,17 +25201,23 @@ GP.screens.weekend = function (A) {
       { label: special ? 'やめておく' : 'まだ準備する', fn: U.closeModal }
     ]);
 
-    // PUの載せ替えは、決めた作戦を残したままボックスだけ差し替える
+    /* PUの載せ替えは小窓の中で起きる。
+       決めた作戦を残したまま、閉じたときに一行だけ差し替える  */
     (function () {
-      const redraw = () => {
-        const box = $('modalBody').querySelector('.pubox');
-        if (!box) return;
-        const tmp = document.createElement('div');
-        tmp.innerHTML = puBoxHTML(t);
-        box.parentNode.replaceChild(tmp.firstChild, box);
-        bindPuBox(redraw);
+      const bindLine = () => {
+        const el = $('modalBody').querySelector('.puline');
+        if (!el) return;
+        el.onclick = () => { GP.sound.play('tap'); openPu(t, redraw); };
       };
-      bindPuBox(redraw);
+      const redraw = () => {
+        const el = $('modalBody').querySelector('.puline');
+        if (!el) return;
+        const tmp = document.createElement('div');
+        tmp.innerHTML = U.puLine(g);
+        el.parentNode.replaceChild(tmp.firstChild, el);
+        bindLine();
+      };
+      bindLine();
     })();
 
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.stratbtn'), b => {
@@ -27963,9 +28124,8 @@ GP.screens.home = function (A) {
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
       '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
-      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。<br>' +
       'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
-      puBoxHTML(null);
+      U.puLine(g);
 
     // ---- シャシーの在庫 ----
     body += A.spareBoxHTML();
@@ -27975,7 +28135,7 @@ GP.screens.home = function (A) {
   /* 画面に貼ったあとの配線。back は、押したあとに開き直す先 */
   function bindGarage(back) {
     const again = back || cmdGarage;
-    bindPuBox(again);
+    bindAct('data-pu', () => { GP.sound.play('tap'); openPu(null, again); });
     bindAct('data-swap', k => openSwap(k));
     bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
@@ -28001,8 +28161,11 @@ GP.screens.home = function (A) {
     });
   }
 
-  function bindAct(attr, fn) {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[' + attr + ']'), b => {
+  /* 小窓の中にも同じボタンを出すので、探す根っこを渡せるようにする */
+  function bindAct(attr, fn, root) {
+    const box = root || $('modalBody');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[' + attr + ']'), b => {
       b.onclick = () => fn(b.getAttribute(attr));
     });
   }
@@ -28095,12 +28258,13 @@ GP.screens.home = function (A) {
   }
 
   /* ボックスの中のボタンを繋ぐ。after は画面を作り直す関数 */
-  function bindPuBox(after) {
-    bindAct('data-pumode', k => {
+  function bindPuBox(after, root) {
+    const bind = (attr, fn) => bindAct(attr, fn, root);
+    bind('data-pumode', k => {
       S.setPuMode(g, k);
       S.save(g); render(); if (after) after();
     });
-    bindAct('data-pufresh', () => {
+    bind('data-pufresh', () => {
       const cost = S.puFreshCost(g);
       if (g.funds < cost) return U.toast('資金が足りません', 'bad');
       g.funds -= cost;                 // PUは供給元から買うもので、上限の対象外
@@ -28112,7 +28276,7 @@ GP.screens.home = function (A) {
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });
-    bindAct('data-pumount', i => {
+    bind('data-pumount', i => {
       if (g.funds < D.PU_SWAP_COST) return U.toast('資金が足りません', 'bad');
       const m = S.mountPU(g, +i);
       if (!m) return;
@@ -28123,6 +28287,19 @@ GP.screens.home = function (A) {
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });
+  }
+
+  /* ---- パワーユニットの小窓 ----
+     基数・残量・出力モード・載せ替えを、ひとつの小窓にまとめる。
+     ホームの札からも、マシン画面からも、週末の画面からも同じものが開く */
+  function openPu(t, back) {
+    const track = t || (g.nextRace < D.RACES ? S.trackAt(g, g.nextRace) : null);
+    const again = () => openPu(t, back);
+    const box = U.popup('⚙️ パワーユニット', puBoxHTML(track), [
+      { label: '閉じる', cls: 'primary',
+        fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } }
+    ]);
+    bindPuBox(again, box);
   }
 
   function openSwap(catKey) {
@@ -30595,7 +30772,7 @@ GP.screens.home = function (A) {
     api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
            openFuse: openFuse, openFacUp: openFacUp,
            openGearBuy: openGearBuy, openGearList: openGearList,
-           openKitBuy: openKitBuy, openEstateBuy: openEstateBuy,
+           openKitBuy: openKitBuy, openEstateBuy: openEstateBuy, openPu: openPu,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };
@@ -32625,6 +32802,28 @@ GP.ui = (function () {
       '</div>';
   }
 
+  /* ---- パワーユニットの一行 ----
+     基数・残量・出力モードは毎週の判断なのに、
+     「マシン」画面のいちばん下に置いてあった。
+     ホームの札にも出して、押せば小窓で載せ替えまでできるようにする */
+  function puLine(g) {
+    const pu = S.puOf(g);
+    const left = Math.max(0, S.puLimit(g) - pu.used);
+    const mode = S.puMode(g);
+    const life = Math.round(pu.life);
+    const cls = pu.grid ? 'bad' : life < 25 ? 'bad' : life < 50 ? 'warn' : 'good';
+    return '<button class="puline' + (pu.grid ? ' pen' : '') + '" data-pu="1">' +
+      '<span class="pl-h">⚙️ パワーユニット' +
+        '<em>' + pu.n + '基目／今季 ' + pu.used + '基（あと ' + left + '基）</em></span>' +
+      '<span class="skbar big"><i class="' + (life < 25 ? 'f2' : life < 50 ? 'f1' : 'f0') +
+        '" style="width:' + life + '%"></i></span>' +
+      '<span class="pl-f">残り <b class="' + cls + '">' + life + '%</b>' +
+        '　' + mode.icon + ' ' + mode.name +
+        (pu.grid ? '　<b class="bad">次戦 ' + pu.grid + 'グリッド降格</b>' : '') +
+        '<i class="pl-go">押すと載せ替え・出力モード ▸</i></span>' +
+      '</button>';
+  }
+
   function carCard(g) {
     const st = S.carStats(g), rel = S.reliability(g);
     const gen = D.CAR_GENS[g.carGen];
@@ -32654,7 +32853,11 @@ GP.ui = (function () {
       Math.round(g.nextRace < D.RACES
                  ? S.carScore(g, S.trackAt(g, g.nextRace))
                  : (st.speed + st.corner + st.accel) / 3) +
-      '／信頼 ' + Math.round(rel) + '%</b></div><div class="pad">' +
+      '／信頼 ' + Math.round(rel) + '%</b></div>' +
+      /* パワーユニットは毎週の判断なので、札を畳んでいても見えるところに置く。
+         pad の中に入れると、畳んだとたんに隠れてしまう            */
+      puLine(g) +
+      '<div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
       '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
       '<span>🔋 バッテリー</span>' +
@@ -33314,7 +33517,12 @@ GP.ui = (function () {
     };
     secs.forEach((sec, i) => {
       const b = document.createElement('button');
-      b.textContent = (sec.firstChild.textContent || '').trim();
+      /* 見出しに付いている数の札（2人／力 2.0 など）は、飛び先の名前には要らない。
+         入れたままだと札6つで画面の3分の1を使っていた            */
+      const lab = sec.firstChild.cloneNode(true);
+      Array.prototype.forEach.call(lab.querySelectorAll('.gsum,.slotchip,.grp-n,.foldnote'),
+        e => { if (e.parentNode) e.parentNode.removeChild(e); });
+      b.textContent = (lab.textContent || '').trim();
       b.onclick = () => {
         openOnly(sec);
         body.scrollTop = Math.max(0, sec.offsetTop - nav.offsetHeight - 4);
@@ -33475,7 +33683,7 @@ GP.ui = (function () {
     return !!m && /show/.test(m.className);
   }
 
-  return { renderAll, hubCard, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, puLine, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
            popup, closePopup, popupOpen, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
@@ -34824,6 +35032,17 @@ window.GP = window.GP || {};
         A.pendingCmd = { fn: map[id], label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
         return map[id].apply(this, arguments);
       };
+    });
+    /* ホームの札に出したパワーユニットの一行。
+       札は毎週描き直されるので、個々に繋がず、上から一度だけ受ける */
+    document.addEventListener('click', function (ev) {
+      const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;
+      if (!b) return;
+      // 画面（モーダル・週末）の中のものは、その画面が自分で繋いでいる
+      if (b.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      A.openPu();
     });
     $('modalClose').onclick = U.closeModal;
     /* 小窓。✕と、外側の暗いところを触れば閉じる。

@@ -91,9 +91,8 @@ GP.screens.home = function (A) {
     body += '<div class="sub">パワーユニット</div>' +
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
       '新品は基数を1つ使い、上限（' + S.puLimit(g) + '基）を超えると次のレースがグリッド降格になります。<br>' +
-      '残量のあるうちに降ろしたユニットは保管され、あとでまた積み直せます。<br>' +
       'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
-      puBoxHTML(null);
+      U.puLine(g);
 
     // ---- シャシーの在庫 ----
     body += A.spareBoxHTML();
@@ -103,7 +102,7 @@ GP.screens.home = function (A) {
   /* 画面に貼ったあとの配線。back は、押したあとに開き直す先 */
   function bindGarage(back) {
     const again = back || cmdGarage;
-    bindPuBox(again);
+    bindAct('data-pu', () => { GP.sound.play('tap'); openPu(null, again); });
     bindAct('data-swap', k => openSwap(k));
     bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
@@ -129,8 +128,11 @@ GP.screens.home = function (A) {
     });
   }
 
-  function bindAct(attr, fn) {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[' + attr + ']'), b => {
+  /* 小窓の中にも同じボタンを出すので、探す根っこを渡せるようにする */
+  function bindAct(attr, fn, root) {
+    const box = root || $('modalBody');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[' + attr + ']'), b => {
       b.onclick = () => fn(b.getAttribute(attr));
     });
   }
@@ -223,12 +225,13 @@ GP.screens.home = function (A) {
   }
 
   /* ボックスの中のボタンを繋ぐ。after は画面を作り直す関数 */
-  function bindPuBox(after) {
-    bindAct('data-pumode', k => {
+  function bindPuBox(after, root) {
+    const bind = (attr, fn) => bindAct(attr, fn, root);
+    bind('data-pumode', k => {
       S.setPuMode(g, k);
       S.save(g); render(); if (after) after();
     });
-    bindAct('data-pufresh', () => {
+    bind('data-pufresh', () => {
       const cost = S.puFreshCost(g);
       if (g.funds < cost) return U.toast('資金が足りません', 'bad');
       g.funds -= cost;                 // PUは供給元から買うもので、上限の対象外
@@ -240,7 +243,7 @@ GP.screens.home = function (A) {
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });
-    bindAct('data-pumount', i => {
+    bind('data-pumount', i => {
       if (g.funds < D.PU_SWAP_COST) return U.toast('資金が足りません', 'bad');
       const m = S.mountPU(g, +i);
       if (!m) return;
@@ -251,6 +254,19 @@ GP.screens.home = function (A) {
       GP.sound.play('buy');
       S.save(g); render(); if (after) after();
     });
+  }
+
+  /* ---- パワーユニットの小窓 ----
+     基数・残量・出力モード・載せ替えを、ひとつの小窓にまとめる。
+     ホームの札からも、マシン画面からも、週末の画面からも同じものが開く */
+  function openPu(t, back) {
+    const track = t || (g.nextRace < D.RACES ? S.trackAt(g, g.nextRace) : null);
+    const again = () => openPu(t, back);
+    const box = U.popup('⚙️ パワーユニット', puBoxHTML(track), [
+      { label: '閉じる', cls: 'primary',
+        fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } }
+    ]);
+    bindPuBox(again, box);
   }
 
   function openSwap(catKey) {
@@ -2723,7 +2739,7 @@ GP.screens.home = function (A) {
     api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
            openFuse: openFuse, openFacUp: openFacUp,
            openGearBuy: openGearBuy, openGearList: openGearList,
-           openKitBuy: openKitBuy, openEstateBuy: openEstateBuy,
+           openKitBuy: openKitBuy, openEstateBuy: openEstateBuy, openPu: openPu,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };

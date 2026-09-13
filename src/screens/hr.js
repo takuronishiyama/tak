@@ -647,6 +647,111 @@ GP.screens.hr = function (A) {
     return h + '</div>';
   }
 
+  /* =======================================================
+     グループと人の小窓
+
+     施設・備品と同じ考えかた。一覧の行は名前と数字だけにして、
+     中身は押したときに出す。解雇のような取り返しのつかないものは、
+     その場で起きるのをやめて、小窓で一度受け止める。
+     ======================================================= */
+  function stMini(st) {
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const rk = S.staffRank(st);
+    const cap = S.staffCap(st);
+    return '<button class="pickbtn stmini" data-stpop="' + st.id + '">' +
+      '<span class="pb-ic" style="background:#7b5a3a">' + (t.icon || '👤') + '</span>' +
+      '<span class="pb-body"><b>' + esc(st.name) +
+      '<em class="stitle">' + rk.icon + ' ' + esc(S.staffTitle(st)) + '</em></b>' +
+      '<small><span class="skbar"><i style="width:' +
+      Math.min(100, st.skill / cap * 100) + '%"></i></span> 技能 <b>' + st.skill +
+      '</b> <em class="scap">/ ' + cap + '</em>　' +
+      (st.age || 34) + '歳　効き方 ×' + rk.mul.toFixed(2) + '</small></span>' +
+      '<span class="pb-cost">週' + money(st.salary) + '万</span></button>';
+  }
+
+  /* ひとりぶんの小窓。昇進と解雇はここでだけ起きる */
+  function openStaffPop(id, back) {
+    const st = (g.staff || []).find(x => x.id === id);
+    if (!st) return;
+    const t = D.STAFF_TYPES.find(x => x.key === st.type) || {};
+    const roles = S.promotableRoles(g, st);
+    const fee = st.salary * 4;
+    const h = '<div class="stpop">' + staffRow(st, '', '') + '</div>' +
+      '<div class="popcost"><span>この職種の役目</span><span>' + esc(t.desc || '') + '</span></div>' +
+      (roles.length
+        ? ''
+        : (st.skill >= S.PROMOTE_MIN
+            ? '<p class="note">👔 昇進できる腕はありますが、空いている役職がありません。</p>'
+            : '<p class="note">👔 昇進できるのは、チーフまで来た人だけです。</p>')) +
+      '<p class="note">解雇すると、違約金として <b>💰' + money(fee) + '万</b>（週給の4週ぶん）がかかります。' +
+      '抜けた穴は、その場で部門の力に出ます。</p>';
+    const btns = roles.map(r => {
+      const m = D.MANAGERS.find(y => y.key === r) || {};
+      return { label: '👔 ' + (m.name || r) + 'へ昇進', cls: 'primary',
+        fn: () => {
+          const rr = S.promoteStaff(g, id, r);
+          if (!rr) return;
+          GP.sound.play('levelup');
+          U.log(g, '👔 ' + rr.name + ' が ' + m.name + ' に昇進した！（技能 ' + rr.skill +
+                   '／週' + money(rr.salary) + '万）', 'good');
+          U.toast('👔 ' + rr.name + ' が' + m.name + 'に昇進！', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } };
+    });
+    btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger',
+      fn: () => {
+        g.funds -= fee;
+        g.staff = g.staff.filter(x => x.id !== id);
+        U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(fee) + '万）。');
+        U.toast('👋 ' + st.name + ' を解雇');
+        S.save(g); render(); U.closePopup(); cmdStaff();
+      } });
+    btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } });
+    U.popup((t.icon || '👤') + ' ' + esc(st.name), h, btns);
+  }
+
+  /* グループひとつぶんの小窓。中の噛み合いと、居る人 */
+  function openGroupPop(key) {
+    const gt = S.groupTable(g);
+    const x = gt.byKey(key);
+    if (!x) return;
+    const d = x.def;
+    const pl = D.GROUP_PLACES.filter(y => y.key === d.place)[0] || {};
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' + d.icon +
+      '</span><span class="popsum-b"><b>' + esc(d.name) + '</b>' +
+      '<small>' + (pl.icon || '') + ' ' + esc(pl.name || '') + '　' +
+      x.members.length + '人</small></span></div>' +
+      '<p class="desc">' + esc(d.desc) + '</p>' +
+      '<div class="grp-mul">' +
+        '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
+        '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
+          x.mul.toFixed(2) + '</b></span>' +
+        '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
+          Math.round(x.lift * 100) + '%</b></span>' +
+      '</div>' +
+      '<div class="popcost"><span>出ている力</span><span><b>' + x.total.toFixed(1) + '</b></span></div>';
+    x.notes.forEach(nt => {
+      const amt = nt.amt == null ? '' :
+        '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
+        Math.round(Math.abs(nt.amt) * 100) + '%</em>';
+      h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
+        (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
+        (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
+        '<span class="gn-t">' + esc(nt.text) + '</span></div>';
+    });
+    if (!x.members.length) {
+      h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
+    } else {
+      h += '<div class="sub small">居る人（押すと昇進・解雇）</div><div class="pick">' +
+        x.members.slice().sort((a, b) => b.skill - a.skill).map(stMini).join('') + '</div>';
+    }
+    const box = U.popup(d.icon + ' ' + esc(d.name), h,
+      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-stpop]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openStaffPop(b.dataset.stpop, () => openGroupPop(key)); };
+    });
+  }
+
   function groupsHTML() {
     const gt = S.groupTable(g);
     let h = '';
@@ -657,51 +762,38 @@ GP.screens.hr = function (A) {
       h += '<div class="sub">' + pl.icon + ' ' + pl.name +
         '<em class="gsum">' + n + '人／力 ' + tot.toFixed(1) + '</em></div>' +
         '<p class="desc">' + esc(pl.desc) + '</p>';
+      /* 行は名前と数字だけ。中の噛み合い・軋み・居る人は、
+         押したときの小窓に回す。前はここに全部積んでいたので、
+         ファクトリーを開くだけで画面1.8枚ぶんあった        */
+      h += '<div class="pick">';
       mine.forEach(x => {
         const d = x.def;
         const bar = Math.min(100, x.total / 16 * 100);
-        h += '<div class="grpbox">' +
-          '<div class="grp-h"><b>' + d.icon + ' ' + d.name + '</b>' +
-          '<span class="grp-n">' + x.members.length + '人</span>' +
-          '<i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
-          '<em class="grp-v">' + x.total.toFixed(1) + '</em></div>' +
-          '<small class="grp-d">' + esc(d.desc) + '</small>' +
-          '<div class="grp-mul">' +
-            '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
-            '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
-              x.mul.toFixed(2) + '</b></span>' +
-            '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
-              Math.round(x.lift * 100) + '%</b></span>' +
-          '</div>';
-        x.notes.forEach(nt => {
-          // 「誰の、何が、どれだけ」を一列に出す。
-          // 理由だけ書かれても、どこを直せばいいのか分からない
-          const amt = nt.amt == null ? '' :
-            '<em class="gn-amt">' + (nt.amt > 0 ? '+' : '−') +
-            Math.round(Math.abs(nt.amt) * 100) + '%</em>';
-          h += '<div class="grp-note' + (nt.bad ? ' bad' : '') + '">' + nt.icon + ' ' +
-            (nt.who ? '<b>' + esc(nt.who) + '</b>　' : '') +
-            (nt.why ? '<u>' + esc(nt.why) + '</u>　' : '') + amt +
-            '<span class="gn-t">' + esc(nt.text) + '</span></div>';
-        });
-        if (!x.members.length) {
-          h += '<div class="grp-note bad">🕳️ ここに人がいない。' + esc(d.desc) + 'が丸ごと抜けている</div>';
-        }
-        h += '<div class="pick grp-mem">';
-        x.members.slice().sort((a, b) => b.skill - a.skill).forEach(st => {
-          const roles = S.promotableRoles(g, st);
-          const up = roles.map(r => {
-            const m = D.MANAGERS.find(y => y.key === r);
-            return '<button class="mini good" data-promote-staff="' + st.id + ':' + r + '">' +
-              m.icon + ' ' + m.name + 'へ</button>';
-          }).join('');
-          h += staffRow(st,
-            up + '<button class="mini danger" data-firestaff="' + st.id + '">解雇</button>',
-            st.skill >= S.PROMOTE_MIN && !roles.length ? '<br><em class="warn">昇進先が埋まっています</em>' : '');
-        });
-        h += '</div></div>';
+        const bad = x.notes.filter(nt => nt.bad).length;
+        const good = x.notes.filter(nt => !nt.bad).length;
+        h += '<button class="pickbtn grprow' + (x.members.length ? '' : ' cant') +
+          '" data-grp="' + x.key + '">' +
+          '<span class="pb-ic" style="background:#5a6270">' + d.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) +
+          '<em class="grp-n">' + x.members.length + '人</em></b>' +
+          '<small><i class="grp-bar"><b style="width:' + bar + '%"></b></i>' +
+          '素の力 <b>' + x.raw.toFixed(1) + '</b>' +
+          '　<em class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">噛み合い ×' +
+            x.mul.toFixed(2) + '</em>' +
+          '　<em class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかから +' +
+            Math.round(x.lift * 100) + '%</em>' +
+          (x.members.length
+            ? (good || bad
+                ? '<br>' + (good ? '<em class="up">🤝 良い組み合わせ ' + good + '</em>　' : '') +
+                  (bad ? '<em class="down">⚡ 軋み ' + bad + '</em>' : '')
+                : '')
+            : '<br><b class="warn">🕳️ ここに人がいない</b>') +
+          '</small></span>' +
+          '<span class="pb-cost"><b>' + x.total.toFixed(1) + '</b></span></button>';
       });
+      h += '</div>';
     });
+
     // 人 → 部門 → 効き目
     h += '<div class="sub">🔗 人が、どこに効いているか</div>' + orgChainHTML(g);
 
@@ -743,8 +835,9 @@ GP.screens.hr = function (A) {
 
   function hrStaff() {
     const q = teamQuality();
-    let body = '<p class="lead">チームの規模が大きいほど、腕の良い人材が応募してきます。' +
-      '<br>いまの規模：<b>' + GP.base.scale(g).rank + '</b></p>' + orgBoxHTML();
+    /* 規模の話は「誰が応募してくるか」の話なので、
+       部門のかみ合いの上ではなく、市場のところに置く */
+    let body = orgBoxHTML();
     body += groupsHTML();
     body += '<p class="desc">技能が上がると肩書きが変わります：' +
       D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
@@ -758,7 +851,9 @@ GP.screens.hr = function (A) {
     body += '<div class="sub">スタッフ市場' +
       '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
       (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
-      '<p class="desc">' + (room > 0
+      '<p class="desc">チームの規模が大きいほど、腕の良い人材が応募してきます' +
+      '（いまの規模：<b>' + GP.base.scale(g).rank + '</b>）。<br>' +
+      (room > 0
         ? 'あと <b>' + room + '人</b> 置けます。'
         : '<b class="warn">席が埋まっています。</b>') +
       '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
@@ -862,11 +957,8 @@ GP.screens.hr = function (A) {
     // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
     let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
-      '<small>部門はそれぞれ独立していません。<b>上司は部下に掛かり</b>、' +
-      '<b>データは開発・作戦・育成に掛かり</b>、' +
-      '<b>物流はピットと現地の支度に掛かり</b>、' +
-      '<b>現場の疲れは作戦の実行力を削り</b>ます。' +
-      '同じ人件費でも、噛み合わせ次第で出る力が変わります。</small>' +
+      '<small>部門はそれぞれ独立していません。同じ人件費でも、' +
+      '噛み合わせ次第で出る力が変わります。' + U.helpLink('people') + '</small>' +
       '<div class="orglist">';
     rows.forEach(r => {
       const boss = bossOf(r.k);
@@ -1039,6 +1131,9 @@ GP.screens.hr = function (A) {
 
   function bindHrActions() {
     const body = $('modalBody');
+    Array.prototype.forEach.call(body.querySelectorAll('[data-grp]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openGroupPop(b.dataset.grp); };
+    });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
         const d = S.promoteYouth(g, b.dataset.promote);
