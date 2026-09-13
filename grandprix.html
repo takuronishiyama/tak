@@ -6364,7 +6364,7 @@ GP.data = (function () {
       promote: ['principal', 'logistics'] },
     { key: 'researcher', name: 'リサーチャー',   icon: '🔬', desc: 'まだ形になっていないものを探す。研究テーマの進みが速くなる', salary: 58,
       promote: ['technical'] },
-    { key: 'logi',       name: 'ロジスティシャン', icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、現場の消耗も軽くなる', salary: 44,
+    { key: 'logi',       name: 'ロジスティシャン', icon: '📦', desc: '機材を運び、組み、片づける。輸送費と遅延が減り、ピットと現地の支度にも掛かる', salary: 44,
       promote: ['logistics'] }
   ];
 
@@ -6453,6 +6453,12 @@ GP.data = (function () {
     lead: 0.0060,       // 首脳陣の技能1あたり、その部門の効きを何倍にするか
     dataHalf: 3.5,      // アナリストの厚みがこの値で、データの効きが半分まわる
     dataGain: 0.45,     // データが回りきったときの底上げ
+    /* 物流も、アナリストと同じで自分では何も作らない部門。
+       運び込みと荷解きが速いぶん、クルーは組み立てと調整に時間を使え、
+       着いた翌朝から車が動く。その二つに掛かる               */
+    logiHalf: 3.2,      // 物流の厚みがこの値で、段取りの効きが半分まわる
+    logiGain: 0.26,     // 段取りが回りきったときの、ピットの底上げ
+    logiSetup: 0.012,   // 同じく、現地の支度（マシンの仕上がり）への上乗せ
     readyFloor: 0.58,   // クルーが疲れきったとき、作戦をどこまで打てるか
     // 誰がどの部門を見るか
     DEPT: {
@@ -10220,8 +10226,10 @@ GP.state = (function () {
   }
   /* 現地での支度の進み。遠征チームが厚いほど、着いた翌朝から動ける */
   function depotSetup(g2) {
-    // 置きっぱなしの箱があると、着いた日から動ける
-    return (1 + depotLv(g2) * D.DEPOT.setup) * (hasGear(g2, 'depot', 'hub') ? 1.025 : 1);
+    // 置きっぱなしの箱があると、着いた日から動ける。
+    // 運ぶ人が厚ければ、着いた翌朝にはもう車が動いている
+    return (1 + depotLv(g2) * D.DEPOT.setup) * (hasGear(g2, 'depot', 'hub') ? 1.025 : 1)
+         * org(g2).setupMul;
   }
   function depotCut(g2) {
     return clamp(depotLv(g2) * D.DEPOT.cut + (hasGear(g2, 'depot', 'crate') ? 0.08 : 0), 0, 0.55);
@@ -10470,17 +10478,25 @@ GP.state = (function () {
       dept[t.key] = raw[t.key] * lead[boss];
     });
     const data = dept.analyst / (dept.analyst + D.ORG.dataHalf);
+    /* 段取り。物流が厚いほど、週末が始まる前に片がついている。
+       アナリストのデータと同じ形で、ほかの部門に掛かる       */
+    const move = (dept.logi || 0) / ((dept.logi || 0) + D.ORG.logiHalf);
     return {
       raw: raw, dept: dept, lead: lead, groups: gt,
       data: data,
       dataMul: 1 + data * D.ORG.dataGain,
+      move: move,
+      moveMul: 1 + move * D.ORG.logiGain,
+      setupMul: 1 + move * D.ORG.logiSetup,
       ready: 1 - (1 - D.ORG.readyFloor) * (crew(g2) / 100)
     };
   }
   /* 各部門が実際に出している力。式のあちこちはこれを見る */
   function devPower(g2)   { const o = org(g2); return o.dept.engineer * o.dataMul; }
   function designPower(g2){ return org(g2).dept.designer; }
-  function pitPower(g2)   { return org(g2).dept.mechanic; }
+  /* 荷解きが速いぶん、クルーは組み立てと調整に時間を使える。
+     物流の厚みがそのままピットの腕に乗る                     */
+  function pitPower(g2)   { const o = org(g2); return o.dept.mechanic * o.moveMul; }
   function readPower(g2)  { const o = org(g2);
     // 現地のピットウォールと、本国の分析チームを足したもの
     return Math.max(0, (o.dept.strategist + kitEff(g2, 'wall', 'read') + crewEff(g2).read))
@@ -20816,7 +20832,7 @@ GP.screens.hr = function (A) {
     { k: 'mechanic',   nm: 'ピット', ic: '🔩', to: '静止時間が縮み、信頼性が上がる' },
     { k: 'strategist', nm: '作戦',   ic: '🧠', to: '路面とストップ数を読み切れる' },
     { k: 'trainer',    nm: '育成',   ic: '💪', to: 'ドライバーが速く伸びる' },
-    { k: 'logi',       nm: '物流',   ic: '📦', to: '輸送費と遅れが減る' }
+    { k: 'logi',       nm: '物流',   ic: '📦', to: '輸送費と遅れが減り、ピットと現地の支度に掛かる' }
   ];
 
   function orgChainHTML(g2) {
@@ -21070,20 +21086,26 @@ GP.screens.hr = function (A) {
     const o = S.org(g);
     const D2 = D.ORG.DEPT;
     const bossOf = k => D.MANAGERS.find(m => m.key === (D2[k] || 'principal')) || {};
+    /* 研究だけはここに出さない。単位が「週あたりの研究ポイント」で、
+       ほかの部門の5倍の桁になるので、並べると棒が全部潰れる。
+       研究は下の「人が、どこに効いているか」で見る            */
     const rows = [
       { k: 'engineer',   nm: '開発',   ic: '👷', out: S.devPower(g),   data: true },
       { k: 'designer',   nm: '設計',   ic: '🎨', out: S.designPower(g), data: false },
-      { k: 'mechanic',   nm: 'ピット', ic: '🔩', out: S.pitPower(g),   data: false },
+      { k: 'mechanic',   nm: 'ピット', ic: '🔩', out: S.pitPower(g),   data: false, move: true },
       { k: 'strategist', nm: '作戦',   ic: '🧠', out: S.readPower(g),  data: true },
       { k: 'trainer',    nm: '育成',   ic: '💪', out: S.trainPower(g), data: true },
-      { k: 'analyst',    nm: 'データ', ic: '📊', out: S.analystPower(g), data: false }
+      { k: 'analyst',    nm: 'データ', ic: '📊', out: S.analystPower(g), data: false },
+      { k: 'logi',       nm: '物流',   ic: '📦', out: S.logiPower(g),  data: false }
     ];
     const top = Math.max.apply(null, rows.map(r => r.out).concat([1]));
     // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
     let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
       '<small>部門はそれぞれ独立していません。<b>上司は部下に掛かり</b>、' +
-      '<b>データは開発・作戦・育成に掛かり</b>、<b>現場の疲れは作戦の実行力を削り</b>ます。' +
+      '<b>データは開発・作戦・育成に掛かり</b>、' +
+      '<b>物流はピットと現地の支度に掛かり</b>、' +
+      '<b>現場の疲れは作戦の実行力を削り</b>ます。' +
       '同じ人件費でも、噛み合わせ次第で出る力が変わります。</small>' +
       '<div class="orglist">';
     rows.forEach(r => {
@@ -21097,12 +21119,16 @@ GP.screens.hr = function (A) {
         '<span class="or-chain">' + o.raw[r.k].toFixed(1) +
           ' <em>×</em> ' + boss.icon + (lead).toFixed(2) +
           (r.data ? ' <em>×</em> 📊' + o.dataMul.toFixed(2) : '') +
+          (r.move ? ' <em>×</em> 📦' + o.moveMul.toFixed(2) : '') +
         '</span></div>';
     });
     h += '</div>' +
       '<div class="orgnote">' +
         '<span>📊 データが回っている <b>' + Math.round(o.data * 100) + '%</b>' +
           '（開発・作戦・育成 <b>×' + o.dataMul.toFixed(2) + '</b>）</span>' +
+        '<span>📦 段取りが回っている <b>' + Math.round(o.move * 100) + '%</b>' +
+          '（ピット <b>×' + o.moveMul.toFixed(2) + '</b>／現地の支度 <b>+' +
+          ((o.setupMul - 1) * 100).toFixed(1) + '%</b>）</span>' +
         '<span>🧑‍🔧 現場の余力 <b>' + Math.round(o.ready * 100) + '%</b>' +
           '（作戦をどれだけ実際に打てるか）</span>' +
       '</div>' +

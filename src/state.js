@@ -2147,8 +2147,10 @@ GP.state = (function () {
   }
   /* 現地での支度の進み。遠征チームが厚いほど、着いた翌朝から動ける */
   function depotSetup(g2) {
-    // 置きっぱなしの箱があると、着いた日から動ける
-    return (1 + depotLv(g2) * D.DEPOT.setup) * (hasGear(g2, 'depot', 'hub') ? 1.025 : 1);
+    // 置きっぱなしの箱があると、着いた日から動ける。
+    // 運ぶ人が厚ければ、着いた翌朝にはもう車が動いている
+    return (1 + depotLv(g2) * D.DEPOT.setup) * (hasGear(g2, 'depot', 'hub') ? 1.025 : 1)
+         * org(g2).setupMul;
   }
   function depotCut(g2) {
     return clamp(depotLv(g2) * D.DEPOT.cut + (hasGear(g2, 'depot', 'crate') ? 0.08 : 0), 0, 0.55);
@@ -2397,17 +2399,25 @@ GP.state = (function () {
       dept[t.key] = raw[t.key] * lead[boss];
     });
     const data = dept.analyst / (dept.analyst + D.ORG.dataHalf);
+    /* 段取り。物流が厚いほど、週末が始まる前に片がついている。
+       アナリストのデータと同じ形で、ほかの部門に掛かる       */
+    const move = (dept.logi || 0) / ((dept.logi || 0) + D.ORG.logiHalf);
     return {
       raw: raw, dept: dept, lead: lead, groups: gt,
       data: data,
       dataMul: 1 + data * D.ORG.dataGain,
+      move: move,
+      moveMul: 1 + move * D.ORG.logiGain,
+      setupMul: 1 + move * D.ORG.logiSetup,
       ready: 1 - (1 - D.ORG.readyFloor) * (crew(g2) / 100)
     };
   }
   /* 各部門が実際に出している力。式のあちこちはこれを見る */
   function devPower(g2)   { const o = org(g2); return o.dept.engineer * o.dataMul; }
   function designPower(g2){ return org(g2).dept.designer; }
-  function pitPower(g2)   { return org(g2).dept.mechanic; }
+  /* 荷解きが速いぶん、クルーは組み立てと調整に時間を使える。
+     物流の厚みがそのままピットの腕に乗る                     */
+  function pitPower(g2)   { const o = org(g2); return o.dept.mechanic * o.moveMul; }
   function readPower(g2)  { const o = org(g2);
     // 現地のピットウォールと、本国の分析チームを足したもの
     return Math.max(0, (o.dept.strategist + kitEff(g2, 'wall', 'read') + crewEff(g2).read))

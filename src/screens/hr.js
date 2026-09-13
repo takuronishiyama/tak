@@ -592,7 +592,7 @@ GP.screens.hr = function (A) {
     { k: 'mechanic',   nm: 'ピット', ic: '🔩', to: '静止時間が縮み、信頼性が上がる' },
     { k: 'strategist', nm: '作戦',   ic: '🧠', to: '路面とストップ数を読み切れる' },
     { k: 'trainer',    nm: '育成',   ic: '💪', to: 'ドライバーが速く伸びる' },
-    { k: 'logi',       nm: '物流',   ic: '📦', to: '輸送費と遅れが減る' }
+    { k: 'logi',       nm: '物流',   ic: '📦', to: '輸送費と遅れが減り、ピットと現地の支度に掛かる' }
   ];
 
   function orgChainHTML(g2) {
@@ -846,20 +846,26 @@ GP.screens.hr = function (A) {
     const o = S.org(g);
     const D2 = D.ORG.DEPT;
     const bossOf = k => D.MANAGERS.find(m => m.key === (D2[k] || 'principal')) || {};
+    /* 研究だけはここに出さない。単位が「週あたりの研究ポイント」で、
+       ほかの部門の5倍の桁になるので、並べると棒が全部潰れる。
+       研究は下の「人が、どこに効いているか」で見る            */
     const rows = [
       { k: 'engineer',   nm: '開発',   ic: '👷', out: S.devPower(g),   data: true },
       { k: 'designer',   nm: '設計',   ic: '🎨', out: S.designPower(g), data: false },
-      { k: 'mechanic',   nm: 'ピット', ic: '🔩', out: S.pitPower(g),   data: false },
+      { k: 'mechanic',   nm: 'ピット', ic: '🔩', out: S.pitPower(g),   data: false, move: true },
       { k: 'strategist', nm: '作戦',   ic: '🧠', out: S.readPower(g),  data: true },
       { k: 'trainer',    nm: '育成',   ic: '💪', out: S.trainPower(g), data: true },
-      { k: 'analyst',    nm: 'データ', ic: '📊', out: S.analystPower(g), data: false }
+      { k: 'analyst',    nm: 'データ', ic: '📊', out: S.analystPower(g), data: false },
+      { k: 'logi',       nm: '物流',   ic: '📦', out: S.logiPower(g),  data: false }
     ];
     const top = Math.max.apply(null, rows.map(r => r.out).concat([1]));
     // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
     let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
       '<small>部門はそれぞれ独立していません。<b>上司は部下に掛かり</b>、' +
-      '<b>データは開発・作戦・育成に掛かり</b>、<b>現場の疲れは作戦の実行力を削り</b>ます。' +
+      '<b>データは開発・作戦・育成に掛かり</b>、' +
+      '<b>物流はピットと現地の支度に掛かり</b>、' +
+      '<b>現場の疲れは作戦の実行力を削り</b>ます。' +
       '同じ人件費でも、噛み合わせ次第で出る力が変わります。</small>' +
       '<div class="orglist">';
     rows.forEach(r => {
@@ -873,12 +879,16 @@ GP.screens.hr = function (A) {
         '<span class="or-chain">' + o.raw[r.k].toFixed(1) +
           ' <em>×</em> ' + boss.icon + (lead).toFixed(2) +
           (r.data ? ' <em>×</em> 📊' + o.dataMul.toFixed(2) : '') +
+          (r.move ? ' <em>×</em> 📦' + o.moveMul.toFixed(2) : '') +
         '</span></div>';
     });
     h += '</div>' +
       '<div class="orgnote">' +
         '<span>📊 データが回っている <b>' + Math.round(o.data * 100) + '%</b>' +
           '（開発・作戦・育成 <b>×' + o.dataMul.toFixed(2) + '</b>）</span>' +
+        '<span>📦 段取りが回っている <b>' + Math.round(o.move * 100) + '%</b>' +
+          '（ピット <b>×' + o.moveMul.toFixed(2) + '</b>／現地の支度 <b>+' +
+          ((o.setupMul - 1) * 100).toFixed(1) + '%</b>）</span>' +
         '<span>🧑‍🔧 現場の余力 <b>' + Math.round(o.ready * 100) + '%</b>' +
           '（作戦をどれだけ実際に打てるか）</span>' +
       '</div>' +
