@@ -25663,7 +25663,7 @@ GP.screens.weekend = function (A) {
     });
     h += '</div>' +
       '<p class="note">💡 日曜に<b>期待より上の順位</b>で帰れば、クルーの疲れは少し飛びます。</p>';
-    U.modal('🌙 土曜の夜', h, []);
+    U.modal('🌙 土曜の夜', h, [], { noClose: true });
     bindAct('data-fix', key => {
       const f = S.applyWeekendFix(g, key);
       if (!f) return;
@@ -33529,6 +33529,20 @@ GP.ui = (function () {
       bar.appendChild(el);
     });
     sectionize($('modalBody'));
+    /* ---- ✕ は、画面を開くたびに素の状態へ戻す ----
+       いくつかの画面は「✕＝この選択」と割り当てて、
+       選び終わったら元に戻す約束になっていた。
+       ところがボタンで選んだときは戻し忘れていて、
+       その手がそのまま次の画面へ持ち越されていた。
+       乗っ取られた先（シーズン終了・来季へ・サマーブレイクの結果）では、
+       ✕ を押しても関係のない昔の処理が走るだけで、画面は閉じなかった。
+       割り当てたい画面は U.modal のあとで付け直す（順番はそのまま効く） */
+    const x = $('modalClose');
+    if (x) {
+      x.onclick = closeModal;
+      // 閉じさせない場面は、✕ そのものを出さない（押せるのに効かない、をなくす）
+      x.style.display = opts.noClose ? 'none' : '';
+    }
     /* 直前に押されたコマンドがあれば、この画面の持ち主として控える。
        無ければ持ち主なし（本拠地の札などから開かれた画面）。
        こうしておかないと、古い控えを戻り先として出してしまう      */
@@ -34046,10 +34060,9 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (r.cost ? '💰' + money(r.cost) + '万' : '費用なし') + '</span></button>';
     });
     body += '</div>';
-    U.modal('🏖️ サマーブレイク', body, [], { wide: true });
-    $('modalClose').style.display = 'none';
+    U.modal('🏖️ サマーブレイク', body, [], { wide: true, noClose: true });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-k^="sb:"]'), b => {
-      b.onclick = () => { $('modalClose').style.display = ''; rows[+b.dataset.k.slice(3)].fn(); };
+      b.onclick = () => { rows[+b.dataset.k.slice(3)].fn(); };
     });
   }
 
@@ -34110,7 +34123,7 @@ window.GP = window.GP || {};
     g.yardDone = [];
     S.save(g);
     const p3 = SUMMER_PLANS.find(x => x.key === key);
-    U.modal('🏖️ ' + p3.icon + ' ' + p3.name,
+    U.modal(p3.icon + ' ' + p3.name,
       '<p class="lead">' + S.SUMMER_WEEKS + '週間が過ぎ、後半戦が始まります。</p>' +
       '<div class="rewardbox">' + out.map(x => '<div>' + esc(x) + '</div>').join('') + '</div>',
       [{ label: '後半戦へ', cls: 'primary', fn: () => {
@@ -34689,7 +34702,8 @@ window.GP = window.GP || {};
       '勝てば勝つほど次は苦しく、負ければ作り直す時間がもらえる、という制度です。</small></div>' +
       A.aduoBoxHTML(false);
     U.modal('🎊 シーズン終了', body,
-      [{ label: '🌱 オフへ →', cls: 'primary', fn: A.enterOffseason }], { wide: true });
+      [{ label: '🌱 オフへ →', cls: 'primary', fn: A.enterOffseason }],
+      { wide: true, noClose: true });
     U.log(g, '🎊 シーズン' + g.season + ' 終了。コンストラクターズ ' + rank + '位。賞金 +' + money(prize) + '万', 'good');
   }
 
@@ -34981,7 +34995,8 @@ window.GP = window.GP || {};
     GP.sound.play('bad');
     U.modal('💀 ゲームオーバー', '<p class="lead">資金が尽き、チームは解散となった…</p>' +
       '<p class="desc">シーズン ' + g.season + ' ／ 通算タイトル：コンストラクターズ ' + g.titles.teams + ' 回、ドライバーズ ' + g.titles.drivers + ' 回</p>',
-      [{ label: '最初からやり直す', cls: 'primary', fn: () => { S.wipe(); location.reload(); } }]);
+      [{ label: '最初からやり直す', cls: 'primary', fn: () => { S.wipe(); location.reload(); } }],
+      { noClose: true });
   }
 
   /* =======================================================
@@ -35335,8 +35350,7 @@ window.GP = window.GP || {};
       fn: () => { g = saved; syncG(); U.closeModal();
                   document.body.classList.remove('preboot'); render(); } });
 
-    U.modal('🏎️ グランプリ物語', body, btns);
-    $('modalClose').style.display = 'none';
+    U.modal('🏎️ グランプリ物語', body, btns, { noClose: true });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.colorbtn'), b => {
       b.onclick = () => {
         Array.prototype.forEach.call(b.parentElement.children, c => c.classList.remove('on'));
@@ -35405,11 +35419,8 @@ window.GP = window.GP || {};
     syncG();
     render();
     showTitle();
-    $('modalClose').style.display = 'none';
-    const mo = new MutationObserver(() => {
-      if ($('modal').className === '') $('modalClose').style.display = '';
-    });
-    mo.observe($('modal'), { attributes: true, attributeFilter: ['class'] });
+    /* ✕ の出し入れは U.modal が画面ごとに決めるので、
+       ここで見張っている必要はなくなった                */
   });
 })();
 

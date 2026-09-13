@@ -867,7 +867,7 @@ GP.screens.weekend = function (A) {
     });
     h += '</div>' +
       '<p class="note">💡 日曜に<b>期待より上の順位</b>で帰れば、クルーの疲れは少し飛びます。</p>';
-    U.modal('🌙 土曜の夜', h, []);
+    U.modal('🌙 土曜の夜', h, [], { noClose: true });
     bindAct('data-fix', key => {
       const f = S.applyWeekendFix(g, key);
       if (!f) return;

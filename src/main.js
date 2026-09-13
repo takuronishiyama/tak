@@ -243,10 +243,9 @@ window.GP = window.GP || {};
         '<span class="pb-cost">' + (r.cost ? '💰' + money(r.cost) + '万' : '費用なし') + '</span></button>';
     });
     body += '</div>';
-    U.modal('🏖️ サマーブレイク', body, [], { wide: true });
-    $('modalClose').style.display = 'none';
+    U.modal('🏖️ サマーブレイク', body, [], { wide: true, noClose: true });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-k^="sb:"]'), b => {
-      b.onclick = () => { $('modalClose').style.display = ''; rows[+b.dataset.k.slice(3)].fn(); };
+      b.onclick = () => { rows[+b.dataset.k.slice(3)].fn(); };
     });
   }
 
@@ -307,7 +306,7 @@ window.GP = window.GP || {};
     g.yardDone = [];
     S.save(g);
     const p3 = SUMMER_PLANS.find(x => x.key === key);
-    U.modal('🏖️ ' + p3.icon + ' ' + p3.name,
+    U.modal(p3.icon + ' ' + p3.name,
       '<p class="lead">' + S.SUMMER_WEEKS + '週間が過ぎ、後半戦が始まります。</p>' +
       '<div class="rewardbox">' + out.map(x => '<div>' + esc(x) + '</div>').join('') + '</div>',
       [{ label: '後半戦へ', cls: 'primary', fn: () => {
@@ -886,7 +885,8 @@ window.GP = window.GP || {};
       '勝てば勝つほど次は苦しく、負ければ作り直す時間がもらえる、という制度です。</small></div>' +
       A.aduoBoxHTML(false);
     U.modal('🎊 シーズン終了', body,
-      [{ label: '🌱 オフへ →', cls: 'primary', fn: A.enterOffseason }], { wide: true });
+      [{ label: '🌱 オフへ →', cls: 'primary', fn: A.enterOffseason }],
+      { wide: true, noClose: true });
     U.log(g, '🎊 シーズン' + g.season + ' 終了。コンストラクターズ ' + rank + '位。賞金 +' + money(prize) + '万', 'good');
   }
 
@@ -1178,7 +1178,8 @@ window.GP = window.GP || {};
     GP.sound.play('bad');
     U.modal('💀 ゲームオーバー', '<p class="lead">資金が尽き、チームは解散となった…</p>' +
       '<p class="desc">シーズン ' + g.season + ' ／ 通算タイトル：コンストラクターズ ' + g.titles.teams + ' 回、ドライバーズ ' + g.titles.drivers + ' 回</p>',
-      [{ label: '最初からやり直す', cls: 'primary', fn: () => { S.wipe(); location.reload(); } }]);
+      [{ label: '最初からやり直す', cls: 'primary', fn: () => { S.wipe(); location.reload(); } }],
+      { noClose: true });
   }
 
   /* =======================================================
@@ -1532,8 +1533,7 @@ window.GP = window.GP || {};
       fn: () => { g = saved; syncG(); U.closeModal();
                   document.body.classList.remove('preboot'); render(); } });
 
-    U.modal('🏎️ グランプリ物語', body, btns);
-    $('modalClose').style.display = 'none';
+    U.modal('🏎️ グランプリ物語', body, btns, { noClose: true });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.colorbtn'), b => {
       b.onclick = () => {
         Array.prototype.forEach.call(b.parentElement.children, c => c.classList.remove('on'));
@@ -1603,10 +1603,7 @@ window.GP = window.GP || {};
     syncG();
     render();
     showTitle();
-    $('modalClose').style.display = 'none';
-    const mo = new MutationObserver(() => {
-      if ($('modal').className === '') $('modalClose').style.display = '';
-    });
-    mo.observe($('modal'), { attributes: true, attributeFilter: ['class'] });
+    /* ✕ の出し入れは U.modal が画面ごとに決めるので、
+       ここで見張っている必要はなくなった                */
   });
 })();
