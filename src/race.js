@@ -2833,7 +2833,10 @@ GP.race = (function () {
           const atk = running[i], def = running[i - 1];
           // ストレートが長いコースほど、直線勝負になりやすい
           const onStraight = Math.random() < Math.min(0.88, 0.15 + passEase * 0.85);
-          const batt = atk.ersCap ? atk.battery / atk.ersCap : 0;
+          /* 残量の「割合」ではなく、実際に放てる量で見る。
+             割合だと、バッテリーを開発しても分母も一緒に増えて
+             直線の上積みが変わらなかった                        */
+          const batt = S.clamp(atk.battery / D.ERS.passRef, 0, 1.35);
 
           // 射程に入ってからが長い。詰めるところまでは速さの差で行けるが、
           // 最後の数十センチは、直線の長さと電気の残りが決める。
