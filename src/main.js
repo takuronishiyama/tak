@@ -1351,6 +1351,18 @@ window.GP = window.GP || {};
       GP.sound.play('tap');
       A.openPu();
     });
+    /* Esc で閉じる。小窓が開いていればそちらが先。
+       暗くして見た目だけ手前に出しても、
+       キーボードには「閉じかた」が用意されていなかった   */
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape' && ev.keyCode !== 27) return;
+      if (U.popupOpen()) { ev.preventDefault(); GP.sound.play('tap'); U.closePopup(); return; }
+      const m = $('modal');
+      // タイトル画面のように閉じさせない場面では、✕を隠してある
+      if (m && /show/.test(m.className) && $('modalClose').style.display !== 'none') {
+        ev.preventDefault(); GP.sound.play('tap'); U.closeModal();
+      }
+    });
     $('modalClose').onclick = U.closeModal;
     /* 小窓。✕と、外側の暗いところを触れば閉じる。
        下のモーダルは触らないので、閉じれば元の場所に戻る   */

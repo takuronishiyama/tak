@@ -897,6 +897,7 @@ GP.ui = (function () {
       GP.app.lastCmd = GP.app.pendingCmd || null;
       GP.app.pendingCmd = null;
     }
+    grabFocus('#modal .modal-box', 'modal');
     return $('modalBody');
   }
 
@@ -1067,16 +1068,23 @@ GP.ui = (function () {
     if (GP.sound) GP.sound.play('tap');
   });
 
-  function closeModal() { $('modal').className = ''; }
+  function closeModal() { $('modal').className = ''; giveBack('modal'); }
 
   /* ---- ヘルプへの飛び札 ----
      仕組みの説明は「遊びかた」に集めてある。
      使う場所には1行だけ残し、続きを読みたい人だけがここから飛ぶ。
      押したときの行き先は data-help に入れておき、
      下の1本の受け口でまとめて拾う（画面ごとに配線しないで済む） */
+  /* 「くわしく」だけでは、押した先に何があるのか分からない。
+     行き先の見出しをそのまま札にする（情報の匂い）        */
+  function helpName(key) {
+    const ts = (GP.app && GP.app.HELP_TOPICS) || [];
+    const t = ts.filter(x => x.key === key)[0];
+    return t ? t.name : 'くわしく';
+  }
   function helpLink(key, label) {
     return '<button class="hp-more" data-help="' + key + '">❓ ' +
-           (label || 'くわしく') + '</button>';
+           (label || helpName(key)) + '</button>';
   }
   document.addEventListener('click', function (e) {
     const b = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
@@ -1090,6 +1098,33 @@ GP.ui = (function () {
      モーダルの上に重ねる。下の画面は作り直さないので、
      閉じればさっき見ていたところへそのまま戻ってくる。
      長い画面の底まで下りていってボタンを押す、という往復が要らなくなる */
+  /* ---- どこを触っているのかを、装置にも伝える ----
+     暗幕で見た目は際立っていても、focus は後ろの画面に残ったままだった。
+     キーボードと読み上げにとっては「まだ後ろに居る」ことになる。
+     開いたら中へ移し、閉じたら開いた場所へ返す            */
+  let focusBack = { modal: null, pop: null };
+  function grabFocus(boxSel, which) {
+    const box = document.querySelector(boxSel);
+    if (!box) return;
+    focusBack[which] = document.activeElement;
+    box.setAttribute('tabindex', '-1');
+    try { box.focus({ preventScroll: true }); } catch (e) { box.focus(); }
+  }
+  function giveBack(which) {
+    const el = focusBack[which];
+    focusBack[which] = null;
+    const put = t => { try { t.focus({ preventScroll: true }); } catch (e) { t.focus(); } };
+    if (el && el.isConnected && typeof el.focus === 'function') return put(el);
+    /* 押した札そのものが描き直されて消えていることがある。
+       そのときは、せめて同じ層（開いているモーダル）へ返す。
+       何も無ければ触らない——body へ飛ばすと画面が上まで戻ってしまう */
+    const m = $('modal');
+    if (which === 'pop' && m && /show/.test(m.className)) {
+      const box = m.querySelector('.modal-box');
+      if (box) { box.setAttribute('tabindex', '-1'); put(box); }
+    }
+  }
+
   function popup(title, body, buttons, opts) {
     opts = opts || {};
     const m = $('pop');
@@ -1106,11 +1141,13 @@ GP.ui = (function () {
       el.onclick = b.fn;
       bar.appendChild(el);
     });
+    grabFocus('#pop .pop-box', 'pop');
     return $('popBody');
   }
   function closePopup() {
     const m = $('pop');
     if (m) m.className = '';
+    giveBack('pop');
   }
   function popupOpen() {
     const m = $('pop');
