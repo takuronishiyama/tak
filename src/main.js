@@ -1385,15 +1385,109 @@ window.GP = window.GP || {};
     });
   }
 
+  /* ---------- 休養 ----------
+     押した瞬間に1週が消えるだけで、何が起きたのかは
+     「回復した」の一行しか出ていなかった。
+     効き先が4つもあるのに、どれがどれだけ戻るのかが読めない。
+     決める前に、いまの数字と休んだあとの数字を並べて見せる。   */
+  const REST = { form: [6, 14], cond: [3, 7], crew: [14, 22] };
+  function restPreviewHTML() {
+    const mid = a => (a[0] + a[1]) / 2;
+    /* 信頼性は「部品のコンディションをいったん上げて測り、戻す」。
+       整備の画面と同じやりかたで、実際の式から出す           */
+    const relNow = S.reliability(g);
+    const relAfter = (() => {
+      const keep = {};
+      D.PART_CATS.forEach(c => { const p2 = g.equipped[c.key]; if (p2) keep[c.key] = p2.cond; });
+      D.PART_CATS.forEach(c => {
+        const p2 = g.equipped[c.key];
+        if (p2) p2.cond = S.clamp(p2.cond + mid(REST.cond), 10, 100);
+      });
+      const v = S.reliability(g);
+      D.PART_CATS.forEach(c => { const p2 = g.equipped[c.key]; if (p2) p2.cond = keep[c.key]; });
+      return v;
+    })();
+    const cwNow = S.crewPenalty(g);
+    const cwLv = Math.round(cwNow.level);
+    const cwTo = Math.max(0, Math.round(cwNow.level - mid(REST.crew)));
+    const cwAfter = (() => {
+      const back = g.logi ? g.logi.crew : null;
+      S.restCrew(g, mid(REST.crew));
+      const v = S.crewPenalty(g);
+      if (g.logi) g.logi.crew = back;
+      return v;
+    })();
+    const row = (a, b, c2) => '<div class="popcost"><span>' + a + '</span><span>' + b +
+      (c2 ? '<br><small>' + c2 + '</small>' : '') + '</span></div>';
+
+    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の4つです。</p>' +
+      (g.crunch
+        ? '<p class="note"><b class="warn">いまは徹夜態勢です。</b>' +
+          '休むと、この週の「2回ぶん」は使われないまま消えます。' +
+          '開発・研究・整備・練習のどれかに使ってから休むほうが得です。</p>'
+        : '');
+
+    // ① ドライバーの調子
+    h += '<div class="sub small">🧑‍✈️ ドライバーの調子</div>';
+    (g.drivers || []).forEach(d => {
+      const pr = S.persOf(d);
+      const lo = Math.round(S.clamp(d.form + REST.form[0] * pr.rest, 62, 122));
+      const hi = Math.round(S.clamp(d.form + REST.form[1] * pr.rest, 62, 122));
+      h += row(esc(d.name) + ' <em class="pnote">' + pr.icon + ' ' + esc(pr.name) +
+        ' ×' + pr.rest.toFixed(2) + '</em>',
+        '<b>' + Math.round(d.form) + '</b> → <b>' + lo + '〜' + hi + '</b>' +
+        (hi >= 122 ? '<br><small>上限 122 に届きます</small>' : ''));
+    });
+    h += '<p class="note">休みの効きは性格で変わります。' +
+      '調子は、そのままドライバーの総合（＝出せる速さ）に乗ります。</p>';
+
+    // ② クルーの疲労
+    h += '<div class="sub small">🧑‍🔧 クルーの疲労</div>' +
+      row('疲労', '<b>' + cwLv + '</b> → <b>' + cwTo + '</b>',
+        'ピット作業 +' + cwNow.pit.toFixed(2) + '秒 → +' + cwAfter.pit.toFixed(2) + '秒' +
+        '／信頼性 -' + cwNow.rel.toFixed(1) + ' → -' + cwAfter.rel.toFixed(1) +
+        '／作業ミス ' + (cwNow.mistake * 100).toFixed(1) + '% → ' +
+        (cwAfter.mistake * 100).toFixed(1) + '%');
+
+    // ③ マシンのコンディション
+    h += '<div class="sub small">🏎️ マシンのコンディション</div>' +
+      row('信頼性', '<b>' + Math.round(relNow) + '%</b> → <b>' + Math.round(relAfter) + '%</b>',
+        '積んでいる部品が一律 +' + REST.cond[0] + '〜' + REST.cond[1] +
+        '。大きく戻したいときは「🛠️ 整備」のほうが効きます');
+
+    // ④ 徹夜の反動
+    const rowN = g.crunchRow || 0;
+    h += '<div class="sub small">🌙 徹夜の反動</div>' +
+      row('連続徹夜', rowN ? '<b>' + rowN + '週ぶん</b> → <b>0</b>' : '<b>なし</b>',
+        rowN ? '徹夜は続けるほど代償（調子とコンディションの減り、費用）が' +
+               '大きくなります。休むと初回のぶんまで戻ります'
+             : '徹夜を続けたあとに休むと、積み上がった代償が抜けます');
+    return h;
+  }
+
   function cmdRest() {
+    U.popup('☕ 休養', restPreviewHTML(), [
+      { label: '☕ 休む（1週）', cls: 'primary', fn: () => { U.closePopup(); doRest(); } },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+  }
+
+  function doRest() {
     g.crunchRow = 0;                 // 休むと徹夜の反動が抜ける
-    g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(6, 14) * S.persOf(d).rest, 62, 122); });
+    const before = (g.drivers || []).map(d => d.form);
+    g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(REST.form[0], REST.form[1]) * S.persOf(d).rest, 62, 122); });
     D.PART_CATS.forEach(c => {
       const p = g.equipped[c.key];
-      if (p) p.cond = S.clamp(p.cond + S.rnd(3, 7), 10, 100);
+      if (p) p.cond = S.clamp(p.cond + S.rnd(REST.cond[0], REST.cond[1]), 10, 100);
     });
-    S.restCrew(g, S.rnd(14, 22));
-    U.log(g, '☕ チーム全体で休養をとった。コンディションとクルーの疲労が回復した。');
+    const crewBefore = Math.round(S.crewPenalty(g).level);
+    S.restCrew(g, S.rnd(REST.crew[0], REST.crew[1]));
+    const crewAfter = Math.round(S.crewPenalty(g).level);
+    // 何がどれだけ戻ったのかを、そのまま書き残す
+    const forms = (g.drivers || []).map((d, i) =>
+      esc(d.name) + ' ' + Math.round(before[i]) + '→' + Math.round(d.form)).join('／');
+    U.log(g, '☕ チーム全体で休養をとった。調子 ' + forms +
+      '／クルーの疲労 ' + crewBefore + '→' + crewAfter + '。');
     U.pop('☕ 回復', 'good');
     endWeek();
   }
