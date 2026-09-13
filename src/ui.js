@@ -872,16 +872,44 @@ GP.ui = (function () {
     const secs = Array.prototype.slice.call(body.querySelectorAll('.msec'));
     const nav = document.createElement('div');
     nav.className = 'msecbar';
+    /* どの区画を開けているのかを、並びのほうにも出す */
+    const paint = () => {
+      secs.forEach((sec, i) => {
+        const b = nav.children[i];
+        if (b) b.className = sec.classList.contains('closed') ? '' : 'on';
+      });
+    };
+    /* 一度に開いているのはひとつだけ。
+       全部開いていたころは、設計室で最初の選択肢まで
+       1,231px（画面2枚弱）スクロールさせていた      */
+    const openOnly = (sec) => {
+      secs.forEach(x => { if (x !== sec) x.classList.add('closed'); });
+      sec.classList.remove('closed');
+      paint();
+    };
     secs.forEach((sec, i) => {
       const b = document.createElement('button');
       b.textContent = (sec.firstChild.textContent || '').trim();
       b.onclick = () => {
-        sec.classList.remove('closed');
-        body.scrollTop = sec.offsetTop - nav.offsetHeight - 4;
+        openOnly(sec);
+        body.scrollTop = Math.max(0, sec.offsetTop - nav.offsetHeight - 4);
+        /* 並びは貼りつくし、閉じたひょうしで上の高さも変わる。
+           計算で当てに行くと、見出しが画面の上に逃げる。
+           置いてから実寸を測って、行き過ぎたぶんを戻す   */
+        requestAnimationFrame(() => {
+          const d = sec.getBoundingClientRect().top -
+                    (nav.getBoundingClientRect().bottom + 4);
+          if (Math.abs(d) > 2) body.scrollTop += d;
+        });
       };
       nav.appendChild(b);
+      /* 見出しを触ったときも、並びの表示を合わせる */
+      const was = sec.firstChild.onclick;
+      sec.firstChild.onclick = () => { if (was) was(); paint(); };
     });
     body.insertBefore(nav, secs[0]);
+    /* 開いて始めるのは最初の区画だけ */
+    openOnly(secs[0]);
   }
   /* =======================================================
      継手（噛み合いの一組）

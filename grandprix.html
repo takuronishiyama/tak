@@ -2632,15 +2632,23 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .msecbar button{background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
                 font-size:11px;padding:4px 9px;box-shadow:0 2px 0 rgba(74,47,26,.35);white-space:nowrap}
 .msecbar button:active{transform:translateY(2px);box-shadow:0 0 0}
+/* いま開いている区画。一度にひとつだけ開くので、
+   この並びそのものが「いまどこに居るか」になる */
+.msecbar button.on{background:var(--headbg2);color:var(--headfg)}
 .msec{margin-bottom:2px}
-.msec-h{cursor:pointer;position:-webkit-sticky;position:sticky;top:34px;z-index:4;
+/* 見出しは貼りつかせない。
+   一度に開く区画がひとつだけになって、
+   「いまどこに居るか」は上の並びが言っている。
+   貼りついたままだと、飛んだ先で
+   説明文の頭を覚って隠してしまう（実際そうなっていた） */
+.msec-h{cursor:pointer;position:relative;z-index:4;
         display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box}
 .msec-h::after{content:'▾';margin-left:auto;font-size:11px;opacity:.8}
 .msec.closed > .msec-h::after{content:'▸'}
 .msec.closed > *:not(.msec-h){display:none}
 @media (max-width:520px), (hover:none) and (pointer:coarse){
   .msecbar button{font-size:12px;padding:7px 10px;min-height:36px}
-  .msec-h{min-height:36px;top:44px}
+  .msec-h{min-height:36px}
 }
 
 /* ---- モーダルの見出しに出す手持ち ---- */
@@ -32898,16 +32906,44 @@ GP.ui = (function () {
     const secs = Array.prototype.slice.call(body.querySelectorAll('.msec'));
     const nav = document.createElement('div');
     nav.className = 'msecbar';
+    /* どの区画を開けているのかを、並びのほうにも出す */
+    const paint = () => {
+      secs.forEach((sec, i) => {
+        const b = nav.children[i];
+        if (b) b.className = sec.classList.contains('closed') ? '' : 'on';
+      });
+    };
+    /* 一度に開いているのはひとつだけ。
+       全部開いていたころは、設計室で最初の選択肢まで
+       1,231px（画面2枚弱）スクロールさせていた      */
+    const openOnly = (sec) => {
+      secs.forEach(x => { if (x !== sec) x.classList.add('closed'); });
+      sec.classList.remove('closed');
+      paint();
+    };
     secs.forEach((sec, i) => {
       const b = document.createElement('button');
       b.textContent = (sec.firstChild.textContent || '').trim();
       b.onclick = () => {
-        sec.classList.remove('closed');
-        body.scrollTop = sec.offsetTop - nav.offsetHeight - 4;
+        openOnly(sec);
+        body.scrollTop = Math.max(0, sec.offsetTop - nav.offsetHeight - 4);
+        /* 並びは貼りつくし、閉じたひょうしで上の高さも変わる。
+           計算で当てに行くと、見出しが画面の上に逃げる。
+           置いてから実寸を測って、行き過ぎたぶんを戻す   */
+        requestAnimationFrame(() => {
+          const d = sec.getBoundingClientRect().top -
+                    (nav.getBoundingClientRect().bottom + 4);
+          if (Math.abs(d) > 2) body.scrollTop += d;
+        });
       };
       nav.appendChild(b);
+      /* 見出しを触ったときも、並びの表示を合わせる */
+      const was = sec.firstChild.onclick;
+      sec.firstChild.onclick = () => { if (was) was(); paint(); };
     });
     body.insertBefore(nav, secs[0]);
+    /* 開いて始めるのは最初の区画だけ */
+    openOnly(secs[0]);
   }
   /* =======================================================
      継手（噛み合いの一組）
