@@ -89,6 +89,7 @@ GP.screens.dev = function (A) {
   function cmdCar() {
     const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
+    const cst = carStates();
     /* 選ぶものを先に置く。
        この画面は「どれを1週ぶん使うか」を決めに来る場所で、
        輪の絵と成り立ちは、その判断の材料。
@@ -116,16 +117,16 @@ GP.screens.dev = function (A) {
       '<div class="pick">' +
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
         'ひらめきを図面に落とし、素材と技術を積み上げる。' +
-        '<b>パーツそのものには手を入れません</b>——それは工房の仕事です', 'des') +
+        '<b>パーツそのものには手を入れません</b>——それは工房の仕事です', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
         'パーツを作り、いま積んでいるものを煮詰める。' +
-        '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop') +
+        '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
         '扇の中をまとめ、扇どうしをつなぐ。' +
-        '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp') +
+        '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp', cst.imp) +
       carPickHTML('🔬', '研究所', '― 行ける向きを増やす',
         '方針が引いた線そのものを押し広げる。' +
-        '「この車では行けない」はずだった向きへ、行けるようになります', 'res') +
+        '「この車では行けない」はずだった向きへ、行けるようになります', 'res', cst.res) +
       '</div>' +
       // ここから下は、その判断の材料
       '<div class="sub">いまの車</div>' +
@@ -344,12 +345,51 @@ GP.screens.dev = function (A) {
       '<b class="mchip" title="' + esc(m.note) + '">' + m.icon + ' ' + m.name + '</b>';
   }
 
-  function carPickHTML(icon, name, sub, note, key) {
+  /* note はこちらで書いた文で、中に <b> が入っている。
+     esc に通していたので、画面に「<b>…</b>」がそのまま出ていた。
+     入口の4つとも、いちばん肝心な一節がタグごと読めなくなっていた */
+  function carPickHTML(icon, name, sub, note, key, state) {
     return '<button class="pickbtn" data-car="' + key + '">' +
       '<span class="pb-ic" style="font-size:19px">' + icon + '</span>' +
       '<span class="pb-body"><b>' + name + '</b><small>' + esc(sub) +
-      '<br><em>' + esc(note) + '</em></small></span>' +
+      '<br><em>' + note + '</em>' +
+      (state ? '<br><i class="carstate">' + state + '</i>' : '') +
+      '</small></span>' +
       '<span class="pb-cost">1週</span></button>';
+  }
+
+  /* ---- 入口の4つに、いまの手持ちを出す ----
+     どれも「1週」としか書いていなかったので、
+     何を持っていて、どこを叩けば進むのかが読めなかった。
+     その場所の在庫を一行だけ添える                        */
+  function carStates() {
+    const ideaN = S.ideaList(g).length;
+    const lv = D.PART_CATS.map(c => S.lineOf(g, c.key).lv);
+    const lnAvg = lv.reduce((a, x) => a + x, 0) / Math.max(1, lv.length);
+    /* 工房の仕事は「作る」と「煮詰める」。
+       積んでいる数より、上限までどれだけ詰められているかのほうが、
+       いま行くべきかどうかの役に立つ                          */
+    let fill = 0, fn = 0;
+    D.PART_CATS.forEach(c => {
+      const pt = g.equipped[c.key];
+      if (!pt) return;
+      const cap = S.partCap(g, pt);
+      if (cap > 0) { fill += Math.min(1, pt.power / cap); fn++; }
+    });
+    const fillPct = fn ? Math.round(fill / fn * 100) : 0;
+    const it = Math.round(S.integrateRate(g).rate * 100);
+    const cn = S.conceptOf(g);
+    return {
+      des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
+           (ideaN ? '' : '（いまは素材と技術を積む場所）'),
+      shop: '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>' +
+            '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
+      imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
+           '（持っているものが、どれだけ外へ出ているか）',
+      res: '🔬 研究ポイント <b>' + Math.floor(g.rp || 0) + '</b>' +
+           (cn ? '　📋 ' + cn.icon + ' ' + esc(cn.name) + ' の線を押し広げる'
+                : '　方針がまだ無いので、溜めておく段階')
+    };
   }
 
   /* =======================================================

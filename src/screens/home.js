@@ -400,15 +400,16 @@ GP.screens.home = function (A) {
       const y = (ev.clientY - r.top) * (GP.base.H / r.height);
       const k = GP.base.hit(x, y);
       if (k) {
-        const wasFac = baseTab === 'fac';
+        const tab = baseTab;
         baseSel = k;
         // 事業や遠征を見ている最中に建物を押したら、その施設の話へ戻す
         if (baseTab === 'est' || baseTab === 'logi') baseTab = 'fac';
         GP.sound.play('tap');
         drawBase();
-        /* 「広げる」を見ている最中なら、その場で決断を出す。
+        /* 見ている種類に合わせて、その場で小窓を出す。
            下まで下りていってボタンを探す往復が要らなくなる    */
-        if (wasFac) openFacUp(k);
+        if (tab === 'fac') openFacUp(k);
+        else if (tab === 'gear') openGearList(k);
       }
     };
   }
@@ -417,43 +418,24 @@ GP.screens.home = function (A) {
      建物を大きくするのが「規模」なら、こちらは「中身」。
      現場に良い道具を入れ、まともに休める場所を作る。
      一度買えば残り、施設のレベルが足りないと置く場所がない。     */
-  function gearBoxHTML(fac) {
-    const list = S.gearList(g, fac);
-    if (!list.length) return '';
+  function gearLeadHTML() {
     const tier = S.envTier(g), sc = S.envScore(g);
-    let h = '<div class="sub small">備品と職場環境</div>' +
-      '<div class="envbox"><b>' + tier.icon + ' ' + tier.name + '<em>働きやすさ ' + sc + '</em></b>' +
+    const up = S.gearUpkeep(g);
+    return '<div class="sub small">備品と職場環境</div>' +
+      '<div class="envbox"><b>' + tier.icon + ' ' + tier.name +
+      '<em>働きやすさ ' + sc + '</em></b>' +
       '<small>' + esc(tier.desc) + '　—　スタッフの伸び <b>+' +
       Math.round(sc * D.ENVW.growth * 100) + '%</b>／引き抜かれにくさ <b>+' +
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
-      '<div class="pick gearpick">';
-    list.forEach(x => {
-      const can = !x.owned && x.open && g.funds >= x.price;
-      const off = x.price < x.cost;
-      /* 買えないものも押せるようにしてある。
-         押せないと「なぜ買えないのか」を読む手がない。
-         小窓のほうで、足りないものを言う           */
-      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : can ? '' : ' cant') +
-        '" data-gear="' + fac + ':' + x.key + '">' +
-        '<span class="pb-ic">' + x.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(x.name) +
-          (x.owned ? '<em class="gowned">導入済み</em>'
-                   : !x.open ? '<em class="warn">Lv.' + x.need + ' から</em>' : '') + '</b>' +
-        '<small><b>' + esc(x.eff) + '</b>' + (x.env ? '　働きやすさ +' + x.env : '') +
-        '　維持 💰' + money(x.up) + '万/週' +
-        '<br><em class="pnote">' + esc(x.note) + '</em></small></span>' +
-        '<span class="pb-cost">' + (x.owned ? '—'
-          : (off ? '<s>' + money(x.cost) + '</s><br>' : '') + '💰' + money(x.price)) +
-        '</span></button>';
-    });
-    const up = S.gearUpkeep(g);
-    h += '</div><p class="note">🔧 いま持っている装備の維持費は <b>💰' + money(up.net) +
+      '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>です。' +
+      '上の施設を押すと、そこに据えられる備品が出ます。一度買えば残ります。</p>' +
+      '<p class="note">🔧 いま持っている装備の維持費は <b>💰' + money(up.net) +
       '万／週</b>です' + (up.cut > 0
         ? '（サプライヤーの割引 <b>-' + Math.round(up.cut * 100) + '%</b> 込み。定価なら ' +
           money(up.raw) + '万）'
-        : '（サプライヤーと組むと下げられます）') + '。買った道具は、置いてあるだけで金を食います。</p>';
-    return h;
+        : '（サプライヤーと組むと下げられます）') + '。</p>';
   }
+
   /* ---- 事業 ----
      本拠地の外に持つもの。レースで勝つための設備ではなく、
      チームが街に根を張るための場所                                 */
@@ -763,7 +745,56 @@ GP.screens.home = function (A) {
   /* ---- 備品を買う小窓 ----
      押した瞬間に数千万が出ていくのは、スマホでは事故になる。
      何をいくらで買って何が起きるのかを、決める前に一度見せる  */
-  function openGearBuy(fac, key) {
+  /* ---- ある施設の備品を、まとめて小窓で見せる ----
+     施設を広げるのと同じ形。押した施設の話がその場で出て、
+     一覧まで下りていく必要がない。
+     前は施設を選び直すだけで、備品は9行の下に隠れていた    */
+  function openGearList(fac) {
+    const f = D.FACILITIES.find(y => y.key === fac);
+    const list = S.gearList(g, fac);
+    const lv = g.facilities[fac];
+    const got = list.filter(x => x.owned).length;
+    const tier = S.envTier(g), sc = S.envScore(g);
+    const up = S.gearUpkeep(g);
+    let h = '<div class="popsum"><span class="pb-ic">' + (f ? f.icon : '🧰') + '</span>' +
+      '<span class="popsum-b"><b>' + esc(f ? f.name : '') + ' の備品</b>' +
+      '<small>Lv.' + lv + '　入れたもの ' + got + ' / ' + list.length + '</small></span></div>';
+    if (!list.length) {
+      h += '<p class="desc">この施設に据えられる備品はありません。</p>';
+      return U.popup('🧰 ' + (f ? f.icon + ' ' + f.name : '備品'), h,
+        [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    }
+    h += '<div class="envbox"><b>' + tier.icon + ' ' + tier.name +
+      '<em>働きやすさ ' + sc + '</em></b>' +
+      '<small>スタッフの伸び <b>+' + Math.round(sc * D.ENVW.growth * 100) + '%</b>' +
+      '／引き抜かれにくさ <b>+' + Math.round(Math.min(65, sc * D.ENVW.keep * 100)) +
+      '%</b></small></div>' +
+      '<div class="pick gearpick">';
+    list.forEach(x => {
+      const can = !x.owned && x.open && g.funds >= x.price;
+      const off = x.price < x.cost;
+      h += '<button class="pickbtn gearrow' + (x.owned ? ' done' : can ? '' : ' cant') +
+        '" data-gpop="' + x.key + '">' +
+        '<span class="pb-ic">' + x.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(x.name) +
+          (x.owned ? '<em class="gowned">導入済み</em>'
+                   : !x.open ? '<em class="warn">Lv.' + x.need + ' から</em>' : '') + '</b>' +
+        '<small><b>' + esc(x.eff) + '</b>' + (x.env ? '　働きやすさ +' + x.env : '') +
+        '　維持 💰' + money(x.up) + '万/週</small></span>' +
+        '<span class="pb-cost">' + (x.owned ? '—'
+          : (off ? '<s>' + money(x.cost) + '</s><br>' : '') + '💰' + money(x.price)) +
+        '</span></button>';
+    });
+    h += '</div><p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
+      money(up.net) + '万／週</b>です。買った道具は、置いてあるだけで金を食います。</p>';
+    const box = U.popup('🧰 ' + (f ? f.icon + ' ' + f.name : '備品'), h,
+      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-gpop]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openGearBuy(fac, b.dataset.gpop, true); };
+    });
+  }
+
+  function openGearBuy(fac, key, fromList) {
     const x = (S.gearList(g, fac) || []).filter(y => y.key === key)[0];
     if (!x) return;
     const f = D.FACILITIES.find(y => y.key === fac);
@@ -792,6 +823,9 @@ GP.screens.home = function (A) {
       }
     }
     const can = !x.owned && x.open && g.funds >= x.price;
+    /* 一覧の小窓から来たときは、決めても・やめても一覧へ戻す。
+       続けてもう一つ入れたいことのほうが多い               */
+    const back = () => { if (fromList) openGearList(fac); else U.closePopup(); };
     U.popup('🧰 ' + x.icon + ' ' + x.name, h, [
       { label: x.owned ? '導入済み' : '🧰 入れる　💰' + money(x.price) + '万',
         cls: 'primary', disabled: !can,
@@ -804,22 +838,11 @@ GP.screens.home = function (A) {
           if (r.env) U.pop('働きやすさ +' + r.env, 'good');
           S.save(g); render();
           if ($('baseCv')) drawBase();
-          U.closePopup();
+          back();
         } },
-      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+      { label: fromList ? '戻る' : 'やめる',
+        fn: () => { GP.sound.play('tap'); back(); } }
     ]);
-  }
-
-  function bindGear() {
-    const box = $('baseDetail');
-    if (!box) return;
-    Array.prototype.forEach.call(box.querySelectorAll('[data-gear]'), b => {
-      b.onclick = () => {
-        const [fac, key] = b.dataset.gear.split(':');
-        GP.sound.play('tap');
-        openGearBuy(fac, key);
-      };
-    });
   }
 
   /* 施設を選ぶ並び。以前は1,700pxの最下段にあったので、
@@ -948,13 +971,12 @@ GP.screens.home = function (A) {
     } else if (baseTab === 'logi') {
       h += logiBoxHTML();
     } else {
-      h += facPickHTML() +
-        '<div class="sub">' + f.icon + ' ' + f.name + '</div>';
+      h += facPickHTML();
       if (baseTab === 'gear') {
-        h += gearBoxHTML(baseSel) ||
-             '<p class="desc">この施設に据えられる備品はありません。</p>';
+        h += gearLeadHTML();
       } else {
-        h += '<p class="desc">' + f.desc + '</p>' +
+        h += '<div class="sub">' + f.icon + ' ' + f.name + '</div>' +
+          '<p class="desc">' + f.desc + '</p>' +
           rigBoxHTML(baseSel) +
           '<div class="lvbar"><span>Lv.' + lv + '</span><i>';
         for (let i = 1; i <= 10; i++) h += '<b class="' + (i <= lv ? 'on' : '') + '"></b>';
@@ -982,7 +1004,6 @@ GP.screens.home = function (A) {
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-btab]'), b => {
       b.onclick = () => { baseTab = b.dataset.btab; GP.sound.play('tap'); drawBase(); };
     });
-    bindGear();
     bindEstate();
     if (baseTab === 'logi') bindLogi();
 
@@ -993,10 +1014,13 @@ GP.screens.home = function (A) {
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-fac]'), b => {
       b.onclick = () => {
         const k = b.dataset.fac;
-        const wasFac = baseTab === 'fac';
+        const tab = baseTab;
         baseSel = k; GP.sound.play('tap'); drawBase();
-        // 備品や事業を見ているときは、選び直すだけに留める
-        if (wasFac) openFacUp(k);
+        /* 施設そのものを見ているなら「広げる」の小窓、
+           備品を見ているならその施設の備品の小窓。
+           どちらも押した場所の話がその場で出る          */
+        if (tab === 'fac') openFacUp(k);
+        else if (tab === 'gear') openGearList(k);
       };
     });
   }
@@ -2401,28 +2425,30 @@ GP.screens.home = function (A) {
     let h = '<div class="sub">🧰 トラックサイド装備</div>' +
       '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
       '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
-      '<small>雨が来る時刻と、路面がどこへ落ち着くかを、どれだけ当てられるか。' +
-      '外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
       'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
       '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
       '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>' +
-      '<p class="desc">現地に持ち込むもの。上げるほど、週末の読みと段取りが良くなります。' +
-      '一度買えば残ります。</p><div class="pick gearpick">';
+      '<p class="desc">現地に持ち込むもの。一度買えば残ります。</p>' +
+      '<div class="pick gearpick">';
     S.kitList(g).forEach(k => {
       const d = k.def, t = k.tier, nx = k.next;
       const pr = S.kitPrice(g, d.key);
       const can = nx && pr && g.funds >= pr.price;
-      h += '<button class="pickbtn kitrow" data-kit="' + d.key + '"' + (can ? '' : ' disabled') + '>' +
+      /* 買えないものも押せるようにする。押せないと
+         「なぜ持ち込めないのか」を読む手がどこにもない      */
+      h += '<button class="pickbtn kitrow' + (can ? '' : ' cant') + '" data-kit="' + d.key + '">' +
         '<span class="pb-ic" style="background:#5a6270">' + t.icon + '</span>' +
+        /* 行は名前と段だけ。次の段の説明と、その道具が何をするのかは
+           押したあとの小窓へ回す。4つとも一度に見えるようになる   */
         '<span class="pb-body"><b>' + d.icon + ' ' + d.name +
           '<em class="kitlv">' + (k.lv + 1) + ' / ' + d.tiers.length + '</em></b>' +
-        '<small><b>' + esc(t.name) + '</b>　' + esc(t.desc) +
+        '<small><b>' + esc(t.name) + '</b>' +
           '<span class="kitline">' + d.tiers.map((x, i) =>
             '<span class="kitx' + (i === k.lv ? ' on' : i < k.lv ? ' past' : '') + '" title="' +
             esc(x.name) + '">' + x.icon + '</span>').join('<u>→</u>') + '</span>' +
-          (nx ? '<span class="devup">次は <b>' + esc(nx.name) + '</b>：' + esc(nx.desc) + '</span>'
+          (nx ? '<span class="devup">次は <b>' + esc(nx.name) + '</b></span>'
               : '<span class="devup">これ以上はありません</span>') +
-          '<br><em class="pnote">' + esc(d.what) + '</em>' +
         '</small></span>' +
         '<span class="pb-cost">' + (nx && pr
           ? (pr.price < pr.list ? '<s>' + money(pr.list) + '</s><br>' : '') +
@@ -2431,16 +2457,56 @@ GP.screens.home = function (A) {
     });
     return h + '</div>';
   }
+  /* ---- 装備を1段上げる小窓 ----
+     備品・施設と同じ形。押した瞬間に数千万が出ていくのをやめ、
+     いま何段目で、次が何をしてくれて、いくらかかるのかを先に見せる */
+  function openKitBuy(key) {
+    const k = (S.kitList(g) || []).filter(x => x.def.key === key)[0];
+    if (!k) return;
+    const d = k.def, t = k.tier, nx = k.next;
+    const pr = S.kitPrice(g, d.key);
+    const short = nx && pr ? Math.max(0, pr.price - g.funds) : 0;
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' +
+      d.icon + '</span><span class="popsum-b"><b>' + esc(d.name) + '</b>' +
+      '<small>' + (k.lv + 1) + ' / ' + d.tiers.length + '　いまは ' + esc(t.name) + '</small>' +
+      '</span></div>' +
+      '<p class="desc">' + esc(d.what) + '</p>' +
+      '<div class="popcost"><span>いま</span><span><b>' + t.icon + ' ' + esc(t.name) +
+      '</b><br>' + esc(t.desc) + '</span></div>';
+    if (!nx) {
+      h += '<div class="popcost"><span>これ以上はありません</span></div>';
+    } else {
+      h += '<div class="popcost"><span>次の段</span><span><b>' + nx.icon + ' ' + esc(nx.name) +
+        '</b><br>' + esc(nx.desc) + '</span></div>' +
+        '<div class="popcost"><span>費用</span><span>' +
+        (pr.price < pr.list ? '<s>💰' + money(pr.list) + '</s> ' : '') +
+        '<b>💰' + money(pr.price) + '万</b></span></div>' +
+        '<p class="note">持ち込んだ道具は、置いてあるだけで <b>💰' + money(pr.up) +
+        '万／週</b> の維持費がかかります。</p>';
+      if (short > 0) {
+        h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+          money(short) + '万</b> です。</p>';
+      }
+    }
+    const can = !!(nx && pr && g.funds >= pr.price);
+    U.popup('🧰 ' + d.icon + ' ' + d.name, h, [
+      { label: nx ? '🧰 持ち込む　💰' + money(pr.price) + '万' : '上限です',
+        cls: 'primary', disabled: !can,
+        fn: () => {
+          const r = S.buyKit(g, key);
+          if (!r) return;
+          GP.sound.play('build');
+          U.log(g, r.icon + ' ' + r.name + ' を持ち込むことにした（' + r.desc + '）', 'good');
+          U.toast(r.icon + ' ' + r.name + '！', 'good');
+          S.save(g); render(); U.closePopup(); cmdLogi();
+        } },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
+  }
+
   function bindKit() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-kit]'), b => {
-      b.onclick = () => {
-        const t = S.buyKit(g, b.dataset.kit);
-        if (!t) return;
-        GP.sound.play('build');
-        U.log(g, t.icon + ' ' + t.name + ' を持ち込むことにした（' + t.desc + '）', 'good');
-        U.toast(t.icon + ' ' + t.name + '！', 'good');
-        S.save(g); render(); cmdLogi();
-      };
+      b.onclick = () => { GP.sound.play('tap'); openKitBuy(b.dataset.kit); };
     });
   }
 
@@ -2460,10 +2526,15 @@ GP.screens.home = function (A) {
     const lvl = Math.round(cw.level);
     const state = lvl < 20 ? { t: '万全', c: 'good' } : lvl < 45 ? { t: 'ふつう', c: '' }
                 : lvl < 70 ? { t: '疲れが見える', c: 'warn' } : { t: '限界', c: 'bad' };
-    let body = '<p class="desc">運び方しだいで、資金・クルーの疲れ・現地での支度の進み具合が変わります。'
+    /* 装備は「今回どう運ぶか」ではなく「何を持っているか」の話。
+       疲労・次戦の費用・この先の日程は、その判断には要らない。
+       置いたままだと一覧が画面2枚ぶん下に沈んで、届かなかった  */
+    const kitOnly = logiTab === 'kit';
+    let body = kitOnly ? '' :
+      '<p class="desc">運び方しだいで、資金・クルーの疲れ・現地での支度の進み具合が変わります。'
       + U.helpLink('logi') + '</p>';
 
-    body += '<div class="logi-crew"><b>🧑‍🔧 クルーの疲労</b>' +
+    if (!kitOnly) body += '<div class="logi-crew"><b>🧑‍🔧 クルーの疲労</b>' +
       '<span class="skbar big"><i class="f' + (lvl < 45 ? '0' : lvl < 70 ? '1' : '2') +
       '" style="width:' + lvl + '%"></i></span>' +
       '<em class="' + state.c + '">' + lvl + ' / 100　' + state.t + '</em>' +
@@ -2485,7 +2556,7 @@ GP.screens.home = function (A) {
     const nowCost = S.logiCost(g, nextTrack);
     const nowRisk = S.logiRisk(g, nextTrack);
 
-    body += '<div class="logi-now"><b>🌍 次戦 ' + nextTrack.country + ' ' + esc(nextTrack.name) +
+    if (!kitOnly) body += '<div class="logi-now"><b>🌍 次戦 ' + nextTrack.country + ' ' + esc(nextTrack.name) +
       '</b><span>距離 ' + (nextTrack.far >= 1.35 ? '★★★ 遠い' :
         nextTrack.far >= 1.0 ? '★★ ふつう' : '★ 近い') +
       '（費用 ×' + nextTrack.far.toFixed(2) + '）</span>' +
@@ -2589,6 +2660,8 @@ GP.screens.home = function (A) {
       body += '</div>';
     }
 
+    if (kitOnly) return body + kitBoxHTML();
+
     // ---- この先のコースと、かかる費用の見通し ----
     body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
     for (let k = 0; k < 4; k++) {
@@ -2609,7 +2682,6 @@ GP.screens.home = function (A) {
         ? '　✈️ スポンサー割引 <b>-' + Math.round(S.perkCut(g, 'logi') * 100) + '%</b>' : '') +
       U.helpLink('logi') + '</p>';
 
-    if (logiTab === 'kit') body += kitBoxHTML();
     return body;
   }
 
@@ -2650,7 +2722,8 @@ GP.screens.home = function (A) {
        総当たりする検査がここへ一度も入れず、NaN が残っていた   */
     api: { cmdGarage: cmdGarage, garageHTML: garageHTML, bindGarage: bindGarage,
            openFuse: openFuse, openFacUp: openFacUp,
-           openGearBuy: openGearBuy, openEstateBuy: openEstateBuy,
+           openGearBuy: openGearBuy, openGearList: openGearList,
+           openKitBuy: openKitBuy, openEstateBuy: openEstateBuy,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };
