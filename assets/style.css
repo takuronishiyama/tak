@@ -1547,6 +1547,10 @@ body[data-skin="hd"]{
 [data-skin="hd"] .overchip{background:#3f7a3f;color:#eaffe4}
 
 .devnow,.devup{display:block;font-size:9.5px;line-height:1.5;margin-top:2px}
+/* 開発の行の中では、バーは必ず行を変えて置く。
+   inline のままだと、上の文字が短い行だけ
+   右に回り込んで、行ごとに位置がずれる        */
+.devrow .skbar{display:block;margin-top:3px;width:96px}
 .devnow{color:var(--ink2)}
 .devup{color:#2f5f7a;font-weight:bold}
 .devup b{color:#1f4a1f}

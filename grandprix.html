@@ -1562,6 +1562,10 @@ body[data-skin="hd"]{
 [data-skin="hd"] .overchip{background:#3f7a3f;color:#eaffe4}
 
 .devnow,.devup{display:block;font-size:9.5px;line-height:1.5;margin-top:2px}
+/* 開発の行の中では、バーは必ず行を変えて置く。
+   inline のままだと、上の文字が短い行だけ
+   右に回り込んで、行ごとに位置がずれる        */
+.devrow .skbar{display:block;margin-top:3px;width:96px}
 .devnow{color:var(--ink2)}
 .devup{color:#2f5f7a;font-weight:bold}
 .devup b{color:#1f4a1f}
@@ -21969,12 +21973,21 @@ GP.screens.dev = function (A) {
       devRow['imp:' + c.key] = {
         ic: U.partIcon(c.key, 26, 0), bg: c.color, head: '🔧 煮詰める',
         name: esc(p.name) + ' を煮詰める', sub: c.name,
+        /* 行には「選ぶのに要るもの」だけを置き、
+           中身はここで引き取る。行に全部詰めると、
+           七つの数字が1行に並んで、どれも読まれなくなる   */
         lines: locked ? [['いまはできません', '供給を受けている間は手を入れられません']]
           : [['いまの性能', '<b>' + Math.round(p.power) + '</b> / 上限 ' + cap + '（' + pct + '%）'],
+             ['いまの寄与', nowLine || '—'],
              ['1回で', '性能 <b>+' + (Math.round(pv.gain * 10) / 10) + '</b>' +
-              (upLine ? '<br>' + upLine : '')],
+              (upLine ? '<br>' + upLine : '') +
+              (pv.toNext > 0.05 ? '<br>＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '')],
              ['速さにすると', '<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
-              Math.abs(pv.dSec).toFixed(3) + '秒/周</b>']],
+              Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
+              (secGainLine(pv) ? '<br>' + secGainLine(pv) : '')],
+             ['この個体の上限', qualChip(p) + ' <b>' + cap + '</b><br>' +
+              '<small>世代 ' + D.CAR_GENS[g.carGen].cap + ' × 品質 ' +
+              S.qualOf(p).toFixed(2) + '</small>']],
         note: capped ? '上限に届いています。これ以上は伸びが3割まで落ちます。' : '',
         free: !!useTicket, money: cost, rp: c.rp,
         why: locked ? '供給中のパワーユニットは、こちらでは開発できません。'
@@ -21989,26 +22002,14 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(p.name) +
         (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') +
         '</b>' +
-        '<small>' + c.name + '　性能 <b>' + Math.round(p.power) + '</b> / 上限 ' + cap +
+        '<small>' + c.name + '　<b>' + Math.round(p.power) + '</b> / ' + cap +
         '（' + pct + '%）' +
-        (locked ? ' <em class="warn">供給中は開発できません</em>'
-                : (capped ? ' <em class="warn">上限到達。伸びは3割まで落ちます</em>' : '')) +
+        (locked ? ' <em class="warn">供給中</em>'
+                : (capped ? ' <em class="warn">上限到達</em>' : '')) +
         '<span class="skbar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
-        '<span class="devnow">いまの寄与 ' + (nowLine || '—') + '</span>' +
         (locked ? '' :
-          '<span class="devup">1回で 性能 +' + (Math.round(pv.gain * 10) / 10) +
-          (upLine ? '　→　' + upLine : '') +
-          '　<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') + Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
-          secGainLine(pv) +
-          (pv.toNext > 0.05 ? '　＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '') + '</span>') +
-        /* 品質。上限がどこで止まるかは、この個体の出来で決まっている。
-           改良では動かないので、これ以上を望むなら作り直すしかない */
-        (locked ? '' :
-          '<span class="devpol">' + qualChip(p) +
-          '　この個体の上限は <b>' + cap + '</b>（世代 ' +
-          D.CAR_GENS[g.carGen].cap + ' × 品質 ' + S.qualOf(p).toFixed(2) + '）' +
-          (capped ? '　<b class="warn">作り直せば、もっと良い個体が出るかもしれません</b>' : '') +
-          '</span>') +
+          '<span class="devup">1回で <b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
+          Math.abs(pv.dSec).toFixed(3) + '秒/周</b></span>') +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
           '💰' + money(cost) + '<br>🔬' + c.rp + '</span></button>';
@@ -22136,10 +22137,12 @@ GP.screens.dev = function (A) {
         devRow['bdy:' + a.key] = {
           ic: a.icon, bg: a.color, head: '🔧 まとめる',
           name: a.name + ' をまとめる', sub: a.eff,
-          lines: [['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
+          lines: [['この項目は', esc(a.eff)],
+                  ['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
                    (Math.round(v * 10) / 10) + ' / ' + myCap + '）'],
                   ['1回で', 'インテグレート ' + (itNow.rate * 100).toFixed(1) +
-                   '% → <b>' + (r2 * 100).toFixed(1) + '%</b>'],
+                   '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
+                   (st.next > 0.05 ? '<br>＋来季へ ' + (Math.round(st.next * 10) / 10) : '')],
                   ['眠っていた速さが', '<b>+' + up.toFixed(1) + '</b> 起きます']],
           note: myCap < capAll
             ? 'コンセプトに逆らう向きなので、上限が低くなっています。' : '',
@@ -22157,15 +22160,9 @@ GP.screens.dev = function (A) {
           '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
           '<u style="left:50%"></u></span>' +
           '<span class="devnow">まとめ <b>' + Math.round(pct) + '%</b>' +
-          '（' + (Math.round(v * 10) / 10) + ' / ' + myCap + '）' +
-          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向きなので上限が低い</em>' : '') +
-          '</span>' +
-          '<span class="devup">1回で　インテグレート ' + (itNow.rate * 100).toFixed(1) +
-          '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
-          '　＝ 眠っていた速さが <b>+' + up.toFixed(1) + '</b> 起きます' +
-          (st.next > 0.05 ? '　＋来季へ ' + (Math.round(st.next * 10) / 10) : '') +
-          (capped ? '　<em class="warn">上限到達。伸びは3割まで落ちます</em>' : '') + '</span>' +
-          '<span class="deveff">' + a.eff + '</span>' +
+          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向き</em>' : '') +
+          (capped ? '　<em class="warn">上限到達</em>' : '') + '</span>' +
+          '<span class="devup">1回で 眠っていた速さが <b>+' + up.toFixed(1) + '</b></span>' +
           '</small></span>' +
           '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
             '💰' + money(cost) + '<br>🔬8' + '</span></button>';
@@ -22298,7 +22295,8 @@ GP.screens.dev = function (A) {
           : [['いまの効き', '<b>' + now + '</b>'],
              ['次の Lv.' + (t.lv + 1) + 'まで', '<b>あと ' + left + '回</b>'],
              ['上がると', esc(t.eff)]],
-        note: esc(t.desc) + '一度ものにした技術は、' +
+        note: esc(t.desc) + (maxed ? '' : '　' + esc(t.note)) +
+              '　一度ものにした技術は、' +
               'パーツを作り替えても失われません。',
         free: !!useTicket, money: c.money, rp: c.rp,
         why: maxed ? 'もう最高の Lv. です。' : devWhy(c.money, c.rp),
@@ -22309,11 +22307,10 @@ GP.screens.dev = function (A) {
         '<span class="pb-ic" style="background:' + t.color + '">' + t.icon + '</span>' +
         '<span class="pb-body"><b>' + t.name +
           '<em class="techlv">Lv.' + t.lv + ' / ' + t.max + '</em></b>' +
-        '<small>' + esc(t.desc) + '（' + t.eff + '）　いまの効き <b>' + now + '</b>' +
+        '<small>いまの効き <b>' + now + '</b>' +
         '<span class="techbar"><i style="width:' + Math.round((maxed ? 1 : t.p) * 100) + '%;background:' + t.color + '"></i></span>' +
         (maxed ? '<span class="devup">これ以上は上がりません</span>'
-               : '<span class="devup">あと ' + left + '回でLv.' + (t.lv + 1) + '　' +
-                 '<em class="pnote">' + esc(t.note) + '</em></span>') +
+               : '<span class="devup">あと <b>' + left + '回</b> で Lv.' + (t.lv + 1) + '</span>') +
         '</small></span>' +
         '<span class="pb-cost">' + (maxed ? '—'
           : (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
@@ -23367,8 +23364,7 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を作る</b>' +
         '<small>' + c.name + '　<em class="ln-tag">' + ln.icon + ' ' + esc(ln.name) +
         (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '') + '</em>' +
-        '<br><em class="pnote">' + esc(S.partNote(c.key, g.carGen)) +
-        '</em></small></span>' +
+        '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
           (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
           '💰' + money(dc.money) + '<br>🔬' + dc.rp + '</span></button>';
