@@ -816,6 +816,23 @@ body.preboot .topbar{visibility:hidden}
 /* 「→ インター」の札だけは、地を暗くして銘柄の色を字に回す。
    色地に白抜きだと、9px では明暗の比が 3.07 しかなく読めなかった */
 .rvw.want{background:#12100c;border-width:2px;padding:2px 7px}
+/* セクター3つのあとに置く「全体」。同じ物差しの札だが、少し押し出す */
+.rvw.all{margin-left:4px;box-shadow:0 0 0 2px rgba(255,238,196,.35)}
+.rvw b{font-weight:bold}
+.rvw b.wsh{display:none}
+/* 横に寝かせた画面と、狭い画面では、セクターの札は1文字に畳む。
+   「全体」だけは名前のまま残すので、いまどっちなのかは読める     */
+@media (orientation:landscape) and (max-height:520px),(max-width:430px){
+  .rvw b.wfull{display:none}
+  .rvw b.wsh{display:inline}
+  .rvw.all b.wfull{display:inline}
+  .rvw.all b.wsh{display:none}
+  /* 狭いところでは「全体」を先頭へ。帯が横に流れても、
+     まとめのひとつだけは必ず目に入る                       */
+  .rvw.all{order:-1;margin-left:0;margin-right:4px}
+  .rvw.all b.wlab{display:none}
+}
+.rvw-h.wash{color:#7fb8ff}
 
 /* レース画面に出す、いまの指示 */
 .rv-orders{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}
@@ -8019,7 +8036,14 @@ GP.data = (function () {
     start: 0.25,   // 決勝が始まる時点。予選と練習でこれくらいは乗っている
     gain:  0.11,   // 1周で乗る量（残りぶんに対する割合）
     wash:  0.55,   // 濡れ具合1.0のとき、1周でどれだけ流れるか
-    washFrom: 0.22,// これ以上濡れると流れはじめる
+    /* ---- 乗る／流れるの境目 ----
+       「ほぼドライ」まで乾けば乗りはじめ、乾くほど速く乗る。
+       ハーフウェット（0.42）より濡れていると、乗るより流れるほうが勝つ。
+       以前は 0.22 を境にしていたので、ドライの一歩手前までは
+       まったく乗らず、乾いていく途中の手ごたえがどこにも無かった   */
+    dryAt:   0.18, // ここまで乾いていれば満額で乗る（＝ドライ）
+    buildTo: 0.42, // ここまでは乗る（＝ほぼドライ）。これ以上濡れると流れる
+    washFrom: 0.42,// 旧名。流れはじめる境目（buildTo と同じ）
     pace:  0.014,  // 乗りきったときのラップタイム短縮（-1.4%）
     calm:  0.25,   // 乗っているほどミスが減る割合
     LEVELS: [
@@ -8035,12 +8059,20 @@ GP.data = (function () {
      「ウェット」と出ていたらウェットタイヤが速い、と読めるようにするため。
        〜0.18 ドライ ／ 0.18〜0.42 湿り ／ 0.42〜0.67 ハーフ
        0.67〜0.88 ウェット ／ 0.88〜 大雨                           */
+  /* ---------- 路面の濡れ具合 ----------
+     乾いているほうから5段。セクターごとにも、全体にも同じ物差しを使う。
+     呼び名は「ドライ → フルウェット」の一本の線として読めるようにしてある。
+     以前は ドライ／湿り／ハーフ／ウェット／大雨 と、語の系統が
+     混ざっていて、どちらが濡れているのかが名前から読めなかった。
+
+     ラバーが乗りはじめるのは「ほぼドライ」から（RUBBER.buildTo）。
+     そこから乾くほど速く乗り、ハーフウェットより濡れると流れる     */
   const WET_LEVELS = [
-    { at: 0.18, name: 'ドライ',   short: 'D', color: '#c8a86a', tyre: 'medium' },
-    { at: 0.42, name: '湿り',     short: 'd', color: '#9aae7a', tyre: 'inter' },
-    { at: 0.67, name: 'ハーフ',   short: 'H', color: '#5f9e6a', tyre: 'inter' },
-    { at: 0.88, name: 'ウェット', short: 'W', color: '#3f86c0', tyre: 'wet' },
-    { at: 1.01, name: '大雨',     short: 'X', color: '#2a5fa0', tyre: 'wet' }
+    { at: 0.18, name: 'ドライ',         short: 'D', color: '#c8a86a', tyre: 'medium' },
+    { at: 0.42, name: 'ほぼドライ',     short: 'd', color: '#9aae7a', tyre: 'inter' },
+    { at: 0.67, name: 'ハーフウェット', short: 'H', color: '#5f9e6a', tyre: 'inter' },
+    { at: 0.88, name: 'ウェット',       short: 'W', color: '#3f86c0', tyre: 'wet' },
+    { at: 1.01, name: 'フルウェット',   short: 'X', color: '#2a5fa0', tyre: 'wet' }
   ];
 
   /* ---------- 天候 ---------- */
@@ -15522,16 +15554,22 @@ GP.race = (function () {
          走るほどゴムが乗ってグリップが上がる。雨が降れば流れる  */
       {
         const wn = wetAvg();
-        if (wn > D.RUBBER.washFrom) {
+        const R = D.RUBBER;
+        if (wn >= R.buildTo) {
+          // ハーフウェットより濡れていると、乗るより流れるほうが勝つ
           const before = rubber;
-          rubber = Math.max(0, rubber - wn * D.RUBBER.wash);
+          rubber = Math.max(0, rubber - wn * R.wash);
           if (before >= 0.35 && rubber < 0.15 && !rubberWashed) {
             rubberWashed = true;
             events.push({ lap: lap, type: 'weather',
               text: '🌧️ 乗っていたラバーが雨で流れた。路面は一度まっさらに戻る' });
           }
         } else {
-          rubber = Math.min(1, rubber + D.RUBBER.gain * (1 - rubber));
+          /* 「ほぼドライ」から乗りはじめ、乾くほど速く乗る。
+             乾いていく途中にも手ごたえが出るようにしてある    */
+          const f = wn <= R.dryAt ? 1
+            : Math.max(0, 1 - (wn - R.dryAt) / Math.max(0.01, R.buildTo - R.dryAt));
+          rubber = Math.min(1, rubber + R.gain * f * (1 - rubber));
           if (rubber > 0.35) rubberWashed = false;
         }
         rubberLog[lap - 1] = Math.round(rubber * 100) / 100;
@@ -18461,11 +18499,22 @@ GP.raceview = (function () {
       else {
         const R = GP.data.RUBBER;
         const lv = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+        /* いま乗っているのか流れているのかを、路面の段と結びつけて出す。
+           「ラバー」と「路面」が別々の帯に出ていたので、
+           乾いてきたらゴムが乗る、という関係が読めなかった        */
+        const wl2 = (res.wetLog || [])[Math.max(0, lap - 1)];
+        const wAvg = wl2 ? (wl2[0] + wl2[1] + wl2[2]) / 3 : 0;
+        const build = wAvg < R.buildTo;
+        const state = !build ? '雨で流れています'
+          : wAvg <= R.dryAt ? '乗っています'
+          : 'すこしずつ乗っています';
         rb.innerHTML = '<i class="rvw-h">ラバー</i>' +
-          '<span class="rvrub" title="走るほどゴムが乗ってグリップが上がる。雨が降ると流れる" ' +
+          '<span class="rvrub" title="路面が「ほぼドライ」まで乾くとゴムが乗りはじめ、' +
+          '乾くほど速く乗ります。ハーフウェットより濡れると流れます" ' +
           'style="border-color:' + lv.color + '"><u style="width:' + Math.round(rv * 100) +
           '%;background:' + lv.color + '"></u></span>' +
-          '<i class="rvw-h">' + lv.name + '</i>';
+          '<i class="rvw-h">' + lv.name + '</i>' +
+          '<i class="rvw-h' + (build ? '' : ' wash') + '">' + state + '</i>';
       }
     }
 
@@ -18516,11 +18565,22 @@ GP.raceview = (function () {
         // 「ウェットと出ているのにインターのまま」が起きないように
         const avg = (wl[0] + wl[1] + wl[2]) / 3;
         const want = GP.data.TYRES.filter(t => t.key === lv(avg).tyre)[0];
+        const whole = lv(avg);
         wb.innerHTML = '<i class="rvw-h">路面</i>' + wl.map((v, k) => {
           const l = lv(v);
+          /* 段の名前が長くなったぶん（大雨→フルウェット）、
+             横に寝かせた画面では5つ並べると帯からあふれる。
+             長い名と1文字の両方を持たせて、CSS で切り替える    */
           return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
-            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) +
+            ' <b class="wfull">' + l.name + '</b><b class="wsh">' + l.short + '</b></i>';
         }).join('') +
+        /* セクターごとだけだと「で、いまどっちなの」が読めない。
+           3つをならした全体も、同じ物差しで並べて置く            */
+        '<i class="rvw all" style="background:' + whole.color +
+          '" title="3つのセクターをならした、いまの路面（' +
+          Math.round(avg * 100) + '%）"><b class="wlab">全体 </b>' +
+          whole.name + '</i>' +
         /* 銘柄の札は、色地に白抜きだと 9px では読めない
            （白 × インターの緑で、明暗の比が 3.07 しかなかった）。
            地を暗くして、銘柄の色は文字と枠のほうへ回す。
@@ -32832,6 +32892,12 @@ GP.screens.help = function (A) {
           '減りが早くなってきたら1周落としてタイヤを持たせ、冷えて食わないなら逆に踏んで熱を入れる——ピットウォールは自動でそう判断します。労わっていても、冷えたタイヤは目を覚ましません。',
           'ただし前後が1.2秒以内にいるとき、そして残り2周を切ったときは、温度より順位を取ります。最後まで持たないと分かっていても踏み続ける。それが「攻めすぎだ」と言われる周です。',
           'ライバルも同じ判断をしています。だから暑い日は、前の車が先に音を上げることがあります。'
+        ] },
+        { h: '路面の濡れ具合と、ラバー', p: [
+          '路面は<b>ドライ → ほぼドライ → ハーフウェット → ウェット → フルウェット</b>の5段で表します。乾いているほうが左。<b>セクターごと</b>に段が出て、そのあとに3つをならした<b>全体</b>が並びます。「S1はまだフルウェットだが、S3はもうほぼドライ」が読めます。',
+          'いちばん右の札は、いまの全体でいちばん速い銘柄です。<b>→ インター</b>と出ているのにドライのまま走っていれば、そのぶん遅くなっています。',
+          '<b>ラバー</b>は、走るほど路面に乗るゴムです。乗るほどグリップが上がり、ラップは最大 <b>-1.4%</b>、ミスも減ります。',
+          'ラバーが乗りはじめるのは<b>「ほぼドライ」まで乾いてから</b>。そこから乾くほど速く乗り、<b>ハーフウェットより濡れると流れます</b>。雨上がりのレースでは、路面の段が下がっていくのを追いかけるようにラバーが乗っていきます——「ハーフウェットのあいだは0%、ほぼドライで3%→32%、ドライに入って62%→79%」というふうに。'
         ] },
         { h: 'タイヤが終わる', p: [
           '熱を持ったまま走り続けると、削れたぶんは冷やしても戻りません。ここまで来ると「タイヤが終わってしまった」と言われ、そのスティントはもう何をしても戻らない。履き替えるまで耐えるだけです。',

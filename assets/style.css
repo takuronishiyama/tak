@@ -801,6 +801,23 @@ body.preboot .topbar{visibility:hidden}
 /* 「→ インター」の札だけは、地を暗くして銘柄の色を字に回す。
    色地に白抜きだと、9px では明暗の比が 3.07 しかなく読めなかった */
 .rvw.want{background:#12100c;border-width:2px;padding:2px 7px}
+/* セクター3つのあとに置く「全体」。同じ物差しの札だが、少し押し出す */
+.rvw.all{margin-left:4px;box-shadow:0 0 0 2px rgba(255,238,196,.35)}
+.rvw b{font-weight:bold}
+.rvw b.wsh{display:none}
+/* 横に寝かせた画面と、狭い画面では、セクターの札は1文字に畳む。
+   「全体」だけは名前のまま残すので、いまどっちなのかは読める     */
+@media (orientation:landscape) and (max-height:520px),(max-width:430px){
+  .rvw b.wfull{display:none}
+  .rvw b.wsh{display:inline}
+  .rvw.all b.wfull{display:inline}
+  .rvw.all b.wsh{display:none}
+  /* 狭いところでは「全体」を先頭へ。帯が横に流れても、
+     まとめのひとつだけは必ず目に入る                       */
+  .rvw.all{order:-1;margin-left:0;margin-right:4px}
+  .rvw.all b.wlab{display:none}
+}
+.rvw-h.wash{color:#7fb8ff}
 
 /* レース画面に出す、いまの指示 */
 .rv-orders{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}

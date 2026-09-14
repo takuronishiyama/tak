@@ -2245,16 +2245,22 @@ GP.race = (function () {
          走るほどゴムが乗ってグリップが上がる。雨が降れば流れる  */
       {
         const wn = wetAvg();
-        if (wn > D.RUBBER.washFrom) {
+        const R = D.RUBBER;
+        if (wn >= R.buildTo) {
+          // ハーフウェットより濡れていると、乗るより流れるほうが勝つ
           const before = rubber;
-          rubber = Math.max(0, rubber - wn * D.RUBBER.wash);
+          rubber = Math.max(0, rubber - wn * R.wash);
           if (before >= 0.35 && rubber < 0.15 && !rubberWashed) {
             rubberWashed = true;
             events.push({ lap: lap, type: 'weather',
               text: '🌧️ 乗っていたラバーが雨で流れた。路面は一度まっさらに戻る' });
           }
         } else {
-          rubber = Math.min(1, rubber + D.RUBBER.gain * (1 - rubber));
+          /* 「ほぼドライ」から乗りはじめ、乾くほど速く乗る。
+             乾いていく途中にも手ごたえが出るようにしてある    */
+          const f = wn <= R.dryAt ? 1
+            : Math.max(0, 1 - (wn - R.dryAt) / Math.max(0.01, R.buildTo - R.dryAt));
+          rubber = Math.min(1, rubber + R.gain * f * (1 - rubber));
           if (rubber > 0.35) rubberWashed = false;
         }
         rubberLog[lap - 1] = Math.round(rubber * 100) / 100;

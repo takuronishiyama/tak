@@ -1364,11 +1364,22 @@ GP.raceview = (function () {
       else {
         const R = GP.data.RUBBER;
         const lv = (R.LEVELS || []).filter(x => rv < x.at)[0] || R.LEVELS[R.LEVELS.length - 1];
+        /* いま乗っているのか流れているのかを、路面の段と結びつけて出す。
+           「ラバー」と「路面」が別々の帯に出ていたので、
+           乾いてきたらゴムが乗る、という関係が読めなかった        */
+        const wl2 = (res.wetLog || [])[Math.max(0, lap - 1)];
+        const wAvg = wl2 ? (wl2[0] + wl2[1] + wl2[2]) / 3 : 0;
+        const build = wAvg < R.buildTo;
+        const state = !build ? '雨で流れています'
+          : wAvg <= R.dryAt ? '乗っています'
+          : 'すこしずつ乗っています';
         rb.innerHTML = '<i class="rvw-h">ラバー</i>' +
-          '<span class="rvrub" title="走るほどゴムが乗ってグリップが上がる。雨が降ると流れる" ' +
+          '<span class="rvrub" title="路面が「ほぼドライ」まで乾くとゴムが乗りはじめ、' +
+          '乾くほど速く乗ります。ハーフウェットより濡れると流れます" ' +
           'style="border-color:' + lv.color + '"><u style="width:' + Math.round(rv * 100) +
           '%;background:' + lv.color + '"></u></span>' +
-          '<i class="rvw-h">' + lv.name + '</i>';
+          '<i class="rvw-h">' + lv.name + '</i>' +
+          '<i class="rvw-h' + (build ? '' : ' wash') + '">' + state + '</i>';
       }
     }
 
@@ -1419,11 +1430,22 @@ GP.raceview = (function () {
         // 「ウェットと出ているのにインターのまま」が起きないように
         const avg = (wl[0] + wl[1] + wl[2]) / 3;
         const want = GP.data.TYRES.filter(t => t.key === lv(avg).tyre)[0];
+        const whole = lv(avg);
         wb.innerHTML = '<i class="rvw-h">路面</i>' + wl.map((v, k) => {
           const l = lv(v);
+          /* 段の名前が長くなったぶん（大雨→フルウェット）、
+             横に寝かせた画面では5つ並べると帯からあふれる。
+             長い名と1文字の両方を持たせて、CSS で切り替える    */
           return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
-            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
+            '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) +
+            ' <b class="wfull">' + l.name + '</b><b class="wsh">' + l.short + '</b></i>';
         }).join('') +
+        /* セクターごとだけだと「で、いまどっちなの」が読めない。
+           3つをならした全体も、同じ物差しで並べて置く            */
+        '<i class="rvw all" style="background:' + whole.color +
+          '" title="3つのセクターをならした、いまの路面（' +
+          Math.round(avg * 100) + '%）"><b class="wlab">全体 </b>' +
+          whole.name + '</i>' +
         /* 銘柄の札は、色地に白抜きだと 9px では読めない
            （白 × インターの緑で、明暗の比が 3.07 しかなかった）。
            地を暗くして、銘柄の色は文字と枠のほうへ回す。
