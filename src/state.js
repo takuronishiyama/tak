@@ -1482,6 +1482,75 @@ GP.state = (function () {
     g2.ideas = list;
     return it;
   }
+  /* ---------- イノベーション ----------
+     いま載っている個体を、そのまま格上げする。
+     性能はそのまま、器（品質）だけが会心作の線まで上がり、
+     名前がひらめきの名前に変わる。
+     「形にする」が新品を作るのに対して、こちらは載せ替えない。
+     煮詰めた資産を捨てずに、もう一段先へ行ける                */
+  function innovCost(g2) {
+    const gen = clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1);
+    return {
+      money: Math.round(D.INNOV_UP.money * (1 + gen * D.INNOV_UP.genCost)),
+      rp: D.INNOV_UP.rp
+    };
+  }
+  /* 技術部門の厚み（開発＋設計）。イノベーションの条件のひとつ */
+  function innovDept(g2) {
+    const o = org(g2);
+    return (o.dept.engineer || 0) + (o.dept.designer || 0);
+  }
+  /* その部位でいま起こせるか。だめなら、なぜだめかを返す */
+  function innovCheck(g2, catKey) {
+    const p = g2.equipped && g2.equipped[catKey];
+    const idea = ideaList(g2).filter(x => x.cat === catKey)[0] || null;
+    const cap = p ? partCap(g2, p) : 0;
+    const ratio = (p && cap > 0) ? p.power / cap : 0;
+    const dept = innovDept(g2);
+    const top = D.QUALITY[D.QUALITY.length - 1];
+    const cost = innovCost(g2);
+    const already = p ? qualOf(p) >= top.at - 0.001 : false;
+    const why = [];
+    if (!p) why.push('この部位を積んでいません');
+    if (!idea) why.push('この部位の💡ひらめきがありません');
+    if (p && ratio < D.INNOV_UP.need) {
+      why.push('いま載っている個体が、まだ器の ' +
+        Math.round(D.INNOV_UP.need * 100) + '% に届いていません（' +
+        Math.round(ratio * 100) + '%）');
+    }
+    if (dept < D.INNOV_UP.dept) {
+      why.push('技術部門が薄すぎます（開発＋設計 ' + dept.toFixed(1) +
+               ' / ' + D.INNOV_UP.dept + '）');
+    }
+    if (already) why.push('この個体はすでに' + top.name + 'です');
+    if (g2.funds < cost.money || g2.rp < cost.rp) why.push('資金か研究Pが足りません');
+    return {
+      cat: catKey, part: p, idea: idea, ratio: ratio, dept: dept,
+      cap: cap, capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * top.at) : 0,
+      cost: cost, top: top, ok: !why.length, why: why
+    };
+  }
+  function innovList(g2) {
+    return D.PART_CATS.map(c => {
+      const r = innovCheck(g2, c.key);
+      r.def = c;
+      return r;
+    });
+  }
+  /* 実行。載せ替えないので、性能も消耗もそのまま残る */
+  function innovate(g2, catKey) {
+    const r = innovCheck(g2, catKey);
+    if (!r.ok) return null;
+    const p = r.part;
+    const before = { name: p.name, qual: qualOf(p), cap: r.cap };
+    g2.funds -= r.cost.money; g2.rp -= r.cost.rp;
+    p.quality = Math.round(r.top.at * 1000) / 1000;
+    p.name = r.idea.name;               // 名前はひらめきのものを引き継ぐ
+    p.idea = r.idea.name;
+    useIdea(g2, r.idea.id);
+    return { before: before, name: p.name, qual: qualOf(p),
+             cap: partCap(g2, p), power: p.power, cost: r.cost };
+  }
   function ideaOf(g2, id) { return ideaList(g2).filter(x => x.id === id)[0] || null; }
   function useIdea(g2, id) {
     const before = ideaList(g2).length;
@@ -4763,7 +4832,8 @@ GP.state = (function () {
     hypeTier, hypeBonus, addHype, perkCut, perkPrice, perkList,
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
-    ideaList, addIdea, ideaOf, useIdea, ideaLeft, rollEraFit, eraFitOf, eraReadOf,
+    ideaList, addIdea, ideaOf, useIdea, ideaLeft,
+    innovCost, innovDept, innovCheck, innovList, innovate, rollEraFit, eraFitOf, eraReadOf,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

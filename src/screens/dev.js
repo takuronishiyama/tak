@@ -125,6 +125,7 @@ GP.screens.dev = function (A) {
         'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
         'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
+        '育てた個体を<b>⚡イノベーション</b>で格上げする。' +
         '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
         '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
         'になるパーツ設計）に変えるか、' +
@@ -410,6 +411,7 @@ GP.screens.dev = function (A) {
   function carStates() {
     const ideaN = S.ideaList(g).length;
     const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
+    const innovN = S.innovList(g).filter(r => r.ok).length;
     const lv = D.PART_CATS.map(c => S.lineOf(g, c.key).lv);
     const lnAvg = lv.reduce((a, x) => a + x, 0) / Math.max(1, lv.length);
     /* 工房の仕事は「作る」と「煮詰める」。
@@ -432,10 +434,10 @@ GP.screens.dev = function (A) {
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
            '　今週ぶん <b>+' + S.autoIntStep(g).toFixed(1) + '</b>' +
            '（' + S.intPlanOf(g).icon + S.intPlanOf(g).name + '）',
-      res: '🔬 使える知見 <b>' + found + 'つ</b>' +
+      res: (innovN ? '⚡ <b>イノベーションを起こせます（' + innovN + '件）</b>　' : '') +
+           '🔬 使える知見 <b>' + found + 'つ</b>' +
            (found ? '（💡ひらめきに変えるか、線を押し広げる）'
-                  : '（扇を調べると溜まります）') +
-           '　🔬P <b>' + Math.floor(g.rp || 0) + '</b>'
+                  : '（扇を調べると溜まります）')
     };
   }
 
@@ -2265,6 +2267,56 @@ GP.screens.dev = function (A) {
     });
     body += '</div>';
 
+    /* ---- イノベーション ----
+       ひらめきを「形にする」と新品が生まれるが、性能はまた下から。
+       せっかく上限まで煮詰めた個体を捨てることになる。
+       こちらは載せ替えずに、いまの個体をそのまま格上げする。
+       育てた車にしか起きないので、育てる動機と揃う           */
+    {
+      const list = S.innovList(g);
+      const any = list.filter(r => r.ok);
+      const near = list.filter(r => !r.ok && r.idea && r.part);
+      const cost = S.innovCost(g);
+      const top = D.QUALITY[D.QUALITY.length - 1];
+      body += '<div class="sub">⚡ イノベーション</div>' +
+        '<p class="desc">いま載っている個体を、<b>載せ替えずにそのまま格上げ</b>します。' +
+        '性能も消耗もそのまま、<b>器（品質）だけが' + top.name + 'まで上がり</b>、' +
+        '名前がひらめきのものに変わります。' +
+        '上限が伸びるので、そこからまた煮詰められます。<br>' +
+        '起こすには、<b>その部位の💡ひらめき</b>と、' +
+        '<b>いまの個体が器の ' + Math.round(D.INNOV_UP.need * 100) + '% まで育っていること</b>、' +
+        '<b>技術部門（開発＋設計）が ' + D.INNOV_UP.dept + ' 以上</b>。' +
+        'ひらめきを撒くだけでは起きません。' +
+        '費用 💰' + money(cost.money) + '万／🔬' + cost.rp + '（1週消費）' +
+        U.helpLink('car') + '</p>';
+      if (any.length || near.length) {
+        body += '<div class="pick">';
+        any.concat(near).forEach(r => {
+          const p2 = r.part;
+          body += '<button class="pickbtn' + (r.ok ? '' : ' cant') +
+            '" data-innov="' + r.cat + '"' + (r.ok ? '' : ' disabled') + '>' +
+            '<span class="pb-ic" style="background:' + r.def.color + '">⚡</span>' +
+            '<span class="pb-body"><b>' + esc(r.idea.name) + '</b>' +
+            '<small>' + r.def.icon + ' ' + esc(p2.name) + '　' +
+            Math.round(p2.power) + ' / ' + r.cap + '（' + Math.round(r.ratio * 100) + '%）' +
+            '<br>' + (r.ok
+              ? '<b class="up">器が ' + r.cap + ' → ' + r.capAfter +
+                ' になります（性能 ' + Math.round(p2.power) + ' はそのまま）</b>'
+              : '<b class="warn">' + esc(r.why[0]) + '</b>') +
+            '</small></span>' +
+            '<span class="pb-cost">' + (r.ok
+              ? '💰' + money(cost.money) + '<br>🔬' + cost.rp : '—') + '</span></button>';
+        });
+        body += '</div>';
+      } else {
+        body += '<p class="note">いまは起こせるものがありません。' +
+          '💡ひらめきを持ち帰り、その部位を器の ' +
+          Math.round(D.INNOV_UP.need * 100) + '% まで煮詰めてから、また来てください。' +
+          '（技術部門の厚み いま <b>' + S.innovDept(g).toFixed(1) + '</b> / ' +
+          D.INNOV_UP.dept + '）</p>';
+      }
+    }
+
     /* ---- 溜めた知見を、ひらめきに変える ----
        研究所の仕事が「コンセプトの線を押す」だけだと、
        方針を決めていない1年目にはやることが無く、
@@ -2377,6 +2429,7 @@ GP.screens.dev = function (A) {
       if (k === '__engscreen') return cmdEngine();
     });
     bindAct('data-toidea', gk => openIdeaPick(gk));
+    bindAct('data-innov', k => openInnov(k));
     /* 溜めた知見を使って、コンセプトの線を押し広げる。
        調べるのとちがって、ここは週を使わない            */
     bindAct('data-lift', gk => {
@@ -2390,6 +2443,52 @@ GP.screens.dev = function (A) {
       U.toast('🔬 ' + gr.name + ' の線を押し広げた', 'good');
       S.save(g); render(); cmdResearch();
     });
+  }
+
+  /* ---- イノベーションの確認 ----
+     数千万が飛ぶので、押した瞬間に実行しない。
+     何がどう変わるのかを先に見せる                       */
+  function openInnov(catKey) {
+    const r = S.innovCheck(g, catKey);
+    if (!r.ok || !r.part || !r.idea) return;
+    const p = r.part;
+    const c = D.PART_CATS.filter(x => x.key === catKey)[0] || { color: '#5a6270' };
+    const h = '<div class="popsum"><span class="pb-ic" style="background:' +
+      c.color + '">⚡</span><span class="popsum-b"><b>' + esc(r.idea.name) +
+      '</b><small>いま載っている ' + esc(p.name) + ' を格上げします</small></span></div>' +
+      '<p class="desc">載せ替えません。いまの個体のまま、器だけが大きくなります。' +
+      '性能も消耗もそのまま残るので、<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
+      '<div class="popcost"><span>品質</span><span>' +
+        S.qualTier(S.qualOf(p)).name + ' ' + S.qualOf(p).toFixed(2) +
+        ' → <b class="up">' + r.top.name + ' ' + r.top.at.toFixed(2) + '</b></span></div>' +
+      '<div class="popcost"><span>器（上限）</span><span>' + r.cap +
+        ' → <b class="up">' + r.capAfter + '</b></span></div>' +
+      '<div class="popcost"><span>いまの性能</span><span><b>' + Math.round(p.power) +
+        '</b>（そのまま。' + Math.round(r.ratio * 100) + '% → ' +
+        Math.round(p.power / Math.max(1, r.capAfter) * 100) + '% になります）</span></div>' +
+      '<div class="popcost"><span>名前</span><span>' + esc(p.name) +
+        ' → <b>' + esc(r.idea.name) + '</b></span></div>' +
+      '<div class="popcost"><span>費用</span><span><b>💰' + money(r.cost.money) +
+        '万</b>／🔬' + r.cost.rp + '　1週</span></div>';
+    U.popup('⚡ イノベーション', h, [
+      { label: '⚡ 起こす　💰' + money(r.cost.money) + '万', cls: 'primary',
+        fn: () => doInnov(catKey) },
+      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); cmdResearch(); } }
+    ]);
+  }
+  function doInnov(catKey) {
+    const r = S.innovate(g, catKey);
+    if (!r) return U.toast('いまは起こせません', 'bad');
+    capSpend(r.cost.money);
+    GP.sound.play('levelup');
+    U.closePopup();
+    U.log(g, '⚡ 「' + r.before.name + '」が「' + r.name + '」になった！ ' +
+      '器が ' + r.before.cap + ' → ' + r.cap + '（性能 ' + Math.round(r.power) +
+      ' はそのまま）。ここからまた煮詰められる', 'good');
+    U.toast('⚡ ' + r.name + '！', 'good');
+    S.pushNews(g, 'brk', r.name);
+    S.save(g);
+    endWeek();
   }
 
   /* ---- 知見を💡ひらめきに変える：どの部位のひらめきにするか ----
