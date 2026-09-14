@@ -307,6 +307,9 @@ GP.state = (function () {
       return { key: gr.key, name: gr.name, icon: gr.icon, color: gr.color, note: gr.note,
                p: r.p, found: r.found, need: D.RESEARCH.need,
                held: held,
+               // この扇に属する部位。知見を💡ひらめきに変えるときの選択肢になる
+               parts: (gr.parts || []).map(k =>
+                 D.PART_CATS.filter(x => x.key === k)[0] || { key: k, name: k, icon: '❓' }),
                off: offCapOf(g2, gr.key),
                next: Math.min(1, offCapOf(g2, gr.key) + D.RESEARCH.lift),
                full: ((g2.capLift && g2.capLift[gr.key]) || 0) >= D.RESEARCH.liftMax,

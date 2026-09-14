@@ -124,9 +124,11 @@ GP.screens.dev = function (A) {
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
         '扇の中をまとめ、扇どうしをつなぐ。' +
         '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp', cst.imp) +
-      carPickHTML('🔬', '研究所', '― 行ける向きを増やす',
-        '方針が引いた線そのものを押し広げる。' +
-        '「この車では行けない」はずだった向きへ、行けるようになります', 'res', cst.res) +
+      carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
+        '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
+        '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
+        'になるパーツ設計）に変えるか、' +
+        '方針が引いた線そのものを押し広げるかに使えます', 'res', cst.res) +
       '</div>' +
       /* ここから下は、その判断の材料。
          見出しで3つに割っておくと、ui.js が畳んで
@@ -153,15 +155,18 @@ GP.screens.dev = function (A) {
     if (!list.length) {
       return '<div class="sub">ひらめき</div>' +
         '<p class="desc">いまは抱えていません。' +
-        '🏭工房や🔧ガレージで手を動かしていると、ときどき何かを掘り当てます。' +
-        '掘り当てたものは、ここで<b>形にして</b>はじめて車に載ります。' +
-        '規則が新しいうちほど、まだ誰も掘っていないものが残っています。' +
+        'ひらめきから作ったパーツは、出来が<b>必ず' +
+        D.QUALITY[D.QUALITY.length - 1].name + '</b>になります。<br>' +
+        '出どころはふたつ。🏭工房や🔧ガレージで手を動かしていて<b>偶然に掘り当てる</b>か、' +
+        '🔬研究所で扇を調べて溜めた<b>知見をひらめきに変える</b>かです。' +
+        '前者は運まかせ、後者は狙って取りに行けます。' +
         U.helpLink('car') + '</p>';
     }
+    const topq = D.QUALITY[D.QUALITY.length - 1];
     let h = '<div class="sub">ひらめき</div>' +
-      '<p class="desc">掘り当てたものを、パーツとして形にします。' +
-      '品質が <b>+' + D.IDEA.qual.toFixed(2) + '</b> 底上げされ、' +
-      '出来上がりの性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態で生まれます。<br>' +
+      '<p class="desc">掴んだ当てを、パーツとして形にします。' +
+      '出来は運任せになりません——<b style="color:' + topq.color + '">必ず' + topq.name + '</b>で生まれ、' +
+      '性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態からです。<br>' +
       '<b>抱えたままだと古びます</b>。よそが先に同じものを持ち込めば、もう目新しくありません。' +
       U.helpLink('car') + '</p><div class="pick">';
     list.forEach(it => {
@@ -174,7 +179,8 @@ GP.screens.dev = function (A) {
         '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
         '<span class="pb-body"><b>' + esc(it.name) +
         '<em class="' + (left <= 8 ? 'warn' : 'free') + '">あと ' + left + '週</em></b>' +
-        '<small>' + c.icon + ' ' + c.name + ' として形にします' +
+        '<small>' + c.icon + ' ' + c.name + ' として形にします（' +
+        topq.name + '　確定）' +
         (left <= 8 ? '<br><b class="warn">そろそろ古びます。作るなら今です</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
@@ -370,6 +376,7 @@ GP.screens.dev = function (A) {
      その場所の在庫を一行だけ添える                        */
   function carStates() {
     const ideaN = S.ideaList(g).length;
+    const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
     const lv = D.PART_CATS.map(c => S.lineOf(g, c.key).lv);
     const lnAvg = lv.reduce((a, x) => a + x, 0) / Math.max(1, lv.length);
     /* 工房の仕事は「作る」と「煮詰める」。
@@ -384,7 +391,6 @@ GP.screens.dev = function (A) {
     });
     const fillPct = fn ? Math.round(fill / fn * 100) : 0;
     const it = Math.round(S.integrateRate(g).rate * 100);
-    const cn = S.conceptOf(g);
     return {
       des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
            (ideaN ? '' : '（いまは素材と技術を積む場所）'),
@@ -392,9 +398,10 @@ GP.screens.dev = function (A) {
             '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
            '（持っているものが、どれだけ外へ出ているか）',
-      res: '🔬 研究ポイント <b>' + Math.floor(g.rp || 0) + '</b>' +
-           (cn ? '　📋 ' + cn.icon + ' ' + esc(cn.name) + ' の線を押し広げる'
-                : '　方針がまだ無いので、溜めておく段階')
+      res: '🔬 使える知見 <b>' + found + 'つ</b>' +
+           (found ? '（💡ひらめきに変えるか、線を押し広げる）'
+                  : '（扇を調べると溜まります）') +
+           '　🔬P <b>' + Math.floor(g.rp || 0) + '</b>'
     };
   }
 
@@ -1888,7 +1895,13 @@ GP.screens.dev = function (A) {
     g.funds -= cost; g.rp -= dc.rp; capSpend(cost);
     S.useIdea(g, id);
 
-    const q = Math.min(D.QUAL.max, S.rollQuality(g, c.key) + D.IDEA.qual);
+    /* ひらめきから作るぶんには、出来は運任せにしない。
+       当たりを引いたから作るのであって、
+       作ってから当たりかどうかを知るのでは順番が逆になる。
+       ふつうの引きに底上げを足したうえで、会心作の線を下限にする   */
+    const top = D.QUALITY[D.QUALITY.length - 1].at;
+    const q = Math.min(D.QUAL.max,
+      Math.max(top, S.rollQuality(g, c.key) + D.IDEA.qual));
     const p = S.makePart(c.key, g.carGen, q);
     p.name = it.name;                       // 掘り当てたものの名前で残す
     p.idea = it.name;
@@ -1901,7 +1914,8 @@ GP.screens.dev = function (A) {
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
     U.log(g, '💡 <b>' + esc(it.name) + '</b> を形にした！ ' +
-      c.name + 'として保管庫に入った（品質 ' + q.toFixed(2) + '）。' +
+      c.name + 'として保管庫に入った（<b>' + S.qualTier(q).name +
+      '</b>　品質 ' + q.toFixed(2) + '）。' +
       '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
@@ -2121,8 +2135,13 @@ GP.screens.dev = function (A) {
       '<b>上限そのもの</b>が ' + Math.round(D.CONCEPT.offCap * 100) + '% までしかありません。' +
       'いくら改良しても、その手前で止まります。<br>' +
       '研究は、その線を外へ押していく仕事です。扇をひとつ選んで1週かけて調べると、' +
-      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます。' +
-      '知見を使うと、その扇の線が <b>+' + Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
+      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます' +
+      '（そのとき研究ポイントも <b>+' + D.RESEARCH.foundRp + '🔬</b>）。<br>' +
+      '掴んだ知見には、使い道が<b>ふたつ</b>あります。' +
+      '<b>💡ひらめきに変える</b>と、その扇の部位をひとつ選んで、' +
+      '<b>必ず会心作になる</b>設計の当てを持ち帰れます。' +
+      '<b>線を押し広げる</b>と、その扇の上限が <b>+' +
+      Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
       '（' + Math.round((D.CONCEPT.offCap + D.RESEARCH.liftMax) * 100) + '% まで）。<br>' +
       '1週で進むのは <b>' + rp.toFixed(1) + '</b>。' +
       '🔬リサーチャー・📊アナリスト・風洞の規模・' +
@@ -2156,6 +2175,43 @@ GP.screens.dev = function (A) {
         '<span class="pb-cost">💰' + money(D.RESEARCH.cost) + '<br>🔬' + D.RESEARCH.rp + '</span></button>';
     });
     body += '</div>';
+
+    /* ---- 溜めた知見を、ひらめきに変える ----
+       研究所の仕事が「コンセプトの線を押す」だけだと、
+       方針を決めていない1年目にはやることが無く、
+       方針しだいでは押す先すら無かった。
+       知見を💡ひらめきに変えられるようにして、
+       研究所を「当たりを作る場所」にする                       */
+    {
+      const conv = S.researchList(g).filter(r => r.found > 0);
+      const room = S.ideaList(g).length < D.IDEA.keep;
+      body += '<div class="sub">💡 ひらめきに変える</div>' +
+        '<p class="desc">知見をひとつ渡して、その扇の部位の<b>設計の当て</b>を持ち帰ります。' +
+        'ひらめきから作ったパーツは、出来が<b>必ず' +
+        D.QUALITY[D.QUALITY.length - 1].name + '</b>になります' +
+        '（ふつうに設計すると、そこは運任せです）。' +
+        '週は進みません。抱えられるのは <b>' + D.IDEA.keep + 'つ</b>まで、' +
+        '<b>' + D.IDEA.life + '週</b>で古びます。' +
+        '形にするのは🖊️設計室の「💡ひらめき」の札からです。' + U.helpLink('car') + '</p>';
+      if (!conv.length) {
+        body += '<p class="note">まだ知見がありません。' +
+          '上の扇を調べ続けると溜まります。</p>';
+      } else if (!room) {
+        body += '<p class="note">ひらめきを <b>' + D.IDEA.keep +
+          'つ</b>抱えています。どれかを🖊️設計室で形にしてから、また来てください。</p>';
+      } else {
+        body += '<div class="pick">';
+        conv.forEach(r => {
+          body += '<button class="pickbtn" data-toidea="' + r.key + '">' +
+            '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+            '<span class="pb-body"><b>' + esc(r.name) + ' のひらめきをひとつ</b>' +
+            '<small>' + esc(r.parts ? r.parts.map(x => x.name).join('・')
+                                    : r.name) + ' から部位を選びます</small></span>' +
+            '<span class="pb-cost">🔬 知見 -1</span></button>';
+        });
+        body += '</div>';
+      }
+    }
 
     /* ---- 溜めた知見を使う ---- */
     {
@@ -2231,6 +2287,7 @@ GP.screens.dev = function (A) {
       if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
       if (k === '__engscreen') return cmdEngine();
     });
+    bindAct('data-toidea', gk => openIdeaPick(gk));
     /* 溜めた知見を使って、コンセプトの線を押し広げる。
        調べるのとちがって、ここは週を使わない            */
     bindAct('data-lift', gk => {
@@ -2244,6 +2301,72 @@ GP.screens.dev = function (A) {
       U.toast('🔬 ' + gr.name + ' の線を押し広げた', 'good');
       S.save(g); render(); cmdResearch();
     });
+  }
+
+  /* ---- 知見を💡ひらめきに変える：どの部位のひらめきにするか ----
+     扇まるごとではなく、部位をひとつ選ばせる。
+     「動力を研究した」だけでは車に載らない。
+     「エンジンの効果的な燃焼室」まで降りて、はじめて図面になる   */
+  function openIdeaPick(gk) {
+    const r = S.researchList(g).filter(x => x.key === gk)[0];
+    if (!r || r.found <= 0) return;
+    const top = D.QUALITY[D.QUALITY.length - 1];
+    let h = '<p class="lead">' + r.icon + ' <b>' + esc(r.name) + '</b> の知見をひとつ渡します。<br>' +
+      'どの部位の当てにするか選んでください。</p>' +
+      '<p class="desc">ここで選んだ部位のひらめきは、🖊️設計室で形にすると' +
+      '<b style="color:' + top.color + '">' + top.name + '</b>で生まれます。' +
+      '出来上がりの性能も、上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態です。<br>' +
+      '<b>' + D.IDEA.life + '週</b>で古びるので、持ち帰ったら早めに形にしてください。</p>' +
+      '<div class="pick">';
+    /* 名前はここで決めてしまう。
+       押したあとで引き直すと、札に出ていたものと
+       持ち帰るものが食い違う                                 */
+    const picked = {};
+    r.parts.forEach(c => {
+      const nm = c.name + 'の' + ideaNameFor(c.key);
+      picked[c.key] = nm;
+      h += '<button class="pickbtn" data-mkidea="' + c.key + '">' +
+        '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+        '<span class="pb-body"><b>' + esc(nm) + '</b>' +
+        '<small>' + c.icon + ' ' + esc(c.name) + ' のひらめきとして持ち帰ります</small></span>' +
+        '<span class="pb-cost">🔬 -1</span></button>';
+    });
+    h += '</div>';
+    const box = U.popup('💡 ひらめきに変える', h,
+      [{ label: '戻る', fn: () => { U.closePopup(); cmdResearch(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-mkidea]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        doToIdea(gk, b.dataset.mkidea, picked[b.dataset.mkidea]);
+      };
+    });
+  }
+  /* 部位に合った呼び名をひとつ。いま抱えているものとは重ねない */
+  function ideaNameFor(catKey) {
+    const pool = D.IDEA_NAMES[catKey] || D.INNOV.NAMES;
+    const have = S.ideaList(g).map(x => x.name);
+    const free = pool.filter(n => have.indexOf(n) < 0);
+    const src = free.length ? free : pool;
+    return src[Math.floor(Math.random() * src.length)];
+  }
+  function doToIdea(gk, catKey, name) {
+    const c = D.PART_CATS.filter(x => x.key === catKey)[0];
+    if (!c) return;
+    if (S.ideaList(g).length >= D.IDEA.keep) {
+      return U.toast('ひらめきをこれ以上抱えられません', 'warn');
+    }
+    if (!S.useFinding(g, gk)) return U.toast('知見がありません', 'bad');
+    const nm = name || (c.name + 'の' + ideaNameFor(catKey));
+    S.addIdea(g, nm, catKey);
+    GP.sound.play('levelup');
+    U.log(g, '💡 知見が<b>' + esc(nm) + '</b>になった。' +
+      '🖊️設計室の「💡ひらめき」から形にすると、' +
+      '<b>' + D.QUALITY[D.QUALITY.length - 1].name + '</b>のパーツが出る', 'good');
+    U.toast('💡 ' + nm, 'good');
+    S.save(g);
+    U.closePopup();
+    render();
+    cmdResearch();
   }
 
   /* =======================================================
@@ -2444,9 +2567,15 @@ GP.screens.dev = function (A) {
     staffExp('researcher', 16); staffExp('analyst', 6);
     U.closeModal();
     if (r.found) {
+      /* 掴んだ知見そのものとは別に、
+         調べ切った週には研究ポイントがまとめて入る。
+         道の途中で拾ったものが、最後に一度に形になる感じ        */
+      g.rp += D.RESEARCH.foundRp;
       U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ ' +
-        'コンセプトの線を押し広げるのに使える（いま ' + r.have + 'つ）', 'good');
-      U.toast('🔬 知見をひとつ掴んだ！', 'good');
+        '<b>💡ひらめき</b>に変えるか、コンセプトの線を押し広げるのに使える' +
+        '（いま ' + r.have + 'つ）。あわせて研究ポイント <b>+' +
+        D.RESEARCH.foundRp + '🔬</b>', 'good');
+      U.toast('🔬 知見をひとつ掴んだ！（+' + D.RESEARCH.foundRp + '🔬）', 'good');
       GP.sound.play('levelup');
     } else {
       U.log(g, '🔬 ' + c.name + 'を調べた（' + r.p + ' / ' + r.need + '　+' + r.gain + '）');

@@ -7137,6 +7137,7 @@ GP.data = (function () {
     cost:     420,     // 1週の研究にかかる費用（万）
     rp:       6,       // 同・研究ポイント
     keep:     3,       // 抱えておける知見の数（扇ごと）
+    foundRp:  40,      // 知見をひとつ掴んだときに入る研究ポイント
     /* ---- 知見の使い道 ----
        溜めた知見ひとつで、コンセプトが引いた線を
        この割合だけ外へ押し広げられる。
@@ -7256,12 +7257,29 @@ GP.data = (function () {
      掘り当てたものは、その場で速さに化けるわけではない。
      形にして、車に載せてはじめて効く。
      ライバルが「新型フロア」を持ち込むのと同じことを、こちらもやる  */
+  /* ---------- ひらめき ----------
+     「これを作れば、必ず一等のものが出る」という当て。
+     出どころは2つ。手を動かしていて偶然に掘り当てるか、
+     🔬研究所で扇を調べ続けて知見に変えるか。
+     形にすると、品質は <b>必ず会心作</b> になる——
+     ふつうに作るときは運任せの一等が、ここでは約束される。      */
   const IDEA = {
     keep:  3,       // 抱えておける数
     life:  30,      // 何週で古びるか（形にしないと、よそに追い越される）
     qual:  0.16,    // ひらめきから作ると、品質がこれだけ底上げされる
     power: 0.20,    // 出来上がりの性能が、上限に対してこれだけ底上げされる
     now:   1.8      // 掘り当てたその週の、伸びの倍率（残りは形にして受け取る）
+  };
+  /* 部位ごとの、ひらめきの呼び名。
+     「何を思いついたのか」が名前で分かるようにする         */
+  const IDEA_NAMES = {
+    pu:    ['効果的な燃焼室', '排気レイアウトの見直し', '可変圧縮比の当たり'],
+    aero:  ['車体下面の気流処理', 'フロアエッジの新解釈', 'サイドポッドの絞り込み'],
+    susp:  ['ジオメトリの取り直し', '路面追従の新しい当て', 'アンチダイブの詰め直し'],
+    chas:  ['軽量モノコックへの作り替え', '積層方向の組み替え', '剛性の配り直し'],
+    brake: ['ダクトの新素材', '冷却の通し方の見直し', '制動配分の新しい当て'],
+    gear:  ['ケース剛性の取り直し', '変速の詰め方', '駆動損失の追い込み'],
+    elec:  ['ERS制御の書き換え', '回生の取り切り', '放電の配り直し']
   };
 
   const INNOV = {
@@ -7845,7 +7863,7 @@ GP.data = (function () {
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
-           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
+           RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
 </script>
@@ -8435,6 +8453,9 @@ GP.state = (function () {
       return { key: gr.key, name: gr.name, icon: gr.icon, color: gr.color, note: gr.note,
                p: r.p, found: r.found, need: D.RESEARCH.need,
                held: held,
+               // この扇に属する部位。知見を💡ひらめきに変えるときの選択肢になる
+               parts: (gr.parts || []).map(k =>
+                 D.PART_CATS.filter(x => x.key === k)[0] || { key: k, name: k, icon: '❓' }),
                off: offCapOf(g2, gr.key),
                next: Math.min(1, offCapOf(g2, gr.key) + D.RESEARCH.lift),
                full: ((g2.capLift && g2.capLift[gr.key]) || 0) >= D.RESEARCH.liftMax,
@@ -22308,9 +22329,11 @@ GP.screens.dev = function (A) {
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
         '扇の中をまとめ、扇どうしをつなぐ。' +
         '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp', cst.imp) +
-      carPickHTML('🔬', '研究所', '― 行ける向きを増やす',
-        '方針が引いた線そのものを押し広げる。' +
-        '「この車では行けない」はずだった向きへ、行けるようになります', 'res', cst.res) +
+      carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
+        '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
+        '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
+        'になるパーツ設計）に変えるか、' +
+        '方針が引いた線そのものを押し広げるかに使えます', 'res', cst.res) +
       '</div>' +
       /* ここから下は、その判断の材料。
          見出しで3つに割っておくと、ui.js が畳んで
@@ -22337,15 +22360,18 @@ GP.screens.dev = function (A) {
     if (!list.length) {
       return '<div class="sub">ひらめき</div>' +
         '<p class="desc">いまは抱えていません。' +
-        '🏭工房や🔧ガレージで手を動かしていると、ときどき何かを掘り当てます。' +
-        '掘り当てたものは、ここで<b>形にして</b>はじめて車に載ります。' +
-        '規則が新しいうちほど、まだ誰も掘っていないものが残っています。' +
+        'ひらめきから作ったパーツは、出来が<b>必ず' +
+        D.QUALITY[D.QUALITY.length - 1].name + '</b>になります。<br>' +
+        '出どころはふたつ。🏭工房や🔧ガレージで手を動かしていて<b>偶然に掘り当てる</b>か、' +
+        '🔬研究所で扇を調べて溜めた<b>知見をひらめきに変える</b>かです。' +
+        '前者は運まかせ、後者は狙って取りに行けます。' +
         U.helpLink('car') + '</p>';
     }
+    const topq = D.QUALITY[D.QUALITY.length - 1];
     let h = '<div class="sub">ひらめき</div>' +
-      '<p class="desc">掘り当てたものを、パーツとして形にします。' +
-      '品質が <b>+' + D.IDEA.qual.toFixed(2) + '</b> 底上げされ、' +
-      '出来上がりの性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態で生まれます。<br>' +
+      '<p class="desc">掴んだ当てを、パーツとして形にします。' +
+      '出来は運任せになりません——<b style="color:' + topq.color + '">必ず' + topq.name + '</b>で生まれ、' +
+      '性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態からです。<br>' +
       '<b>抱えたままだと古びます</b>。よそが先に同じものを持ち込めば、もう目新しくありません。' +
       U.helpLink('car') + '</p><div class="pick">';
     list.forEach(it => {
@@ -22358,7 +22384,8 @@ GP.screens.dev = function (A) {
         '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
         '<span class="pb-body"><b>' + esc(it.name) +
         '<em class="' + (left <= 8 ? 'warn' : 'free') + '">あと ' + left + '週</em></b>' +
-        '<small>' + c.icon + ' ' + c.name + ' として形にします' +
+        '<small>' + c.icon + ' ' + c.name + ' として形にします（' +
+        topq.name + '　確定）' +
         (left <= 8 ? '<br><b class="warn">そろそろ古びます。作るなら今です</b>' : '') +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
@@ -22554,6 +22581,7 @@ GP.screens.dev = function (A) {
      その場所の在庫を一行だけ添える                        */
   function carStates() {
     const ideaN = S.ideaList(g).length;
+    const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
     const lv = D.PART_CATS.map(c => S.lineOf(g, c.key).lv);
     const lnAvg = lv.reduce((a, x) => a + x, 0) / Math.max(1, lv.length);
     /* 工房の仕事は「作る」と「煮詰める」。
@@ -22568,7 +22596,6 @@ GP.screens.dev = function (A) {
     });
     const fillPct = fn ? Math.round(fill / fn * 100) : 0;
     const it = Math.round(S.integrateRate(g).rate * 100);
-    const cn = S.conceptOf(g);
     return {
       des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
            (ideaN ? '' : '（いまは素材と技術を積む場所）'),
@@ -22576,9 +22603,10 @@ GP.screens.dev = function (A) {
             '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
            '（持っているものが、どれだけ外へ出ているか）',
-      res: '🔬 研究ポイント <b>' + Math.floor(g.rp || 0) + '</b>' +
-           (cn ? '　📋 ' + cn.icon + ' ' + esc(cn.name) + ' の線を押し広げる'
-                : '　方針がまだ無いので、溜めておく段階')
+      res: '🔬 使える知見 <b>' + found + 'つ</b>' +
+           (found ? '（💡ひらめきに変えるか、線を押し広げる）'
+                  : '（扇を調べると溜まります）') +
+           '　🔬P <b>' + Math.floor(g.rp || 0) + '</b>'
     };
   }
 
@@ -24072,7 +24100,13 @@ GP.screens.dev = function (A) {
     g.funds -= cost; g.rp -= dc.rp; capSpend(cost);
     S.useIdea(g, id);
 
-    const q = Math.min(D.QUAL.max, S.rollQuality(g, c.key) + D.IDEA.qual);
+    /* ひらめきから作るぶんには、出来は運任せにしない。
+       当たりを引いたから作るのであって、
+       作ってから当たりかどうかを知るのでは順番が逆になる。
+       ふつうの引きに底上げを足したうえで、会心作の線を下限にする   */
+    const top = D.QUALITY[D.QUALITY.length - 1].at;
+    const q = Math.min(D.QUAL.max,
+      Math.max(top, S.rollQuality(g, c.key) + D.IDEA.qual));
     const p = S.makePart(c.key, g.carGen, q);
     p.name = it.name;                       // 掘り当てたものの名前で残す
     p.idea = it.name;
@@ -24085,7 +24119,8 @@ GP.screens.dev = function (A) {
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
     U.log(g, '💡 <b>' + esc(it.name) + '</b> を形にした！ ' +
-      c.name + 'として保管庫に入った（品質 ' + q.toFixed(2) + '）。' +
+      c.name + 'として保管庫に入った（<b>' + S.qualTier(q).name +
+      '</b>　品質 ' + q.toFixed(2) + '）。' +
       '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
@@ -24305,8 +24340,13 @@ GP.screens.dev = function (A) {
       '<b>上限そのもの</b>が ' + Math.round(D.CONCEPT.offCap * 100) + '% までしかありません。' +
       'いくら改良しても、その手前で止まります。<br>' +
       '研究は、その線を外へ押していく仕事です。扇をひとつ選んで1週かけて調べると、' +
-      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます。' +
-      '知見を使うと、その扇の線が <b>+' + Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
+      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます' +
+      '（そのとき研究ポイントも <b>+' + D.RESEARCH.foundRp + '🔬</b>）。<br>' +
+      '掴んだ知見には、使い道が<b>ふたつ</b>あります。' +
+      '<b>💡ひらめきに変える</b>と、その扇の部位をひとつ選んで、' +
+      '<b>必ず会心作になる</b>設計の当てを持ち帰れます。' +
+      '<b>線を押し広げる</b>と、その扇の上限が <b>+' +
+      Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
       '（' + Math.round((D.CONCEPT.offCap + D.RESEARCH.liftMax) * 100) + '% まで）。<br>' +
       '1週で進むのは <b>' + rp.toFixed(1) + '</b>。' +
       '🔬リサーチャー・📊アナリスト・風洞の規模・' +
@@ -24340,6 +24380,43 @@ GP.screens.dev = function (A) {
         '<span class="pb-cost">💰' + money(D.RESEARCH.cost) + '<br>🔬' + D.RESEARCH.rp + '</span></button>';
     });
     body += '</div>';
+
+    /* ---- 溜めた知見を、ひらめきに変える ----
+       研究所の仕事が「コンセプトの線を押す」だけだと、
+       方針を決めていない1年目にはやることが無く、
+       方針しだいでは押す先すら無かった。
+       知見を💡ひらめきに変えられるようにして、
+       研究所を「当たりを作る場所」にする                       */
+    {
+      const conv = S.researchList(g).filter(r => r.found > 0);
+      const room = S.ideaList(g).length < D.IDEA.keep;
+      body += '<div class="sub">💡 ひらめきに変える</div>' +
+        '<p class="desc">知見をひとつ渡して、その扇の部位の<b>設計の当て</b>を持ち帰ります。' +
+        'ひらめきから作ったパーツは、出来が<b>必ず' +
+        D.QUALITY[D.QUALITY.length - 1].name + '</b>になります' +
+        '（ふつうに設計すると、そこは運任せです）。' +
+        '週は進みません。抱えられるのは <b>' + D.IDEA.keep + 'つ</b>まで、' +
+        '<b>' + D.IDEA.life + '週</b>で古びます。' +
+        '形にするのは🖊️設計室の「💡ひらめき」の札からです。' + U.helpLink('car') + '</p>';
+      if (!conv.length) {
+        body += '<p class="note">まだ知見がありません。' +
+          '上の扇を調べ続けると溜まります。</p>';
+      } else if (!room) {
+        body += '<p class="note">ひらめきを <b>' + D.IDEA.keep +
+          'つ</b>抱えています。どれかを🖊️設計室で形にしてから、また来てください。</p>';
+      } else {
+        body += '<div class="pick">';
+        conv.forEach(r => {
+          body += '<button class="pickbtn" data-toidea="' + r.key + '">' +
+            '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+            '<span class="pb-body"><b>' + esc(r.name) + ' のひらめきをひとつ</b>' +
+            '<small>' + esc(r.parts ? r.parts.map(x => x.name).join('・')
+                                    : r.name) + ' から部位を選びます</small></span>' +
+            '<span class="pb-cost">🔬 知見 -1</span></button>';
+        });
+        body += '</div>';
+      }
+    }
 
     /* ---- 溜めた知見を使う ---- */
     {
@@ -24415,6 +24492,7 @@ GP.screens.dev = function (A) {
       if (k.indexOf('__cusoff:') === 0) return doCustomerOff(k.slice(9));
       if (k === '__engscreen') return cmdEngine();
     });
+    bindAct('data-toidea', gk => openIdeaPick(gk));
     /* 溜めた知見を使って、コンセプトの線を押し広げる。
        調べるのとちがって、ここは週を使わない            */
     bindAct('data-lift', gk => {
@@ -24428,6 +24506,72 @@ GP.screens.dev = function (A) {
       U.toast('🔬 ' + gr.name + ' の線を押し広げた', 'good');
       S.save(g); render(); cmdResearch();
     });
+  }
+
+  /* ---- 知見を💡ひらめきに変える：どの部位のひらめきにするか ----
+     扇まるごとではなく、部位をひとつ選ばせる。
+     「動力を研究した」だけでは車に載らない。
+     「エンジンの効果的な燃焼室」まで降りて、はじめて図面になる   */
+  function openIdeaPick(gk) {
+    const r = S.researchList(g).filter(x => x.key === gk)[0];
+    if (!r || r.found <= 0) return;
+    const top = D.QUALITY[D.QUALITY.length - 1];
+    let h = '<p class="lead">' + r.icon + ' <b>' + esc(r.name) + '</b> の知見をひとつ渡します。<br>' +
+      'どの部位の当てにするか選んでください。</p>' +
+      '<p class="desc">ここで選んだ部位のひらめきは、🖊️設計室で形にすると' +
+      '<b style="color:' + top.color + '">' + top.name + '</b>で生まれます。' +
+      '出来上がりの性能も、上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態です。<br>' +
+      '<b>' + D.IDEA.life + '週</b>で古びるので、持ち帰ったら早めに形にしてください。</p>' +
+      '<div class="pick">';
+    /* 名前はここで決めてしまう。
+       押したあとで引き直すと、札に出ていたものと
+       持ち帰るものが食い違う                                 */
+    const picked = {};
+    r.parts.forEach(c => {
+      const nm = c.name + 'の' + ideaNameFor(c.key);
+      picked[c.key] = nm;
+      h += '<button class="pickbtn" data-mkidea="' + c.key + '">' +
+        '<span class="pb-ic" style="background:#b06fd0">💡</span>' +
+        '<span class="pb-body"><b>' + esc(nm) + '</b>' +
+        '<small>' + c.icon + ' ' + esc(c.name) + ' のひらめきとして持ち帰ります</small></span>' +
+        '<span class="pb-cost">🔬 -1</span></button>';
+    });
+    h += '</div>';
+    const box = U.popup('💡 ひらめきに変える', h,
+      [{ label: '戻る', fn: () => { U.closePopup(); cmdResearch(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-mkidea]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        doToIdea(gk, b.dataset.mkidea, picked[b.dataset.mkidea]);
+      };
+    });
+  }
+  /* 部位に合った呼び名をひとつ。いま抱えているものとは重ねない */
+  function ideaNameFor(catKey) {
+    const pool = D.IDEA_NAMES[catKey] || D.INNOV.NAMES;
+    const have = S.ideaList(g).map(x => x.name);
+    const free = pool.filter(n => have.indexOf(n) < 0);
+    const src = free.length ? free : pool;
+    return src[Math.floor(Math.random() * src.length)];
+  }
+  function doToIdea(gk, catKey, name) {
+    const c = D.PART_CATS.filter(x => x.key === catKey)[0];
+    if (!c) return;
+    if (S.ideaList(g).length >= D.IDEA.keep) {
+      return U.toast('ひらめきをこれ以上抱えられません', 'warn');
+    }
+    if (!S.useFinding(g, gk)) return U.toast('知見がありません', 'bad');
+    const nm = name || (c.name + 'の' + ideaNameFor(catKey));
+    S.addIdea(g, nm, catKey);
+    GP.sound.play('levelup');
+    U.log(g, '💡 知見が<b>' + esc(nm) + '</b>になった。' +
+      '🖊️設計室の「💡ひらめき」から形にすると、' +
+      '<b>' + D.QUALITY[D.QUALITY.length - 1].name + '</b>のパーツが出る', 'good');
+    U.toast('💡 ' + nm, 'good');
+    S.save(g);
+    U.closePopup();
+    render();
+    cmdResearch();
   }
 
   /* =======================================================
@@ -24628,9 +24772,15 @@ GP.screens.dev = function (A) {
     staffExp('researcher', 16); staffExp('analyst', 6);
     U.closeModal();
     if (r.found) {
+      /* 掴んだ知見そのものとは別に、
+         調べ切った週には研究ポイントがまとめて入る。
+         道の途中で拾ったものが、最後に一度に形になる感じ        */
+      g.rp += D.RESEARCH.foundRp;
       U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ ' +
-        'コンセプトの線を押し広げるのに使える（いま ' + r.have + 'つ）', 'good');
-      U.toast('🔬 知見をひとつ掴んだ！', 'good');
+        '<b>💡ひらめき</b>に変えるか、コンセプトの線を押し広げるのに使える' +
+        '（いま ' + r.have + 'つ）。あわせて研究ポイント <b>+' +
+        D.RESEARCH.foundRp + '🔬</b>', 'good');
+      U.toast('🔬 知見をひとつ掴んだ！（+' + D.RESEARCH.foundRp + '🔬）', 'good');
       GP.sound.play('levelup');
     } else {
       U.log(g, '🔬 ' + c.name + 'を調べた（' + r.p + ' / ' + r.need + '　+' + r.gain + '）');
@@ -31290,8 +31440,13 @@ GP.screens.help = function (A) {
           '<b>🖊️ 設計室</b>＝<b>これから作るものと、チームの技術を決める</b>。ひらめきを図面に落とし、素材を選び、技術を積み上げます。技術はいまの車にもそのまま効きますが、<b>パーツ1点ずつには手を入れません</b>。',
           '<b>🏭 工房</b>＝<b>パーツそのものに手を入れる</b>＝<b>内側の輪（パーツ）</b>。図面を形にして（作る）、いま積んでいるものを上限へ近づけます（煮詰める）。パーツの輪が動くのは、ここだけです。',
           '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。扇の中をまとめ、扇どうしをつなぎます。持っているものが、そのぶん外へ出てくるようになります。',
-          '<b>🔬 研究所</b>＝<b>行ける向きを増やす</b>＝<b>いちばん外の輪（コンセプト）</b>。方針が引いた線そのものを押し広げます。',
+          '<b>🔬 研究所</b>＝<b>当たりを取りに行く</b>。扇を調べて<b>知見</b>を溜め、それを<b>💡ひらめき</b>に変える（＝会心作の出るパーツ設計）か、<b>方針が引いた線そのもの</b>を押し広げる（＝いちばん外の輪）かに使います。',
           '迷ったら、<b>設計室で決めて、工房で作って、ガレージで仕上げる</b>——この順に回してください。'
+        ] },
+        { h: '研究所 ― 知見の使いみち', p: [
+          '🔬研究所で扇（空気と足／骨と制動／動力）をひとつ選んで調べ続けると、100 まで溜まったところで<b>知見</b>がひとつ生まれます。そのとき<b>研究ポイントも +40</b> 入ります。',
+          '掴んだ知見には、使い道がふたつあります。ひとつは<b>💡ひらめきに変える</b>。その扇の部位をひとつ選ぶと「エンジンの効果的な燃焼室」のような<b>設計の当て</b>を持ち帰れます。もうひとつは<b>線を押し広げる</b>（下の項）。どちらも週は進みません。',
+          'ふつうに設計すると、出来（品質）は運任せです。ひらめきから作れば、そこが<b>必ず会心作</b>になります。研究所は、その当たりを<b>狙って取りに行く</b>場所です。'
         ] },
         { h: 'コンセプトの線を押し広げる', p: [
           '方針に逆らう向きは、<b>上限そのもの</b>が 58% までしかありません。いくらガレージで作り込んでも、その手前で止まります。「ストレート重視なのに曲がる車も欲しい」は、本来なら諦めるしかない相談です。',
@@ -31309,8 +31464,8 @@ GP.screens.help = function (A) {
           'だから、あれこれ手を出すより<b>一つを作り続けた</b>ほうが、同じ金で良いものが出ます。「うちはエアロを作らせたら速い」というチームの色は、ここでつきます。段は🏭工房の「🛠️ライン」で見られます。'
         ] },
         { h: 'ひらめきを形にする', p: [
-          '🏭工房や🔧ガレージで手を動かしていると、ときどき何かを掘り当てます。掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。ライバルが「新型フロア」を持ち込むのと同じことです。',
-          '抱えたひらめきは <b>🖊️ 設計室 → ひらめき</b>に並びます。形にすると、そのパーツの<b>品質が +0.16</b> 底上げされ、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
+          'ひらめきの出どころはふたつ。🏭工房や🔧ガレージで手を動かしていて<b>偶然に掘り当てる</b>か、🔬研究所で溜めた<b>知見を変える</b>かです。前者は運まかせ、後者は狙って取りに行けます。どちらも掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。',
+          '抱えたひらめきは <b>🖊️ 設計室 → ひらめき</b>に並びます。形にすると、そのパーツは<b>必ず会心作</b>で生まれ（ふつうに作ると、ここは運任せです）、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
           '<b>抱えたままだと古びます</b>（30週）。よそが先に同じものを持ち込めば、もう目新しくありません。掘り当てたら、早めに形にしてください。'
         ] },
         { h: '作ったパーツを積む', p: [
