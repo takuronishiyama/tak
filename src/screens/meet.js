@@ -111,9 +111,53 @@ GP.screens.meet = function (A) {
             'どちらへ振るかで、この先の性格が決まります。';
     }
 
+    /* ---- 今週どこに使うか ----
+       いちばん聞きたいのは「で、今週は何を押せばいいのか」。
+       煮詰めが工房の毎週の仕事になったので、
+       プレイヤーの週は「いまは0だが、あとで効くもの」に回す。
+       どれが効くかは、そのときの詰まりかたで変わる            */
+    const capped = D.PART_CATS.map(c => {
+      const p2 = g.equipped[c.key];
+      if (!p2 || (c.key === 'pu' && p2.supplied)) return null;
+      return p2.power >= S.partCap(g, p2) - 0.05 ? c : null;
+    }).filter(Boolean);
+    const innov = S.innovList(g).filter(r => r.ok);
+    const ideaN = S.ideaList(g).length;
+    const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
+    let advise, adviceAct = null;
+    if (innov.length) {
+      advise = '⚡ <b>' + innov[0].def.name + ' でイノベーションを起こせます。</b>' +
+        '器が ' + innov[0].cap + ' → ' + innov[0].capAfter +
+        ' に伸びて、いまの性能はそのまま残ります。今週はこれが一番です。';
+      adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
+        note: 'イノベーションを起こす',
+        fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
+    } else if (capped.length && ideaN) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '💡ひらめきは ' + ideaN + 'つ持っているので、' +
+        'その部位を器の85%まで育てるか、技術部門を厚くすれば⚡が起こせます。';
+    } else if (capped.length && found) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '知見が ' + found + 'つ余っているので、🔬研究所で💡ひらめきに変えるのが先です。';
+      adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
+        note: '知見を💡ひらめきに変える',
+        fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
+    } else if (capped.length) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '天井を上げる手は三つ。<b>🏭作り直して大きな器を引く</b>、' +
+        '<b>🔬研究して⚡イノベーションへ持っていく</b>、' +
+        '<b>🏗️ファクトリーか風洞を伸ばす</b>（伸ばした日に天井が上がります）。';
+    } else {
+      advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週進めています。' +
+        '週は<b>あとで効くもの</b>に使うのが得です——' +
+        '🔬研究（' + (found ? '知見 ' + found + 'つ持っています' : '⚡の元手になります') + '）、' +
+        '🖊️技術、🏭作り直しの引き。';
+    }
+
     return {
       key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
         : worst && worst.rel < -0.05 ? 'warn' : 'good',
+      advise: advise, adviceAct: adviceAct,
       head: worst && top.length
         ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
         : 'つなぎ込み ' + pct(it.rate) + '%',
@@ -127,7 +171,7 @@ GP.screens.meet = function (A) {
           note: '尖らせる。合うコースでは上位と殴り合えます',
           on: plan.key === 'edge',
           fn: () => setPlan('edge') }
-      ]
+      ].concat(adviceAct ? [adviceAct] : [])
     };
   }
   function setPlan(k) {
@@ -343,7 +387,8 @@ GP.screens.meet = function (A) {
       '</span><span class="popsum-b"><b>' + esc(m.name) + '</b><small>' +
       (r.who.person ? esc(r.who.person.name) + '　技能 ' + Math.round(r.who.skill)
                     : '空席') + '</small></span></div>' +
-      '<div class="mgrsay ' + r.mood + '">' + r.say + '</div>';
+      '<div class="mgrsay ' + r.mood + '">' + r.say + '</div>' +
+      (r.advise ? '<div class="mgradv"><b>今週どこに使うか</b>' + r.advise + '</div>' : '');
     r.lines.forEach(l => {
       h += '<div class="popcost"><span>' + l[0] + '</span><span>' + l[1] + '</span></div>';
     });

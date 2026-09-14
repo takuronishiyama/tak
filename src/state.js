@@ -511,6 +511,38 @@ GP.state = (function () {
     const luck = rnd(-Q.spread * 0.9, Q.spread * 1.1);
     return clamp(Math.round((base + luck) * 1000) / 1000, Q.min, Q.max);
   }
+  /* ---------- 作ったときの引き ----------
+     ⚡イノベーションができたいま、「作る」の値打ちは
+     「いま載っているものより大きな器を引き当てること」と
+     「外れても合成の素材になること」のふたつになった。
+     その見込みを、押す前に数字で出せるようにする。
+     式を睨むより、実際に何度も引いて数えるほうが正確     */
+  function makeOdds(g2, catKey) {
+    const now = g2.equipped && g2.equipped[catKey];
+    const nowQ = now ? qualOf(now) : 0;
+    const N = 400;
+    let better = 0, sum = 0, top = 0;
+    const topAt = D.QUALITY[D.QUALITY.length - 1].at;
+    for (let i = 0; i < N; i++) {
+      const q = rollQuality(g2, catKey);
+      sum += q;
+      if (q > nowQ + 0.001) better++;
+      if (q >= topAt) top++;
+    }
+    const avg = sum / N;
+    const gen = D.CAR_GENS[g2.carGen].cap;
+    return {
+      better: better / N,                       // いまより大きな器を引く見込み
+      top: top / N,                             // 会心作を引く見込み
+      avgQual: Math.round(avg * 1000) / 1000,
+      avgCap: Math.round(gen * avg * capMul(g2, catKey)),
+      nowCap: now ? partCap(g2, now) : 0,
+      nowQual: Math.round(nowQ * 1000) / 1000,
+      /* 外れたときの行き先。いま載っているものへ吸わせたときの取り分 */
+      fuseGain: now ? Math.round((10 + g2.carGen * 13) * avg * 0.45 * 10) / 10 : 0
+    };
+  }
+
   /* 絵柄の描き分けに使う 1〜5。品質をその段に丸める */
   function qualStars(q) {
     const L = D.QUALITY;
@@ -1632,7 +1664,10 @@ GP.state = (function () {
     if (g2.funds < cost.money || g2.rp < cost.rp) why.push('資金か研究Pが足りません');
     return {
       cat: catKey, part: p, idea: idea, ratio: ratio, dept: dept,
-      cap: cap, capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * after) : 0,
+      /* 器には引き出せる幅（設備と設計）も掛かる。
+         partCap と同じ式を通さないと、予告だけが小さく出る    */
+      cap: cap,
+      capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * after * capMul(g2, catKey)) : 0,
       qual: p ? qualOf(p) : 0, qualAfter: after,
       cost: cost, top: top, ok: !why.length, why: why
     };
@@ -4946,7 +4981,7 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, pushResearch, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
-    qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    qualOf, qualTier, qualStars, rollQuality, makeOdds, groupOfPart,
     lineOf, lineLv, lineMade, addLineMade,
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,

@@ -2675,6 +2675,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .mgrsay b{color:var(--ink)}
 .mgrsay b.up{color:#2f8a2f}
 .mgrsay b.down{color:#b81a1a}
+/* 「今週どこに使うか」。所見のすぐ下に、一手だけ置く */
+.mgradv{border:3px solid var(--ink);border-left-width:8px;border-left-color:#3a7ad9;
+        border-radius:9px;padding:7px 10px;margin:6px 0;font-size:12px;line-height:1.65;
+        background:#eef4fd}
+.mgradv b:first-child{display:block;font-size:10px;color:#2a5aa8;margin-bottom:3px;
+                      letter-spacing:.04em}
 .popcost b.up{color:#2f8a2f}
 .popcost b.down{color:#b81a1a}
 
@@ -8993,6 +8999,38 @@ GP.state = (function () {
     const luck = rnd(-Q.spread * 0.9, Q.spread * 1.1);
     return clamp(Math.round((base + luck) * 1000) / 1000, Q.min, Q.max);
   }
+  /* ---------- 作ったときの引き ----------
+     ⚡イノベーションができたいま、「作る」の値打ちは
+     「いま載っているものより大きな器を引き当てること」と
+     「外れても合成の素材になること」のふたつになった。
+     その見込みを、押す前に数字で出せるようにする。
+     式を睨むより、実際に何度も引いて数えるほうが正確     */
+  function makeOdds(g2, catKey) {
+    const now = g2.equipped && g2.equipped[catKey];
+    const nowQ = now ? qualOf(now) : 0;
+    const N = 400;
+    let better = 0, sum = 0, top = 0;
+    const topAt = D.QUALITY[D.QUALITY.length - 1].at;
+    for (let i = 0; i < N; i++) {
+      const q = rollQuality(g2, catKey);
+      sum += q;
+      if (q > nowQ + 0.001) better++;
+      if (q >= topAt) top++;
+    }
+    const avg = sum / N;
+    const gen = D.CAR_GENS[g2.carGen].cap;
+    return {
+      better: better / N,                       // いまより大きな器を引く見込み
+      top: top / N,                             // 会心作を引く見込み
+      avgQual: Math.round(avg * 1000) / 1000,
+      avgCap: Math.round(gen * avg * capMul(g2, catKey)),
+      nowCap: now ? partCap(g2, now) : 0,
+      nowQual: Math.round(nowQ * 1000) / 1000,
+      /* 外れたときの行き先。いま載っているものへ吸わせたときの取り分 */
+      fuseGain: now ? Math.round((10 + g2.carGen * 13) * avg * 0.45 * 10) / 10 : 0
+    };
+  }
+
   /* 絵柄の描き分けに使う 1〜5。品質をその段に丸める */
   function qualStars(q) {
     const L = D.QUALITY;
@@ -10114,7 +10152,10 @@ GP.state = (function () {
     if (g2.funds < cost.money || g2.rp < cost.rp) why.push('資金か研究Pが足りません');
     return {
       cat: catKey, part: p, idea: idea, ratio: ratio, dept: dept,
-      cap: cap, capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * after) : 0,
+      /* 器には引き出せる幅（設備と設計）も掛かる。
+         partCap と同じ式を通さないと、予告だけが小さく出る    */
+      cap: cap,
+      capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * after * capMul(g2, catKey)) : 0,
       qual: p ? qualOf(p) : 0, qualAfter: after,
       cost: cost, top: top, ok: !why.length, why: why
     };
@@ -13428,7 +13469,7 @@ GP.state = (function () {
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
     researchPower, researchOf, advanceResearch, useFinding, findingsOf, pushResearch, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
-    qualOf, qualTier, qualStars, rollQuality, groupOfPart,
+    qualOf, qualTier, qualStars, rollQuality, makeOdds, groupOfPart,
     lineOf, lineLv, lineMade, addLineMade,
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
@@ -24895,17 +24936,31 @@ GP.screens.dev = function (A) {
   }
 
   /* ---- 新しいパーツを作る ---- */
+  /* ---- 新しいパーツを作る ----
+     ⚡イノベーションが入ったことで、「作る」の立ち位置が変わった。
+     以前は「作って載せ替える」だったが、新品は性能が下から始まるので、
+     載せ替えるとその場では遅くなる。いまの値打ちはふたつ：
+       ・いま載っているものより<b>大きな器</b>を引き当てること
+       ・外れても、いま載っているものへ<b>吸わせる素材</b>になること
+     どちらも「引き」の話なので、見込みを押す前に出す           */
   function makeBoxHTML() {
     let h = '<div class="sub">新しいパーツを作る</div>' + workshopBoxHTML() +
-      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
-      '出来は<b>素材</b>（設計室）×<b>工作機械</b>×<b>そのパーツのライン</b>で決まり、' +
-      '最後に運がひと振り乗ります。ここで出るのは出発点で、' +
-      'そこから先は<b>煮詰めて</b>上げるものです。</p>' +
+      '<p class="desc">ここは<b>引きを回す場所</b>です。' +
+      '出来（品質）は作った瞬間に決まり、それがそのまま<b>器の大きさ</b>になります。' +
+      'いま載っているものより大きな器を引けたら、載せ替えて育て直す価値があります。<br>' +
+      '<b>外れても無駄になりません。</b>「🏎️ マシン」で' +
+      'いま載っているものに<b>吸わせる</b>と、性能の45%を引き継ぎ、' +
+      '18%ほどの見込みで器そのものも少し広がります。<br>' +
+      '<b class="warn">新品は性能が下から始まります</b>ので、' +
+      'そのまま載せ替えるとその場では遅くなります。' +
+      '育てた個体をそのまま格上げしたいなら、🔬研究所の<b>⚡イノベーション</b>です。' +
+      U.helpLink('car') + '</p>' +
       '<div class="pick">';
     const desCut = S.perkCut(g, 'design');
     D.PART_CATS.forEach(c => {
       const dc = designCost(c.key);
       const ln = S.lineOf(g, c.key);
+      const od = S.makeOdds(g, c.key);
       const ok = g.funds >= dc.money && g.rp >= dc.rp;
       devRow['des:' + c.key] = {
         ic: U.partIcon(c.key, 26, 0), bg: c.color,
@@ -24913,7 +24968,15 @@ GP.screens.dev = function (A) {
         name: esc(S.partModel(c.key, g.carGen)) + ' を作る', sub: c.name,
         lines: [['ライン', ln.icon + ' ' + esc(ln.name) +
                  (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '')],
-                ['できたものは', '保管され、「マシン」から装着・合成できます']],
+                ['引きの見込み',
+                 'いまより大きな器 <b class="' + (od.better >= 0.35 ? 'up' : 'warn') + '">' +
+                 Math.round(od.better * 100) + '%</b>' +
+                 '　' + D.QUALITY[D.QUALITY.length - 1].name + ' <b>' +
+                 Math.round(od.top * 100) + '%</b>'],
+                ['出来の見込み', '品質のならし <b>' + od.avgQual.toFixed(2) + '</b>' +
+                 '　器はおよそ <b>' + od.avgCap + '</b>（いま ' + od.nowCap + '）'],
+                ['外れたときは', 'いま載っているものに吸わせて 性能 <b>+' +
+                 od.fuseGain.toFixed(1) + '</b>（18%ほどで器も少し広がる）']],
         note: esc(S.partNote(c.key, g.carGen)),
         free: !!useTicket, money: dc.money, rp: dc.rp,
         why: devWhy(dc.money, dc.rp),
@@ -24925,6 +24988,9 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を作る</b>' +
         '<small>' + c.name + '　<em class="ln-tag">' + ln.icon + ' ' + esc(ln.name) +
         (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '') + '</em>' +
+        '<br>いまより大きな器を引く見込み <b class="' +
+        (od.better >= 0.35 ? 'up' : 'warn') + '">' + Math.round(od.better * 100) + '%</b>' +
+        '（器 およそ ' + od.avgCap + ' ／ いま ' + od.nowCap + '）' +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
           (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
@@ -29552,9 +29618,53 @@ GP.screens.meet = function (A) {
             'どちらへ振るかで、この先の性格が決まります。';
     }
 
+    /* ---- 今週どこに使うか ----
+       いちばん聞きたいのは「で、今週は何を押せばいいのか」。
+       煮詰めが工房の毎週の仕事になったので、
+       プレイヤーの週は「いまは0だが、あとで効くもの」に回す。
+       どれが効くかは、そのときの詰まりかたで変わる            */
+    const capped = D.PART_CATS.map(c => {
+      const p2 = g.equipped[c.key];
+      if (!p2 || (c.key === 'pu' && p2.supplied)) return null;
+      return p2.power >= S.partCap(g, p2) - 0.05 ? c : null;
+    }).filter(Boolean);
+    const innov = S.innovList(g).filter(r => r.ok);
+    const ideaN = S.ideaList(g).length;
+    const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
+    let advise, adviceAct = null;
+    if (innov.length) {
+      advise = '⚡ <b>' + innov[0].def.name + ' でイノベーションを起こせます。</b>' +
+        '器が ' + innov[0].cap + ' → ' + innov[0].capAfter +
+        ' に伸びて、いまの性能はそのまま残ります。今週はこれが一番です。';
+      adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
+        note: 'イノベーションを起こす',
+        fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
+    } else if (capped.length && ideaN) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '💡ひらめきは ' + ideaN + 'つ持っているので、' +
+        'その部位を器の85%まで育てるか、技術部門を厚くすれば⚡が起こせます。';
+    } else if (capped.length && found) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '知見が ' + found + 'つ余っているので、🔬研究所で💡ひらめきに変えるのが先です。';
+      adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
+        note: '知見を💡ひらめきに変える',
+        fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
+    } else if (capped.length) {
+      advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
+        '天井を上げる手は三つ。<b>🏭作り直して大きな器を引く</b>、' +
+        '<b>🔬研究して⚡イノベーションへ持っていく</b>、' +
+        '<b>🏗️ファクトリーか風洞を伸ばす</b>（伸ばした日に天井が上がります）。';
+    } else {
+      advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週進めています。' +
+        '週は<b>あとで効くもの</b>に使うのが得です——' +
+        '🔬研究（' + (found ? '知見 ' + found + 'つ持っています' : '⚡の元手になります') + '）、' +
+        '🖊️技術、🏭作り直しの引き。';
+    }
+
     return {
       key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
         : worst && worst.rel < -0.05 ? 'warn' : 'good',
+      advise: advise, adviceAct: adviceAct,
       head: worst && top.length
         ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
         : 'つなぎ込み ' + pct(it.rate) + '%',
@@ -29568,7 +29678,7 @@ GP.screens.meet = function (A) {
           note: '尖らせる。合うコースでは上位と殴り合えます',
           on: plan.key === 'edge',
           fn: () => setPlan('edge') }
-      ]
+      ].concat(adviceAct ? [adviceAct] : [])
     };
   }
   function setPlan(k) {
@@ -29784,7 +29894,8 @@ GP.screens.meet = function (A) {
       '</span><span class="popsum-b"><b>' + esc(m.name) + '</b><small>' +
       (r.who.person ? esc(r.who.person.name) + '　技能 ' + Math.round(r.who.skill)
                     : '空席') + '</small></span></div>' +
-      '<div class="mgrsay ' + r.mood + '">' + r.say + '</div>';
+      '<div class="mgrsay ' + r.mood + '">' + r.say + '</div>' +
+      (r.advise ? '<div class="mgradv"><b>今週どこに使うか</b>' + r.advise + '</div>' : '');
     r.lines.forEach(l => {
       h += '<div class="popcost"><span>' + l[0] + '</span><span>' + l[1] + '</span></div>';
     });
@@ -32742,6 +32853,7 @@ GP.screens.help = function (A) {
         { h: '迷ったら、首脳陣に聞く', p: [
           'レース間に使える週は<b>3週</b>しかないのに、週を使える行動は10本以上あります。自分で探すと、何が効いたのか分からないまま週が溶けます。',
           'ハブの <b>🗣️ 相談</b> から、4人の首脳にいま何が起きているかを聞けます。<b>週は進みません。</b>何度でも聞けます。',
+          '🔬開発責任者は「<b>今週どこに使うか</b>」を名指しで言います。上限に詰まった部品があるか、💡ひらめきを持っているか、技術部門が厚いかで、勧める手が変わります。迷ったらここを見てください。',
           '台詞はその場の数字から作っています。「上位5チームの平均と比べて直線が56%低い」「クルーの疲労が72、ピットで0.4秒余計にかかる」——読めばそのまま次の一手になります。赤い札から見てください。'
         ] },
         { h: '四つの場所と、三つの輪', p: [
@@ -32795,6 +32907,12 @@ GP.screens.help = function (A) {
           'ひらめきの出どころはふたつ。🏭工房や🔧ガレージで手を動かしていて<b>偶然に掘り当てる</b>か、🔬研究所で溜めた<b>知見を変える</b>かです。前者は運まかせ、後者は狙って取りに行けます。どちらも掘り当てただけでは速くなりません。<b>形にして車に載せて</b>はじめて効きます。',
           '抱えたひらめきは <b>🖊️ 設計室 → ひらめき</b>に並びます。形にすると、そのパーツは<b>必ず会心作</b>で生まれ（ふつうに作ると、ここは運任せです）、生まれた時点で上限の <b>20%</b> ぶん出来上がっています。名前もそのまま残ります。',
           '<b>抱えたままだと古びます</b>（30週）。よそが先に同じものを持ち込めば、もう目新しくありません。掘り当てたら、早めに形にしてください。'
+        ] },
+        { h: '「作る」は、引きを回す場所', p: [
+          '⚡イノベーションが入ったことで、<b>作る</b>の立ち位置が変わりました。新品は<b>性能が下から始まる</b>ので、そのまま載せ替えると<b>その場では遅くなります</b>。育てた個体をそのまま格上げしたいなら⚡のほうです。',
+          'いまの「作る」の値打ちはふたつ。ひとつは<b>いま載っているものより大きな器を引き当てること</b>。工房の画面に「いまより大きな器を引く見込み ○%」と出ています。',
+          'もうひとつは<b>外れても素材になること</b>。「🏎️ マシン」でいま載っているものに吸わせると、<b>性能の45%</b>を引き継ぎ、<b>18%ほど</b>の見込みで器そのものも少し広がります。パーツを交換したときにも、その場で聞かれます。',
+          'つまり作るのは<b>賭け</b>です。当たれば天井が上がり、外れても素材が残る。素材（設計室）と工作機械と製造方針「🎯一点もの」で、当たりの出る確率そのものを上げられます。'
         ] },
         { h: '⚡ イノベーション ― 育てた個体を格上げする', p: [
           'ひらめきを「形にする」と、必ず会心作のパーツが生まれます。ただしそれは<b>新品</b>なので、性能はまた下から。上限まで煮詰めた個体を捨てることになります。',

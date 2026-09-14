@@ -2660,6 +2660,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .mgrsay b{color:var(--ink)}
 .mgrsay b.up{color:#2f8a2f}
 .mgrsay b.down{color:#b81a1a}
+/* 「今週どこに使うか」。所見のすぐ下に、一手だけ置く */
+.mgradv{border:3px solid var(--ink);border-left-width:8px;border-left-color:#3a7ad9;
+        border-radius:9px;padding:7px 10px;margin:6px 0;font-size:12px;line-height:1.65;
+        background:#eef4fd}
+.mgradv b:first-child{display:block;font-size:10px;color:#2a5aa8;margin-bottom:3px;
+                      letter-spacing:.04em}
 .popcost b.up{color:#2f8a2f}
 .popcost b.down{color:#b81a1a}
 

@@ -1979,17 +1979,31 @@ GP.screens.dev = function (A) {
   }
 
   /* ---- 新しいパーツを作る ---- */
+  /* ---- 新しいパーツを作る ----
+     ⚡イノベーションが入ったことで、「作る」の立ち位置が変わった。
+     以前は「作って載せ替える」だったが、新品は性能が下から始まるので、
+     載せ替えるとその場では遅くなる。いまの値打ちはふたつ：
+       ・いま載っているものより<b>大きな器</b>を引き当てること
+       ・外れても、いま載っているものへ<b>吸わせる素材</b>になること
+     どちらも「引き」の話なので、見込みを押す前に出す           */
   function makeBoxHTML() {
     let h = '<div class="sub">新しいパーツを作る</div>' + workshopBoxHTML() +
-      '<p class="desc">できたパーツは保管され、「マシン」から装着・合成できます。' +
-      '出来は<b>素材</b>（設計室）×<b>工作機械</b>×<b>そのパーツのライン</b>で決まり、' +
-      '最後に運がひと振り乗ります。ここで出るのは出発点で、' +
-      'そこから先は<b>煮詰めて</b>上げるものです。</p>' +
+      '<p class="desc">ここは<b>引きを回す場所</b>です。' +
+      '出来（品質）は作った瞬間に決まり、それがそのまま<b>器の大きさ</b>になります。' +
+      'いま載っているものより大きな器を引けたら、載せ替えて育て直す価値があります。<br>' +
+      '<b>外れても無駄になりません。</b>「🏎️ マシン」で' +
+      'いま載っているものに<b>吸わせる</b>と、性能の45%を引き継ぎ、' +
+      '18%ほどの見込みで器そのものも少し広がります。<br>' +
+      '<b class="warn">新品は性能が下から始まります</b>ので、' +
+      'そのまま載せ替えるとその場では遅くなります。' +
+      '育てた個体をそのまま格上げしたいなら、🔬研究所の<b>⚡イノベーション</b>です。' +
+      U.helpLink('car') + '</p>' +
       '<div class="pick">';
     const desCut = S.perkCut(g, 'design');
     D.PART_CATS.forEach(c => {
       const dc = designCost(c.key);
       const ln = S.lineOf(g, c.key);
+      const od = S.makeOdds(g, c.key);
       const ok = g.funds >= dc.money && g.rp >= dc.rp;
       devRow['des:' + c.key] = {
         ic: U.partIcon(c.key, 26, 0), bg: c.color,
@@ -1997,7 +2011,15 @@ GP.screens.dev = function (A) {
         name: esc(S.partModel(c.key, g.carGen)) + ' を作る', sub: c.name,
         lines: [['ライン', ln.icon + ' ' + esc(ln.name) +
                  (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '')],
-                ['できたものは', '保管され、「マシン」から装着・合成できます']],
+                ['引きの見込み',
+                 'いまより大きな器 <b class="' + (od.better >= 0.35 ? 'up' : 'warn') + '">' +
+                 Math.round(od.better * 100) + '%</b>' +
+                 '　' + D.QUALITY[D.QUALITY.length - 1].name + ' <b>' +
+                 Math.round(od.top * 100) + '%</b>'],
+                ['出来の見込み', '品質のならし <b>' + od.avgQual.toFixed(2) + '</b>' +
+                 '　器はおよそ <b>' + od.avgCap + '</b>（いま ' + od.nowCap + '）'],
+                ['外れたときは', 'いま載っているものに吸わせて 性能 <b>+' +
+                 od.fuseGain.toFixed(1) + '</b>（18%ほどで器も少し広がる）']],
         note: esc(S.partNote(c.key, g.carGen)),
         free: !!useTicket, money: dc.money, rp: dc.rp,
         why: devWhy(dc.money, dc.rp),
@@ -2009,6 +2031,9 @@ GP.screens.dev = function (A) {
         '<span class="pb-body"><b>' + esc(S.partModel(c.key, g.carGen)) + ' を作る</b>' +
         '<small>' + c.name + '　<em class="ln-tag">' + ln.icon + ' ' + esc(ln.name) +
         (ln.lv > 0 ? '（精度 +' + Math.round((ln.prec - 1) * 100) + '%）' : '') + '</em>' +
+        '<br>いまより大きな器を引く見込み <b class="' +
+        (od.better >= 0.35 ? 'up' : 'warn') + '">' + Math.round(od.better * 100) + '%</b>' +
+        '（器 およそ ' + od.avgCap + ' ／ いま ' + od.nowCap + '）' +
         '</small></span>' +
         '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
           (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
