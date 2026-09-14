@@ -2718,6 +2718,24 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 [data-skin="hd"] .sub .gsum{background:rgba(0,0,0,.3);color:#f2dfae}
 .grpbox{border:2px solid var(--ink);border-radius:8px;background:var(--paper3);
         padding:6px 8px;margin-bottom:8px}
+/* ---- 並べて見比べる表 ----
+   迎える前に「入れたらどうなるか」を、いまの面々の隣に置く */
+.cmpwrap{overflow-x:auto;margin:6px 0}
+.cmptbl{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.cmptbl th,.cmptbl td{padding:3px 5px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid rgba(74,47,26,.18)}
+.cmptbl th:first-child,.cmptbl td:first-child{text-align:left;opacity:.85}
+.cmptbl th{font-size:10px;opacity:.8;font-weight:normal}
+.cmptbl .c-cand{background:rgba(255,216,90,.20)}
+.cmptbl th.c-cand{font-weight:bold;opacity:1}
+.cmptbl td em{font-style:normal;font-size:9px;margin-left:4px;opacity:.85}
+.cmptbl td em.up{color:#2f8a2f}
+.cmptbl td em.down{color:#b81a1a}
+[data-skin="hd"] .cmptbl th,[data-skin="hd"] .cmptbl td{border-color:rgba(255,238,196,.18)}
+[data-skin="hd"] .cmptbl td em.up{color:#7ede7e}
+[data-skin="hd"] .cmptbl td em.down{color:#ff9a8a}
+/* 席の行 */
+.seatrow .pb-cost{font-size:11px}
 /* 人事：グループの行と、人の小窓 */
 .grprow .grp-bar{display:block;width:100%;height:6px;margin:3px 0}
 .grprow .pb-cost b{font-size:15px}

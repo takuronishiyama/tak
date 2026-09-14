@@ -1403,23 +1403,12 @@ window.GP = window.GP || {};
      「回復した」の一行しか出ていなかった。
      効き先が4つもあるのに、どれがどれだけ戻るのかが読めない。
      決める前に、いまの数字と休んだあとの数字を並べて見せる。   */
-  const REST = { form: [6, 14], cond: [3, 7], crew: [14, 22] };
+  /* 休むのは人。マシンは休んでも直らない——直すのは「🛠️ 整備」。
+     以前はここで部品のコンディションまで戻していたが、
+     整備の立場がぼやけるだけだったので外した                */
+  const REST = { form: [6, 14], crew: [14, 22] };
   function restPreviewHTML() {
     const mid = a => (a[0] + a[1]) / 2;
-    /* 信頼性は「部品のコンディションをいったん上げて測り、戻す」。
-       整備の画面と同じやりかたで、実際の式から出す           */
-    const relNow = S.reliability(g);
-    const relAfter = (() => {
-      const keep = {};
-      D.PART_CATS.forEach(c => { const p2 = g.equipped[c.key]; if (p2) keep[c.key] = p2.cond; });
-      D.PART_CATS.forEach(c => {
-        const p2 = g.equipped[c.key];
-        if (p2) p2.cond = S.clamp(p2.cond + mid(REST.cond), 10, 100);
-      });
-      const v = S.reliability(g);
-      D.PART_CATS.forEach(c => { const p2 = g.equipped[c.key]; if (p2) p2.cond = keep[c.key]; });
-      return v;
-    })();
     const cwNow = S.crewPenalty(g);
     const cwLv = Math.round(cwNow.level);
     const cwTo = Math.max(0, Math.round(cwNow.level - mid(REST.crew)));
@@ -1433,7 +1422,9 @@ window.GP = window.GP || {};
     const row = (a, b, c2) => '<div class="popcost"><span>' + a + '</span><span>' + b +
       (c2 ? '<br><small>' + c2 + '</small>' : '') + '</span></div>';
 
-    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の4つです。</p>' +
+    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の3つ——' +
+      '<b>どれも人のほう</b>です。マシンのコンディションは休んでも戻りません' +
+      '（直すのは「🛠️ 整備」）。</p>' +
       (g.crunch
         ? '<p class="note"><b class="warn">いまは徹夜態勢です。</b>' +
           '休むと、この週の「2回ぶん」は使われないまま消えます。' +
@@ -1462,13 +1453,7 @@ window.GP = window.GP || {};
         '／作業ミス ' + (cwNow.mistake * 100).toFixed(1) + '% → ' +
         (cwAfter.mistake * 100).toFixed(1) + '%');
 
-    // ③ マシンのコンディション
-    h += '<div class="sub small">🏎️ マシンのコンディション</div>' +
-      row('信頼性', '<b>' + Math.round(relNow) + '%</b> → <b>' + Math.round(relAfter) + '%</b>',
-        '積んでいる部品が一律 +' + REST.cond[0] + '〜' + REST.cond[1] +
-        '。大きく戻したいときは「🛠️ 整備」のほうが効きます');
-
-    // ④ 徹夜の反動
+    // ③ 徹夜の反動
     const rowN = g.crunchRow || 0;
     h += '<div class="sub small">🌙 徹夜の反動</div>' +
       row('連続徹夜', rowN ? '<b>' + rowN + '週ぶん</b> → <b>0</b>' : '<b>なし</b>',
@@ -1489,10 +1474,6 @@ window.GP = window.GP || {};
     g.crunchRow = 0;                 // 休むと徹夜の反動が抜ける
     const before = (g.drivers || []).map(d => d.form);
     g.drivers.forEach(d => { d.form = S.clamp(d.form + S.rnd(REST.form[0], REST.form[1]) * S.persOf(d).rest, 62, 122); });
-    D.PART_CATS.forEach(c => {
-      const p = g.equipped[c.key];
-      if (p) p.cond = S.clamp(p.cond + S.rnd(REST.cond[0], REST.cond[1]), 10, 100);
-    });
     const crewBefore = Math.round(S.crewPenalty(g).level);
     S.restCrew(g, S.rnd(REST.crew[0], REST.crew[1]));
     const crewAfter = Math.round(S.crewPenalty(g).level);

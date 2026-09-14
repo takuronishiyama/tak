@@ -424,104 +424,305 @@ GP.screens.hr = function (A) {
       U.helpLink('people') + '</p>';
   }
 
+  /* =======================================================
+     ドライバーの席と、その小窓
+
+     施設・備品と同じ形。タブに出すのは「席」だけにして、
+     誰を迎えるか・誰を出すか・いまの誰と比べてどうかは、
+     押したあとの小窓でまとめて決める。
+     ======================================================= */
+  const DKEYS = [['speed', '速さ'], ['technique', '技術'],
+                 ['stamina', '体力'], ['mental', '精神']];
+
+  function seatList() {
+    return [
+      { key: 'full', icon: '🏎️', name: 'フルタイム', cap: 2,
+        list: (g.drivers || []).slice(),
+        note: '日曜に走る2人。ここが空いていると出走できません' },
+      { key: 'res', icon: '🪑', name: 'リザーブ', cap: 1,
+        list: g.reserve ? [g.reserve] : [],
+        note: '負傷の代役。給料は正ドライバーの ' +
+              Math.round(S.RESERVE_PAY * 100) + '%で、席が空けばそのまま昇格できます' },
+      { key: 'youth', icon: '🎓', name: '育成の若手', cap: S.youthSlots(g),
+        list: ((g.youth || []).slice().sort((a, b) => S.driverRating(b) - S.driverRating(a))),
+        note: '下部組織。ここで育てた子が、上の席を埋めます' }
+    ];
+  }
+  function seatOf(key) { return seatList().filter(x => x.key === key)[0]; }
+
+  /* 候補と、いまの面々を能力ごとに並べる。
+     「入れたらどうなるか」は、隣に並べないと分からない  */
+  function cmpTableHTML(cand, others, candLabel) {
+    if (!others.length) return '';
+    let h = '<div class="cmpwrap"><table class="cmptbl"><tr><th></th>' +
+      '<th class="c-cand">' + esc(candLabel || (cand.name || '').slice(0, 5)) + '</th>' +
+      others.map(o => '<th>' + esc((o.name || '').slice(0, 5)) + '</th>').join('') + '</tr>';
+    const row = (label, get, dg) => {
+      const cv = get(cand);
+      h += '<tr><td>' + label + '</td><td class="c-cand"><b>' + cv.toFixed(dg) + '</b></td>' +
+        others.map(o => {
+          const ov = get(o);
+          const d = cv - ov;
+          const cls = d > 0.05 ? 'up' : d < -0.05 ? 'down' : '';
+          return '<td>' + ov.toFixed(dg) +
+            '<em class="' + cls + '">' + (d >= 0 ? '+' : '') + d.toFixed(dg) + '</em></td>';
+        }).join('') + '</tr>';
+    };
+    row('総合', d => S.driverRating(d), 0);
+    DKEYS.forEach(k => row(k[1], d => d[k[0]] || 0, 0));
+    row('週給', d => d.salary || 0, 0);
+    return h + '</table></div>';
+  }
+
+  /* ひとりぶんの見出し（顔・名前・素性） */
+  function drvHeadHTML(d, sub) {
+    const p2 = S.persOf(d);
+    return '<div class="popsum"><span class="pb-ic face-ic">' + U.face(d, 34) + '</span>' +
+      '<span class="popsum-b"><b>' + esc(d.name) + '</b>' +
+      '<small>' + S.nationOf(d).flag + ' ' + d.age + '歳　' + p2.icon + ' ' + esc(p2.name) +
+      '　総合 <b>' + Math.round(S.driverRating(d)) + '</b>' + (sub ? '<br>' + sub : '') +
+      '</small></span></div>' +
+      '<p class="desc">' + U.skillChips(d) + paidChip(d) + '</p>';
+  }
+
+  /* ---- 席の小窓 ---- */
+  function openSeat(key) {
+    const st = seatOf(key);
+    if (!st) return;
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' + st.icon +
+      '</span><span class="popsum-b"><b>' + esc(st.name) + '</b>' +
+      '<small>' + st.list.length + ' / ' + st.cap + '人</small></span></div>' +
+      '<p class="desc">' + esc(st.note) + '</p>';
+    if (st.list.length) {
+      h += '<div class="pick">';
+      st.list.forEach(d => {
+        h += '<button class="pickbtn" data-drvpop="' + d.id + '">' +
+          '<span class="pb-ic face-ic">' + U.face(d, 28) + '</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + '</b>' +
+          '<small>' + S.nationOf(d).flag + ' ' + d.age + '歳　総合 <b>' +
+          Math.round(S.driverRating(d)) + '</b>' +
+          (key === 'full' ? '　' + trustChip(d) : '') +
+          (d.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + d.outFor + '戦</em>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">週' + money(d.salary) + '万</span></button>';
+      });
+      h += '</div>';
+    } else {
+      h += '<p class="note">この席は空いています。</p>';
+    }
+    const room = st.list.length < st.cap;
+    h += '<p class="note">' + (room
+      ? '押すと、その人の詳しい話と、出す・上げる・入れ替えるが出ます。'
+      : '<b class="warn">満員です。</b>誰かを出さないと迎えられません。') + '</p>';
+    const btns = [];
+    if (room) btns.push({ label: '＋ 迎える', cls: 'primary',
+      fn: () => openSeatMarket(key) });
+    btns.push({ label: '閉じる', fn: () => { GP.sound.play('tap'); U.closePopup(); } });
+    const box = U.popup(st.icon + ' ' + esc(st.name), h, btns);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-drvpop]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openDriverPop(b.dataset.drvpop, key); };
+    });
+  }
+
+  /* ---- いる人の小窓（比較つき） ---- */
+  function openDriverPop(id, seat) {
+    const st = seatOf(seat);
+    const d = (st.list || []).filter(x => x.id === id)[0];
+    if (!d) return;
+    const back = () => openSeat(seat);
+    const others = (g.drivers || []).filter(x => x.id !== d.id);
+    let h = drvHeadHTML(d, '週' + money(d.salary) + '万' +
+      (d.paid ? '／毎戦 +' + money(d.paid.per) + '万' : ''));
+    h += cmpTableHTML(d, others, 'この人');
+    const btns = [];
+    if (seat === 'full') {
+      const fee = d.salary * 6;
+      h += '<p class="note">解雇すると違約金 <b>💰' + money(fee) +
+        '万</b>（週給の6週ぶん）。走る人が1人になると、その席は空いたままです。</p>';
+      btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger', fn: () => {
+        g.funds -= fee;
+        g.drivers = g.drivers.filter(x => x.id !== d.id);
+        U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(fee) + '万）。');
+        S.save(g); render(); U.closePopup(); cmdStaff();
+      } });
+    } else if (seat === 'res') {
+      const full = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
+      h += '<p class="note">正ドライバーに上げると 週' + money(d.salary) + '万 → <b>週' +
+        money(full) + '万</b>になります。</p>';
+      if ((g.drivers || []).length < 2) {
+        btns.push({ label: '⬆ 正ドライバーに昇格', cls: 'primary', fn: () => {
+          const r = S.promoteReserve(g);
+          if (!r) return;
+          GP.sound.play('levelup');
+          U.log(g, '🎉 リザーブの ' + r.name + ' が正ドライバーに昇格！（週' + money(r.salary) + '万）', 'good');
+          U.toast('🎉 ' + r.name + ' が正ドライバーに！', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } });
+      }
+      (g.drivers || []).forEach(o => {
+        btns.push({ label: '🔁 ' + esc(o.name) + ' と入れ替え', fn: () => {
+          const r = S.swapReserve(g, o.id);
+          if (!r) return;
+          GP.sound.play('levelup');
+          U.log(g, '🔁 ' + r.inD.name + ' が正ドライバーに、' + r.outD.name + ' がリザーブに回った。', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } });
+      });
+      btns.push({ label: '👋 契約を解除', cls: 'danger', fn: () => {
+        const r = S.clearReserve(g);
+        if (!r) return;
+        U.log(g, '👋 リザーブの ' + r.name + ' との契約を解除した。');
+        S.save(g); render(); U.closePopup(); cmdStaff();
+      } });
+    } else {
+      if ((g.drivers || []).length < 2) {
+        btns.push({ label: '🎉 トップチームへ昇格', cls: 'primary', fn: () => {
+          const r = S.promoteYouth(g, d.id);
+          if (!r) return;
+          GP.sound.play('levelup');
+          U.log(g, '🎉 ' + r.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
+          U.toast('🎉 ' + r.name + ' が昇格！', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } });
+      }
+      if (!g.reserve) {
+        btns.push({ label: '🪑 リザーブにする', fn: () => {
+          g.youth = (g.youth || []).filter(x => x.id !== d.id);
+          S.setReserve(g, d);
+          GP.sound.play('confirm');
+          U.log(g, '🪑 ' + d.name + ' をリザーブドライバーにした。', 'good');
+          S.save(g); render(); U.closePopup(); cmdStaff();
+        } });
+      }
+      btns.push({ label: '👋 放出する', cls: 'danger', fn: () => {
+        g.youth = (g.youth || []).filter(x => x.id !== d.id);
+        U.log(g, '👋 若手の ' + d.name + ' を放出した。');
+        S.save(g); render(); U.closePopup(); cmdStaff();
+      } });
+    }
+    btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); back(); } });
+    U.popup(S.nationOf(d).flag + ' ' + esc(d.name), h, btns);
+  }
+
+  /* ---- 迎える相手を選ぶ小窓 ---- */
+  function openSeatMarket(seat) {
+    const youth = seat === 'youth';
+    const list = youth ? youthMarket : driverMarket;
+    let h = '<p class="desc">' + (youth
+      ? '下部組織に迎える若手です。いまは荒くても、素質のある子は伸びます。'
+      : '押すと、いまの面々と能力を並べて見比べられます。') + '</p><div class="pick">';
+    if (!list.length) h += '<p class="note">いま声を掛けられる相手がいません。市場の更新を待ってください。</p>';
+    list.forEach((d, i) => {
+      const fee = youth ? youthFee(d) : Math.round(d.salary * 12);
+      const p3 = S.potOf(d);
+      h += '<button class="pickbtn' + (g.funds >= fee ? '' : ' cant') +
+        '" data-offer="' + i + '">' +
+        '<span class="pb-ic face-ic">' + U.face(d, 28) + '</span>' +
+        '<span class="pb-body"><b>' + esc(d.name) + '</b>' +
+        '<small>' + S.nationOf(d).flag + ' ' + d.age + '歳　総合 <b>' +
+        Math.round(S.driverRating(d)) + '</b>' +
+        '　<em style="color:' + p3.color + '">' + U.stars(d.pot || 2) + '</em>' +
+        (d.paid ? '　<b class="paidin">持参金 +' + money(d.paid.dowry) + '</b>' : '') +
+        '</small></span>' +
+        '<span class="pb-cost">💰' + money(fee) + '</span></button>';
+    });
+    h += '</div>';
+    const box = U.popup('＋ ' + (youth ? '若手を迎える' : 'ドライバーを迎える'), h,
+      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openSeat(seat); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-offer]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openOfferPop(+b.dataset.offer, seat); };
+    });
+  }
+
+  /* ---- 迎える前に、いまの面々と並べて見る ---- */
+  function openOfferPop(i, seat) {
+    const youth = seat === 'youth';
+    const list = youth ? youthMarket : driverMarket;
+    const d = list[i];
+    if (!d) return;
+    const fee = youth ? youthFee(d) : Math.round(d.salary * 12);
+    const short = Math.max(0, fee - g.funds);
+    const others = youth ? (g.youth || []).slice() : (g.drivers || []).slice();
+    let h = drvHeadHTML(d, '週' + money(d.salary) + '万');
+    h += cmpTableHTML(d, others, 'この人');
+    if (!others.length) h += '<p class="note">比べる相手がまだいません。</p>';
+    h += '<div class="popcost"><span>' + (youth ? '獲得の費用' : '契約金') + '</span><span><b>💰' +
+      money(fee) + '万</b></span></div>' +
+      '<div class="popcost"><span>毎週の給料</span><span><b>💰' + money(d.salary) + '万</b></span></div>';
+    if (d.paid) {
+      h += '<div class="popcost"><span>持参金</span><span><b class="paidin">+💰' +
+        money(d.paid.dowry) + '万</b><br><small>毎戦 +' + money(d.paid.per) + '万</small></span></div>' +
+        '<p class="note">' + esc(d.paid.line) + '</p>';
+    }
+    if (short > 0) h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+      money(short) + '万</b> です。</p>';
+    /* 迎え先ごとに空きを見る。リザーブの席から開いたときでも、
+       「契約する」が見ているのはフルタイムの席のほう          */
+    const fullSeat = seatOf('full'), ySeat = seatOf('youth');
+    const roomFull = fullSeat.list.length < fullSeat.cap;
+    const roomY = ySeat.list.length < ySeat.cap;
+    const roomRes = !g.reserve;
+    const btns = [];
+    if (youth) {
+      if (!roomY) h += '<p class="note"><b class="warn">下部組織の席が埋まっています。</b></p>';
+      btns.push({ label: '🎓 下部組織に迎える　💰' + money(fee) + '万', cls: 'primary',
+        disabled: short > 0 || !roomY,
+        fn: () => { hrPick('ym:' + i); U.closePopup(); cmdStaff(); } });
+    } else {
+      if (!roomFull) h += '<p class="note">フルタイムの席は埋まっています（2/2）。' +
+        (roomRes ? 'リザーブとしてなら迎えられます。' : '') + '</p>';
+      btns.push({ label: '✍️ 契約する（フルタイム）　💰' + money(fee) + '万', cls: 'primary',
+        disabled: short > 0 || !roomFull,
+        fn: () => { hrPick('dm:' + i); U.closePopup(); cmdStaff(); } });
+      if (roomRes) {
+        const rfee = Math.round(d.salary * 12 * S.RESERVE_PAY);
+        btns.push({ label: '🪑 リザーブとして迎える　💰' + money(rfee) + '万',
+          disabled: g.funds < rfee,
+          fn: () => {
+            g.funds -= rfee;
+            S.setReserve(g, d);
+            list.splice(i, 1);
+            GP.sound.play('confirm');
+            U.log(g, '🪑 ' + d.name + ' をリザーブドライバーとして迎えた（' + money(rfee) + '万）。', 'good');
+            U.toast('🪑 ' + d.name + ' がリザーブに', 'good');
+            S.save(g); render(); U.closePopup(); cmdStaff();
+          } });
+      }
+    }
+    btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); openSeatMarket(seat); } });
+    U.popup(S.nationOf(d).flag + ' ' + esc(d.name), h, btns);
+  }
+
   function hrDrivers() {
-    let body = '<div class="sub">所属ドライバー（' + g.drivers.length + '/2）</div>' +
+    /* タブに出すのは席だけ。中身は押したときの小窓へ。
+       前はここに所属・リザーブ・育成・市場を全部積んでいて、
+       市場まで下りるのに画面1.7枚ぶん送っていた            */
+    let body = '<p class="desc">席を押すと、いま誰がいるか・誰を迎えるか・' +
+      'いまの人と比べてどうかが、その場で出ます。' + U.helpLink('people') + '</p>' +
+      '<div class="pick">';
+    seatList().forEach(st => {
+      const full = st.list.length >= st.cap;
+      const names = st.list.length
+        ? st.list.map(d => esc(d.name) + ' <b>' + Math.round(S.driverRating(d)) + '</b>').join('　')
+        : '<b class="warn">空いています</b>';
+      body += '<button class="pickbtn seatrow" data-seat="' + st.key + '">' +
+        '<span class="pb-ic" style="background:#5a6270">' + st.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(st.name) +
+        '<em class="grp-n">' + st.list.length + ' / ' + st.cap + '</em></b>' +
+        '<small>' + names + '<br><em class="pnote">' + esc(st.note) + '</em></small></span>' +
+        '<span class="pb-cost">' + (full ? '満員' : '＋迎える') + '</span></button>';
+    });
+    body += '</div>';
+
+    // ---- 信頼と、走らせかたの話 ----
+    body += '<div class="sub">🗣️ ピットへの信頼</div>' +
       '<div class="trustrow">' + g.drivers.map(d =>
         '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
       '</div>' +
-      '<p class="desc">🗣️ <b>ピットへの信頼</b>は、言ったことが結果として返ってきたかどうかで動きます。' +
-      U.helpLink('people') + '</p>' +
-      '<div class="pick">';
-    g.drivers.forEach(d => {
-      body += '<div class="pickbtn done">' +
-        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
-        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
-        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
-        '<span class="pb-cost">週' + money(d.salary) + '万' +
-        (d.paid ? '<br><b class="paidin">毎戦 +' + money(d.paid.per) + '</b>' : '') +
-        '<br><button class="mini danger" data-fired="' + d.id + '">解雇</button></span></div>';
-    });
-    body += '</div>';
-    body += careLegendHTML();
-
-    // ---- リザーブドライバー ----
-    body += '<div class="sub">🪑 リザーブドライバー</div>' +
-      '<p class="desc">万一のときに走る控えです。給料は正ドライバーの ' +
-      Math.round(S.RESERVE_PAY * 100) + '%。事故で負傷したドライバーの代役に入ります。<br>' +
-      '<b>シートが空いていればそのまま正ドライバーに昇格</b>させられますし、' +
-      'いまの正ドライバーと入れ替えることもできます（給料は正ドライバーの額になります）。</p><div class="pick">';
-    if (g.reserve) {
-      const r = g.reserve;
-      const openSeat = g.drivers.length < 2;
-      const full = Math.round((r.speed + r.technique + r.stamina + r.mental) / 4 * 0.95 + 18);
-      const acts = (openSeat
-          ? '<button class="mini good" data-promres="1">⬆ 正ドライバーに昇格</button>'
-          : '') +
-        g.drivers.map(d =>
-          '<button class="mini" data-swapres="' + d.id + '">' + esc(d.name) +
-          'と入れ替えて昇格</button>').join('');
-      body += '<div class="pickbtn done">' +
-        '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(r.name) + '</b><small>' + S.nationOf(r).flag + ' 総合 ' +
-        Math.round(S.driverRating(r)) + '／' + r.age + '歳／' + S.persOf(r).icon + S.persOf(r).name +
-        (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
-        '<br>' + U.skillChips(r) +
-        '<br>昇格すると 週' + money(r.salary) + '万 → <b>週' + money(full) + '万</b>' +
-        (openSeat ? '（いまシートが1つ空いています）' : '') + '</small></span>' +
-        '<span class="pb-cost">週' + money(r.salary) + '万<br>' + acts +
-        '<button class="mini danger" data-relres="1">解除</button></span></div>';
-    } else {
-      body += '<p class="desc">リザーブはいません。下部組織の若手か、市場のドライバーを置けます。</p>';
-      (g.youth || []).forEach(d => {
-        body += '<div class="pickbtn done youthrow">' +
-          '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-          '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' ' +
-          d.age + '歳／総合 ' + Math.round(S.driverRating(d)) + '（下部組織）</small></span>' +
-          '<span class="pb-cost"><button class="mini" data-tores="' + d.id + '">リザーブへ</button></span></div>';
-      });
-    }
-    body += '</div>';
-
-    // ---- 育成の若手 ----
-    // フルタイムと育成は地続き。同じ画面で、いま誰が控えているかが見える
-    const ys = g.youth || [];
-    body += '<div class="sub">🎓 育成の若手（' + ys.length + '/' + S.youthSlots(g) + '）</div>';
-    if (!ys.length) {
-      body += '<p class="desc">下部組織に誰もいません。「🎓 育成」から探せます。' +
-        'ここで育てた子が、上のフルタイムの席を埋めます。</p>';
-    } else {
-      body += '<p class="desc">上の席が空いたとき、ここから昇格させられます。' +
-        '手を入れるのは「🎓 育成」から。</p><div class="pick">';
-      ys.slice().sort((a, b) => S.driverRating(b) - S.driverRating(a)).forEach(d => {
-        const p2 = S.potOf(d);
-        body += '<div class="pickbtn done"><span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-          '<span class="pb-body"><b>' + esc(d.name) + '<em class="ychip">' + d.age + '歳</em></b>' +
-          '<small>総合 <b>' + Math.round(S.driverRating(d)) + '</b>' +
-          '　速さ ' + Math.round(d.speed) + '／技術 ' + Math.round(d.technique) +
-          '／体力 ' + Math.round(d.stamina) + '／精神 ' + Math.round(d.mental) +
-          '　<em style="color:' + p2.color + '">' + U.stars(d.pot || 2) + ' ' + p2.name + '</em>' +
-          '</small></span><span class="pb-cost">週' + money(d.salary) + '万</span></div>';
-      });
-      body += '</div>';
-    }
-    body += '<div class="sub">ドライバー市場</div><div class="pick">';
-    driverMarket.forEach((d, i) => {
-      const fee = Math.round(d.salary * 12);
-      const full = g.drivers.length >= 2;
-      body += '<button class="pickbtn" data-k="dm:' + i + '"' + ((full || g.funds < fee) ? ' disabled' : '') + '>' +
-        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' + S.nationOf(d).flag + ' 総合 ' +
-        Math.round(S.driverRating(d)) + '／' + d.age + '歳／' + S.persOf(d).icon + S.persOf(d).name +
-        '<br>速' + Math.round(d.speed) + ' 技' + Math.round(d.technique) + ' 体' + Math.round(d.stamina) + ' 精' + Math.round(d.mental) +
-        '<br>' + U.skillChips(d) + paidChip(d) + '</small></span>' +
-        '<span class="pb-cost">' +
-        (d.paid ? '<b class="paidin">持参金<br>+' + money(d.paid.dowry) + '</b><br>' : '') +
-        '契約金<br>💰' + money(fee) +
-        (g.reserve ? '' : '<br><button class="mini" data-mktres="' + i + '">リザーブへ</button>') +
-        '</span></button>';
-    });
-    return body + '</div>';
+      '<p class="desc">言ったことが結果として返ってきたかどうかで動きます。' +
+      '高いほど、無線の指示をそのとおりに走ってくれます。</p>' +
+      careLegendHTML();
+    return body;
   }
 
   /* ---- 下部組織 ---- */
@@ -1133,6 +1334,9 @@ GP.screens.hr = function (A) {
     const body = $('modalBody');
     Array.prototype.forEach.call(body.querySelectorAll('[data-grp]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openGroupPop(b.dataset.grp); };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-seat]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openSeat(b.dataset.seat); };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
