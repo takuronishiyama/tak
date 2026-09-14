@@ -7361,6 +7361,15 @@ GP.data = (function () {
     rp:       6,       // 同・研究ポイント
     keep:     3,       // 抱えておける知見の数（扇ごと）
     foundRp:  40,      // 知見をひとつ掴んだときに入る研究ポイント
+    /* ---- まとめて調べる ----
+       研究ポイントは、毎週の自然増が解析部門に比例して伸びるのに、
+       出ていくほうが何にも比例しないので、中盤以降は
+       入りの半分がそのまま余っていた（実測：アナリスト2人で +366／年）。
+       余ったぶんで「時間を買える」ようにする。
+       週は使わないかわり、1週ぶんの3倍近い研究ポイントを置いていく    */
+    pushRp:   120,     // まとめて調べるのに要る研究ポイント
+    pushGain: 55,      // そのとき進む量（1週ぶんは 20 前後）
+    ideaRp:   45,      // 知見を💡ひらめきに変えるときの研究ポイント
     /* ---- 知見の使い道 ----
        溜めた知見ひとつで、コンセプトが引いた線を
        この割合だけ外へ押し広げられる。
@@ -7529,7 +7538,10 @@ GP.data = (function () {
        技術者を2人ほど入れたところ（10.8）を境にしてある      */
     dept: 9.0,
     money: 1800,     // 費用
-    rp: 18,
+    /* 目玉の行動なのに研究ポイントが 18 しかかからず、
+       余りの受け皿になっていなかった。世代なりに重くする     */
+    rp: 60,
+    rpGen: 40,       // 世代が1つ上がるごとに、研究ポイントもこれだけ増える
     genCost: 0.55    // 世代が上がるごとに、費用がこれだけ増える
   };
 
@@ -8688,6 +8700,21 @@ GP.state = (function () {
     return true;
   }
   function findingsOf(g2, key) { return researchOf(g2, key).found; }
+  /* 研究ポイントをまとめて置いて、調べを一気に進める。週は使わない。
+     余った研究ポイントで時間を買う、というのがここの役目           */
+  function pushResearch(g2, key) {
+    const r = researchOf(g2, key);
+    if (r.found >= D.RESEARCH.keep) return null;
+    if ((g2.rp || 0) < D.RESEARCH.pushRp) return null;
+    g2.rp -= D.RESEARCH.pushRp;
+    r.p += D.RESEARCH.pushGain;
+    let found = false;
+    if (r.p >= D.RESEARCH.need) {
+      r.p -= D.RESEARCH.need; r.found++; found = true;
+      g2.rp += D.RESEARCH.foundRp;
+    }
+    return { p: Math.round(r.p), need: D.RESEARCH.need, found: found, have: r.found };
+  }
   /* ---------- コンセプトの線を押し広げる ----------
      方針に逆らう向きは、上限そのものが 58% までしか無い。
      それが「方針からは外れない」の実体で、
@@ -9926,7 +9953,7 @@ GP.state = (function () {
     const gen = clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1);
     return {
       money: Math.round(D.INNOV_UP.money * (1 + gen * D.INNOV_UP.genCost)),
-      rp: D.INNOV_UP.rp
+      rp: Math.round(D.INNOV_UP.rp + gen * D.INNOV_UP.rpGen)
     };
   }
   /* 技術部門の厚み（開発＋設計）。イノベーションの条件のひとつ */
@@ -13254,7 +13281,7 @@ GP.state = (function () {
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
-    researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
+    researchPower, researchOf, advanceResearch, useFinding, findingsOf, pushResearch, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
     lineOf, lineLv, lineMade, addLineMade,
@@ -23904,70 +23931,6 @@ GP.screens.dev = function (A) {
 
   const bodyCost = v => Math.round(380 + v * 34);
 
-  function doBody(key) {
-    const a = D.BODY_ATTRS.find(x => x.key === key);
-    if (!a || !g.body) return;
-    const v = g.body[key] || 0;
-    // コンセプトに逆らう項目は、上限そのものが低い
-    const cap = S.bodyCapOf(g, key);
-    const cost = bodyCost(v);
-    /* 金と研究Pは、券を使ってもいつもどおり払う */
-    if (g.funds < cost || g.rp < 8) return;
-    const noWeek = spendTicket();
-    g.funds -= cost; g.rp -= 8; capSpend(cost);
-    const facBonus = (1 + g.facilities.factory * 0.10 + g.facilities.tunnel * 0.06)
-                   * S.rigMul(g, 'tunnel');
-    const engBonus = 1 + S.devPower(g) * 0.12;
-    const drvBonus = 1 + g.drivers.reduce((acc, d) => acc + S.persOf(d).dev, 0);
-    const fc = S.focusOf(g);
-    let gain = S.rnd(2.6, 4.2) * facBonus * engBonus * drvBonus
-             * S.conceptMul(g, key) * crunchMul() * S.devRate(g);
-    let crit = false;
-    if (Math.random() < 0.10) { gain *= 2.2; crit = true; }
-    const brk = S.rollBreakthrough(g);
-    if (brk) {
-      gain *= D.IDEA.now; crit = true;
-      // まとめ上げの最中に出たひらめきも、形にするのはパーツのほう
-      S.addIdea(g, brk, (S.groupOfBody(key) === 'air' ? 'aero'
-                       : S.groupOfBody(key) === 'frame' ? 'chas' : 'pu'));
-    }
-    if (v >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
-    const toNext = gain * fc.next;
-    gain = Math.round(gain * fc.cur * 10) / 10;
-    g.nextCar = (g.nextCar || 0) + toNext;
-    // 方針の外までは行けない。ここで頭を打つ
-    g.body[key] = Math.round(Math.min(cap, v + gain) * 10) / 10;
-    if (brk) {
-      g.concepts = (g.concepts || []).concat([{
-        body: key, what: brk, gain: gain, at: S.weekStamp(g)
-      }]);
-      S.pushNews(g, 'brk', brk);
-      /* 掘り当てたものは隠しておけない。写真に撮られ、風洞で再現され、
-         数戦のうちにグリッドの半分が同じ形になる                    */
-      {
-        const t2 = S.trackAt(g, g.nextRace);
-        const sec = S.rnd(D.INNOV.secMin, D.INNOV.secMax);
-        const mul = 1 + S.secToScore(g, sec) / Math.max(1, S.carScore(g, t2));
-        S.setTrend(g, g.team, brk, mul, true, sec);
-      }
-    }
-
-    U.closeModal();
-    GP.sound.play(crit ? 'crit' : 'confirm');
-    staffExp('engineer', 9); staffExp('designer', 4);
-    U.log(g, a.icon + ' 車体の' + a.name + ' +' + gain.toFixed(1) +
-      (brk ? '  🔬' + brk + '！' : crit ? '  ✨大きな発見！' : ''), crit ? 'good' : '');
-    U.pop('+' + gain.toFixed(1) + ' ' + a.name, crit ? 'crit' : 'good');
-    if (brk) U.toast('🔬 ' + brk + '！ 車体が一段上のものになった', 'good');
-    else if (crit) U.toast('✨ 車体の' + a.name + 'で大きな発見！', 'good');
-    if (g.body[key] >= cap) {
-      U.toast(S.conceptDir(g, key) < 0
-        ? 'いまのコンセプトでは、' + a.name + 'はここまでです。方針を変えるなら車を作り直します。'
-        : 'この車体は煮詰まりました。パーツを仕上げれば次の世代へ進みます。', 'warn');
-    }
-    endDev(noWeek);
-  }
-
   /* ---- 開発チケットの帯 ----
      券が肩代わりするのが「週」になったので、
      どの作業場でも切り替えられないと困る。
@@ -25089,7 +25052,8 @@ GP.screens.dev = function (A) {
         'ひらめきから作ったパーツは、出来が<b>必ず' +
         D.QUALITY[D.QUALITY.length - 1].name + '</b>になります' +
         '（ふつうに設計すると、そこは運任せです）。' +
-        '週は進みません。抱えられるのは <b>' + D.IDEA.keep + 'つ</b>まで、' +
+        '週は進みません（🔬' + D.RESEARCH.ideaRp + ' はかかります）。' +
+        '抱えられるのは <b>' + D.IDEA.keep + 'つ</b>まで、' +
         '<b>' + D.IDEA.life + '週</b>で古びます。' +
         '形にするのは🖊️設計室の「💡ひらめき」の札からです。' + U.helpLink('car') + '</p>';
       if (!conv.length) {
@@ -25106,10 +25070,39 @@ GP.screens.dev = function (A) {
             '<span class="pb-body"><b>' + esc(r.name) + ' のひらめきをひとつ</b>' +
             '<small>' + esc(r.parts ? r.parts.map(x => x.name).join('・')
                                     : r.name) + ' から部位を選びます</small></span>' +
-            '<span class="pb-cost">🔬 知見 -1</span></button>';
+            '<span class="pb-cost">🔬 知見 -1<br>🔬' + D.RESEARCH.ideaRp +
+            '</span></button>';
         });
         body += '</div>';
       }
+
+      /* ---- まとめて調べる ----
+         研究ポイントの行き先。週が足りない人が、余ったぶんで
+         時間を買える。1週ぶんの3倍近くを一度に置いていく      */
+      const rich = (g.rp || 0) >= D.RESEARCH.pushRp;
+      body += '<div class="sub small">🔬 まとめて調べる</div>' +
+        '<p class="desc">研究ポイントをまとめて置いて、調べを一気に進めます。' +
+        '<b>週は使いません。</b>1週ぶんが <b>' + S.researchPower(g).toFixed(1) +
+        '</b> なのに対して、ここでは <b>+' + D.RESEARCH.pushGain + '</b> 進みます。' +
+        '溜まった研究ポイントで、足りない<b>週</b>を買う場所です。</p>' +
+        '<div class="pick">';
+      S.researchList(g).forEach(r => {
+        const stack = r.found >= D.RESEARCH.keep;
+        const ok = rich && !stack;
+        body += '<button class="pickbtn' + (ok ? '' : ' cant') + '" data-push="' + r.key + '"' +
+          (ok ? '' : ' disabled') + '>' +
+          '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(r.name) + ' を一気に進める</b>' +
+          '<small>' + Math.round(r.p) + ' / ' + r.need + ' → <b class="up">' +
+          Math.min(r.need, Math.round(r.p) + D.RESEARCH.pushGain) + ' / ' + r.need + '</b>' +
+          (stack ? '<br><b class="warn">これ以上は抱えられません</b>'
+                 : !rich ? '<br><b class="warn">研究ポイントが足りません（いま ' +
+                   Math.floor(g.rp || 0) + '）</b>' : '') +
+          '</small></span>' +
+          '<span class="pb-cost">🔬' + D.RESEARCH.pushRp + '<br><b class="free">週なし</b>' +
+          '</span></button>';
+      });
+      body += '</div>';
     }
 
     /* ---- 溜めた知見を使う ---- */
@@ -25188,6 +25181,22 @@ GP.screens.dev = function (A) {
     });
     bindAct('data-toidea', gk => openIdeaPick(gk));
     bindAct('data-innov', k => openInnov(k));
+    bindAct('data-push', k => {
+      const r = S.pushResearch(g, k);
+      if (!r) return U.toast('研究ポイントが足りません', 'bad');
+      const gr = D.PART_GROUPS.filter(x => x.key === k)[0] || { name: k, icon: '🔬' };
+      GP.sound.play(r.found ? 'levelup' : 'build');
+      if (r.found) {
+        U.log(g, '🔬 ' + gr.name + 'をまとめて調べ、知見を掴んだ！（いま ' + r.have +
+          'つ）。あわせて研究ポイント +' + D.RESEARCH.foundRp, 'good');
+        U.toast('🔬 知見をひとつ掴んだ！', 'good');
+      } else {
+        U.log(g, '🔬 ' + gr.name + 'をまとめて調べた（' + r.p + ' / ' + r.need +
+          '　研究P -' + D.RESEARCH.pushRp + '）');
+        U.pop('🔬 +' + D.RESEARCH.pushGain, 'good');
+      }
+      S.save(g); render(); cmdResearch();
+    });
     /* 溜めた知見を使って、コンセプトの線を押し広げる。
        調べるのとちがって、ここは週を使わない            */
     bindAct('data-lift', gk => {
@@ -25308,7 +25317,11 @@ GP.screens.dev = function (A) {
     if (S.ideaList(g).length >= D.IDEA.keep) {
       return U.toast('ひらめきをこれ以上抱えられません', 'warn');
     }
+    if ((g.rp || 0) < D.RESEARCH.ideaRp) {
+      return U.toast('研究ポイントが足りません（🔬' + D.RESEARCH.ideaRp + '）', 'bad');
+    }
     if (!S.useFinding(g, gk)) return U.toast('知見がありません', 'bad');
+    g.rp -= D.RESEARCH.ideaRp;
     const nm = name || (c.name + 'の' + ideaNameFor(catKey));
     S.addIdea(g, nm, catKey);
     GP.sound.play('levelup');
@@ -32658,9 +32671,14 @@ GP.screens.help = function (A) {
           '<b>🔬 研究所</b>＝<b>当たりを取りに行く</b>。扇を調べて<b>知見</b>を溜め、それを<b>💡ひらめき</b>に変える（＝会心作の出るパーツ設計）か、<b>方針が引いた線そのもの</b>を押し広げる（＝いちばん外の輪）かに使います。',
           '迷ったら、<b>設計室で決めて、工房で作って、ガレージで仕上げる</b>——この順に回してください。'
         ] },
+        { h: '研究ポイントの使いみち', p: [
+          '研究ポイントは、毎週すこしずつ入り、📊データ解析やロングランでまとまって入ります。出ていくのは <b>作る</b>／<b>煮詰める</b>／<b>技術</b>／<b>研究</b>／<b>⚡イノベーション</b>／<b>💡ひらめき化</b>、そして <b>🔬まとめて調べる</b>です。',
+          '<b>🔬 まとめて調べる</b>（研究所）は、研究ポイントをまとめて置いて、調べを一気に進めます。<b>週は使いません。</b>1週かけて 20 前後しか進まないところを、<b>+55</b> 進みます。溜まった研究ポイントで、足りない<b>週</b>を買う場所です。',
+          '解析部門を厚くすると入りが増えますが、増え方は<b>毎週の自然増より「📊データ解析」のほう</b>に寄せてあります。何もしなくても溜まっていくだけ、にならないように。'
+        ] },
         { h: '研究所 ― 知見の使いみち', p: [
           '🔬研究所で扇（空気と足／骨と制動／動力）をひとつ選んで調べ続けると、100 まで溜まったところで<b>知見</b>がひとつ生まれます。そのとき<b>研究ポイントも +40</b> 入ります。',
-          '掴んだ知見には、使い道がふたつあります。ひとつは<b>💡ひらめきに変える</b>。その扇の部位をひとつ選ぶと「エンジンの効果的な燃焼室」のような<b>設計の当て</b>を持ち帰れます。もうひとつは<b>線を押し広げる</b>（下の項）。どちらも週は進みません。',
+          '掴んだ知見には、使い道がふたつあります。ひとつは<b>💡ひらめきに変える</b>（🔬45）。その扇の部位をひとつ選ぶと「エンジンの効果的な燃焼室」のような<b>設計の当て</b>を持ち帰れます。もうひとつは<b>線を押し広げる</b>（下の項）。どちらも週は進みません。',
           'ふつうに設計すると、出来（品質）は運任せです。ひらめきから作れば、そこが<b>必ず会心作</b>になります。研究所は、その当たりを<b>狙って取りに行く</b>場所です。'
         ] },
         { h: 'コンセプトの線を押し広げる', p: [
@@ -35713,7 +35731,11 @@ window.GP = window.GP || {};
     const up = S.tryAdvanceGen(g);
     if (up) announceGen(up);
     // 研究ポイントの自然増
-    g.rp += 2 + Math.round(S.analystPower(g));
+    /* 解析部門の厚みに丸ごと比例させていたので、
+       人を入れるほど「何もしなくても溜まる」量が増え、
+       中盤以降は入りの半分がそのまま余っていた。
+       部門の効きは、週を使う「📊 データ解析」のほうへ寄せる    */
+    g.rp += 2 + Math.round(S.analystPower(g) * 0.45);
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
     // 講習に出している人が、そろそろ戻ってくる

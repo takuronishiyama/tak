@@ -143,7 +143,11 @@ window.GP = window.GP || {};
     const up = S.tryAdvanceGen(g);
     if (up) announceGen(up);
     // 研究ポイントの自然増
-    g.rp += 2 + Math.round(S.analystPower(g));
+    /* 解析部門の厚みに丸ごと比例させていたので、
+       人を入れるほど「何もしなくても溜まる」量が増え、
+       中盤以降は入りの半分がそのまま余っていた。
+       部門の効きは、週を使う「📊 データ解析」のほうへ寄せる    */
+    g.rp += 2 + Math.round(S.analystPower(g) * 0.45);
     // ライバルも毎週マシンを煮詰めている
     S.developRivals(g);
     // 講習に出している人が、そろそろ戻ってくる

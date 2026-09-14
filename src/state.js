@@ -264,6 +264,21 @@ GP.state = (function () {
     return true;
   }
   function findingsOf(g2, key) { return researchOf(g2, key).found; }
+  /* 研究ポイントをまとめて置いて、調べを一気に進める。週は使わない。
+     余った研究ポイントで時間を買う、というのがここの役目           */
+  function pushResearch(g2, key) {
+    const r = researchOf(g2, key);
+    if (r.found >= D.RESEARCH.keep) return null;
+    if ((g2.rp || 0) < D.RESEARCH.pushRp) return null;
+    g2.rp -= D.RESEARCH.pushRp;
+    r.p += D.RESEARCH.pushGain;
+    let found = false;
+    if (r.p >= D.RESEARCH.need) {
+      r.p -= D.RESEARCH.need; r.found++; found = true;
+      g2.rp += D.RESEARCH.foundRp;
+    }
+    return { p: Math.round(r.p), need: D.RESEARCH.need, found: found, have: r.found };
+  }
   /* ---------- コンセプトの線を押し広げる ----------
      方針に逆らう向きは、上限そのものが 58% までしか無い。
      それが「方針からは外れない」の実体で、
@@ -1502,7 +1517,7 @@ GP.state = (function () {
     const gen = clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1);
     return {
       money: Math.round(D.INNOV_UP.money * (1 + gen * D.INNOV_UP.genCost)),
-      rp: D.INNOV_UP.rp
+      rp: Math.round(D.INNOV_UP.rp + gen * D.INNOV_UP.rpGen)
     };
   }
   /* 技術部門の厚み（開発＋設計）。イノベーションの条件のひとつ */
@@ -4830,7 +4845,7 @@ GP.state = (function () {
     diffOf, potOf, rollPotential, renegotiate, makeYouth, youthSlots, growYouth, promoteYouth,
     costCap, capSpent, capLeft, capRatio, spendCapped, settleCap, devRate, repairBill,
     techLv, techProg, techDef, techList, techStep, techCost, advanceTech,
-    researchPower, researchOf, advanceResearch, useFinding, findingsOf, researchList,
+    researchPower, researchOf, advanceResearch, useFinding, findingsOf, pushResearch, researchList,
     groupOfBody, capLiftOf, liftConcept, offCapOf,
     qualOf, qualTier, qualStars, rollQuality, groupOfPart,
     lineOf, lineLv, lineMade, addLineMade,
