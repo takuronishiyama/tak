@@ -687,9 +687,15 @@ body.preboot .topbar{visibility:hidden}
 .rv-canvaswrap{position:relative;flex:0 1 auto;min-width:0;min-height:0;
                width:-moz-fit-content;width:fit-content;max-width:100%;
                margin-left:auto;margin-right:auto}
+/* 高さは --rvMap を「そのまま」入れる。max-height にしていたころは、
+   図が元の 560×400 のまま描かれ、上限は縮める側にしか効かなかった。
+   置換要素は幅も高さも auto だと元の大きさで止まるので、
+   広い画面で余白が空いていても、図はいつまでも小さいままだった。
+   高さを決めてしまえば、幅は縦横比のぶんだけ勝手に伸びる。
+   狭い画面では max-width が先に当たり、そのぶん高さも縮む（比は保たれる） */
 #raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
             image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
-            width:auto;height:auto;max-width:100%;max-height:var(--rvMap,46vh);
+            width:auto;height:var(--rvMap,46vh);max-width:100%;
             background:#7fbf5a}
 /* 無線に右下を譲って、カメラの切り替えは左下へ */
 .rv-cam{position:absolute;left:6px;bottom:6px;display:flex;gap:4px}
@@ -2610,6 +2616,26 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 .rv-body{align-items:flex-start;flex-shrink:0}
 .rv-sectors,.rv-loglist,.rv-ctrl{flex-shrink:0}
 .rv-wrap.timing .rv-side{display:none}
+/* ---- 縦に余裕のある端末では、余りを順位のパネルへ ----
+   縦持ちの iPhone くらいの高さだと、コース図の下に 100px ほど
+   何も置かれていない帯が余っていた。コース図はすでに横幅いっぱいで、
+   縦横比が決まっている以上それ以上は大きくならないので、
+   余ったぶんは順位に渡す。見える車が6台から10台ほどに増える。
+   背の低い端末では、もとの 152px のまま（増やすと操作ボタンが
+   画面の外へ出る）                                              */
+@media (min-height:760px) and (hover:none) and (pointer:coarse){
+  .rv-side{max-height:min(23vh,215px)}
+}
+/* ---- 背の低い端末で、速さの操作が画面の外に出ないように ----
+   枠の中が送られる高さになると、いちばん下の操作ボタンまで
+   一緒に流れていって、押すのに毎回スクロールが要っていた。
+   枠の底に貼りつけておく（padding のぶん -8px）                 */
+@media (max-height:700px) and (hover:none) and (pointer:coarse){
+  .rv-ctrl{position:sticky;bottom:-8px;z-index:7;
+           background:var(--paper);padding-top:4px;
+           box-shadow:0 -5px 8px rgba(0,0,0,.28)}
+}
+
 .rv-wrap.timing .rv-canvaswrap{margin:0 auto}
 /* モニターを出しているあいだは、表のほうが主役。
    コース図は画面の3割までに抑える。ここを幅の条件の中に
@@ -2617,6 +2643,8 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
    表と操作ボタンが画面の外へ押し出されていた               */
 .rv-wrap.timing{--rvMap:30vh}
 .rv-wrap.timing .rv-body{flex:0 0 auto}
+
+
 /* モニターを出しているあいだも、カメラの切り替えは残す。
    はみ出していたのは、絶対配置なのに幅が入れ物に縛られていなかったから。
    幅の上限を入れ物に合わせ、入りきらなければ折り返す。
@@ -2661,6 +2689,33 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   position:sticky;top:0;margin:0 -6px auto;padding:2px 6px 3px;
   background:#2b1c0e;color:#d8c8a4;font-size:9px;letter-spacing:.08em;
   border-bottom:1px dashed rgba(255,238,196,.34);z-index:2}
+
+/* ---- 広い画面では、横の余白をコース図に回す ----
+   入れ物を 900px で止めていたので、1440px の窓では左右に 270px ずつ
+   何も置かれていない帯ができ、コース図は元の 560×400 のままだった。
+   マウスのある、広くて低くない窓にかぎって、枠を広げ、図も大きくする。
+   図は縦横比が決まっているので、高さを上げるとそのまま横へ伸びる。
+
+   ここに置いてあるのは、上の .rv-wrap.timing{--rvMap} より
+   あとに来る必要があるから。前に置くと、モニターを出したときの
+   指定に上書きされて効かなかった                                  */
+@media (min-width:1000px) and (min-height:560px) and (hover:hover) and (pointer:fine){
+  .rv-wrap{max-width:min(1400px,94vw)}
+  /* 上下の帯（ヘッダ・自車の行・実況・操作）を除いた残り。
+     窓が低いときは vh 側が、高いときは px 側が効く            */
+  .rv-wrap{--rvMap:min(56vh,540px)}
+  /* 順位のパネルは広げすぎても読みにくい。上限を決めて、
+     余ったぶんはコース図へ渡す。高さは図に合わせて伸ばす      */
+  .rv-side{flex:0 1 380px;max-width:380px;align-self:stretch}
+  /* モニターを出しているあいだは表が主役。図はほどほどに */
+  .rv-wrap.timing{--rvMap:min(34vh,420px)}
+  /* 表と実況も、広がったぶんだけ見せる。
+     図と表の合計が枠の高さを超えると、枠の中が送られてしまうので、
+     どちらも vh で取って、窓の高さに合わせて一緒に縮むようにする   */
+  .rv-wrap.timing .rv-mon .rv-sectors{max-height:min(46vh,560px)}
+  .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(220px,24%,340px);
+                                      max-height:min(46vh,560px)}
+}
 /* 縦に持つ端末では並べきれないので、これまでどおり積む */
 @media (max-width:560px){
   .rv-wrap.timing .rv-mon{display:contents}
