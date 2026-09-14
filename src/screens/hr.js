@@ -870,6 +870,123 @@ GP.screens.hr = function (A) {
       '<span class="pb-cost">週' + money(st.salary) + '万</span></button>';
   }
 
+  /* 部門の面々と、候補を能力ごとに並べる。
+     ドライバーの席と同じ考えかた——入れたらどうなるかは、
+     隣に置かないと分からない                              */
+  function cmpStaffHTML(cand, others, candLabel) {
+    if (!others.length) return '';
+    let h = '<div class="cmpwrap"><table class="cmptbl"><tr><th></th>' +
+      '<th class="c-cand">' + esc(candLabel || (cand.name || '').slice(0, 5)) + '</th>' +
+      others.map(o => '<th>' + esc((o.name || '').slice(0, 5)) + '</th>').join('') + '</tr>';
+    const row = (label, get, dg) => {
+      const cv = get(cand);
+      h += '<tr><td>' + label + '</td><td class="c-cand"><b>' + cv.toFixed(dg) + '</b></td>' +
+        others.map(o => {
+          const ov = get(o), d = cv - ov;
+          const cls = d > 0.005 ? 'up' : d < -0.005 ? 'down' : '';
+          return '<td>' + ov.toFixed(dg) +
+            '<em class="' + cls + '">' + (d >= 0 ? '+' : '') + d.toFixed(dg) + '</em></td>';
+        }).join('') + '</tr>';
+    };
+    row('技能', st => st.skill || 0, 0);
+    row('伸びしろ（上限）', st => S.staffCap(st), 0);
+    row('効き方', st => S.staffRank(st).mul, 2);
+    row('年齢', st => st.age || 34, 0);
+    row('週給', st => st.salary || 0, 0);
+    return h + '</table></div>';
+  }
+
+  /* ---- その部門に迎える相手を選ぶ小窓 ---- */
+  function openStaffMarket(key) {
+    const gt = S.groupTable(g);
+    const x = gt.byKey(key);
+    if (!x) return;
+    const d = x.def;
+    const room = S.staffRoom(g);
+    const cands = staffMarket
+      .map((st, i) => ({ st: st, i: i }))
+      .filter(o => o.st.type === d.of)
+      .sort((a, b) => b.st.skill - a.st.skill);
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' + d.icon +
+      '</span><span class="popsum-b"><b>' + esc(d.name) + ' に迎える</b>' +
+      '<small>いま ' + x.members.length + '人／チーム全体 ' +
+      (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</small></span></div>';
+    h += room > 0
+      ? '<p class="desc">押すと、いまの部門の面々と並べて見比べられます。</p>'
+      : '<p class="note"><b class="warn">席が埋まっています。</b>' +
+        '施設を伸ばすか、誰かを出さないと迎えられません。</p>';
+    h += '<div class="pick">';
+    if (!cands.length) {
+      h += '<p class="note">いま ' + esc(d.name) + ' の応募者はいません。' +
+        '「🔄 市場を更新」で入れ替わります。</p>';
+    }
+    cands.forEach(o => {
+      const st = o.st, fee = staffFee(st), pt = S.potOf(st);
+      h += '<button class="pickbtn' + (g.funds >= fee && room > 0 ? '' : ' cant') +
+        '" data-soffer="' + o.i + '">' +
+        '<span class="pb-ic" style="background:#7b5a3a">' + (D.STAFF_TYPES.filter(t => t.key === st.type)[0] || {}).icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(st.name) + '</b>' +
+        '<small>技能 <b>' + st.skill + '</b> / ' + S.staffCap(st) +
+        '　' + (st.age || 34) + '歳　<em style="color:' + pt.color + '">' +
+        U.stars(st.pot || 2) + '</em>' + traitChips(st) + '</small></span>' +
+        '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
+    });
+    h += '</div>';
+    const box = U.popup('＋ ' + d.icon + ' ' + esc(d.name), h,
+      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-soffer]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openStaffOffer(+b.dataset.soffer, key); };
+    });
+  }
+
+  /* ---- 迎える前に、部門の面々と並べて見る ---- */
+  function openStaffOffer(i, key) {
+    const st = staffMarket[i];
+    if (!st) return;
+    const gt = S.groupTable(g);
+    const x = gt.byKey(key);
+    const others = x ? x.members.slice().sort((a, b) => b.skill - a.skill) : [];
+    const t = D.STAFF_TYPES.filter(y => y.key === st.type)[0] || {};
+    const fee = staffFee(st);
+    const room = S.staffRoom(g);
+    const short = Math.max(0, fee - g.funds);
+    const pt = S.potOf(st);
+    const rk = S.staffRank(st);
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#7b5a3a">' +
+      (t.icon || '👤') + '</span><span class="popsum-b"><b>' + esc(st.name) + '</b>' +
+      '<small>' + esc(t.name || '') + '　' + (st.age || 34) + '歳　' +
+      rk.icon + ' ' + esc(S.staffTitle(st)) +
+      '　<em style="color:' + pt.color + '">' + U.stars(st.pot || 2) + ' ' + esc(pt.name) +
+      '</em></small></span></div>' +
+      '<p class="desc">' + esc(t.desc || '') + traitChips(st) + '</p>';
+    h += cmpStaffHTML(st, others, 'この人');
+    if (!others.length) h += '<p class="note">この部門にはまだ誰もいません。最初のひとりになります。</p>';
+    h += '<div class="popcost"><span>契約金</span><span><b>💰' + money(fee) + '万</b></span></div>' +
+      '<div class="popcost"><span>毎週の給料</span><span><b>💰' + money(st.salary) + '万</b></span></div>';
+    if (x) {
+      /* 入れたら部門の力がどこまで伸びるか。
+         グループの噛み合いを通した値で出す（画面の数字と同じ式） */
+      const before = x.total;
+      const back = (g.staff || []).slice();
+      g.staff = back.concat([st]);
+      const after = (S.groupTable(g).byKey(key) || {}).total || before;
+      g.staff = back;
+      h += '<div class="popcost"><span>' + esc(x.def.name) + 'の力</span><span><b>' +
+        before.toFixed(1) + ' → ' + after.toFixed(1) + '</b>' +
+        '<br><small>中の噛み合いと、ほかの部門からの効きを通した値</small></span></div>';
+    }
+    if (room <= 0) h += '<p class="note"><b class="warn">席が埋まっています（' +
+      (g.staff || []).length + ' / ' + S.staffSlots(g) + '人）。</b>施設を伸ばすと増えます。</p>';
+    if (short > 0) h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
+      money(short) + '万</b> です。</p>';
+    U.popup((t.icon || '👤') + ' ' + esc(st.name), h, [
+      { label: '✍️ 雇う　💰' + money(fee) + '万', cls: 'primary',
+        disabled: short > 0 || room <= 0,
+        fn: () => { hrPick('sm:' + i); U.closePopup(); cmdStaff(); } },
+      { label: '戻る', fn: () => { GP.sound.play('tap'); openStaffMarket(key); } }
+    ]);
+  }
+
   /* ひとりぶんの小窓。昇進と解雇はここでだけ起きる */
   function openStaffPop(id, back) {
     const st = (g.staff || []).find(x => x.id === id);
@@ -946,8 +1063,16 @@ GP.screens.hr = function (A) {
       h += '<div class="sub small">居る人（押すと昇進・解雇）</div><div class="pick">' +
         x.members.slice().sort((a, b) => b.skill - a.skill).map(stMini).join('') + '</div>';
     }
-    const box = U.popup(d.icon + ' ' + esc(d.name), h,
-      [{ label: '閉じる', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    const cands = staffMarket.filter(y => y.type === d.of).length;
+    h += '<p class="note">' + (cands
+      ? '市場に <b>' + cands + '人</b> の応募者がいます。'
+      : 'いまこの部門の応募者はいません。') +
+      '　席はチーム全体で ' + (g.staff || []).length + ' / ' + S.staffSlots(g) + '人。</p>';
+    const box = U.popup(d.icon + ' ' + esc(d.name), h, [
+      { label: '＋ 迎える' + (cands ? '（候補 ' + cands + '人）' : ''), cls: 'primary',
+        fn: () => openStaffMarket(key) },
+      { label: '閉じる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+    ]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-stpop]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openStaffPop(b.dataset.stpop, () => openGroupPop(key)); };
     });
@@ -1053,27 +1178,41 @@ GP.screens.hr = function (A) {
       '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
       (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
       '<p class="desc">チームの規模が大きいほど、腕の良い人材が応募してきます' +
-      '（いまの規模：<b>' + GP.base.scale(g).rank + '</b>）。<br>' +
+      '（いまの規模：<b>' + GP.base.scale(g).rank + '</b>）。' +
       (room > 0
         ? 'あと <b>' + room + '人</b> 置けます。'
         : '<b class="warn">席が埋まっています。</b>') +
       '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
-      'レベルぶん伸ばすごとに1席）。どの施設を伸ばしても構いません。</p>' +
-      '<div class="pick">';
-    staffMarket.forEach((st, i) => {
-      const fee = staffFee(st);
-      body += '<button class="pickbtn" data-k="sm:' + i + '"' +
-        (g.funds < fee || room <= 0 ? ' disabled' : '') + '>' +
-        '<span class="pb-ic" style="background:#7b5a3a">' +
-        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(st.name) + '</b><small>' +
-        (D.STAFF_TYPES.find(x => x.key === st.type) || {}).name + '／技能 ' + st.skill +
-        '　' + (st.age || 34) + '歳　<em style="color:' + S.potOf(st).color + '">' +
-        U.stars(st.pot || 2) + ' ' + S.potOf(st).name + '</em>' +
-        '<br><span class="skbar"><i style="width:' + Math.min(100, st.skill / S.staffCap(st) * 100) + '%"></i></span>' +
-        traitChips(st) +
-        '</small></span><span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
+      'レベルぶん伸ばすごとに1席）。</p>';
+    /* 応募者を1列に積むと、誰がどの部門の人なのかが読めないまま
+       延々と送ることになる。部門ごとにまとめて、
+       中身は押したときの小窓で見比べる                        */
+    body += '<div class="pick">';
+    let mktN = 0;
+    D.GROUPS.forEach(G => {
+      const cands = staffMarket.filter(st => st.type === G.of);
+      if (!cands.length) return;
+      mktN += cands.length;
+      const best = cands.slice().sort((a, b) => b.skill - a.skill)[0];
+      const mine = (g.staff || []).filter(st => st.type === G.of);
+      const top = mine.slice().sort((a, b) => b.skill - a.skill)[0];
+      const gain = top ? best.skill - top.skill : null;
+      body += '<button class="pickbtn smktrow" data-smkt="' + G.key + '">' +
+        '<span class="pb-ic" style="background:#7b5a3a">' + G.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(G.name) +
+        '<em class="grp-n">候補 ' + cands.length + '人</em></b>' +
+        '<small>いちばん腕がいい人は <b>技能 ' + best.skill + '</b>' +
+        (gain === null
+          ? '　<em class="up">この部門はまだ空です</em>'
+          : '　うちの一番手は ' + top.skill +
+            '　<em class="' + (gain > 0 ? 'up' : 'down') + '">' +
+            (gain > 0 ? '+' : '') + gain + '</em>') +
+        '</small></span>' +
+        '<span class="pb-cost">見比べる</span></button>';
     });
+    if (!mktN) {
+      body += '<p class="note">いま応募者がいません。「🔄 市場を更新」で入れ替わります。</p>';
+    }
     body += '</div>';
 
     // ---- よそのチームから引き抜く ----
@@ -1337,6 +1476,9 @@ GP.screens.hr = function (A) {
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-seat]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openSeat(b.dataset.seat); };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-smkt]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); openStaffMarket(b.dataset.smkt); };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote]'), b => {
       b.onclick = () => {
