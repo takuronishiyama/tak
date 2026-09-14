@@ -25,6 +25,10 @@
   --board:#c9a86a;        /* 背景の木目 */
   --board2:#b8955a;
   --red:#e04a3f; --blue:#3a7ad9; --green:#4ea63f;
+  /* 白抜きの札に使う、沈めた版。
+     --red / --blue の上に白を置くと明暗の比が 4.0〜4.2 しかなく、
+     小さい字だと読みにくい。札のときだけこちらを使う           */
+  --redInk:#b8342a; --blueInk:#2a5aa8;
   --yellow:#ffc93c; --purple:#b06fd0; --sky:#7ecbf0;
 
   --paper3:#fffdf3;       /* パネルの中の、さらに明るい面 */
@@ -133,10 +137,14 @@ button{font-family:inherit;color:inherit;cursor:pointer}
            border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px}
 .tyrebtn small{font-size:8px;opacity:.8}
 .tyrebtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+/* タイヤの札は、実際のF1の表示と同じく黒地に色の輪。
+   色地に白抜きだと、8〜10px では字が地に負けていた
+   （白 × インターの緑で明暗の比 3.07）。
+   色は border-color と color にインラインで入る             */
 .rv-ty{min-width:26px;display:inline-flex;align-items:center;justify-content:center;gap:1px;
-       border:1px solid var(--ink);border-radius:8px;font-size:9px;font-weight:bold;padding:0 3px;
-       background:#666;color:#fff;flex-shrink:0}
-.rv-ty em{font-style:normal;font-size:8px;opacity:.85;font-weight:normal}
+       border:2px solid currentColor;border-radius:9px;font-size:9px;font-weight:bold;padding:0 3px;
+       background:#15130f;color:#fff;flex-shrink:0}
+.rv-ty em{font-style:normal;font-size:8px;opacity:.9;font-weight:normal;color:#e8e0cf}
 .rv-ty.old{box-shadow:inset 0 0 0 2px rgba(255,180,0,.9)}
 .rv-ty.worn{box-shadow:inset 0 0 0 2px rgba(255,40,20,.95);animation:blink 1s steps(2,end) infinite}
 .rv-row.pitting{background:rgba(255,243,77,.28)}
@@ -271,6 +279,7 @@ table.rank.grid td.dim{opacity:.35}
 
 /* ---------- 難易度・チケット ---------- */
 .tb-team .mode{font-size:10px;color:#fff;border:2px solid var(--ink);border-radius:5px;
+               filter:saturate(1.05) brightness(.84);
                padding:0 6px;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.3)}
 .stat.ticket.has{background:linear-gradient(#fff4c0,#ffe88a);animation:tkpulse 1.4s ease-in-out infinite}
 @keyframes tkpulse{0%,100%{box-shadow:0 2px 0 rgba(74,47,26,.35)}50%{box-shadow:0 2px 0 rgba(74,47,26,.35),0 0 8px 2px rgba(255,201,60,.8)}}
@@ -450,7 +459,8 @@ table.rank.grid td.dim{opacity:.35}
 .ptr{font-size:9px;background:var(--yellow);border:2px solid var(--ink);border-radius:4px;padding:0 4px}
 .invnote{margin-top:8px;font-size:11px;background:#f0fbe8;border:2px dashed var(--ink2);
          border-radius:6px;padding:4px 8px;text-align:center}
-.card-h b.gen{background:var(--red);border-radius:5px;padding:0 8px;font-size:12px;margin-left:4px}
+.card-h b.gen{background:var(--redInk);color:#fff;border-radius:5px;padding:0 8px;
+              font-size:12px;margin-left:4px}
 .p-cond.warn{color:#d08000;font-weight:bold}
 .p-cond.bad{color:#d02020;font-weight:bold;animation:blink 1s steps(2,end) infinite}
 
@@ -684,7 +694,7 @@ body.preboot .topbar{visibility:hidden}
          background:var(--ink);color:#ffeec4;
          border-radius:7px;padding:5px 10px;font-size:13px}
 .rv-head b{flex:1 1 auto;min-width:7em;white-space:nowrap}
-.rv-head #rvLap{background:var(--red);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
+.rv-head #rvLap{background:var(--redInk);color:#fff;border-radius:5px;padding:1px 8px;font-size:14px}
 .rv-body{display:flex;gap:6px;min-height:0}
 /* ---- コース図の大きさ ----
    高さの上限は --rvMap ひとつで決める。画面ごとの指定は、
@@ -743,7 +753,8 @@ body.preboot .topbar{visibility:hidden}
        text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .sc-nm i{width:8px;height:8px;border:1px solid #000;border-radius:2px;flex-shrink:0;display:inline-block}
 .sc-ty{display:inline-flex;align-items:center;gap:3px;width:96px;flex-shrink:0}
-.sc-ty b{width:16px;height:16px;border-radius:50%;border:1px solid #000;display:flex;
+.sc-ty b{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;
+         background:#15130f;display:flex;
          align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
 .sc-ty i{flex:1;height:7px;background:rgba(255,255,255,.18);border-radius:4px;overflow:hidden;display:block}
 .sc-ty i u{display:block;height:100%;text-decoration:none;transition:width .4s}
@@ -802,6 +813,9 @@ body.preboot .topbar{visibility:hidden}
 .rvw-h{font-style:normal;font-size:9px;color:#cbbb9a;margin-right:2px}
 .rvw{font-style:normal;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;
      border:2px solid #12100c;color:#12100c;white-space:nowrap}
+/* 「→ インター」の札だけは、地を暗くして銘柄の色を字に回す。
+   色地に白抜きだと、9px では明暗の比が 3.07 しかなく読めなかった */
+.rvw.want{background:#12100c;border-width:2px;padding:2px 7px}
 
 /* レース画面に出す、いまの指示 */
 .rv-orders{display:inline-flex;gap:5px;margin-left:6px;vertical-align:middle}
@@ -2962,6 +2976,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   border-bottom:1px solid rgba(255,238,196,.22);font-size:10px;color:#e8dcc0}
 .tb-cond .tbl{background:var(--red);color:#fff;border-radius:4px;padding:0 6px;font-size:11px}
 .tb-cond .tbh{opacity:.85;font-style:normal}
+.tb-cond .tbw.want{background:#12100c;border:2px solid currentColor;padding:0 5px}
 .tb-cond .tbw{font-style:normal;color:#12242e;border-radius:3px;padding:0 4px;
   font-size:9px;font-weight:700}
 .tb-cond .tbw.dry{background:#c8a86a}
@@ -18506,7 +18521,12 @@ GP.raceview = (function () {
           return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
             '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
         }).join('') +
-        (want ? '<i class="rvw want" style="background:' + want.color + ';color:' + want.text +
+        /* 銘柄の札は、色地に白抜きだと 9px では読めない
+           （白 × インターの緑で、明暗の比が 3.07 しかなかった）。
+           地を暗くして、銘柄の色は文字と枠のほうへ回す。
+           色で見分けるという役目は残したまま、字が読めるようになる  */
+        (want ? '<i class="rvw want" style="color:' + want.color +
+          ';border-color:' + want.color +
           '" title="いまの路面でいちばん速い銘柄">→ ' + want.name + '</i>' : '');
       } else { wb.innerHTML = ''; }
     }
@@ -18567,7 +18587,13 @@ GP.raceview = (function () {
       if (ty) {
         const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
         const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.75 ? ' old' : '';
-        chip = '<span class="rv-ty' + worn + '" style="background:' + td.color + ';color:' + td.text +
+/* ---- タイヤの札 ----
+   色地に白抜きにしていたので、8〜10px では字が地に負けていた
+   （白 × インターの緑で明暗の比 3.07、白 × ソフトの赤で 4.02）。
+   実際のF1の表示と同じく、地を黒にして銘柄の色は輪と字のほうへ回す。
+   色で見分けるという役目はそのまま、字が読めるようになる          */
+        chip = '<span class="rv-ty' + worn + '" style="color:' + td.color +
+          ';border-color:' + td.color +
           '" title="' + td.name + '／' + ty.age + '周使用（寿命' + td.life + '周）">' + td.short +
           '<em>' + ty.age + '</em></span>';
       }
@@ -18817,7 +18843,7 @@ GP.raceview = (function () {
         const leftPct = Math.max(0, Math.min(100, (1 - ty.age / td.life) * 100));
         const cls = leftPct < 12 ? ' worn' : leftPct < 35 ? ' old' : '';
         tychip = '<span class="sc-ty' + cls + '" title="' + td.name + '／' + ty.age + '周使用（寿命の目安 ' + td.life + '周）">' +
-          '<b style="background:' + td.color + ';color:' + td.text + '">' + td.short + '</b>' +
+          '<b style="color:' + td.color + ';border-color:' + td.color + '">' + td.short + '</b>' +
           '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
           '<em>' + ty.age + '周</em></span>';
       }
@@ -18887,7 +18913,8 @@ GP.raceview = (function () {
       }).join('');
       const avg2 = (wl[0] + wl[1] + wl[2]) / 3;
       const w2 = GP.data.TYRES.filter(t => t.key === lv(avg2).tyre)[0];
-      if (w2) wet += '<i class="tbw" style="background:' + w2.color + ';color:' + w2.text +
+      // モニターの札も同じ。地を暗くして、銘柄の色は字と枠へ
+      if (w2) wet += '<i class="tbw want" style="color:' + w2.color + ';border-color:' + w2.color +
         '" title="いまの路面でいちばん速い銘柄">→ ' + w2.name + '</i>';
     } else {
       wet = '<i class="tbw dry">路面ドライ</i>';
@@ -19002,7 +19029,7 @@ GP.raceview = (function () {
           : (dry ? '路面に対して溝がない。いつ失ってもおかしくない' : '');
         tychip = '<span class="tb-ty"><b class="rv-ty' + worn + (dry ? ' aqua' : '') +
           (tp ? ' has-heat ' + tp.tier.key : '') +
-          '" style="background:' + td.color + ';color:' + td.text + '"' +
+          '" style="color:' + td.color + ';border-color:' + td.color + '"' +
           (ttl ? ' title="' + rvEsc(ttl) + '"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em>' + heat + '</b></span>';
       }
@@ -20994,7 +21021,11 @@ GP.screens.hr = function (A) {
 
     U.modal('👥 人事', body, [
       { label: '🔄 市場を更新（500万）', disabled: g.funds < 500,
-        fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
+        fn: () => {
+          g.funds -= 500; refreshMarkets(true);
+          U.log(g, '🔄 市場を更新した（💰500万）。顔ぶれが入れ替わった');
+          S.save(g); render(); cmdStaff();
+        } },
       { label: '閉じる', fn: U.closeModal }
     ], { wide: true });
 
@@ -21377,6 +21408,28 @@ GP.screens.hr = function (A) {
   }
 
   /* ---- 迎える相手を選ぶ小窓 ---- */
+  /* ---- 市場の更新を、市場の小窓の中でやる ----
+     これまで「🔄 市場を更新」は人事の画面の下にしか無かった。
+     候補を見ている最中に入れ替えたくなっても、いちど小窓を閉じ、
+     画面ごと開き直し、また同じところまで潜り直す必要があった。
+     その場で更新して、同じ小窓を開き直す                     */
+  function marketRefreshBtn(again) {
+    return {
+      label: '🔄 市場を更新（500万）',
+      disabled: g.funds < 500,
+      fn: () => {
+        if (g.funds < 500) return;
+        g.funds -= 500;
+        refreshMarkets(true);
+        GP.sound.play('confirm');
+        U.log(g, '🔄 市場を更新した（💰500万）。顔ぶれが入れ替わった');
+        S.save(g); render();
+        U.closePopup();
+        again();
+      }
+    };
+  }
+
   function openSeatMarket(seat) {
     const youth = seat === 'youth';
     const list = youth ? youthMarket : driverMarket;
@@ -21400,7 +21453,8 @@ GP.screens.hr = function (A) {
     });
     h += '</div>';
     const box = U.popup('＋ ' + (youth ? '若手を迎える' : 'ドライバーを迎える'), h,
-      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openSeat(seat); } }]);
+      [marketRefreshBtn(() => openSeatMarket(seat)),
+       { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openSeat(seat); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-offer]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openOfferPop(+b.dataset.offer, seat); };
     });
@@ -21705,7 +21759,8 @@ GP.screens.hr = function (A) {
     });
     h += '</div>';
     const box = U.popup('＋ ' + d.icon + ' ' + esc(d.name), h,
-      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
+      [marketRefreshBtn(() => openStaffMarket(key)),
+       { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-soffer]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openStaffOffer(+b.dataset.soffer, key); };
     });

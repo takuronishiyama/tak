@@ -222,7 +222,11 @@ GP.screens.hr = function (A) {
 
     U.modal('👥 人事', body, [
       { label: '🔄 市場を更新（500万）', disabled: g.funds < 500,
-        fn: () => { g.funds -= 500; refreshMarkets(true); render(); cmdStaff(); } },
+        fn: () => {
+          g.funds -= 500; refreshMarkets(true);
+          U.log(g, '🔄 市場を更新した（💰500万）。顔ぶれが入れ替わった');
+          S.save(g); render(); cmdStaff();
+        } },
       { label: '閉じる', fn: U.closeModal }
     ], { wide: true });
 
@@ -605,6 +609,28 @@ GP.screens.hr = function (A) {
   }
 
   /* ---- 迎える相手を選ぶ小窓 ---- */
+  /* ---- 市場の更新を、市場の小窓の中でやる ----
+     これまで「🔄 市場を更新」は人事の画面の下にしか無かった。
+     候補を見ている最中に入れ替えたくなっても、いちど小窓を閉じ、
+     画面ごと開き直し、また同じところまで潜り直す必要があった。
+     その場で更新して、同じ小窓を開き直す                     */
+  function marketRefreshBtn(again) {
+    return {
+      label: '🔄 市場を更新（500万）',
+      disabled: g.funds < 500,
+      fn: () => {
+        if (g.funds < 500) return;
+        g.funds -= 500;
+        refreshMarkets(true);
+        GP.sound.play('confirm');
+        U.log(g, '🔄 市場を更新した（💰500万）。顔ぶれが入れ替わった');
+        S.save(g); render();
+        U.closePopup();
+        again();
+      }
+    };
+  }
+
   function openSeatMarket(seat) {
     const youth = seat === 'youth';
     const list = youth ? youthMarket : driverMarket;
@@ -628,7 +654,8 @@ GP.screens.hr = function (A) {
     });
     h += '</div>';
     const box = U.popup('＋ ' + (youth ? '若手を迎える' : 'ドライバーを迎える'), h,
-      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openSeat(seat); } }]);
+      [marketRefreshBtn(() => openSeatMarket(seat)),
+       { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openSeat(seat); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-offer]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openOfferPop(+b.dataset.offer, seat); };
     });
@@ -933,7 +960,8 @@ GP.screens.hr = function (A) {
     });
     h += '</div>';
     const box = U.popup('＋ ' + d.icon + ' ' + esc(d.name), h,
-      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
+      [marketRefreshBtn(() => openStaffMarket(key)),
+       { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-soffer]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openStaffOffer(+b.dataset.soffer, key); };
     });

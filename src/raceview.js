@@ -1424,7 +1424,12 @@ GP.raceview = (function () {
           return '<i class="rvw" style="background:' + l.color + '" title="セクター' + (k + 1) +
             '：' + l.name + '（' + Math.round(v * 100) + '%）">S' + (k + 1) + ' ' + l.name + '</i>';
         }).join('') +
-        (want ? '<i class="rvw want" style="background:' + want.color + ';color:' + want.text +
+        /* 銘柄の札は、色地に白抜きだと 9px では読めない
+           （白 × インターの緑で、明暗の比が 3.07 しかなかった）。
+           地を暗くして、銘柄の色は文字と枠のほうへ回す。
+           色で見分けるという役目は残したまま、字が読めるようになる  */
+        (want ? '<i class="rvw want" style="color:' + want.color +
+          ';border-color:' + want.color +
           '" title="いまの路面でいちばん速い銘柄">→ ' + want.name + '</i>' : '');
       } else { wb.innerHTML = ''; }
     }
@@ -1485,7 +1490,13 @@ GP.raceview = (function () {
       if (ty) {
         const td = GP.data.TYRES.find(x => x.key === ty.key) || GP.data.TYRES[1];
         const worn = ty.age > td.life ? ' worn' : ty.age > td.life * 0.75 ? ' old' : '';
-        chip = '<span class="rv-ty' + worn + '" style="background:' + td.color + ';color:' + td.text +
+/* ---- タイヤの札 ----
+   色地に白抜きにしていたので、8〜10px では字が地に負けていた
+   （白 × インターの緑で明暗の比 3.07、白 × ソフトの赤で 4.02）。
+   実際のF1の表示と同じく、地を黒にして銘柄の色は輪と字のほうへ回す。
+   色で見分けるという役目はそのまま、字が読めるようになる          */
+        chip = '<span class="rv-ty' + worn + '" style="color:' + td.color +
+          ';border-color:' + td.color +
           '" title="' + td.name + '／' + ty.age + '周使用（寿命' + td.life + '周）">' + td.short +
           '<em>' + ty.age + '</em></span>';
       }
@@ -1735,7 +1746,7 @@ GP.raceview = (function () {
         const leftPct = Math.max(0, Math.min(100, (1 - ty.age / td.life) * 100));
         const cls = leftPct < 12 ? ' worn' : leftPct < 35 ? ' old' : '';
         tychip = '<span class="sc-ty' + cls + '" title="' + td.name + '／' + ty.age + '周使用（寿命の目安 ' + td.life + '周）">' +
-          '<b style="background:' + td.color + ';color:' + td.text + '">' + td.short + '</b>' +
+          '<b style="color:' + td.color + ';border-color:' + td.color + '">' + td.short + '</b>' +
           '<i><u style="width:' + leftPct.toFixed(0) + '%;background:' + td.color + '"></u></i>' +
           '<em>' + ty.age + '周</em></span>';
       }
@@ -1805,7 +1816,8 @@ GP.raceview = (function () {
       }).join('');
       const avg2 = (wl[0] + wl[1] + wl[2]) / 3;
       const w2 = GP.data.TYRES.filter(t => t.key === lv(avg2).tyre)[0];
-      if (w2) wet += '<i class="tbw" style="background:' + w2.color + ';color:' + w2.text +
+      // モニターの札も同じ。地を暗くして、銘柄の色は字と枠へ
+      if (w2) wet += '<i class="tbw want" style="color:' + w2.color + ';border-color:' + w2.color +
         '" title="いまの路面でいちばん速い銘柄">→ ' + w2.name + '</i>';
     } else {
       wet = '<i class="tbw dry">路面ドライ</i>';
@@ -1920,7 +1932,7 @@ GP.raceview = (function () {
           : (dry ? '路面に対して溝がない。いつ失ってもおかしくない' : '');
         tychip = '<span class="tb-ty"><b class="rv-ty' + worn + (dry ? ' aqua' : '') +
           (tp ? ' has-heat ' + tp.tier.key : '') +
-          '" style="background:' + td.color + ';color:' + td.text + '"' +
+          '" style="color:' + td.color + ';border-color:' + td.color + '"' +
           (ttl ? ' title="' + rvEsc(ttl) + '"' : '') + '>' +
           td.short + '<em>' + ty.age + '</em>' + heat + '</b></span>';
       }
