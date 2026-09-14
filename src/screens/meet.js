@@ -197,7 +197,9 @@ GP.screens.meet = function (A) {
     const risk = S.logiRisk(g, track);
     const ship = S.logiCost(g, track);
     const people = fin.staff + fin.managers + fin.drivers + fin.youth;
-    const share = fin.weekly > 0 ? people / fin.weekly : 0;
+    /* 割引前の総額と比べる。weekly は割引後なので、
+       割引が効いているチームほど 100% を超えてしまっていた   */
+    const share = fin.raw > 0 ? people / fin.raw : 0;
     const lines = [
       ['週の固定費', '<b>💰' + money(fin.weekly) + '万</b>' +
         (fin.cut > 0 ? '（あなたの働きで -' + pct(fin.cut) + '%）' : '')],
@@ -249,8 +251,10 @@ GP.screens.meet = function (A) {
     const low = D.FACILITIES.map(f => ({ f: f, lv: g.facilities[f.key] || 0 }))
       .sort((a, b) => a.lv - b.lv)[0];
     const lines = [
-      ['資金', '<b>💰' + money(g.funds) + '万</b>　1戦あたり <b class="' +
-        (fin.net < 0 ? 'down' : 'up') + '">' + sign(money(fin.net)) + '万</b>'],
+      ['資金', '<b>💰' + money(g.funds) + '万</b>'],
+      ['1戦あたり', '<b class="' + (fin.net < 0 ? 'down' : 'up') + '">' +
+        sign(money(fin.net)) + '万</b>　<small>2台とも完走しての最低ライン。' +
+        '入賞すると 1点 +💰470万</small>'],
       ['スタッフ', '<b>' + have + ' / ' + slots + '席</b>' +
         (room > 0 ? '（あと ' + room + '人 置けます）' : '（満席）')],
       ['いちばん低い施設', low ? low.f.icon + ' <b>' + low.f.name + ' Lv.' + low.lv + '</b>' : '—']
@@ -263,8 +267,13 @@ GP.screens.meet = function (A) {
             money(fin.weekly) + '万）。あと ' + Math.floor(g.funds / Math.max(1, fin.weekly)) +
             '週ぶんしかありません。まず稼ぐほうを。';
     } else if (fin.net < 0) {
-      say = '1戦あたり <b class="down">' + money(fin.net) + '万</b>の赤字で回しています。' +
-            '走るほど痩せるので、スポンサーを増やすか、身軽にするかです。';
+      /* net は「2台とも最後尾で完走したとき」の額。
+         入賞すればここから上がるので、そう言わないと
+         ただ「赤字です」と脅しているだけになる            */
+      say = '<b>入賞できないと、1戦あたり ' + money(fin.net) + '万の赤字</b>です' +
+            '（2台とも完走しての最低ライン）。' +
+            'ポイントを持ち帰れば、1台につき 1点あたり 💰470万 が上乗せされます。' +
+            '入賞が続けば黒字に乗ります。';
     } else if (room > 2) {
       say = '席が <b>' + room + '人ぶん空いています</b>。施設を広げたのに人を入れていません。' +
             '空けておくだけでは何も起きません。';

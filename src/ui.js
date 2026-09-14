@@ -699,6 +699,10 @@ GP.ui = (function () {
       '</div><div class="fin-col"><div class="fin-h">レース1回あたり</div>' +
       '<div class="fin-row"><span>📣 スポンサー収入</span><b class="good">+' + money(f.sponsorPerRace) + '</b></div>' +
       '<div class="fin-row"><span>' + S.fanTier(g).icon + ' グッズ・入場料（' + S.fanTier(g).name + '）</span><b class="good">+' + money(f.merch) + '</b></div>' +
+      /* 出走賞金はここに出していなかったので、
+         毎戦かならず入るものが勘定から抜けていた         */
+      '<div class="fin-row"><span>🏁 出走賞金（2台とも完走すれば最低）</span><b class="good">+' +
+        money(f.racePrize) + '</b></div>' +
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       (f.puSupply ? '<div class="fin-row"><span>🔌 PUの供給料（よそへ）</span><b class="good">+' + money(f.puSupply) + '</b></div>' : '') +
       (f.paid ? '<div class="fin-row"><span>💼 ドライバーの持ち込み</span><b class="good">+' + money(f.paid) + '</b></div>' : '') +

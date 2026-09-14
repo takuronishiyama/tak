@@ -119,8 +119,8 @@ GP.screens.dev = function (A) {
         'ひらめきを図面に落とし、素材と技術を積み上げる。' +
         '<b>パーツそのものには手を入れません</b>——それは工房の仕事です', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
-        'パーツを作り、いま積んでいるものを煮詰める。' +
-        '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop', cst.shop) +
+        '新しいパーツを作る。煮詰めるのは<b>工房が毎週やっています</b>——' +
+        'あなたの出番は、器の上限に届いたときです', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
         'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
         'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
@@ -431,12 +431,21 @@ GP.screens.dev = function (A) {
       if (cap > 0) { fill += Math.min(1, pt.power / cap); fn++; }
     });
     const fillPct = fn ? Math.round(fill / fn * 100) : 0;
+    /* 器の上限に届いた部品があれば、入口の行でそれを先に言う。
+       ここが「作るか、⚡イノベーションか」を決める場面         */
+    const capped = D.PART_CATS.map(c => {
+      const p = g.equipped[c.key];
+      if (!p || (c.key === 'pu' && p.supplied)) return null;
+      return p.power >= S.partCap(g, p) - 0.05 ? c.name : null;
+    }).filter(Boolean).slice(0, 2).join('・');
     const it = Math.round(S.integrateRate(g).rate * 100);
     return {
       des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
            (ideaN ? '' : '（いまは素材と技術を積む場所）'),
-      shop: '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>' +
-            '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
+      shop: (capped
+              ? '🔩 <b>' + capped + ' が器の上限に届いています</b>　'
+              : '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>　') +
+            '今週ぶん <b>+' + S.autoImpStep(g, 'pu').toFixed(1) + '</b>',
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
            '　今週ぶん <b>+' + S.autoIntStep(g).toFixed(1) + '</b>' +
            '（' + S.intPlanOf(g).icon + S.intPlanOf(g).name + '）',
@@ -558,6 +567,82 @@ GP.screens.dev = function (A) {
      どれだけの力を今季に注ぐか、来季にいくら積んであるか、
      そして世代がどこまで来ているか。
      どれもパーツを叩く話なので、開発の画面に置く          */
+  /* ---- 装着中パーツの、いまの様子 ----
+     以前はここに「煮詰める」のボタンを並べ、1回ごとに
+     1週と金と研究Pを取っていた。ところが測ってみると、
+     中盤で 1週あたり 煮詰める +3.52 に対して技術 +0.34、作る +0.00。
+     3週あったら3週とも煮詰めるのが常に正解で、選択肢が7本あるのに
+     考えることが無かった。しかも1年目は27週目まで、
+     中盤でも8週目まで、ただ同じボタンを押すだけの期間が続いていた。
+
+     煮詰めはつなぎ込みと同じく工房の毎週の仕事にした。
+     ここは押す場所ではなく、いまどこまで来ているかを読む場所。
+     プレイヤーの出番は「上限に届いたとき」だけ                  */
+  function partsBoxHTML() {
+    const last = g.lastImp;
+    const plan = S.intPlanOf(g);
+    const rows = D.PART_CATS.map(c => {
+      const p = g.equipped[c.key];
+      if (!p) return null;
+      const cap = S.partCap(g, p);
+      const mv = ((last && last.rows) || []).filter(x => x.key === c.key)[0];
+      return { c: c, p: p, cap: cap, r: cap > 0 ? p.power / cap : 0,
+               gain: mv ? mv.gain : 0,
+               locked: c.key === 'pu' && p.supplied };
+    }).filter(Boolean);
+    const done = rows.filter(x => !x.locked && x.p.power >= x.cap - 0.05);
+    const step = S.autoImpStep(g, 'pu');
+
+    let body = '<div class="sub">🏭 工房のいま</div>' +
+      '<div class="autoint">' +
+      '<b>🔩 パーツは工房が毎週煮詰めています</b>' +
+      '<em>今週ぶん およそ +' + step.toFixed(1) + '</em>' +
+      '<small>速さは<b>👷開発グループ</b>とファクトリー・風洞で決まります。' +
+      '配り先は<b>' + plan.icon + plan.name + '</b>（🔧ガレージか🗣️相談で変えられます）。' +
+      (last && last.rows
+        ? '<br>先週は ' + last.rows.map(r => r.icon + r.name +
+            ' <b class="up">+' + r.gain.toFixed(1) + '</b>').join('／')
+        : '') +
+      '</small></div>';
+
+    if (done.length) {
+      body += '<p class="note"><b class="warn">' +
+        done.map(x => x.c.icon + x.c.name).join('・') +
+        ' が器の上限に届いています。</b>ここから先は、' +
+        '<b>📐作り直す</b>（より大きな器の個体を引き当てる）か、' +
+        '<b>⚡イノベーション</b>（🔬研究所。いまの個体のまま器を広げる）か、' +
+        '<b>🏗️施設を伸ばす</b>（器そのものが広がる）かです。</p>';
+    }
+
+    body += '<div class="intbars">';
+    rows.forEach(x => {
+      const pct = Math.min(100, x.r * 100);
+      const cp = S.capParts(g, x.c.key);
+      const capped = !x.locked && x.p.power >= x.cap - 0.05;
+      body += '<div class="introw' + (capped ? ' full' : '') + '">' +
+        '<b>' + x.c.icon + ' ' + esc(x.p.name) +
+        (x.gain ? '<u class="up">+' + x.gain.toFixed(1) + '</u>' : '') + '</b>' +
+        '<span class="skbar"><i style="width:' + pct + '%;background:' + x.c.color + '"></i></span>' +
+        '<em>' + Math.round(x.p.power) + ' / ' + x.cap +
+        (x.locked ? '　<i class="cap">供給中</i>' : capped ? '　<i class="warn">上限</i>' : '') +
+        '</em>' +
+        '<small>' + qualChip(x.p) +
+        '<br>器 ' + x.cap + ' ＝ 世代 ' + D.CAR_GENS[g.carGen].cap +
+        ' × 品質 ' + S.qualOf(x.p).toFixed(2) +
+        ' × 引き出せる幅 <b>' + (1 + cp.add).toFixed(2) + '</b>' +
+        '（🏭' + (g.facilities.factory || 0) +
+        (cp.wind ? '／💨' + (g.facilities.tunnel || 0) : '') +
+        '／🎨設計 ' + S.designPower(g).toFixed(1) + '）' +
+        '</small></div>';
+    });
+    body += '</div>' +
+      '<p class="desc">器は <b>世代 × その個体の品質 × 引き出せる幅</b>で決まります。' +
+      '幅は<b>ファクトリー</b>と<b>設計グループ</b>で広がり、' +
+      '<b>風洞</b>はエアロとサスにだけ効きます。' +
+      '施設を伸ばした日に、天井がそのぶん上がります。' + U.helpLink('car') + '</p>';
+    return body;
+  }
+
   /* 煮詰める1回で、仕込みのバーがどれだけ動くか。
      いま積んでいるパーツの平均で見積もる（数字は目安）    */
   function seedPerAct() {
@@ -637,93 +722,6 @@ GP.screens.dev = function (A) {
             : 'すべて上限。次の週でマシンが新しい世代になります') + '</small></div>';
       }
     }
-    return body;
-  }
-
-  /* ---- 装着中パーツの改良 ----
-     内側の輪が動くのは、ここと新パーツの設計だけ          */
-  function partsBoxHTML() {
-    let body = '';
-    const tk = g.tickets || 0;
-    // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている
-    let weakest = null;
-    {
-      const rs = D.PART_CATS.map(c => {
-        const q = g.equipped[c.key];
-        if (!q || (c.key === 'pu' && q.supplied)) return null;
-        return { key: c.key, r: q.power / S.partCap(g, q) };
-      }).filter(Boolean).sort((a, b) => a.r - b.r);
-      if (rs.length >= 2 && rs[1].r - rs[0].r >= 0.06) weakest = rs[0].key;
-    }
-    body += '<div class="sub">装着中パーツの改良</div>' +
-      '<p class="desc">数字は「1回手を入れると、次のコースで1周あたりどれだけ速くなるか」。' +
-      U.helpLink('car') + '</p><div class="pick">';
-    D.PART_CATS.forEach(c => {
-      const p = g.equipped[c.key];
-      if (!p) {
-        body += '<div class="pickbtn done"><span class="pb-ic ic-art" style="background:' + c.color + '">' + U.partIcon(c.key, 26, 0) + '</span>' +
-          '<span class="pb-body"><b>' + c.name + '</b><small>パーツが未装着です</small></span><span class="pb-cost">—</span></div>';
-        return;
-      }
-      const cost = improveCost(p), cap = S.partCap(g, p);
-      const capped = p.power >= cap;
-      const ok = g.funds >= cost && g.rp >= c.rp;
-      // 供給を受けているパワーユニットは、こちらでは手を入れられない
-      const locked = c.key === 'pu' && p.supplied;
-      const pv = improvePreview(c);
-      const pct = Math.round(pv.ratio * 100);
-      const num = v => (v >= 0 ? '+' : '') + (Math.round(v * 10) / 10);
-      // いま何を担っていて、1回でどこがどれだけ動くか
-      const nowLine = [['速さ', pv.cur.speed], ['コーナー', pv.cur.corner], ['加速', pv.cur.accel]]
-        .filter(x => x[1] > 0.05)
-        .map(x => x[0] + ' ' + (Math.round(x[1] * 10) / 10)).join('／');
-      const upLine = [['速さ', pv.dSpeed], ['コーナー', pv.dCorner], ['加速', pv.dAccel]]
-        .filter(x => Math.abs(x[1]) > 0.02)
-        .map(x => x[0] + ' ' + num(x[1])).join('／');
-      devRow['imp:' + c.key] = {
-        ic: U.partIcon(c.key, 26, 0), bg: c.color, head: '🔧 煮詰める',
-        name: esc(p.name) + ' を煮詰める', sub: c.name,
-        /* 行には「選ぶのに要るもの」だけを置き、
-           中身はここで引き取る。行に全部詰めると、
-           七つの数字が1行に並んで、どれも読まれなくなる   */
-        lines: locked ? [['いまはできません', '供給を受けている間は手を入れられません']]
-          : [['いまの性能', '<b>' + Math.round(p.power) + '</b> / 上限 ' + cap + '（' + pct + '%）'],
-             ['いまの寄与', nowLine || '—'],
-             ['1回で', '性能 <b>+' + (Math.round(pv.gain * 10) / 10) + '</b>' +
-              (upLine ? '<br>' + upLine : '') +
-              (pv.toNext > 0.05 ? '<br>🌱 次のマシンへ ' + (Math.round(pv.toNext * 10) / 10) : '')],
-             ['速さにすると', '<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
-              Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
-              (secGainLine(pv) ? '<br>' + secGainLine(pv) : '')],
-             ['この個体の上限', qualChip(p) + ' <b>' + cap + '</b><br>' +
-              '<small>世代 ' + D.CAR_GENS[g.carGen].cap + ' × 品質 ' +
-              S.qualOf(p).toFixed(2) + '</small>']],
-        note: capped ? '上限に届いています。これ以上は伸びが3割まで落ちます。' : '',
-        free: !!useTicket, money: cost, rp: c.rp,
-        why: locked ? '供給中のパワーユニットは、こちらでは開発できません。'
-                     : devWhy(cost, c.rp),
-        can: ok && !locked, doLabel: '🔧 煮詰める',
-        fn: () => doImprove(c.key)
-      };
-      body += '<button class="pickbtn devrow' + (weakest === c.key ? ' weak' : '') +
-        ((ok && !locked) ? '' : ' cant') + '" data-k="imp:' + c.key + '">' +
-        '<span class="pb-ic ic-art" style="background:' + c.color + '">' +
-          U.partIcon(c.key, 26, S.qualStars(S.qualOf(p))) + '</span>' +
-        '<span class="pb-body"><b>' + esc(p.name) +
-        (weakest === c.key ? '<em class="weakchip">いちばん薄いところ</em>' : '') +
-        '</b>' +
-        '<small>' + c.name + '　<b>' + Math.round(p.power) + '</b> / ' + cap +
-        '（' + pct + '%）' +
-        (locked ? ' <em class="warn">供給中</em>'
-                : (capped ? ' <em class="warn">上限到達</em>' : '')) +
-        '<span class="skbar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
-        (locked ? '' :
-          '<span class="devup">1回で <b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
-          Math.abs(pv.dSec).toFixed(3) + '秒/周</b></span>') +
-        '</small></span>' +
-        '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
-          '💰' + money(cost) + '<br>🔬' + c.rp + '</span></button>';
-    });
     return body;
   }
 
@@ -1086,7 +1084,6 @@ GP.screens.dev = function (A) {
       const [kind, key] = k.split(':');
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
-      else if (kind === 'imp') doImprove(key);
     });
     bindMat();
     bindAct('data-idea', id => doIdea(id));
@@ -1797,76 +1794,6 @@ GP.screens.dev = function (A) {
     };
   }
 
-  function doImprove(key) {
-    const c = D.PART_CATS.find(x => x.key === key);
-    const p = g.equipped[key];
-    if (!p) return;
-    const cost = improveCost(p), cap = S.partCap(g, p);
-    /* 金と研究Pは、券を使ってもいつもどおり払う */
-    if (g.funds < cost || g.rp < c.rp) return;
-    const noWeek = spendTicket();
-    g.funds -= cost; g.rp -= c.rp; capSpend(cost);
-
-    const wind = (key === 'aero' || key === 'susp');
-    const facBonus = (1 + g.facilities.factory * 0.10 + (wind ? g.facilities.tunnel * 0.12 : 0))
-                   * (wind ? S.rigMul(g, 'tunnel') : 1);
-    const engBonus = 1 + S.devPower(g) * 0.14;
-    // 現場に入れた道具のぶん
-    const gearBonus = 1 + (S.hasGear(g, 'factory', 'jig') ? 0.06 : 0)
-                        + (S.hasGear(g, 'factory', 'am')  ? 0.09 : 0);
-    // ドライバーのフィードバック（職人肌ほど的確）
-    const drvBonus = 1 + g.drivers.reduce((a, d) => a + S.persOf(d).dev, 0) + S.trustDev(g);
-    const fc = S.focusOf(g);
-    let gain = S.rnd(3.4, 5.6) * facBonus * engBonus * gearBonus * drvBonus * planMul(c) * crunchMul() * S.devRate(g);
-    if (key === 'pu') gain *= S.puDevMul(g);        // よそに配っているぶん、手が回らない
-    let crit = false;
-    if (Math.random() < 0.12) { gain *= 2.2; crit = true; }
-    /* ---- ブレイクスルー ----
-       規則が新しいうちほど、まだ誰も掘っていないものが残っている。
-       掘り当てたぶんは、その場で少しだけ伸びに乗る。
-       本番は、これを「形にして載せる」ほうにある               */
-    const brk = S.rollBreakthrough(g);
-    if (brk) { gain *= D.IDEA.now; crit = true; S.addIdea(g, brk, key); }
-    /* 手を動かせば、その扇の作りかたも分かってくる。
-       ここで貯まったぶんが、あとで素材を上げる元手になる */
-    S.addMatPoint(g, key, D.MAT.perImprove * (brk ? 3 : 1));
-    if (p.power >= cap) gain *= 0.30;   // 上限に達しても、完全には止まらない
-    // 来季に回したぶんは今季に乗らない
-    const toNext = gain * fc.next;
-    gain = Math.round(gain * fc.cur * 10) / 10;
-    g.nextCar = (g.nextCar || 0) + toNext;
-
-    p.power = Math.round((p.power + gain) * 10) / 10;
-    p.cond = S.clamp(p.cond - S.rnd(2.5, 7) * Math.max(0.4, 1 - S.techLv(g, 'tough') * 0.08), 10, 100);
-    if (brk) {
-      // 何を持ち込んだのかを控えておく。あとで裁定が出ることがある
-      g.concepts = (g.concepts || []).concat([{
-        cat: key, what: brk, rarUp: false, gain: gain, at: S.weekStamp(g)
-      }]);
-      S.pushNews(g, 'brk', brk);
-    }
-
-    const msg = c.icon + ' ' + p.name + ' の性能 +' + gain.toFixed(1) +
-      (brk ? '  🔬' + brk + '！' : crit ? '  ✨ひらめき大成功！' : '');
-    staffExp('engineer', 12); staffExp('designer', 3);
-    U.log(g, msg, crit ? 'good' : '');
-    GP.sound.play(crit ? 'crit' : 'confirm');
-    /* 上限で止まったら、そこから先は「作り直す」しかない。
-       この個体の器は、作った日に決まっている                */
-    if (p.power >= cap) {
-      U.toast('この個体はここまでです（品質 ' + S.qualOf(p).toFixed(2) +
-        '）。もっと良い出来を狙うなら、🏭工房で作り直します。', 'warn');
-    }
-    // 手を入れた実感が出るように、伸びを見せてから週を進める
-    showDevResult({
-      icon: U.partIcon(c.key, 44, S.qualStars(S.qualOf(p))), color: c.color,
-      title: p.name,
-      sub: brk ? '🔬 ' + brk : c.name,
-      from: p.power - gain, to: p.power, cap: cap, gain: gain, crit: crit,
-      next: toNext > 0.05 ? toNext : 0
-    }, () => endDev(noWeek));
-  }
-
   /* ---- 開発の手応え ----
      数字だけだと何をしたのか分からないので、ゲージが伸びるところを見せる。
      大成功なら派手に。来季へ回ったぶんも併せて出す。                */
@@ -2100,12 +2027,13 @@ GP.screens.dev = function (A) {
     if (!tk) useTicket = false;
     const STABS = [
       ['make', '📐', '作る',     ''],
-      ['imp',  '🔧', '煮詰める', ''],
+      ['imp',  '🔩', 'いまの状態', ''],
       ['line', '🛠️', 'ライン',   '']
     ];
     let body =
-      '<p class="desc">ここは<b>パーツそのものに手を入れる</b>場所です。' +
-      '図面を形にして（作る）、できたものを上限へ近づけます（煮詰める）。' +
+      '<p class="desc">ここは<b>パーツそのものを作る</b>場所です。' +
+      '図面を形にするのがあなたの仕事で、' +
+      'できたものを上限へ近づける（煮詰める）のは<b>工房が毎週やっています</b>。' +
       '何を作るかは🖊️設計室で決め、車に載せて作り込むのは🔧ガレージです。</p>' +
       '<div class="tabs qtabs bastabs">' + STABS.map(t =>
         '<button class="tab' + (shopTab === t[0] ? ' on' : '') + '" data-stab2="' + t[0] + '">' +
@@ -2137,7 +2065,6 @@ GP.screens.dev = function (A) {
       if (devPop(k)) return;
       const [kind, key] = k.split(':');
       if (kind === 'des') doDesign(key);
-      else if (kind === 'imp') doImprove(key);
     });
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());

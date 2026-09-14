@@ -764,6 +764,29 @@ GP.data = (function () {
     cost: 0.34          // 新車の何割で1台ぶん組めるか
   };
 
+  /* ---------- 器（パーツの上限）に効くもの ----------
+     以前は「世代 × その個体の品質」だけで決まっていた。
+     そのため、どの部品もほぼ同時に上限へ届き、
+     1年目は27週目まで、中盤でも8週目まで、
+     ただ煮詰めるだけの期間が続いていた。
+     しかも7つが7週のうちに揃って届くので、
+     「上限に当たった、どうする」という判断が
+     シーズンの最後にまとめて来ていた。
+
+     設備と人材でも器が動くようにする。
+     ・工作機械が新しいほど、同じ図面から引き出せる幅が広い
+     ・風洞は空気まわり（エアロ・サス）にだけ効く
+     ・設計グループが厚いほど、はじめから余地のある図面を引く
+     部品ごとに効くものが違うので、届く時期も自然にばらける。
+     設備を伸ばした日に天井が上がる、という手ごたえも出る        */
+  const PARTCAP = {
+    fac:     0.030,   // ファクトリーのレベル1あたり
+    tunnel:  0.028,   // 風洞のレベル1あたり（エアロとサスだけ）
+    design:  0.010,   // 設計グループの厚み1あたり
+    max:     0.45,    // 伸ばせるのはここまで（＋45%）
+    wind:    ['aero', 'susp']
+  };
+
   /* ---------- 製造方針 ----------
      工房のラインをどう使うか。ひとつの標準的な判断として立てる。
 
@@ -810,6 +833,29 @@ GP.data = (function () {
      プレイヤーは「どっちの向きへ寄せるか」だけを決める。
      進みかたは部門の厚みで決まるので、
      人事に人を入れた効き目が、毎週の数字として見えるようになる   */
+  /* ---------- 煮詰め（自動） ----------
+     測ったところ、中盤で 1週あたり 煮詰める +3.52 に対して
+     技術 +0.34、作る +0.00、研究 +0.00。
+     つまり3週あったら3週とも煮詰めるのが常に正解で、
+     選択肢が7本あるのに考えることが無かった。
+
+     煮詰めは「毎週やるに決まっている作業」なので、
+     つなぎ込みと同じく部門に任せる。
+     プレイヤーの週コマンドは「いまは0だが、あとで効くもの」
+     ——作る・技術・研究・イノベーション——だけになり、
+     そこではじめて互いが競争相手になる。
+
+     配り先は、つなぎ込みと同じ寄せかた（INTPLANS）に従う。
+     方針をふたつに増やすと、また選択肢が増えてしまうので    */
+  const AUTOIMP = {
+    /* 押していたころの1回ぶんに、これを掛けたものが1週の伸び。
+       準備週は3週なので、3週に1回押していたのと同じ速さが 0.33。
+       押す手間が要らなくなったぶん、少しだけ辛くしてある    */
+    perWeek: 0.32,
+    spread:  2,       // 1週で手を付ける部品の数
+    thinPow: 1.5
+  };
+
   const AUTOINT = {
     /* 押していたころの1回ぶんに、これを掛けたものが1週の伸び。
        準備週は3週なので、3週に1回押していたのと同じ速さが 0.33。
@@ -3627,6 +3673,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, MFG_PLANS, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

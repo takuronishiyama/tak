@@ -380,9 +380,31 @@ GP.state = (function () {
     return OLD[clamp((p.rarity || 1) - 1, 0, 4)];
   }
 
-  /* 改良の上限（マシン世代 × そのパーツの品質） */
+  /* ---------- 器（パーツの上限）----------
+     世代 × その個体の品質 × 引き出せる幅。
+     幅は設備と設計グループで広がる。部品ごとに効くものが違うので、
+     上限に届く時期もばらける（風洞はエアロとサスにだけ効く）      */
+  function capMul(g, catKey) {
+    const C = D.PARTCAP;
+    const wind = C.wind.indexOf(catKey) >= 0;
+    const add = (g.facilities.factory || 0) * C.fac
+              + (wind ? (g.facilities.tunnel || 0) * C.tunnel : 0)
+              + designPower(g) * C.design;
+    return 1 + Math.min(C.max, add);
+  }
+  /* 画面で内訳を出すため、どこから来た幅なのかも返す */
+  function capParts(g, catKey) {
+    const C = D.PARTCAP;
+    const wind = C.wind.indexOf(catKey) >= 0;
+    const fac = (g.facilities.factory || 0) * C.fac;
+    const tun = wind ? (g.facilities.tunnel || 0) * C.tunnel : 0;
+    const des = designPower(g) * C.design;
+    const raw = fac + tun + des;
+    return { fac: fac, tunnel: tun, design: des, raw: raw,
+             add: Math.min(C.max, raw), capped: raw > C.max, wind: wind };
+  }
   function partCap(g, p) {
-    return Math.round(D.CAR_GENS[g.carGen].cap * qualOf(p));
+    return Math.round(D.CAR_GENS[g.carGen].cap * qualOf(p) * capMul(g, p.cat));
   }
 
   /* パーツの総合評価（表示用） */
@@ -989,6 +1011,64 @@ GP.state = (function () {
     if (d >= 0) return bodyCap(g2);
     return Math.round(bodyCap(g2) * Math.min(1, D.CONCEPT.offCap + capLiftOf(g2, key)));
   }
+  /* ---------- 煮詰め（毎週、ひとりでに進む） ----------
+     押していたころの1回ぶんを、そのまま使って割る。
+     式を立て直すと、人を増やしたときの効きかたが押していたころと
+     ずれる（つなぎ込みで一度やって、2.4倍速くなった）        */
+  function autoImpStep(g2, catKey) {
+    const A = D.AUTOIMP;
+    const wind = (catKey === 'aero' || catKey === 'susp');
+    const fac = (1 + (g2.facilities.factory || 0) * 0.10
+                   + (wind ? (g2.facilities.tunnel || 0) * 0.12 : 0))
+              * (wind ? rigMul(g2, 'tunnel') : 1);
+    const eng = 1 + devPower(g2) * 0.14;
+    const gear = 1 + (hasGear(g2, 'factory', 'jig') ? 0.06 : 0)
+                   + (hasGear(g2, 'factory', 'am') ? 0.09 : 0);
+    const drv = 1 + (g2.drivers || []).reduce((a, d) => a + persOf(d).dev, 0) + trustDev(g2);
+    let press = 4.5 * fac * eng * gear * drv * devRate(g2);
+    if (catKey === 'pu') press *= puDevMul(g2);
+    return press * A.perWeek;
+  }
+  /* 1週ぶん進める。動いた部品を返す（画面と日誌で使う） */
+  function autoImprove(g2) {
+    const A = D.AUTOIMP;
+    const fc = focusOf(g2);
+    /* 伸びしろが残っている部品だけ。供給を受けているパワーユニットは
+       こちらでは手を入れられないので外す                        */
+    const room = D.PART_CATS.map(c => {
+      const p = g2.equipped[c.key];
+      if (!p || p.supplied) return null;
+      const cap = partCap(g2, p);
+      return { c: c, p: p, cap: cap, left: Math.max(0, cap - p.power),
+               ratio: cap > 0 ? p.power / cap : 1 };
+    }).filter(x => x && x.left > 0.05);
+    if (!room.length) return null;
+    const edge = intPlanOf(g2).key === 'edge';
+    room.sort((x, y) => edge ? y.ratio - x.ratio : x.ratio - y.ratio);
+    const pick = room.slice(0, Math.min(A.spread, room.length));
+    const w = pick.map((x, i) => Math.pow(pick.length - i, A.thinPow)
+                                * conceptPartMul(g2, x.c.key));
+    const wSum = w.reduce((a, b) => a + b, 0) || 1;
+    const out = [];
+    let toNext = 0;
+    pick.forEach((x, i) => {
+      const share = autoImpStep(g2, x.c.key) * (w[i] / wSum) * pick.length;
+      const add = Math.min(x.left, share * fc.cur);
+      toNext += share * fc.next;
+      if (add <= 0.001) return;
+      x.p.power = Math.round((x.p.power + add) * 10) / 10;
+      addMatPoint(g2, x.c.key, D.MAT.perImprove * 0.5);
+      out.push({ key: x.c.key, name: x.c.name, icon: x.c.icon,
+                 gain: Math.round(add * 10) / 10,
+                 capped: x.p.power >= x.cap - 0.05 });
+    });
+    g2.nextCar = (g2.nextCar || 0) + toNext;
+    if (!out.length) return null;
+    return { rows: out, total: Math.round(out.reduce((a, b) => a + b.gain, 0) * 10) / 10,
+             plan: intPlanOf(g2),
+             hitCap: out.filter(x => x.capped).map(x => x.name) };
+  }
+
   /* ---------- つなぎ込み（毎週、ひとりでに進む） ----------
      まとめ上げはプレイヤーが押すものではなく、
      技術部門が黙って進めているもの。週ごとに一度だけ呼ぶ。
@@ -3671,10 +3751,28 @@ GP.state = (function () {
     const rpRace = Math.round((g2.sponsors.reduce((a, sp) => a + (sp.rp || 0), 0)
                                + (ts ? ts.rp : 0)) * scale);
 
+    /* ---- 出走賞金 ----
+       収支の勘定からこれが丸ごと抜けていた。
+       レースごとに 800 ＋ ポイント×470 ＋ 完走ボーナス が
+       1台ずつ入るのに、cycleIncome に入っていなかったので、
+       財務の画面もプリンシパルも「1戦あたり -3,600万の赤字」と
+       言い続けていた（実際にはそこまでひどくない）。
+
+       順位は先読みできないので、ここでは
+       「最後尾で2台とも完走したとき」＝いちばん低い額を出す。
+       入賞すればこれより上、という読み方ができる                */
+    const cars = Math.max(1, (g2.drivers || []).length);
+    const floorOne = (800 + Math.max(0, 1300 - 22 * 50)) * (diff.prize == null ? 1 : diff.prize);
+    const racePrize = Math.round(floorOne * cars);
+
     const PREP = raceWeek(0);                       // レース1回あたりの週数
     // 次のレースへの輸送費（コースの遠さで変わる）
     const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
     return {
+      /* 割引前の総額。人件費の割合を出すときは、こちらと比べる。
+         weekly（割引後）と比べると、割引が効いているチームほど
+         割合が100%を超えてしまっていた                        */
+      raw: Math.round(raw),
       staff: staff, managers: mgrs, drivers: drivers, youth: youth,
       facilities: facilities, engine: engine, estate: estate,
       gearUp: gearUp, supply: supply, other: other, cut: cut,
@@ -3686,9 +3784,10 @@ GP.state = (function () {
       merch: merch,
       puSupply: puSupply,
       paid: paid,
+      racePrize: racePrize,
       cycleCost: weekly * PREP + shipping,
-      cycleIncome: perRace + merch + puSupply + paid,
-      net: perRace + merch + puSupply + paid - weekly * PREP - shipping
+      cycleIncome: perRace + merch + puSupply + paid + racePrize,
+      net: perRace + merch + puSupply + paid + racePrize - weekly * PREP - shipping
     };
   }
 
@@ -4878,10 +4977,10 @@ GP.state = (function () {
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
-    autoIntStep, autoIntegrate, intPlanOf, mfgPlanOf, tickSpare, spareRepairCut,
+    autoImpStep, autoImprove, autoIntStep, autoIntegrate, intPlanOf, mfgPlanOf, tickSpare, spareRepairCut,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
-    makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
+    makePart, partNote, partModel, partStats, partCap, capMul, capParts, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
     rollSkills, hasSkill, learnableSkills, teachSkill, SKILL_MAX,
     persOf, nationOf, reactToResult, quoteFor,
     setReserve, clearReserve, swapReserve, promoteReserve, injureDriver, tickInjuries, canDrive, rollAbsence, RESERVE_PAY,
