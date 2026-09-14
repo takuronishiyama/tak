@@ -247,7 +247,8 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- 人事のタブ ---------- */
 .hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
-       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
+       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 2px;font-size:11px;font-weight:bold;
+       letter-spacing:-.3px}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .skbar{position:relative;display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
@@ -1683,6 +1684,26 @@ body[data-skin="hd"]{
 [data-skin="hd"] .cr.mgr{background:#43364f;color:#e8c98a;border-color:#8a6a2a}
 [data-skin="hd"] .cr.mgr.ready{background:#c98b10;color:#2a1c08}
 [data-skin="hd"] .careernote{color:#cbbb9a}
+
+/* 首脳陣：効き先は役職ごとに一度だけ。行は技能と差だけ */
+.mgscope{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;
+         padding:5px 8px;margin:0 0 6px}
+.mgscope>b{display:block;font-size:11px;margin-bottom:3px}
+.mgscope-l{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:3px}
+.mgscope-l em{font-style:normal;font-size:10px;padding:1px 6px;border-radius:4px;
+              background:#ecd9a4;color:#3a2611;border:1px solid var(--ink)}
+.mgscope small{display:block;font-size:10px;line-height:1.5;opacity:.9}
+[data-skin="hd"] .mgscope{background:rgba(75,61,104,.45)}
+[data-skin="hd"] .mgscope-l em{background:#4b3d68;color:#efe4cf}
+
+/* 雇用：部門は常に同じ並びで出し、候補の有無だけを変える */
+.mktplace{font-size:11px;font-weight:bold;opacity:.8;margin:6px 0 3px}
+.mkt-n{font-style:normal;font-size:9px;margin-left:5px;padding:1px 5px;border-radius:3px;
+       background:#2e6a2e;color:#e6ffe0}
+.mkt-n.none{background:#7a7a7a;color:#f0f0f0}
+.mkt-fee{font-style:normal;opacity:.85}
+.mkt-ask{font-style:normal;color:#8a5a10;font-weight:bold}
+[data-skin="hd"] .mkt-ask{color:#ffd88a}
 
 /* 首脳陣：昇進と招聘を並べて比べる */
 .mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
@@ -5524,6 +5545,12 @@ GP.data = (function () {
      base は建てはじめの席数、per は「施設レベルいくつで1席増えるか」 */
   const STAFF_SLOTS = { base: 5, per: 2 };
 
+  /* スタッフグループごとの求人。
+     全体の「市場を更新」は顔ぶれが丸ごと入れ替わる賭けだが、
+     こちらは「この部門の人が欲しい」と決めて金を出す狙い撃ち。
+     欲しい部門の応募者がいつまでも来ない、を金で解ける        */
+  const STAFF_SCOUT = { cost: 240, n: 2 };
+
   /* ---------- 備品 ----------
      建物を大きくするのが「規模」なら、こちらは「中身」。
      現場に良い道具と、まともな職場環境を入れていく。
@@ -8204,7 +8231,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -21071,7 +21098,7 @@ GP.kart = (function () {
 <script>
 /* ===== src/screens/hr.js ===== */
 /* =========================================================
-   画面：人事（ドライバー・育成・グループ・首脳陣・講習・FIA）
+   画面：人事（ドライバー・育成・スタッフグループ・首脳陣・講習・FIA）
    main.js から切り出したもの。中身はそのまま動かしていない。
    ほかの画面と共有しているものは、文脈（A）から link() で受け取る。
    ========================================================= */
@@ -21116,6 +21143,42 @@ GP.screens.hr = function (A) {
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
+  }
+
+  /* ---- 部門ごとの求人 ----
+     応募者はチーム全体で4人しか来ない。どの職種で来るかは運なので、
+     「開発の人が欲しい」と思っても何週も来ないことがあった。
+     ここは職種を決めて出す金。その部門の候補だけ入れ替わる      */
+  function scoutStaffType(typeKey) {
+    const q = teamQuality();
+    const rest = (staffMarket || []).filter(st => st.type !== typeKey);
+    const add = [];
+    for (let i = 0; i < D.STAFF_SCOUT.n; i++) add.push(S.makeStaff(typeKey, q));
+    staffMarket = rest.concat(add);
+  }
+
+  /* その部門の候補だけを入れ替える釦。市場の小窓の中から押せる */
+  function scoutBtn(groupKey, again) {
+    const G = D.GROUPS.filter(x => x.key === groupKey)[0];
+    if (!G) return null;
+    const cost = D.STAFF_SCOUT.cost;
+    const has = (staffMarket || []).some(st => st.type === G.of);
+    return {
+      label: (has ? '🔄 ' : '🔎 ') + G.icon + (has ? 'の候補を入れ替える' : 'の候補を探す') +
+        '（' + money(cost) + '万）',
+      disabled: g.funds < cost,
+      fn: () => {
+        if (g.funds < cost) return;
+        g.funds -= cost;
+        scoutStaffType(G.of);
+        GP.sound.play('confirm');
+        U.log(g, '🔎 ' + G.name + ' の求人を出した（💰' + money(cost) + '万）。新しい応募者が来た');
+        U.toast('🔎 ' + G.name + ' に応募者', 'good');
+        S.save(g); render();
+        U.closePopup();
+        again();
+      }
+    };
   }
 
   const youthFee = d => Math.round(600 + S.driverRating(d) * 26 + d.pot * 900);
@@ -21279,7 +21342,7 @@ GP.screens.hr = function (A) {
   function cmdStaff() {
     refreshMarkets(false);
     const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
-                  ['staff', '👥 グループ'], ['mgmt', '👔 首脳陣'],
+                  ['staff', '👥 スタッフグループ'], ['mgmt', '👔 首脳陣'],
                   ['school', '🏛️ 講習'], ['fia', '🌐 FIA']];
     let body = '<div class="hrtabs">' +
       tabs.map(t => '<button class="hrtab' + (A.hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
@@ -22016,8 +22079,9 @@ GP.screens.hr = function (A) {
         '施設を伸ばすか、誰かを出さないと迎えられません。</p>';
     h += '<div class="pick">';
     if (!cands.length) {
-      h += '<p class="note">いま ' + esc(d.name) + ' の応募者はいません。' +
-        '「🔄 市場を更新」で入れ替わります。</p>';
+      h += '<p class="note">いま ' + esc(d.name) + ' の応募者はいません。<br>' +
+        '下の「🔎 ' + d.icon + 'の候補を探す」でこの部門だけ求人を出せます' +
+        '（💰' + money(D.STAFF_SCOUT.cost) + '万）。</p>';
     }
     cands.forEach(o => {
       const st = o.st, fee = staffFee(st), pt = S.potOf(st);
@@ -22031,9 +22095,10 @@ GP.screens.hr = function (A) {
         '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
     });
     h += '</div>';
-    const box = U.popup('＋ ' + d.icon + ' ' + esc(d.name), h,
-      [marketRefreshBtn(() => openStaffMarket(key)),
-       { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }]);
+    const btns = [scoutBtn(key, () => openStaffMarket(key)),
+                  marketRefreshBtn(() => openStaffMarket(key)),
+                  { label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); openGroupPop(key); } }];
+    const box = U.popup('＋ ' + d.icon + ' ' + esc(d.name), h, btns.filter(b => b));
     Array.prototype.forEach.call(box.querySelectorAll('[data-soffer]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openStaffOffer(+b.dataset.soffer, key); };
     });
@@ -22144,7 +22209,7 @@ GP.screens.hr = function (A) {
         '<span>素の力 <b>' + x.raw.toFixed(1) + '</b></span>' +
         '<span class="' + (x.mul > 1 ? 'up' : x.mul < 1 ? 'down' : '') + '">中の噛み合い <b>×' +
           x.mul.toFixed(2) + '</b></span>' +
-        '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのグループから <b>+' +
+        '<span class="' + (x.lift > 0.005 ? 'up' : '') + '">ほかのスタッフグループから <b>+' +
           Math.round(x.lift * 100) + '%</b></span>' +
       '</div>' +
       '<div class="popcost"><span>出ている力</span><span><b>' + x.total.toFixed(1) + '</b></span></div>';
@@ -22166,10 +22231,10 @@ GP.screens.hr = function (A) {
     const cands = staffMarket.filter(y => y.type === d.of).length;
     h += '<p class="note">' + (cands
       ? '市場に <b>' + cands + '人</b> の応募者がいます。'
-      : 'いまこの部門の応募者はいません。') +
+      : 'いまこの部門の応募者はいません（🔎 求人を出せます）。') +
       '　席はチーム全体で ' + (g.staff || []).length + ' / ' + S.staffSlots(g) + '人。</p>';
     const box = U.popup(d.icon + ' ' + esc(d.name), h, [
-      { label: '＋ 迎える' + (cands ? '（候補 ' + cands + '人）' : ''), cls: 'primary',
+      { label: cands ? '＋ 迎える（候補 ' + cands + '人）' : '🔎 求人を出す', cls: 'primary',
         fn: () => openStaffMarket(key) },
       { label: '閉じる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
     ]);
@@ -22220,12 +22285,21 @@ GP.screens.hr = function (A) {
       h += '</div>';
     });
 
+    return h;
+  }
+
+  /* ---- かみ合いの奥の話 ----
+     読まなくても雇える。読むと、どこに人を足すと効くかが分かる。
+     雇う手前に置くと画面1枚ぶん邪魔なので、雇うところの後ろに回した */
+  function orgDeepHTML() {
+    const gt = S.groupTable(g);
+    let h = '';
     // 人 → 部門 → 効き目
     h += '<div class="sub">🔗 人が、どこに効いているか</div>' + orgChainHTML(g);
 
     // 相補作用
-    h += '<div class="sub">🤝 グループ同士の相補作用</div>' +
-      '<p class="desc">両方のグループが育っているときだけ効きます。' +
+    h += '<div class="sub">🤝 スタッフグループ同士の相補作用</div>' +
+      '<p class="desc">両方のスタッフグループが育っているときだけ効きます。' +
       '片方が空だと、いくらもう片方を厚くしても何も起きません。</p><div class="synlist">';
     /* 車の部位と同じ形の話なので、同じ絵で見せる。
        画面が変わっても読みかたを覚え直さなくて済む            */
@@ -22260,60 +22334,74 @@ GP.screens.hr = function (A) {
   }
 
   function hrStaff() {
-    const q = teamQuality();
-    /* 規模の話は「誰が応募してくるか」の話なので、
-       部門のかみ合いの上ではなく、市場のところに置く */
-    let body = orgBoxHTML();
-    body += groupsHTML();
-    body += '<p class="desc">技能が上がると肩書きが変わります：' +
-      D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
-      '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
-      '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
-    body += '<div class="deptgrid" style="display:none">';
-    body += '</div>';
-    /* ---- 置ける席 ----
-       腕の良い人が来るかどうかは規模の話、何人置けるかは建物の話 */
     const room = S.staffRoom(g);
-    body += '<div class="sub">スタッフ市場' +
+    const scale = GP.base.scale(g);
+
+    /* ---- ①いま居る人 ----
+       見出しは groupsHTML の中で場所ごとに立つので、ここでは足さない
+       （足すと中身の無い節がひとつできて、折りたたみが1段増える） */
+    let body = groupsHTML();
+
+    /* ---- ②雇う ----
+       前はここが画面のいちばん下、相補作用の長い説明の後ろにあった。
+       雇うのが人事の主目的なので、居る人のすぐ下に上げた         */
+    body += '<div class="sub">🧑‍💼 人を迎える' +
       '<span class="slotchip' + (room <= 0 ? ' full' : '') + '">' +
       (g.staff || []).length + ' / ' + S.staffSlots(g) + '人</span></div>' +
       '<p class="desc">チームの規模が大きいほど、腕の良い人材が応募してきます' +
-      '（いまの規模：<b>' + GP.base.scale(g).rank + '</b>）。' +
+      '（いまの規模：<b>' + scale.rank + '</b>）。' +
       (room > 0
         ? 'あと <b>' + room + '人</b> 置けます。'
         : '<b class="warn">席が埋まっています。</b>') +
       '席の数は施設のレベルで増えます（' + D.STAFF_SLOTS.per +
-      'レベルぶん伸ばすごとに1席）。</p>';
-    /* 応募者を1列に積むと、誰がどの部門の人なのかが読めないまま
-       延々と送ることになる。部門ごとにまとめて、
-       中身は押したときの小窓で見比べる                        */
-    body += '<div class="pick">';
-    let mktN = 0;
-    D.GROUPS.forEach(G => {
-      const cands = staffMarket.filter(st => st.type === G.of);
-      if (!cands.length) return;
-      mktN += cands.length;
-      const best = cands.slice().sort((a, b) => b.skill - a.skill)[0];
-      const mine = (g.staff || []).filter(st => st.type === G.of);
-      const top = mine.slice().sort((a, b) => b.skill - a.skill)[0];
-      const gain = top ? best.skill - top.skill : null;
-      body += '<button class="pickbtn smktrow" data-smkt="' + G.key + '">' +
-        '<span class="pb-ic" style="background:#7b5a3a">' + G.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(G.name) +
-        '<em class="grp-n">候補 ' + cands.length + '人</em></b>' +
-        '<small>いちばん腕がいい人は <b>技能 ' + best.skill + '</b>' +
-        (gain === null
-          ? '　<em class="up">この部門はまだ空です</em>'
-          : '　うちの一番手は ' + top.skill +
-            '　<em class="' + (gain > 0 ? 'up' : 'down') + '">' +
-            (gain > 0 ? '+' : '') + gain + '</em>') +
-        '</small></span>' +
-        '<span class="pb-cost">見比べる</span></button>';
+      'レベルぶん伸ばすごとに1席）。<br>' +
+      'グループを押すと、応募者をいまの面々と並べて見比べられます。' +
+      '応募者がいない部門には、その場で<b>🔎 求人</b>を出せます' +
+      '（💰' + money(D.STAFF_SCOUT.cost) + '万／その部門だけ入れ替わります）。</p>';
+
+    /* 応募者がいる部門だけ並べると、欲しい部門が画面から消えて
+       「来ていない」のか「そもそも無い」のか分からなかった。
+       8つのグループは常に同じ並びで出し、状態だけを変える     */
+    const gt = S.groupTable(g);
+    D.GROUP_PLACES.forEach(pl => {
+      const gs = D.GROUPS.filter(G => G.place === pl.key);
+      if (!gs.length) return;
+      body += '<p class="mktplace">' + pl.icon + ' ' + pl.name + '</p><div class="pick">';
+      gs.forEach(G => {
+        const cands = staffMarket.filter(st => st.type === G.of);
+        const mine = (g.staff || []).filter(st => st.type === G.of);
+        const top = mine.slice().sort((a, b) => b.skill - a.skill)[0];
+        const best = cands.slice().sort((a, b) => b.skill - a.skill)[0];
+        const gain = (best && top) ? best.skill - top.skill : null;
+        const fee = best ? staffFee(best) : 0;
+        const x = gt.byKey(G.key);
+        body += '<button class="pickbtn smktrow' + (cands.length ? '' : ' cant') +
+          '" data-smkt="' + G.key + '">' +
+          '<span class="pb-ic" style="background:' + (cands.length ? '#7b5a3a' : '#5a5a5a') + '">' +
+            G.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(G.name) +
+          '<em class="grp-n">' + (x ? x.members.length : mine.length) + '人</em>' +
+          (cands.length
+            ? '<em class="mkt-n">候補 ' + cands.length + '人</em>'
+            : '<em class="mkt-n none">候補なし</em>') + '</b>' +
+          '<small>' +
+          (best
+            ? '最上位は <b>技能 ' + best.skill + '</b>' +
+              (gain === null
+                ? '　<em class="up">ここはまだ空です</em>'
+                : '　うちの一番手 ' + top.skill +
+                  '　<em class="' + (gain > 0 ? 'up' : 'down') + '">' +
+                  (gain > 0 ? '+' : '') + gain + '</em>') +
+              '　<em class="mkt-fee">契約金 💰' + money(fee) + '万〜</em>'
+            : (top ? 'うちの一番手は 技能 ' + top.skill
+                    : '<em class="warn">ここに人がいません</em>') +
+              '<br><em class="mkt-ask">🔎 求人を出せます（💰' +
+              money(D.STAFF_SCOUT.cost) + '万）</em>') +
+          '</small></span>' +
+          '<span class="pb-cost">' + (cands.length ? '見比べる' : '求人') + '</span></button>';
+      });
+      body += '</div>';
     });
-    if (!mktN) {
-      body += '<p class="note">いま応募者がいません。「🔄 市場を更新」で入れ替わります。</p>';
-    }
-    body += '</div>';
 
     // ---- よそのチームから引き抜く ----
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
@@ -22334,7 +22422,16 @@ GP.screens.hr = function (A) {
         traitChips(st) +
         '</small></span><span class="pb-cost">引き抜き<br>💰' + money(fee) + '<br><em>週' + money(st.salary) + '</em></span></button>';
     });
-    return body + '</div>';
+    body += '</div>';
+
+    /* ---- ③肩書きと、かみ合いの奥の話 ---- */
+    body += '<p class="desc">技能が上がると肩書きが変わります：' +
+      D.STAFF_RANKS.map(r => r.icon + (r.prefix || '一人前') + (r.at ? '（' + r.at + '）' : '')).join(' → ') +
+      '。<br><b>チーフ</b>まで来た人は「👔 首脳陣」の空いている役職へ昇進させられます。' +
+      '同じ職種にチーフがいると、その下の人が育つのも早くなります。</p>';
+    body += orgBoxHTML();
+    body += orgDeepHTML();
+    return body;
   }
 
   /* ---- 首脳陣 ---- */
@@ -22371,8 +22468,43 @@ GP.screens.hr = function (A) {
     ];
     return [];
   }
-  const effChips = (role, skill) => '<span class="mgeffs">' +
-    mgrEffect(role, skill).map(e => '<em>' + e[0] + ' <b>' + e[1] + '</b></em>').join('') + '</span>';
+  /* ---- 役職が「どこに効くのか」 ----
+     ここの本体はスタッフグループ同士の相補作用のほうで、
+     首脳陣はその上に掛かる倍率でしかない。
+     なのに候補1人ずつに数字の帯を付けていたので、
+     同じ数字が3行も4行も並んで、何を見比べる画面なのか
+     分からなくなっていた。効き先は役職につき一度だけ書く。
+     行に残すのは「技能」と「現任との差」だけ                 */
+  const MGR_SCOPE = {
+    principal: [['💰', 'スポンサー収入'], ['📣', '注目度の伸び'], ['💪', '育成グループの力']],
+    technical: [['👷', '開発グループの力'], ['🎨', '設計グループの力'], ['📊', '解析グループの力']],
+    pitchief:  [['🔩', 'ピットクルーの力'], ['🧠', 'ピットウォールの力']],
+    logistics: [['🏦', '週の運営費'], ['🚚', '輸送費'], ['📦', '荷の遅延'], ['😮‍💨', 'クルーの疲労']]
+  };
+  const MGR_UNDER = { technical: ['engineer', 'designer', 'analyst'], pitchief: ['mechanic', 'strategist'] };
+
+  function mgrScopeHTML(m, cur) {
+    const sc = MGR_SCOPE[m.key] || [];
+    let h = '<div class="mgscope"><b>' + m.icon + ' この席が効くところ</b>' +
+      '<div class="mgscope-l">' +
+      sc.map(e => '<em>' + e[0] + ' ' + e[1] + '</em>').join('') + '</div>';
+    const keys = MGR_UNDER[m.key];
+    if (keys) {
+      const o = S.org(g);
+      const have = keys.reduce((a, k) => a + o.raw[k], 0);
+      h += '<small>' + (have < 1.0
+        ? '<b class="warn">掛ける相手がいません（部下の厚み ' + have.toFixed(1) +
+          '）。ここに人を入れないと、誰を据えても空回りします。</b>'
+        : '部下の厚み <b>' + have.toFixed(1) + '</b> に掛かります。' +
+          '部下が厚いほど、同じ技能でも上乗せが大きくなります。') + '</small>';
+    }
+    h += cur
+      ? '<small>いま：' + esc(cur.name) + '（技能 ' + cur.skill + '）→ ' +
+        mgrEffect(m.key, cur.skill).filter(e => e[0] !== 'いまの部下')
+          .map(e => e[0] + ' <b>' + e[1] + '</b>').join('　') + '</small>'
+      : '<small><b class="warn">空席です。いまここは効いていません。</b></small>';
+    return h + '</div>';
+  }
 
   /* ---- 部門のかみ合い ----
      どの部門も、単体の足し算では出せない力を出している。
@@ -22431,15 +22563,16 @@ GP.screens.hr = function (A) {
   }
 
   function hrManagement() {
-    let body = '<p class="lead">役職は1人ずつ。据えると<b>その部門の人が出す力に掛かります</b>。<br>' +
-      '各役職に、<b>自前のスタッフからの昇進</b>と<b>外からの招聘</b>を並べてあります。' +
-      '数字は「その技能なら、いまの部下に対して実際にどれだけ効くか」です。</p>' +
+    let body = '<p class="lead">役職は1人ずつ。据えると<b>その席が効くところに掛かります</b>。<br>' +
+      '効き先は役職ごとに一度だけ書いてあります。候補の行で見るのは' +
+      '<b>技能</b>と<b>現任との差</b>だけで足ります。</p>' +
       orgBoxHTML();
 
     D.MANAGERS.forEach(m => {
       const cur = g.managers && g.managers[m.key];
       body += '<div class="sub">' + m.icon + ' ' + m.name + '</div>' +
-        '<p class="desc">' + m.desc + '</p><div class="pick">';
+        '<p class="desc">' + m.desc + '</p>' +
+        mgrScopeHTML(m, cur) + '<div class="pick">';
 
       // ---- 現任 ----
       if (cur) {
@@ -22447,7 +22580,7 @@ GP.screens.hr = function (A) {
           '<span class="pb-ic" style="background:#8a5a2a">' + m.icon + '</span>' +
           '<span class="pb-body"><b>' + esc(cur.name) + '<em class="nowchip">現任</em></b>' +
           '<small><span class="skbar"><i style="width:' + Math.min(100, cur.skill / 60 * 100) + '%"></i></span> 技能 <b>' + cur.skill + '</b>' +
-          effChips(m.key, cur.skill) + '</small></span>' +
+          '</small></span>' +
           '<span class="pb-cost">週' + money(cur.salary) + '万<br>' +
           '<button class="mini danger" data-firemgr="' + m.key + '">解任</button></span></div>';
       }
@@ -22467,7 +22600,6 @@ GP.screens.hr = function (A) {
           (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
             (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
           '<br><span class="skbar"><i style="width:' + Math.min(100, after / 60 * 100) + '%"></i></span>' +
-          effChips(m.key, after) +
           '<br><em class="warn">現場からは1人減ります（' + t.name + ' の厚み -' +
           (st.skill / 20).toFixed(1) + '）</em></small></span>' +
           '<span class="pb-cost">契約金なし<br><em>週' + money(sal) + '</em><br>' +
@@ -22488,7 +22620,6 @@ GP.screens.hr = function (A) {
           (diff !== null ? '（現任と<em class="' + (diff > 0 ? 'good' : 'bad') + '">' +
             (diff > 0 ? '+' : '') + diff + '</em>）' : '') +
           '<br><span class="skbar"><i style="width:' + Math.min(100, cand.skill / 60 * 100) + '%"></i></span>' +
-          effChips(m.key, cand.skill) +
           (poor ? '<br><em class="warn">いまの資金では契約できません</em>' : '') +
           '</small></span>' +
           '<span class="pb-cost">💰' + money(fee) + '<br><em>週' + money(cand.salary) + '</em></span></button>';

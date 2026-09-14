@@ -232,7 +232,8 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------- 人事のタブ ---------- */
 .hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
-       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 4px;font-size:11px;font-weight:bold}
+       box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 2px;font-size:11px;font-weight:bold;
+       letter-spacing:-.3px}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .skbar{position:relative;display:inline-block;width:70px;height:7px;background:var(--trough);border:1px solid var(--ink);
        border-radius:4px;overflow:hidden;vertical-align:middle}
@@ -1668,6 +1669,26 @@ body[data-skin="hd"]{
 [data-skin="hd"] .cr.mgr{background:#43364f;color:#e8c98a;border-color:#8a6a2a}
 [data-skin="hd"] .cr.mgr.ready{background:#c98b10;color:#2a1c08}
 [data-skin="hd"] .careernote{color:#cbbb9a}
+
+/* 首脳陣：効き先は役職ごとに一度だけ。行は技能と差だけ */
+.mgscope{background:var(--paper3);border:2px solid var(--ink);border-radius:8px;
+         padding:5px 8px;margin:0 0 6px}
+.mgscope>b{display:block;font-size:11px;margin-bottom:3px}
+.mgscope-l{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:3px}
+.mgscope-l em{font-style:normal;font-size:10px;padding:1px 6px;border-radius:4px;
+              background:#ecd9a4;color:#3a2611;border:1px solid var(--ink)}
+.mgscope small{display:block;font-size:10px;line-height:1.5;opacity:.9}
+[data-skin="hd"] .mgscope{background:rgba(75,61,104,.45)}
+[data-skin="hd"] .mgscope-l em{background:#4b3d68;color:#efe4cf}
+
+/* 雇用：部門は常に同じ並びで出し、候補の有無だけを変える */
+.mktplace{font-size:11px;font-weight:bold;opacity:.8;margin:6px 0 3px}
+.mkt-n{font-style:normal;font-size:9px;margin-left:5px;padding:1px 5px;border-radius:3px;
+       background:#2e6a2e;color:#e6ffe0}
+.mkt-n.none{background:#7a7a7a;color:#f0f0f0}
+.mkt-fee{font-style:normal;opacity:.85}
+.mkt-ask{font-style:normal;color:#8a5a10;font-weight:bold}
+[data-skin="hd"] .mkt-ask{color:#ffd88a}
 
 /* 首脳陣：昇進と招聘を並べて比べる */
 .mgeffs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
