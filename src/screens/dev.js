@@ -122,8 +122,8 @@ GP.screens.dev = function (A) {
         'パーツを作り、いま積んでいるものを煮詰める。' +
         '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
-        '扇の中をまとめ、扇どうしをつなぐ。' +
-        '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp', cst.imp) +
+        'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
+        'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
         '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
         '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
@@ -360,14 +360,15 @@ GP.screens.dev = function (A) {
   /* note はこちらで書いた文で、中に <b> が入っている。
      esc に通していたので、画面に「<b>…</b>」がそのまま出ていた。
      入口の4つとも、いちばん肝心な一節がタグごと読めなくなっていた */
-  function carPickHTML(icon, name, sub, note, key, state) {
+  function carPickHTML(icon, name, sub, note, key, state, week) {
     return '<button class="pickbtn" data-car="' + key + '">' +
       '<span class="pb-ic" style="font-size:19px">' + icon + '</span>' +
       '<span class="pb-body"><b>' + name + '</b><small>' + esc(sub) +
       '<br><em>' + note + '</em>' +
       (state ? '<br><i class="carstate">' + state + '</i>' : '') +
       '</small></span>' +
-      '<span class="pb-cost">1週</span></button>';
+      '<span class="pb-cost">' + (week === false ? '<b class="free">週なし</b>' : '1週') +
+      '</span></button>';
   }
 
   /* ---- 入口の4つに、いまの手持ちを出す ----
@@ -397,7 +398,8 @@ GP.screens.dev = function (A) {
       shop: '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>' +
             '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
-           '（持っているものが、どれだけ外へ出ているか）',
+           '　今週ぶん <b>+' + S.autoIntStep(g).toFixed(1) + '</b>' +
+           '（' + S.intPlanOf(g).icon + S.intPlanOf(g).name + '）',
       res: '🔬 使える知見 <b>' + found + 'つ</b>' +
            (found ? '（💡ひらめきに変えるか、線を押し広げる）'
                   : '（扇を調べると溜まります）') +
@@ -687,6 +689,13 @@ GP.screens.dev = function (A) {
 
   /* 改良のタブ。まとめ上げる作業と、噛み合いの見取り図で分ける */
   let impTab = 'int';
+  /* 先週、その項目が何ぶん動いたか。動いた行にだけ数字を出す */
+  function last2(key) {
+    const l = g.lastInt;
+    if (!l || !l.rows) return 0;
+    const r = l.rows.filter(x => x.key === key)[0];
+    return r ? r.gain : 0;
+  }
   function cmdImprove(tab) {
     if (tab) impTab = tab;
     const tk = g.tickets || 0;
@@ -767,10 +776,10 @@ GP.screens.dev = function (A) {
       '</b> が眠ったままです。</p>';
     // ↓ 一覧の下に回すぶん
     const intRead =
-      '<p class="desc">この一覧が、「速さの成り立ち」の <b>×</b> のところです。' +
+      '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
       'パーツをいくら良くしても、まとめ上げていなければ出てきません。<br>' +
-      '同じ扇の中なら、どれを押してもまとめ上げは同じだけ進みます。' +
-      'ちがうのは<b>値段</b>（薄いところほど安い）と、<b>おまけに付いてくるもの</b>です。' +
+      'ここはプレイヤーが押す場所ではなく、<b>技術部門が毎週進めている</b>ところです。' +
+      '速くしたければ、押す回数ではなく<b>👥人事で技術部門を厚くします</b>。' +
       U.helpLink('car') + '</p>' +
       '<div class="intsum">' +
         '<b>いまのインテグレート <u>' + Math.round(itNow.rate * 100) + '%</u></b>' +
@@ -782,61 +791,69 @@ GP.screens.dev = function (A) {
           Math.round(itNow.mesh * 100) + '%<em>パーツとの組が揃って育ちます</em></span>' +
       '</div>';
 
-    /* 扇ごとに並べる。どの扇が足を引っぱっているかが、そのまま見える */
+    /* ---- つなぎ込みは、技術部門が毎週ひとりでに進める ----
+       以前はここに項目ごとの「まとめる」ボタンを並べ、
+       1回ごとに1週と金と研究Pを取っていた。
+       ところが準備週は3週しかなく、開発の中だけで週を使う行動が10本。
+       しかも実測で、煮詰めるに +5 を入れたときのマシン評価が +1.17、
+       まとめ上げに +5 を入れたときが +1.16。
+       名前と場所がちがうだけの、見分けのつかない二つのボタンだった。
+
+       つなぎ込みは本来プレイヤーが毎週決めることではないので、
+       部門に任せる。プレイヤーが決めるのは「どちらへ寄せるか」だけ。  */
+    {
+      const step = S.autoIntStep(g);
+      const plan = S.intPlanOf(g);
+      const last = g.lastInt;
+      body += '<div class="autoint">' +
+        '<b>🔗 つなぎ込みは技術部門が毎週進めています</b>' +
+        '<em>今週ぶん およそ +' + step.toFixed(1) + '</em>' +
+        '<small>速さは<b>👷開発グループ</b>と<b>🎨設計グループ</b>の厚み、' +
+        'ファクトリーと風洞のレベルで決まります。' +
+        '人を入れれば、その週から数字が変わります。' +
+        (last && last.rows
+          ? '<br>先週は ' + last.rows.map(r => r.icon + r.name +
+              ' <b class="up">+' + r.gain.toFixed(1) + '</b>').join('／')
+          : '') +
+        '</small></div>';
+      // ---- 寄せかた（プレイヤーが決めるのはここだけ）----
+      body += '<div class="sub small">どちらへ寄せるか</div>' +
+        '<p class="desc">同じ手数でも、配り方で車の性格が変わります。' +
+        '週は進みません。いつでも変えられます。</p><div class="pick">';
+      D.INTPLANS.forEach(pl => {
+        const on = pl.key === plan.key;
+        body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-intplan="' + pl.key + '">' +
+          '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
+          '<span class="pb-body"><b>' + pl.name +
+          (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + esc(pl.desc) + '</small></span>' +
+          '<span class="pb-cost"><b>' + esc(pl.note) + '</b></span></button>';
+      });
+      body += '</div>';
+    }
+
+    /* 扇ごとに、いまどこまで来ているか。押すものではなく読むもの */
     D.PART_GROUPS.forEach(gr => {
       const inner = S.integrateOf(g, gr.key);
       body += '<div class="intgrp" style="border-left-color:' + gr.color + '">' +
         '<b style="color:' + gr.color + '">' + gr.icon + ' ' + gr.name + '</b>' +
         '<em>この扇のまとめ ' + Math.round(inner * 100) + '%</em>' +
-        '<small>' + esc(gr.note) + '</small></div><div class="pick">';
+        '<small>' + esc(gr.note) + '</small></div><div class="intbars">';
       gr.body.forEach(key => {
         const a = D.BODY_ATTRS.filter(x => x.key === key)[0];
         if (!a) return;
         const v = (g.body && g.body[a.key]) || 0;
         const myCap = Math.max(1, S.bodyCapOf(g, a.key));
-        const cost = bodyCost(v);
-        const capped = v >= myCap;
-        const ok = g.funds >= cost && g.rp >= 8;
         const pct = Math.min(100, v / myCap * 100);
-        const st = bodyStep(a);
-        const r2 = rateIfUp(a.key, st.now);
-        const up = (r2 - itNow.rate) * rawHave;      // 眠っていた速さが、いくつ起きるか
-        const thin = pct < 34;
-        devRow['bdy:' + a.key] = {
-          ic: a.icon, bg: a.color, head: '🔧 まとめる',
-          name: a.name + ' をまとめる', sub: esc(a.desc),
-          lines: [['それに付いてくるもの', esc(a.eff)],
-                  ['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
-                   (Math.round(v * 10) / 10) + ' / ' + myCap + '）'],
-                  ['1回で', 'インテグレート ' + (itNow.rate * 100).toFixed(1) +
-                   '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
-                   (st.next > 0.05 ? '<br>＋来季へ ' + (Math.round(st.next * 10) / 10) : '')],
-                  ['眠っていた速さが', '<b>+' + up.toFixed(1) + '</b> 起きます']],
-          note: myCap < capAll
-            ? 'コンセプトに逆らう向きなので、上限が低くなっています。' : '',
-          free: !!useTicket, money: cost, rp: 8,
-          why: devWhy(cost, 8),
-          can: ok, doLabel: '🔧 まとめる',
-          fn: () => doBody(a.key)
-        };
-        body += '<button class="pickbtn devrow' + (ok ? '' : ' cant') + '" data-k="bdy:' + a.key + '">' +
-          '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-          '<span class="pb-body"><b>' + a.name +
-          (thin ? '<em class="warn">ここが薄い</em>'
-                : pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
-          '<small>' +
-          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
-          '<u style="left:50%"></u></span>' +
-          '<span class="devnow">まとめ <b>' + Math.round(pct) + '%</b>' +
-          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向き</em>' : '') +
-          (capped ? '　<em class="warn">上限到達</em>' : '') + '</span>' +
-          '<span class="devup">1回で 眠っていた速さが <b>+' + up.toFixed(1) + '</b></span>' +
-          /* データにはあったのに、どこにも出していなかった。
-             これがないと「剛性＝壊れにくさ」だけに読めてしまう  */
-          '<span class="devchar">' + esc(a.desc) + '</span>' +
-          '</small></span>' +
-          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
-            '💰' + money(cost) + '<br>🔬8' + '</span></button>';
+        const capped = v >= myCap;
+        const mv = last2(a.key);
+        body += '<div class="introw">' +
+          '<b>' + a.icon + ' ' + a.name + (mv ? '<u class="up">+' + mv.toFixed(1) + '</u>' : '') + '</b>' +
+          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span>' +
+          '<em>' + (Math.round(v * 10) / 10) + ' / ' + myCap +
+          (myCap < capAll ? '　<i class="cap">逆らう向き</i>' : capped ? '　<i class="warn">上限</i>' : '') +
+          '</em>' +
+          '<small>' + esc(a.desc) + '　—　' + esc(a.eff) + '</small></div>';
       });
       body += '</div>';
     });
@@ -896,10 +913,15 @@ GP.screens.dev = function (A) {
     });
     bindTicket(() => cmdImprove());
     bindMech();
-    bindPick(k => {
-      if (devPop(k)) return;          // 小窓で見せてから決めてもらう
-      const [kind, key] = k.split(':');
-      if (kind === 'bdy') doBody(key);
+    /* つなぎ込みの寄せかた。週は進まない。
+       プレイヤーがこの画面で決めるのは、これだけになった      */
+    bindAct('data-intplan', k => {
+      g.intPlan = k;
+      const pl = S.intPlanOf(g);
+      GP.sound.play('tap');
+      U.log(g, '🔗 つなぎ込みの寄せかたを「' + pl.name + '」にした。');
+      U.toast(pl.icon + ' ' + pl.name, 'good');
+      S.save(g); render(); cmdImprove();
     });
   }
 

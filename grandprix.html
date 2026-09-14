@@ -2620,6 +2620,50 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   .rv-ev{font-size:11px}
 }
 
+
+
+/* ---- 首脳陣に聞く ---- */
+.mgrtalk{border-left-width:8px}
+.mgrtalk.good{border-left-color:var(--green)}
+.mgrtalk.warn{border-left-color:#d8a020}
+.mgrtalk.bad{border-left-color:var(--red)}
+.mgrtalk em.mgrnm{font-style:normal;font-size:11px;color:var(--ink2)}
+.mgrtalk b.talkhead{font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+.mgrsay{border:3px solid var(--ink);border-radius:9px;padding:8px 10px;margin:6px 0;
+        font-size:12px;line-height:1.65;background:var(--paper3)}
+.mgrsay.good{background:#f0fbe8;border-color:#4ea63f}
+.mgrsay.warn{background:#fff6e0;border-color:#d8a020}
+.mgrsay.bad{background:#fdeceb;border-color:var(--red)}
+.mgrsay b{color:var(--ink)}
+.mgrsay b.up{color:#2f8a2f}
+.mgrsay b.down{color:#b81a1a}
+.popcost b.up{color:#2f8a2f}
+.popcost b.down{color:#b81a1a}
+
+/* ---- つなぎ込み（技術部門が毎週進める） ---- */
+.autoint{background:linear-gradient(180deg,#eef8e6,#e2f2d6);border:3px solid var(--ink);
+         border-radius:9px;padding:7px 9px;margin:6px 0;display:grid;
+         grid-template-columns:1fr auto;gap:2px 8px}
+.autoint b{font-size:13px}
+.autoint em{font-style:normal;font-weight:bold;color:#2f8a2f;font-size:13px;white-space:nowrap}
+.autoint small{grid-column:1/-1;font-size:11px;line-height:1.5;color:var(--ink2)}
+.autoint small b.up{color:#2f8a2f}
+/* 扇ごとの内訳。押すものではなく読むもの */
+.intbars{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+.introw{background:var(--paper3);border:2px solid var(--ink2);border-radius:7px;
+        padding:5px 8px;display:grid;grid-template-columns:auto 1fr auto;
+        gap:2px 8px;align-items:center}
+.introw b{font-size:12px;white-space:nowrap}
+.introw b u.up{text-decoration:none;color:#2f8a2f;font-size:11px;margin-left:4px}
+.introw em{font-style:normal;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.introw em i.cap{font-style:normal;color:#b06fd0;font-size:10px}
+.introw em i.warn{font-style:normal;color:#b81a1a;font-size:10px}
+.introw small{grid-column:1/-1;font-size:10px;color:var(--ink2);line-height:1.45}
+@media (max-width:520px),(hover:none) and (pointer:coarse){
+  .introw{grid-template-columns:1fr auto}
+  .introw .skbar{grid-column:1/-1}
+}
+
 /* ---- タイミングモニターを出しているとき ----
    モニターには順位も入っているので、右の順位パネルは畳む。
    コース図は縮めずに（縮めると縦横比が崩れる）、モニター側の
@@ -3879,6 +3923,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   <!-- ================= コマンドバー ================= -->
   <nav class="cmdbar">
     <div id="cmdNormal" class="cmdset">
+      <button class="cmd" id="cMeet" title="首脳陣に、いま何が起きているかを聞く。週は進まない"><span>🗣️</span>相談</button>
       <button class="cmd" id="cCar" title="設計室・工房・ガレージ・研究所への入口。1週使って車を速くする"><span>🔧</span>開発</button>
       <button class="cmd" id="cMaintain" title="傷んだところを直す。信頼性が戻る"><span>🛠️</span>整備</button>
       <button class="cmd" id="cDriver" title="ドライバーを鍛える。練習と、下部組織の育成"><span>🧑‍✈️</span>ドライバー</button>
@@ -5184,6 +5229,39 @@ GP.data = (function () {
     max: 2,
     cost: 0.34          // 新車の何割で1台ぶん組めるか
   };
+
+  /* ---------- つなぎ込み（自動） ----------
+     以前は「まとめ上げ」を週コマンドとして毎回押させていた。
+     ところがレース間の準備週は3週しかなく、開発の中だけで
+     週を使う行動が10本あったので、どれを押しても
+     何が効いたのか分からないまま週が溶けていた。
+
+     しかも実測すると、煮詰めるに +5 を入れたときのマシン評価が +1.17、
+     まとめ上げに +5 を入れたときが +1.16。名前と場所がちがうだけで、
+     プレイヤーから見て見分けがつかない二つのボタンだった。
+
+     つなぎ込みは、本来プレイヤーが毎週決めることではなく、
+     技術部門が黙って進めているもの。毎週ひとりでに進むようにして、
+     プレイヤーは「どっちの向きへ寄せるか」だけを決める。
+     進みかたは部門の厚みで決まるので、
+     人事に人を入れた効き目が、毎週の数字として見えるようになる   */
+  const AUTOINT = {
+    /* 押していたころの1回ぶんに、これを掛けたものが1週の伸び。
+       準備週は3週なので、3週に1回押していたのと同じ速さが 0.33。
+       押す手間が要らなくなったぶん、少しだけ辛くしてある        */
+    perWeek: 0.30,
+    spread:  3,         // 1週で手を付ける項目の数
+    thinPow: 1.6        // 寄せかたに合う項目ほど厚く配る強さ
+  };
+  /* つなぎ込みの寄せかた。プレイヤーが決めるのはここだけ */
+  const INTPLANS = [
+    { key: 'thin', icon: '🩹', name: '薄いところから埋める', color: '#4ea63f',
+      desc: 'いちばんまとまっていない項目から手を付ける。穴がなくなる',
+      note: 'まんべんなく' },
+    { key: 'edge', icon: '🔥', name: '強いところを先に仕上げる', color: '#e04a3f',
+      desc: 'すでに厚い項目を先に上限まで。車の持ち味が際立つ',
+      note: '尖らせる' }
+  ];
 
   /* ---------- 週末の事故 ----------
      予選が終わった時点で判定する。
@@ -7917,7 +7995,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -9173,6 +9251,76 @@ GP.state = (function () {
     if (d >= 0) return bodyCap(g2);
     return Math.round(bodyCap(g2) * Math.min(1, D.CONCEPT.offCap + capLiftOf(g2, key)));
   }
+  /* ---------- つなぎ込み（毎週、ひとりでに進む） ----------
+     まとめ上げはプレイヤーが押すものではなく、
+     技術部門が黙って進めているもの。週ごとに一度だけ呼ぶ。
+
+     どれだけ進むかは、開発グループと設計グループの厚みで決まる。
+     人がいなければ base のぶんしか進まないので、
+     「人事に人を入れたこと」が毎週の数字として返ってくる。
+
+     どこへ配るかは、プレイヤーが決めた寄せかた（g2.intPlan）しだい。
+     薄いところから埋めるか、厚いところを先に仕上げるか。
+     どちらでもコンセプトの外までは行けない（上限は bodyCapOf）    */
+  function autoIntStep(g2) {
+    /* 押していたころの1回ぶんを、そのまま使う。
+       式を立て直すと、人を増やしたときの効きかたが
+       押していたころとずれる（実際、独自に組んだら
+       技術部門を厚くしたときだけ2.4倍も速くなってしまった）。
+       同じ式に「3週に1回押していたぶん」を掛けるのが、いちばん正直   */
+    const A = D.AUTOINT;
+    const fac = (1 + (g2.facilities.factory || 0) * 0.10
+                   + (g2.facilities.tunnel || 0) * 0.06) * rigMul(g2, 'tunnel');
+    const eng = 1 + devPower(g2) * 0.12;
+    const drv = 1 + (g2.drivers || []).reduce((a, d) => a + persOf(d).dev, 0);
+    const press = 3.4 * fac * eng * drv * devRate(g2);
+    return press * A.perWeek;
+  }
+  function intPlanOf(g2) {
+    return D.INTPLANS.filter(x => x.key === (g2 && g2.intPlan))[0] || D.INTPLANS[0];
+  }
+  /* 1週ぶん進める。実際に動いた項目を返す（画面と日誌で使う） */
+  function autoIntegrate(g2) {
+    if (!g2.body) return null;
+    const A = D.AUTOINT;
+    const fc = focusOf(g2);
+    const step = autoIntStep(g2);
+    if (!(step > 0)) return null;
+    /* 伸びしろが残っている項目だけを候補にする。
+       上限に張り付いた項目に配っても、どこへも行かない   */
+    const room = D.BODY_ATTRS.map(a => {
+      const cap = bodyCapOf(g2, a.key);
+      return { a: a, cap: cap, v: g2.body[a.key] || 0,
+               left: Math.max(0, cap - (g2.body[a.key] || 0)),
+               ratio: cap > 0 ? (g2.body[a.key] || 0) / cap : 1 };
+    }).filter(x => x.left > 0.05);
+    if (!room.length) return null;
+    const edge = intPlanOf(g2).key === 'edge';
+    // 薄いほうから埋めるか、厚いほうを先に仕上げるか
+    room.sort((x, y) => edge ? y.ratio - x.ratio : x.ratio - y.ratio);
+    const pick = room.slice(0, Math.min(A.spread, room.length));
+    /* 重みづけ。寄せかたに合う項目ほど厚く、
+       コンセプトに沿う向きほど速い（ここは押すときと同じ規則）  */
+    const w = pick.map((x, i) => Math.pow(pick.length - i, A.thinPow) * conceptMul(g2, x.a.key));
+    const wSum = w.reduce((p2, c) => p2 + c, 0) || 1;
+    const out = [];
+    let toNext = 0;
+    pick.forEach((x, i) => {
+      const share = step * (w[i] / wSum);
+      const add = Math.min(x.left, share * fc.cur);
+      toNext += share * fc.next;
+      if (add <= 0.001) return;
+      g2.body[x.a.key] = Math.round((x.v + add) * 10) / 10;
+      out.push({ key: x.a.key, name: x.a.name, icon: x.a.icon,
+                 gain: Math.round(add * 10) / 10 });
+    });
+    g2.nextCar = (g2.nextCar || 0) + toNext;
+    if (!out.length) return null;
+    return { rows: out, step: Math.round(step * 10) / 10,
+             total: Math.round(out.reduce((p2, c) => p2 + c.gain, 0) * 10) / 10,
+             plan: intPlanOf(g2) };
+  }
+
   /* 作り込みの伸びかたの倍率 */
   function conceptMul(g2, key) {
     const d = conceptDir(g2, key);
@@ -12877,6 +13025,7 @@ GP.state = (function () {
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
+    autoIntStep, autoIntegrate, intPlanOf,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
@@ -22387,8 +22536,8 @@ GP.screens.dev = function (A) {
         'パーツを作り、いま積んでいるものを煮詰める。' +
         '同じものを作り続けると<b>ラインが育って</b>、良いものが安く出てきます', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
-        '扇の中をまとめ、扇どうしをつなぐ。' +
-        '持っているものが、そのぶん<b>外へ出てくる</b>ようになります', 'imp', cst.imp) +
+        'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
+        'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
         '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
         '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
@@ -22625,14 +22774,15 @@ GP.screens.dev = function (A) {
   /* note はこちらで書いた文で、中に <b> が入っている。
      esc に通していたので、画面に「<b>…</b>」がそのまま出ていた。
      入口の4つとも、いちばん肝心な一節がタグごと読めなくなっていた */
-  function carPickHTML(icon, name, sub, note, key, state) {
+  function carPickHTML(icon, name, sub, note, key, state, week) {
     return '<button class="pickbtn" data-car="' + key + '">' +
       '<span class="pb-ic" style="font-size:19px">' + icon + '</span>' +
       '<span class="pb-body"><b>' + name + '</b><small>' + esc(sub) +
       '<br><em>' + note + '</em>' +
       (state ? '<br><i class="carstate">' + state + '</i>' : '') +
       '</small></span>' +
-      '<span class="pb-cost">1週</span></button>';
+      '<span class="pb-cost">' + (week === false ? '<b class="free">週なし</b>' : '1週') +
+      '</span></button>';
   }
 
   /* ---- 入口の4つに、いまの手持ちを出す ----
@@ -22662,7 +22812,8 @@ GP.screens.dev = function (A) {
       shop: '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>' +
             '　🛠️ 作り慣れ <b>Lv.' + lnAvg.toFixed(1) + '</b>',
       imp: '🔗 まとめ上げ <b>' + it + '%</b>' +
-           '（持っているものが、どれだけ外へ出ているか）',
+           '　今週ぶん <b>+' + S.autoIntStep(g).toFixed(1) + '</b>' +
+           '（' + S.intPlanOf(g).icon + S.intPlanOf(g).name + '）',
       res: '🔬 使える知見 <b>' + found + 'つ</b>' +
            (found ? '（💡ひらめきに変えるか、線を押し広げる）'
                   : '（扇を調べると溜まります）') +
@@ -22952,6 +23103,13 @@ GP.screens.dev = function (A) {
 
   /* 改良のタブ。まとめ上げる作業と、噛み合いの見取り図で分ける */
   let impTab = 'int';
+  /* 先週、その項目が何ぶん動いたか。動いた行にだけ数字を出す */
+  function last2(key) {
+    const l = g.lastInt;
+    if (!l || !l.rows) return 0;
+    const r = l.rows.filter(x => x.key === key)[0];
+    return r ? r.gain : 0;
+  }
   function cmdImprove(tab) {
     if (tab) impTab = tab;
     const tk = g.tickets || 0;
@@ -23032,10 +23190,10 @@ GP.screens.dev = function (A) {
       '</b> が眠ったままです。</p>';
     // ↓ 一覧の下に回すぶん
     const intRead =
-      '<p class="desc">この一覧が、「速さの成り立ち」の <b>×</b> のところです。' +
+      '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
       'パーツをいくら良くしても、まとめ上げていなければ出てきません。<br>' +
-      '同じ扇の中なら、どれを押してもまとめ上げは同じだけ進みます。' +
-      'ちがうのは<b>値段</b>（薄いところほど安い）と、<b>おまけに付いてくるもの</b>です。' +
+      'ここはプレイヤーが押す場所ではなく、<b>技術部門が毎週進めている</b>ところです。' +
+      '速くしたければ、押す回数ではなく<b>👥人事で技術部門を厚くします</b>。' +
       U.helpLink('car') + '</p>' +
       '<div class="intsum">' +
         '<b>いまのインテグレート <u>' + Math.round(itNow.rate * 100) + '%</u></b>' +
@@ -23047,61 +23205,69 @@ GP.screens.dev = function (A) {
           Math.round(itNow.mesh * 100) + '%<em>パーツとの組が揃って育ちます</em></span>' +
       '</div>';
 
-    /* 扇ごとに並べる。どの扇が足を引っぱっているかが、そのまま見える */
+    /* ---- つなぎ込みは、技術部門が毎週ひとりでに進める ----
+       以前はここに項目ごとの「まとめる」ボタンを並べ、
+       1回ごとに1週と金と研究Pを取っていた。
+       ところが準備週は3週しかなく、開発の中だけで週を使う行動が10本。
+       しかも実測で、煮詰めるに +5 を入れたときのマシン評価が +1.17、
+       まとめ上げに +5 を入れたときが +1.16。
+       名前と場所がちがうだけの、見分けのつかない二つのボタンだった。
+
+       つなぎ込みは本来プレイヤーが毎週決めることではないので、
+       部門に任せる。プレイヤーが決めるのは「どちらへ寄せるか」だけ。  */
+    {
+      const step = S.autoIntStep(g);
+      const plan = S.intPlanOf(g);
+      const last = g.lastInt;
+      body += '<div class="autoint">' +
+        '<b>🔗 つなぎ込みは技術部門が毎週進めています</b>' +
+        '<em>今週ぶん およそ +' + step.toFixed(1) + '</em>' +
+        '<small>速さは<b>👷開発グループ</b>と<b>🎨設計グループ</b>の厚み、' +
+        'ファクトリーと風洞のレベルで決まります。' +
+        '人を入れれば、その週から数字が変わります。' +
+        (last && last.rows
+          ? '<br>先週は ' + last.rows.map(r => r.icon + r.name +
+              ' <b class="up">+' + r.gain.toFixed(1) + '</b>').join('／')
+          : '') +
+        '</small></div>';
+      // ---- 寄せかた（プレイヤーが決めるのはここだけ）----
+      body += '<div class="sub small">どちらへ寄せるか</div>' +
+        '<p class="desc">同じ手数でも、配り方で車の性格が変わります。' +
+        '週は進みません。いつでも変えられます。</p><div class="pick">';
+      D.INTPLANS.forEach(pl => {
+        const on = pl.key === plan.key;
+        body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-intplan="' + pl.key + '">' +
+          '<span class="pb-ic" style="background:' + pl.color + '">' + pl.icon + '</span>' +
+          '<span class="pb-body"><b>' + pl.name +
+          (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + esc(pl.desc) + '</small></span>' +
+          '<span class="pb-cost"><b>' + esc(pl.note) + '</b></span></button>';
+      });
+      body += '</div>';
+    }
+
+    /* 扇ごとに、いまどこまで来ているか。押すものではなく読むもの */
     D.PART_GROUPS.forEach(gr => {
       const inner = S.integrateOf(g, gr.key);
       body += '<div class="intgrp" style="border-left-color:' + gr.color + '">' +
         '<b style="color:' + gr.color + '">' + gr.icon + ' ' + gr.name + '</b>' +
         '<em>この扇のまとめ ' + Math.round(inner * 100) + '%</em>' +
-        '<small>' + esc(gr.note) + '</small></div><div class="pick">';
+        '<small>' + esc(gr.note) + '</small></div><div class="intbars">';
       gr.body.forEach(key => {
         const a = D.BODY_ATTRS.filter(x => x.key === key)[0];
         if (!a) return;
         const v = (g.body && g.body[a.key]) || 0;
         const myCap = Math.max(1, S.bodyCapOf(g, a.key));
-        const cost = bodyCost(v);
-        const capped = v >= myCap;
-        const ok = g.funds >= cost && g.rp >= 8;
         const pct = Math.min(100, v / myCap * 100);
-        const st = bodyStep(a);
-        const r2 = rateIfUp(a.key, st.now);
-        const up = (r2 - itNow.rate) * rawHave;      // 眠っていた速さが、いくつ起きるか
-        const thin = pct < 34;
-        devRow['bdy:' + a.key] = {
-          ic: a.icon, bg: a.color, head: '🔧 まとめる',
-          name: a.name + ' をまとめる', sub: esc(a.desc),
-          lines: [['それに付いてくるもの', esc(a.eff)],
-                  ['いまのまとまり', '<b>' + Math.round(pct) + '%</b>（' +
-                   (Math.round(v * 10) / 10) + ' / ' + myCap + '）'],
-                  ['1回で', 'インテグレート ' + (itNow.rate * 100).toFixed(1) +
-                   '% → <b>' + (r2 * 100).toFixed(1) + '%</b>' +
-                   (st.next > 0.05 ? '<br>＋来季へ ' + (Math.round(st.next * 10) / 10) : '')],
-                  ['眠っていた速さが', '<b>+' + up.toFixed(1) + '</b> 起きます']],
-          note: myCap < capAll
-            ? 'コンセプトに逆らう向きなので、上限が低くなっています。' : '',
-          free: !!useTicket, money: cost, rp: 8,
-          why: devWhy(cost, 8),
-          can: ok, doLabel: '🔧 まとめる',
-          fn: () => doBody(a.key)
-        };
-        body += '<button class="pickbtn devrow' + (ok ? '' : ' cant') + '" data-k="bdy:' + a.key + '">' +
-          '<span class="pb-ic" style="background:' + a.color + '">' + a.icon + '</span>' +
-          '<span class="pb-body"><b>' + a.name +
-          (thin ? '<em class="warn">ここが薄い</em>'
-                : pct >= 50 ? '<em class="overchip">ライバル超え</em>' : '') + '</b>' +
-          '<small>' +
-          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i>' +
-          '<u style="left:50%"></u></span>' +
-          '<span class="devnow">まとめ <b>' + Math.round(pct) + '%</b>' +
-          (myCap < capAll ? '　<em class="cap">コンセプトに逆らう向き</em>' : '') +
-          (capped ? '　<em class="warn">上限到達</em>' : '') + '</span>' +
-          '<span class="devup">1回で 眠っていた速さが <b>+' + up.toFixed(1) + '</b></span>' +
-          /* データにはあったのに、どこにも出していなかった。
-             これがないと「剛性＝壊れにくさ」だけに読めてしまう  */
-          '<span class="devchar">' + esc(a.desc) + '</span>' +
-          '</small></span>' +
-          '<span class="pb-cost">' + (useTicket ? '<b class="free">🎫 週なし</b><br>' : '') +
-            '💰' + money(cost) + '<br>🔬8' + '</span></button>';
+        const capped = v >= myCap;
+        const mv = last2(a.key);
+        body += '<div class="introw">' +
+          '<b>' + a.icon + ' ' + a.name + (mv ? '<u class="up">+' + mv.toFixed(1) + '</u>' : '') + '</b>' +
+          '<span class="skbar"><i style="width:' + pct + '%;background:' + a.color + '"></i></span>' +
+          '<em>' + (Math.round(v * 10) / 10) + ' / ' + myCap +
+          (myCap < capAll ? '　<i class="cap">逆らう向き</i>' : capped ? '　<i class="warn">上限</i>' : '') +
+          '</em>' +
+          '<small>' + esc(a.desc) + '　—　' + esc(a.eff) + '</small></div>';
       });
       body += '</div>';
     });
@@ -23161,10 +23327,15 @@ GP.screens.dev = function (A) {
     });
     bindTicket(() => cmdImprove());
     bindMech();
-    bindPick(k => {
-      if (devPop(k)) return;          // 小窓で見せてから決めてもらう
-      const [kind, key] = k.split(':');
-      if (kind === 'bdy') doBody(key);
+    /* つなぎ込みの寄せかた。週は進まない。
+       プレイヤーがこの画面で決めるのは、これだけになった      */
+    bindAct('data-intplan', k => {
+      g.intPlan = k;
+      const pl = S.intPlanOf(g);
+      GP.sound.play('tap');
+      U.log(g, '🔗 つなぎ込みの寄せかたを「' + pl.name + '」にした。');
+      U.toast(pl.icon + ' ' + pl.name, 'good');
+      S.save(g); render(); cmdImprove();
     });
   }
 
@@ -28698,6 +28869,380 @@ GP.screens.biz = function (A) {
 
 </script>
 <script>
+/* ===== src/screens/meet.js ===== */
+/* =========================================================
+   画面：首脳陣と話す
+
+   これまでは、何をすればいいかを自分でメニューから探すしかなかった。
+   ところがレース間の準備週は3週しかないのに、週を使う行動は16本ある。
+   16本のうち1本を引いているだけになるので、
+   何が効いたのかがいつまでも分からない。
+
+   そこで、見ている人に聞けるようにする。
+   4人の首脳がそれぞれの持ち場の数字を読んで、
+   「いまここが弱い」「こうしたい」と言ってくる。
+   プレイヤーは、それに乗るか、別の向きを指示するかを決める。
+
+   台詞はぜんぶ、その場の数字から作る。
+   定型文にすると2周目から読まれなくなるので、
+   「上位5チームの平均より 14% 低い」まで言い切る。
+   ========================================================= */
+window.GP = window.GP || {};
+GP.screens = GP.screens || {};
+
+GP.screens.meet = function (A) {
+  'use strict';
+  const D = GP.data, S = GP.state, U = GP.ui;
+  let g = null;
+  let $, esc, money, render, bindAct;
+  function link() {
+    $ = A.$;
+    esc = A.esc;
+    money = A.money;
+    render = A.render;
+    bindAct = A.bindAct;
+  }
+
+  const pct = v => Math.round(v * 100);
+  const sign = v => (v >= 0 ? '+' : '') + v;
+
+  /* ---- 役職に就いている人 ---- */
+  function whoOf(key) {
+    const m = (g.managers || {})[key];
+    const def = D.MANAGERS.filter(x => x.key === key)[0];
+    return { def: def, person: m || null, skill: S.mgr(g, key) };
+  }
+
+  /* =======================================================
+     🔬 開発責任者 ── 車のこと
+     ライバル上位の平均と、いまの車を軸ごとに並べる。
+     「ここが弱い」を数字で言えるだけの材料は、もう揃っている
+     ======================================================= */
+  function techReport2() {
+    const w = whoOf('technical');
+    const t = S.trackAt(g, g.nextRace);
+    const mine = S.carStats(g);
+    /* rivalTrends() は画面用のHTMLを返すので、ここでは使えない。
+       ライバルの素のデータから、自分で並べ直す                  */
+    const rows = (g.rivals || []).filter(r => r && r.stats);
+    // 上位5チームの平均。ここが「世間の水準」
+    const top = rows.slice()
+      .sort((a, b) => S.carScoreOf(b.stats, t) - S.carScoreOf(a.stats, t))
+      .slice(0, 5);
+    const AX = [['speed', '直線'], ['corner', 'コーナー'], ['accel', '加速']];
+    const gaps = AX.map(ax => {
+      const avg = top.length
+        ? top.reduce((a, r) => a + (r.stats[ax[0]] || 0), 0) / top.length : 0;
+      const me = mine[ax[0]] || 0;
+      return { key: ax[0], name: ax[1], me: me, avg: avg,
+               rel: avg > 0 ? (me - avg) / avg : 0 };
+    }).sort((a, b) => a.rel - b.rel);
+    const worst = gaps[0], best = gaps[gaps.length - 1];
+
+    const it = S.integrateRate(g);
+    const step = S.autoIntStep(g);
+    const plan = S.intPlanOf(g);
+    // いちばん薄い車体項目
+    const thin = D.BODY_ATTRS.map(a => {
+      const cap = Math.max(1, S.bodyCapOf(g, a.key));
+      return { a: a, r: ((g.body && g.body[a.key]) || 0) / cap };
+    }).sort((x, y) => x.r - y.r)[0];
+
+    const lines = [];
+    if (top.length) {
+      lines.push(['上位5チームとの差',
+        gaps.map(x => x.name + ' <b class="' + (x.rel < -0.03 ? 'down' : x.rel > 0.03 ? 'up' : '') + '">' +
+          sign(pct(x.rel)) + '%</b>').join('　')]);
+    }
+    lines.push(['つなぎ込み', '<b>' + pct(it.rate) + '%</b>　今週ぶん <b class="up">+' +
+      step.toFixed(1) + '</b>（' + plan.icon + plan.name + '）']);
+    if (thin) {
+      lines.push(['いちばん薄いところ',
+        thin.a.icon + ' <b>' + thin.a.name + '</b>（' + pct(thin.r) + '%）']);
+    }
+
+    /* 席が空いていても、数字は読める。
+        「空席です」だけ返すと、はじめたばかりの人には
+        4人とも同じことしか言わない画面になってしまう        */
+    const vac = w.person ? '' :
+      '（この席はまだ空いています。迎えると部門の出す力そのものが上がります）';
+    let say;
+    if (!top.length) {
+      say = 'まだ比べる相手のデータが足りません。数戦を走ればはっきりします。';
+    } else if (worst.rel < -0.05) {
+      say = '上位5チームの平均と比べて、<b>' + worst.name + 'が ' + Math.abs(pct(worst.rel)) +
+            '% 低い</b>です。いまは' + plan.name + '方向で進めています。' +
+            (plan.key === 'thin'
+              ? 'このまま穴を埋めていけば、どのコースでも戦えるようになります。'
+              : '尖らせる方向なので、' + worst.name + 'の差はしばらく開いたままになります。');
+    } else if (best.rel > 0.05) {
+      say = '弱点らしい弱点はありません。<b>' + best.name + 'が平均より ' + pct(best.rel) +
+            '% 高い</b>ので、ここをさらに伸ばして武器にするのも手です。';
+    } else {
+      say = 'どの軸も平均並みです。いまは' + plan.name + '方向。' +
+            'どちらへ振るかで、この先の性格が決まります。';
+    }
+
+    return {
+      key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
+        : worst && worst.rel < -0.05 ? 'warn' : 'good',
+      head: worst && top.length
+        ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
+        : 'つなぎ込み ' + pct(it.rate) + '%',
+      say: say + (vac ? '<br><b class="down">' + vac + '</b>' : ''), lines: lines,
+      acts: [
+        { key: 'thin', icon: '🩹', label: '弱いところを埋めよう',
+          note: '穴をなくす。どのコースでも戦える車になります',
+          on: plan.key === 'thin',
+          fn: () => setPlan('thin') },
+        { key: 'edge', icon: '🔥', label: '強みを伸ばそう',
+          note: '尖らせる。合うコースでは上位と殴り合えます',
+          on: plan.key === 'edge',
+          fn: () => setPlan('edge') }
+      ]
+    };
+  }
+  function setPlan(k) {
+    g.intPlan = k;
+    const pl = S.intPlanOf(g);
+    GP.sound.play('confirm');
+    U.log(g, '🔬 開発責任者に「' + pl.name + '」で進めるよう伝えた。');
+    U.toast(pl.icon + ' ' + pl.name, 'good');
+    S.save(g); render(); U.closePopup(); cmdMeet();
+  }
+
+  /* =======================================================
+     🔧 ピットクルーチーフ ── 現場のこと
+     ======================================================= */
+  function pitReport() {
+    const w = whoOf('pitchief');
+    const cw = S.crewPenalty(g);
+    const lvl = Math.round(cw.level);
+    const o = S.org(g);
+    const stand = S.pitCrew(g).stand;
+    const lines = [
+      ['クルーの疲労', '<b class="' + (lvl >= 70 ? 'down' : lvl >= 45 ? '' : 'up') + '">' +
+        lvl + ' / 100</b>　ピット +' + cw.pit.toFixed(1) + '秒／作業ミス ' +
+        (cw.mistake * 100).toFixed(1) + '%'],
+      ['ピット静止', '<b>' + stand.toFixed(2) + '秒</b>'],
+      ['部門の厚み', '🔩クルー <b>' + o.dept.mechanic.toFixed(1) + '</b>' +
+        '　🧠作戦 <b>' + o.dept.strategist.toFixed(1) + '</b>']
+    ];
+    const vac = w.person ? '' :
+      '（この席はまだ空いています。迎えると現場ごと底上げされます）';
+    let say;
+    if (lvl >= 70) {
+      say = '<b>クルーが限界です</b>（疲労 ' + lvl + '）。この状態だと、' +
+            'ピットで ' + cw.pit.toFixed(1) + '秒 余計にかかり、作業ミスも ' +
+            (cw.mistake * 100).toFixed(1) + '% 出ます。1週でいいので休ませてください。';
+    } else if (lvl >= 45) {
+      say = '疲れが見えてきました（' + lvl + '）。まだ走れますが、' +
+            '遠いレースが続くようなら、どこかで休ませたいところです。';
+    } else if (o.dept.mechanic < 3) {
+      say = 'クルーの頭数が足りません（厚み ' + o.dept.mechanic.toFixed(1) + '）。' +
+            '人を入れれば静止時間が縮みます。いまは ' + stand.toFixed(2) + '秒。';
+    } else {
+      say = '現場は問題ありません。疲労 ' + lvl + '、静止 ' + stand.toFixed(2) + '秒。' +
+            'このまま行けます。';
+    }
+    return {
+      key: 'pitchief', who: w,
+      mood: lvl >= 70 ? 'bad' : lvl >= 45 ? 'warn' : 'good',
+      head: '疲労 ' + lvl + ' ／ 静止 ' + stand.toFixed(2) + '秒',
+      say: say + (vac ? '<br><b class="down">' + vac + '</b>' : ''), lines: lines,
+      acts: [
+        { key: 'rest', icon: '☕', label: '休ませよう', note: '1週使って、人を休ませます',
+          fn: () => { U.closePopup(); U.closeModal(); if (A.cmdRest) A.cmdRest(); } },
+        { key: 'hr', icon: '👥', label: '人を入れよう', note: '人事へ。現場の部門を厚くします',
+          fn: () => { U.closePopup(); U.closeModal(); if (A.cmdStaff) A.cmdStaff(); } }
+      ]
+    };
+  }
+
+  /* =======================================================
+     🚚 ロジスティクス責任者 ── 運ぶことと、かかる金
+     ======================================================= */
+  function logiReport() {
+    const w = whoOf('logistics');
+    const fin = S.finances(g);
+    const track = S.trackAt(g, g.nextRace);
+    const risk = S.logiRisk(g, track);
+    const ship = S.logiCost(g, track);
+    const people = fin.staff + fin.managers + fin.drivers + fin.youth;
+    const share = fin.weekly > 0 ? people / fin.weekly : 0;
+    const lines = [
+      ['週の固定費', '<b>💰' + money(fin.weekly) + '万</b>' +
+        (fin.cut > 0 ? '（あなたの働きで -' + pct(fin.cut) + '%）' : '')],
+      ['うち人件費', '<b>💰' + money(people) + '万</b>（' + pct(share) + '%）'],
+      ['次戦 ' + esc(track.name), '輸送費 <b>💰' + money(ship) + '万</b>／遅延 <b class="' +
+        (risk > 0.18 ? 'down' : risk > 0.08 ? '' : 'up') + '">' + pct(risk) + '%</b>']
+    ];
+    const vac = w.person ? '' :
+      '（この席はまだ空いています。埋めるだけで固定費が何％か削れます）';
+    let say;
+    if (risk > 0.18) {
+      say = '次は ' + track.name + '。いまの手配だと<b>遅延の危険が ' + pct(risk) +
+            '%</b> あります。遅れると現地の支度が間に合いません。運びかたを見直しませんか。';
+    } else if (share > 0.62) {
+      say = '固定費の <b>' + pct(share) + '% が人件費</b>です。' +
+            '頭数の割に稼げていないなら、どこかで整理が要ります。';
+    } else if (ship > fin.weekly * 2.2) {
+      /* 収支ぜんたいはプリンシパルの持ち場。
+         ここは「運ぶこと」だけを見る。同じ話を二人にさせない */
+      say = '次の ' + track.name + ' は遠いです。輸送費だけで <b>💰' + money(ship) +
+            '万</b>、週の固定費 ' + Math.round(ship / Math.max(1, fin.weekly) * 10) / 10 +
+            '週ぶんにあたります。積荷を軽くすれば、そのぶん浮きます。';
+    } else {
+      say = '運びは問題ありません。次戦の輸送費 💰' + money(ship) + '万、遅延 ' + pct(risk) +
+            '%。積荷も編成も、いまの手配で足ります。';
+    }
+    return {
+      key: 'logistics', who: w,
+      mood: risk > 0.18 ? 'bad' : (share > 0.62 || ship > fin.weekly * 2.2) ? 'warn' : 'good',
+      head: '固定費 💰' + money(fin.weekly) + '／週　遅延 ' + pct(risk) + '%',
+      say: say + (vac ? '<br><b class="down">' + vac + '</b>' : ''), lines: lines,
+      acts: [
+        { key: 'logi', icon: '🚚', label: '手配を見直す', note: '遠征へ。運びかた・積荷・編成',
+          fn: () => { U.closePopup(); U.closeModal(); if (A.cmdLogi) A.cmdLogi(); } }
+      ]
+    };
+  }
+
+  /* =======================================================
+     👔 チームプリンシパル ── チーム全体
+     ======================================================= */
+  function bossReport() {
+    const w = whoOf('principal');
+    const fin = S.finances(g);
+    const room = S.staffRoom(g);
+    const slots = S.staffSlots(g);
+    const have = (g.staff || []).length;
+    // いちばん低い施設。ここが足を引っぱっている
+    const low = D.FACILITIES.map(f => ({ f: f, lv: g.facilities[f.key] || 0 }))
+      .sort((a, b) => a.lv - b.lv)[0];
+    const lines = [
+      ['資金', '<b>💰' + money(g.funds) + '万</b>　1戦あたり <b class="' +
+        (fin.net < 0 ? 'down' : 'up') + '">' + sign(money(fin.net)) + '万</b>'],
+      ['スタッフ', '<b>' + have + ' / ' + slots + '席</b>' +
+        (room > 0 ? '（あと ' + room + '人 置けます）' : '（満席）')],
+      ['いちばん低い施設', low ? low.f.icon + ' <b>' + low.f.name + ' Lv.' + low.lv + '</b>' : '—']
+    ];
+    const vac = w.person ? '' :
+      '（この席はまだ空いています。チームの顔がいないぶん、収入も注目度も伸びません）';
+    let say;
+    if (g.funds < fin.weekly * 6) {
+      say = '<b>資金が心もとない</b>（💰' + money(g.funds) + '万／週 ' +
+            money(fin.weekly) + '万）。あと ' + Math.floor(g.funds / Math.max(1, fin.weekly)) +
+            '週ぶんしかありません。まず稼ぐほうを。';
+    } else if (fin.net < 0) {
+      say = '1戦あたり <b class="down">' + money(fin.net) + '万</b>の赤字で回しています。' +
+            '走るほど痩せるので、スポンサーを増やすか、身軽にするかです。';
+    } else if (room > 2) {
+      say = '席が <b>' + room + '人ぶん空いています</b>。施設を広げたのに人を入れていません。' +
+            '空けておくだけでは何も起きません。';
+    } else if (room <= 0) {
+      say = '席が埋まりました（' + have + '/' + slots + '）。' +
+            'これ以上入れるには、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
+            '広げる必要があります。';
+    } else if (low && low.lv <= 1) {
+      say = low.f.icon + '<b>' + low.f.name + 'がまだ Lv.' + low.lv + '</b>です。' +
+            esc(low.f.desc) + '——ここが足を引っぱっています。';
+    } else {
+      say = 'チームは回っています。資金 💰' + money(g.funds) + '万、1戦あたり +' +
+            money(fin.net) + '万。次に効くのは' +
+            (low ? low.f.icon + low.f.name + 'の拡張' : '人の補強') + 'あたりです。';
+    }
+    return {
+      key: 'principal', who: w,
+      mood: (g.funds < fin.weekly * 6 || fin.net < 0) ? 'bad' : room > 2 ? 'warn' : 'good',
+      head: '💰' + money(g.funds) + '万　1戦 ' + sign(money(fin.net)) + '万',
+      say: say + (vac ? '<br><b class="down">' + vac + '</b>' : ''), lines: lines,
+      acts: [
+        { key: 'biz', icon: '📣', label: '営業へ', note: 'スポンサーを増やす',
+          fn: () => { U.closePopup(); U.closeModal(); if (A.cmdSponsor) A.cmdSponsor(); } },
+        { key: 'fac', icon: '🏗️', label: '施設へ', note: '広げる・備品を入れる',
+          fn: () => { U.closePopup(); U.closeModal(); if (A.cmdFacility) A.cmdFacility(); } }
+      ]
+    };
+  }
+
+  function reports() {
+    return [techReport2(), pitReport(), logiReport(), bossReport()];
+  }
+
+  /* =======================================================
+     画面
+     ======================================================= */
+  function cmdMeet() {
+    const list = reports();
+    const bad = list.filter(r => r.mood === 'bad').length;
+    let body =
+      '<p class="lead">それぞれの持ち場を見ている人に、いま何が起きているかを聞きます。<br>' +
+      '<b>週は進みません。</b>何度でも聞けます。</p>' +
+      (bad ? '<p class="note"><b class="warn">' + bad +
+             '人が「まずい」と言っています。</b>赤い札から見てください。</p>' : '') +
+      '<div class="pick">';
+    list.forEach(r => {
+      const m = r.who.def;
+      body += '<button class="pickbtn mgrtalk ' + r.mood + '" data-talk="' + r.key + '">' +
+        '<span class="pb-ic" style="background:#5a6270">' + m.icon + '</span>' +
+        '<span class="pb-body"><b>' + esc(m.name) +
+        (r.who.person ? '　<em class="mgrnm">' + esc(r.who.person.name) + '</em>'
+                      : '　<em class="warn">空席</em>') + '</b>' +
+        '<small><b class="talkhead">' + r.head + '</b><br>' +
+        esc(r.say.replace(/<[^>]+>/g, '')).slice(0, 58) + '…</small></span>' +
+        '<span class="pb-cost">›</span></button>';
+    });
+    body += '</div>';
+    U.modal('🗣️ 首脳陣に聞く', body, [{ label: '閉じる', fn: U.closeModal }]);
+    bindAct('data-talk', k => openTalk(k));
+  }
+
+  function openTalk(key) {
+    const r = reports().filter(x => x.key === key)[0];
+    if (!r) return;
+    const m = r.who.def;
+    let h = '<div class="popsum"><span class="pb-ic" style="background:#5a6270">' + m.icon +
+      '</span><span class="popsum-b"><b>' + esc(m.name) + '</b><small>' +
+      (r.who.person ? esc(r.who.person.name) + '　技能 ' + Math.round(r.who.skill)
+                    : '空席') + '</small></span></div>' +
+      '<div class="mgrsay ' + r.mood + '">' + r.say + '</div>';
+    r.lines.forEach(l => {
+      h += '<div class="popcost"><span>' + l[0] + '</span><span>' + l[1] + '</span></div>';
+    });
+    if (r.acts && r.acts.length) {
+      h += '<div class="sub small">どうしますか</div><div class="pick">';
+      r.acts.forEach(a => {
+        h += '<button class="pickbtn' + (a.on ? ' on' : '') + '" data-mgract="' + a.key + '">' +
+          '<span class="pb-ic" style="background:#5a6270">' + a.icon + '</span>' +
+          '<span class="pb-body"><b>' + esc(a.label) +
+          (a.on ? '　<em class="free">いまこれ</em>' : '') + '</b>' +
+          '<small>' + esc(a.note) + '</small></span>' +
+          '<span class="pb-cost">›</span></button>';
+      });
+      h += '</div>';
+    }
+    const box = U.popup(m.icon + ' ' + m.name, h,
+      [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-mgract]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        const a = r.acts.filter(x => x.key === b.dataset.mgract)[0];
+        if (a) a.fn();
+      };
+    });
+  }
+
+  return {
+    name: 'meet',
+    link: link,
+    setG: function (v) { g = v; },
+    api: { cmdMeet: cmdMeet, openTalk: openTalk, mgrReports: reports }
+  };
+};
+
+</script>
+<script>
 /* ===== src/screens/home.js ===== */
 /* =========================================================
    画面：本拠地（設備・備品・ガレージ・グリッド・オフ・カート）
@@ -31576,11 +32121,16 @@ GP.screens.help = function (A) {
           'その外側がインテグレートです。ばらばらの部品と本体を1台の車にまとめる仕事で、扇の中（剛性・軽量化・冷却…）、扇と扇の継ぎ目、部位どうしの噛み合いの3つからできています。部品をいくら良くしても、まとめる側が追いついていなければ出てきません。',
           'いちばん外がコンセプトです。ストレート重視・コーナー重視・加速重視・ドライバビリティ重視の4つから、シーズンごとに選びます。'
         ] },
+        { h: '迷ったら、首脳陣に聞く', p: [
+          'レース間に使える週は<b>3週</b>しかないのに、週を使える行動は10本以上あります。自分で探すと、何が効いたのか分からないまま週が溶けます。',
+          'ハブの <b>🗣️ 相談</b> から、4人の首脳にいま何が起きているかを聞けます。<b>週は進みません。</b>何度でも聞けます。',
+          '台詞はその場の数字から作っています。「上位5チームの平均と比べて直線が56%低い」「クルーの疲労が72、ピットで0.4秒余計にかかる」——読めばそのまま次の一手になります。赤い札から見てください。'
+        ] },
         { h: '四つの場所と、三つの輪', p: [
           '車体の仕事は<b>場所で分かれています</b>。場所ひとつに仕事ひとつで、どれも1週ぶんです。',
           '<b>🖊️ 設計室</b>＝<b>これから作るものと、チームの技術を決める</b>。ひらめきを図面に落とし、素材を選び、技術を積み上げます。技術はいまの車にもそのまま効きますが、<b>パーツ1点ずつには手を入れません</b>。',
           '<b>🏭 工房</b>＝<b>パーツそのものに手を入れる</b>＝<b>内側の輪（パーツ）</b>。図面を形にして（作る）、いま積んでいるものを上限へ近づけます（煮詰める）。パーツの輪が動くのは、ここだけです。',
-          '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。扇の中をまとめ、扇どうしをつなぎます。持っているものが、そのぶん外へ出てくるようになります。',
+          '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。ここは<b>技術部門が毎週ひとりでに進めます</b>。あなたが決めるのは「薄いところから埋めるか／強みを尖らせるか」だけで、<b>週は進みません</b>。速くしたければ、押す回数ではなく👥人事で技術部門を厚くします。',
           '<b>🔬 研究所</b>＝<b>当たりを取りに行く</b>。扇を調べて<b>知見</b>を溜め、それを<b>💡ひらめき</b>に変える（＝会心作の出るパーツ設計）か、<b>方針が引いた線そのもの</b>を押し広げる（＝いちばん外の輪）かに使います。',
           '迷ったら、<b>設計室で決めて、工房で作って、ガレージで仕上げる</b>——この順に回してください。'
         ] },
@@ -34515,6 +35065,7 @@ window.GP = window.GP || {};
       render: render, capSpend: capSpend, levelCheck: levelCheck,
       staffExp: staffExp, staffExpAll: staffExpAll,
       interiorHTML: interiorHTML, paintInterior: paintInterior,
+      cmdRest: cmdRest,
       isRaceWeek: isRaceWeek, rivalTrends: rivalTrends,
       nextSeason: nextSeason, gameOver: gameOver, announceGen: announceGen,
       syncG: syncG
@@ -34587,6 +35138,23 @@ window.GP = window.GP || {};
       U.log(g, '⚠️ 資金が底をついた！（' + money(g.funds) + '万）', 'bad');
       U.toast('⚠️ 資金がマイナスです！', 'bad');
       if (g.funds < -20000) return gameOver();
+    }
+    /* つなぎ込みは、技術部門が黙って進めている。
+       以前はこれを毎週プレイヤーに押させていたが、
+       準備週は3週しかなく、押しても煮詰めるとの区別がつかなかった。
+       週に一度ここで進めて、報告だけを日誌に残す                */
+    {
+      const ai = S.autoIntegrate(g);
+      if (ai) {
+        g.lastInt = ai;
+        /* 毎週おなじ行が積むと読まれなくなるので、
+           まとまった週だけ書く。それ以外は画面の数字で見せる   */
+        if (ai.total >= 1.0) {
+          U.log(g, '🔗 技術部門がつなぎ込みを進めた（' +
+            ai.rows.map(r => r.icon + r.name + ' +' + r.gain.toFixed(1)).join('／') +
+            '）', 'good');
+        }
+      }
     }
     // パーツを煮詰めきると、マシンそのものが次の世代へ進む
     const up = S.tryAdvanceGen(g);
@@ -35807,7 +36375,7 @@ window.GP = window.GP || {};
   function bindCommands() {
     const map = {
       cCar: A.cmdCar, cDriver: A.cmdDriverMenu, cMaintain: A.cmdMaintain,
-      cSponsor: A.cmdSponsor, cRest: cmdRest,
+      cSponsor: A.cmdSponsor, cRest: cmdRest, cMeet: A.cmdMeet,
       cLogi: A.cmdLogi, cLogiR: A.cmdLogi, cLogiO: A.cmdLogi,
       cGarage: A.cmdGarage, cFacility: A.cmdFacility, cStaff: A.cmdStaff, cInfo: A.cmdInfo,
       cRaceGo: A.cmdRace, cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,

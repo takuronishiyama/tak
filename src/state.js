@@ -972,6 +972,76 @@ GP.state = (function () {
     if (d >= 0) return bodyCap(g2);
     return Math.round(bodyCap(g2) * Math.min(1, D.CONCEPT.offCap + capLiftOf(g2, key)));
   }
+  /* ---------- つなぎ込み（毎週、ひとりでに進む） ----------
+     まとめ上げはプレイヤーが押すものではなく、
+     技術部門が黙って進めているもの。週ごとに一度だけ呼ぶ。
+
+     どれだけ進むかは、開発グループと設計グループの厚みで決まる。
+     人がいなければ base のぶんしか進まないので、
+     「人事に人を入れたこと」が毎週の数字として返ってくる。
+
+     どこへ配るかは、プレイヤーが決めた寄せかた（g2.intPlan）しだい。
+     薄いところから埋めるか、厚いところを先に仕上げるか。
+     どちらでもコンセプトの外までは行けない（上限は bodyCapOf）    */
+  function autoIntStep(g2) {
+    /* 押していたころの1回ぶんを、そのまま使う。
+       式を立て直すと、人を増やしたときの効きかたが
+       押していたころとずれる（実際、独自に組んだら
+       技術部門を厚くしたときだけ2.4倍も速くなってしまった）。
+       同じ式に「3週に1回押していたぶん」を掛けるのが、いちばん正直   */
+    const A = D.AUTOINT;
+    const fac = (1 + (g2.facilities.factory || 0) * 0.10
+                   + (g2.facilities.tunnel || 0) * 0.06) * rigMul(g2, 'tunnel');
+    const eng = 1 + devPower(g2) * 0.12;
+    const drv = 1 + (g2.drivers || []).reduce((a, d) => a + persOf(d).dev, 0);
+    const press = 3.4 * fac * eng * drv * devRate(g2);
+    return press * A.perWeek;
+  }
+  function intPlanOf(g2) {
+    return D.INTPLANS.filter(x => x.key === (g2 && g2.intPlan))[0] || D.INTPLANS[0];
+  }
+  /* 1週ぶん進める。実際に動いた項目を返す（画面と日誌で使う） */
+  function autoIntegrate(g2) {
+    if (!g2.body) return null;
+    const A = D.AUTOINT;
+    const fc = focusOf(g2);
+    const step = autoIntStep(g2);
+    if (!(step > 0)) return null;
+    /* 伸びしろが残っている項目だけを候補にする。
+       上限に張り付いた項目に配っても、どこへも行かない   */
+    const room = D.BODY_ATTRS.map(a => {
+      const cap = bodyCapOf(g2, a.key);
+      return { a: a, cap: cap, v: g2.body[a.key] || 0,
+               left: Math.max(0, cap - (g2.body[a.key] || 0)),
+               ratio: cap > 0 ? (g2.body[a.key] || 0) / cap : 1 };
+    }).filter(x => x.left > 0.05);
+    if (!room.length) return null;
+    const edge = intPlanOf(g2).key === 'edge';
+    // 薄いほうから埋めるか、厚いほうを先に仕上げるか
+    room.sort((x, y) => edge ? y.ratio - x.ratio : x.ratio - y.ratio);
+    const pick = room.slice(0, Math.min(A.spread, room.length));
+    /* 重みづけ。寄せかたに合う項目ほど厚く、
+       コンセプトに沿う向きほど速い（ここは押すときと同じ規則）  */
+    const w = pick.map((x, i) => Math.pow(pick.length - i, A.thinPow) * conceptMul(g2, x.a.key));
+    const wSum = w.reduce((p2, c) => p2 + c, 0) || 1;
+    const out = [];
+    let toNext = 0;
+    pick.forEach((x, i) => {
+      const share = step * (w[i] / wSum);
+      const add = Math.min(x.left, share * fc.cur);
+      toNext += share * fc.next;
+      if (add <= 0.001) return;
+      g2.body[x.a.key] = Math.round((x.v + add) * 10) / 10;
+      out.push({ key: x.a.key, name: x.a.name, icon: x.a.icon,
+                 gain: Math.round(add * 10) / 10 });
+    });
+    g2.nextCar = (g2.nextCar || 0) + toNext;
+    if (!out.length) return null;
+    return { rows: out, step: Math.round(step * 10) / 10,
+             total: Math.round(out.reduce((p2, c) => p2 + c.gain, 0) * 10) / 10,
+             plan: intPlanOf(g2) };
+  }
+
   /* 作り込みの伸びかたの倍率 */
   function conceptMul(g2, key) {
     const d = conceptDir(g2, key);
@@ -4676,6 +4746,7 @@ GP.state = (function () {
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
+    autoIntStep, autoIntegrate, intPlanOf,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,

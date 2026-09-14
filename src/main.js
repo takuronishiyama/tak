@@ -38,6 +38,7 @@ window.GP = window.GP || {};
       render: render, capSpend: capSpend, levelCheck: levelCheck,
       staffExp: staffExp, staffExpAll: staffExpAll,
       interiorHTML: interiorHTML, paintInterior: paintInterior,
+      cmdRest: cmdRest,
       isRaceWeek: isRaceWeek, rivalTrends: rivalTrends,
       nextSeason: nextSeason, gameOver: gameOver, announceGen: announceGen,
       syncG: syncG
@@ -110,6 +111,23 @@ window.GP = window.GP || {};
       U.log(g, '⚠️ 資金が底をついた！（' + money(g.funds) + '万）', 'bad');
       U.toast('⚠️ 資金がマイナスです！', 'bad');
       if (g.funds < -20000) return gameOver();
+    }
+    /* つなぎ込みは、技術部門が黙って進めている。
+       以前はこれを毎週プレイヤーに押させていたが、
+       準備週は3週しかなく、押しても煮詰めるとの区別がつかなかった。
+       週に一度ここで進めて、報告だけを日誌に残す                */
+    {
+      const ai = S.autoIntegrate(g);
+      if (ai) {
+        g.lastInt = ai;
+        /* 毎週おなじ行が積むと読まれなくなるので、
+           まとまった週だけ書く。それ以外は画面の数字で見せる   */
+        if (ai.total >= 1.0) {
+          U.log(g, '🔗 技術部門がつなぎ込みを進めた（' +
+            ai.rows.map(r => r.icon + r.name + ' +' + r.gain.toFixed(1)).join('／') +
+            '）', 'good');
+        }
+      }
     }
     // パーツを煮詰めきると、マシンそのものが次の世代へ進む
     const up = S.tryAdvanceGen(g);
@@ -1330,7 +1348,7 @@ window.GP = window.GP || {};
   function bindCommands() {
     const map = {
       cCar: A.cmdCar, cDriver: A.cmdDriverMenu, cMaintain: A.cmdMaintain,
-      cSponsor: A.cmdSponsor, cRest: cmdRest,
+      cSponsor: A.cmdSponsor, cRest: cmdRest, cMeet: A.cmdMeet,
       cLogi: A.cmdLogi, cLogiR: A.cmdLogi, cLogiO: A.cmdLogi,
       cGarage: A.cmdGarage, cFacility: A.cmdFacility, cStaff: A.cmdStaff, cInfo: A.cmdInfo,
       cRaceGo: A.cmdRace, cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,
