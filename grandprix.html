@@ -9203,8 +9203,9 @@ GP.state = (function () {
     const from = D.CAR_GENS[g2.carGen];
     g2.carGen++;
     const to = D.CAR_GENS[g2.carGen];
-    // 車体は新造される。前の知見と、来季ぶんの仕込みを引き継ぐ
+    // 車体は新造される。前の知見と、仕込んであったぶんを引き継ぐ
     const stock = g2.nextCar || 0;
+    const advance = Math.round(stock * D.CARRY_TO_NEXT / D.BODY_ATTRS.length * 10) / 10;
     g2.body = makeBody(g2, g2.body, stock);
     g2.nextCar = 0;
     /* 新造した車は、前の車とは別の性格になる。
@@ -9226,7 +9227,11 @@ GP.state = (function () {
       g2.engine.power = spu.power;
       spu.gen = g2.carGen;
     }
-    return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2) };
+    /* 仕込みがここで使われたことを、呼び出し側に返す。
+       黙って吸い込むと、溜めていたバーが 0% に戻るだけに見えて、
+       「進まない」と受け取られてしまう                           */
+    return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2),
+             stock: Math.round(stock * 10) / 10, advance: advance };
   }
 
   /* 新しい車体を作る。前の知見を一部引き継ぐ */
@@ -22721,13 +22726,28 @@ GP.screens.dev = function (A) {
      どれだけの力を今季に注ぐか、来季にいくら積んであるか、
      そして世代がどこまで来ているか。
      どれもパーツを叩く話なので、開発の画面に置く          */
+  /* 煮詰める1回で、仕込みのバーがどれだけ動くか。
+     いま積んでいるパーツの平均で見積もる（数字は目安）    */
+  function seedPerAct() {
+    const cap = Math.round(D.CAR_GENS[Math.min(D.CAR_GENS.length - 1, g.carGen + 1)].cap
+                           * D.BODY_CAP_RATIO);
+    const vals = D.PART_CATS.map(c => {
+      const pv = improvePreview(c);
+      return pv ? pv.toNext : null;
+    }).filter(x => x != null && x > 0);
+    if (!vals.length || cap <= 0) return 0;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return Math.max(0.1, Math.round(avg / (cap * 4) * 1000) / 10);
+  }
+
   function devHeadHTML() {
     const tk = g.tickets || 0;
     const fc = S.focusOf(g);
     let body = '' +
       '<div class="sub">開発リソースの配分</div>' +
-      '<p class="desc">今季の熟成に注ぐか、来季のマシンに前倒しで着手するか。' +
-      '来季に回したぶんは、次の世代のマシンの初期性能になります。</p>' +
+      '<p class="desc">いまの車を煮詰めるのに注ぐか、<b>次のマシン</b>に前倒しで積んでおくか。' +
+      '前倒しにしたぶんは下の<b>仕込み</b>に溜まり、' +
+      '新型ができた日に、そのまま出発点として乗ります。</p>' +
       '<div class="focusrow">';
     D.FOCUS_LEVELS.forEach(f => {
       body += '<button class="focusbtn' + (f.key === g.focus ? ' on' : '') + '" data-focus="' + f.key + '"' +
@@ -22737,15 +22757,26 @@ GP.screens.dev = function (A) {
     const prog = Math.round(S.nextCarProgress(g) * 100);
     const nv = S.nextCarPreview(g);
     body += '</div>' +
-      '<div class="nextcar"><span>🌱 来季マシンの仕込み</span>' +
+      '<div class="nextcar"><span>🌱 次のマシンへの仕込み</span>' +
       '<i><b style="width:' + prog + '%"></b></i><em>' + prog + '%</em></div>';
-    // 仕込みが何を買っているのかを、そのまま数字で出す
+    /* 何をすると溜まるのか、1回でどれだけ動くのかを、その場に出す。
+       このバーを動かすのは🏭工房と🔧ガレージの仕事なので、
+       ここに置いてあるだけだと「押しても進まない」ように見えていた  */
+    const nxg0 = D.CAR_GENS[g.carGen + 1];
     body += '<p class="nextcar-note">' + (nv.isLast
-      ? 'これ以上の新型はありません。仕込みは効果がないので「今季に全力」がおすすめです。'
-      : 'いま新型に乗り換えると、車体の各項目は <b>' + nv.without + '</b> から始まります。' +
+      ? 'これ以上の新型はありません。仕込みは行き先がないので「今季に全力」がおすすめです。'
+      : '<b>🏭工房で煮詰める</b>か<b>🔧ガレージでまとめ上げる</b>と、' +
+        '1回ごとに前倒しぶんがここへ溜まります' +
+        (fc.next > 0
+          ? '（いまの配分なら 1回およそ <b class="up">+' + seedPerAct() + '%</b>）。'
+          : '。<b class="warn">いまの配分は前倒し 0% なので、ここは動きません。</b>') +
+        '<br>' +
         (nv.gain > 0
-          ? '仕込みぶんが乗って <b class="up">' + nv.withStock + '</b>（+' + nv.gain + '）になります。'
-          : 'まだ仕込みは乗っていません。') +
+          ? '溜まったぶんは、<b>' + nxg0.name + ' ができた日</b>に使い切ります。' +
+            'いま新型に乗り換えると、車体の各項目は <b>' + nv.without + '</b> ではなく ' +
+            '<b class="up">' + nv.withStock + '</b>（+' + nv.gain + '）から始まります。'
+          : 'まだ何も溜まっていません。溜めておくと、<b>' + nxg0.name + ' ができた日</b>に' +
+            '車体の各項目の出発点が上がります（いまのままなら ' + nv.without + ' から）。') +
         '<br>次のマシンでの上限は ' + nv.cap + ' です。') + '</p>';
     // いちばん煮詰まっていないパーツ。ここが車全体の足を引っぱっている。
     // どれも似た仕上がりのときは、わざわざ名指ししない
@@ -22828,7 +22859,7 @@ GP.screens.dev = function (A) {
              ['いまの寄与', nowLine || '—'],
              ['1回で', '性能 <b>+' + (Math.round(pv.gain * 10) / 10) + '</b>' +
               (upLine ? '<br>' + upLine : '') +
-              (pv.toNext > 0.05 ? '<br>＋来季へ ' + (Math.round(pv.toNext * 10) / 10) : '')],
+              (pv.toNext > 0.05 ? '<br>🌱 次のマシンへ ' + (Math.round(pv.toNext * 10) / 10) : '')],
              ['速さにすると', '<b>およそ ' + (pv.dSec >= 0 ? '-' : '+') +
               Math.abs(pv.dSec).toFixed(3) + '秒/周</b>' +
               (secGainLine(pv) ? '<br>' + secGainLine(pv) : '')],
@@ -23097,15 +23128,19 @@ GP.screens.dev = function (A) {
      ======================================================= */
   function cmdDesign(tab) {
     if (tab) desTab = tab;
-    if (desTab !== 'idea' && desTab !== 'base') desTab = 'idea';
+    if (['idea', 'plan', 'base'].indexOf(desTab) < 0) desTab = 'idea';
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const ideaN = S.ideaList(g).length;
     /* 抱えているひらめきが無いなら、空の棚を見せても仕方がない。
-       自分でそのタブを選んだのでなければ、素材と技術のほうを開く  */
-    if (!tab && !ideaN && desTab === 'idea') desTab = 'base';
+       自分でそのタブを選んだのでなければ、配分のほうを開く  */
+    if (!tab && !ideaN && desTab === 'idea') desTab = 'plan';
+    /* 「素材と技術」の中に開発リソースの配分まで入れていたため、
+       そのタブを開くと配分が先に立って、素材と技術が下に沈んでいた。
+       性質のちがう3つなので、3つに割る                             */
     const DTABS = [
-      ['idea', '💡', 'ひらめき', ideaN ? String(ideaN) : ''],
+      ['idea', '💡', 'ひらめき',   ideaN ? String(ideaN) : ''],
+      ['plan', '🌱', '配分と世代', ''],
       ['base', '🧪', '素材と技術', '']
     ];
     let body =
@@ -23120,9 +23155,12 @@ GP.screens.dev = function (A) {
     if (desTab === 'idea') {
       // 掘り当てたものを図面に落とす
       body += ideaBoxHTML();
+    } else if (desTab === 'plan') {
+      // 今季と次のマシンへの振り分け、仕込み、世代の進み
+      body += devHeadHTML();
     } else {
-      // 配分・素材・技術。すぐには速くならないが、あとで効く
-      body += devHeadHTML() + matBoxHTML();
+      // 素材と技術。すぐには速くならないが、あとで効く
+      body += matBoxHTML();
     }
 
     // ---- 技術開発（土台のタブ） ----
@@ -24118,9 +24156,9 @@ GP.screens.dev = function (A) {
     g.inventory.push(p);
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
-    U.log(g, '💡 <b>' + esc(it.name) + '</b> を形にした！ ' +
-      c.name + 'として保管庫に入った（<b>' + S.qualTier(q).name +
-      '</b>　品質 ' + q.toFixed(2) + '）。' +
+    U.log(g, '💡 「' + it.name + '」を形にした！ ' +
+      c.name + 'として保管庫に入った（' + S.qualTier(q).name +
+      '　品質 ' + q.toFixed(2) + '）。' +
       '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
@@ -24564,9 +24602,9 @@ GP.screens.dev = function (A) {
     const nm = name || (c.name + 'の' + ideaNameFor(catKey));
     S.addIdea(g, nm, catKey);
     GP.sound.play('levelup');
-    U.log(g, '💡 知見が<b>' + esc(nm) + '</b>になった。' +
+    U.log(g, '💡 知見が「' + nm + '」になった。' +
       '🖊️設計室の「💡ひらめき」から形にすると、' +
-      '<b>' + D.QUALITY[D.QUALITY.length - 1].name + '</b>のパーツが出る', 'good');
+      D.QUALITY[D.QUALITY.length - 1].name + 'のパーツが出る', 'good');
     U.toast('💡 ' + nm, 'good');
     S.save(g);
     U.closePopup();
@@ -24776,10 +24814,10 @@ GP.screens.dev = function (A) {
          調べ切った週には研究ポイントがまとめて入る。
          道の途中で拾ったものが、最後に一度に形になる感じ        */
       g.rp += D.RESEARCH.foundRp;
-      U.log(g, '🔬 ' + c.name + 'の研究で<b>知見</b>を掴んだ！ ' +
-        '<b>💡ひらめき</b>に変えるか、コンセプトの線を押し広げるのに使える' +
-        '（いま ' + r.have + 'つ）。あわせて研究ポイント <b>+' +
-        D.RESEARCH.foundRp + '🔬</b>', 'good');
+      U.log(g, '🔬 ' + c.name + 'の研究で知見を掴んだ！ ' +
+        '💡ひらめきに変えるか、コンセプトの線を押し広げるのに使える' +
+        '（いま ' + r.have + 'つ）。あわせて研究ポイント +' +
+        D.RESEARCH.foundRp + '🔬', 'good');
       U.toast('🔬 知見をひとつ掴んだ！（+' + D.RESEARCH.foundRp + '🔬）', 'good');
       GP.sound.play('levelup');
     } else {
@@ -29061,6 +29099,9 @@ GP.screens.home = function (A) {
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
       '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>です。' +
       '上の施設を押すと、そこに据えられる備品が出ます。一度買えば残ります。</p>' +
+      '<p class="desc">🚚 <b>遠征チーム</b>には、据える備品のほかに' +
+      '<b>現地へ持ち込む装備</b>（天気の読み・チーム無線・ピットウォール・モーターホーム）も' +
+      'まとめてあります。</p>' +
       '<p class="note">🔧 いま持っている装備の維持費は <b>💰' + money(up.net) +
       '万／週</b>です' + (up.cut > 0
         ? '（サプライヤーの割引 <b>-' + Math.round(up.cut * 100) + '%</b> 込み。定価なら ' +
@@ -29417,13 +29458,27 @@ GP.screens.home = function (A) {
           : (off ? '<s>' + money(x.cost) + '</s><br>' : '') + '💰' + money(x.price)) +
         '</span></button>';
     });
-    h += '</div><p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
+    h += '</div>';
+    /* 🚚遠征チームの備品には、現地へ持ち込む装備も並べる。
+       倉庫に据えるものと現地に持ち込むものは、
+       買う人から見ればどちらも「遠征チームの道具」。
+       遠征タブの奥にだけ置いてあると、備品を見に来た人には届かない */
+    if (fac === 'depot') {
+      h += '<div class="sub small">🧰 現地に持ち込む装備</div>' +
+        foreBoxHTML() +
+        '<p class="desc">倉庫に据えるのではなく、週末ごとに運んでいくもの。' +
+        'こちらは一度きりの買い物ではなく、<b>段を上げていきます</b>。一度買えば残ります。</p>' +
+        '<div class="pick gearpick">' + kitRowsHTML() + '</div>';
+    }
+    h += '<p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
       money(up.net) + '万／週</b>です。買った道具は、置いてあるだけで金を食います。</p>';
     const box = U.popup('🧰 ' + (f ? f.icon + ' ' + f.name : '備品'), h,
       [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-gpop]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openGearBuy(fac, b.dataset.gpop, true); };
     });
+    if (fac === 'depot') bindKit(box);
+    return box;
   }
 
   function openGearBuy(fac, key, fromList) {
@@ -31051,18 +31106,19 @@ GP.screens.home = function (A) {
      段階ごとに買い上げていく                                      */
   function kitBoxHTML() {
     // いまの「読み」がどこから来ているのかを、その場に出す
-    const fo = S.foresightOf(g);
-    const wKit = S.kitEff(g, 'weather', 'fore');
-    const st = S.readPower(g);
     let h = '<div class="sub">🧰 トラックサイド装備</div>' +
-      '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
-      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
-      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
-      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
-      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
-      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>' +
-      '<p class="desc">現地に持ち込むもの。一度買えば残ります。</p>' +
+      foreBoxHTML() +
+      '<p class="desc">現地に持ち込むもの。一度買えば残ります。' +
+      'これは<b>🚚遠征チームの備品</b>でもあるので、' +
+      '「🏗️ 施設 → 🧰 備品 → 🚚 遠征チーム」からも同じものが出ます。</p>' +
       '<div class="pick gearpick">';
+    h += kitRowsHTML();
+    return h + '</div>';
+  }
+  /* 装備4つの行。遠征タブと、🚚遠征チームの備品の小窓と、
+     どちらからも同じものを見せるので、行だけ切り出してある     */
+  function kitRowsHTML() {
+    let h = '';
     S.kitList(g).forEach(k => {
       const d = k.def, t = k.tier, nx = k.next;
       const pr = S.kitPrice(g, d.key);
@@ -31087,12 +31143,24 @@ GP.screens.home = function (A) {
             '💰' + money(pr.price) + '<br><i class="tyuse">維持 ' + money(pr.up) + '/週</i>'
           : '—') + '</span></button>';
     });
-    return h + '</div>';
+    return h;
+  }
+  /* 🌦️ 読みの箱。装備4つが何を買っているのかの見出し */
+  function foreBoxHTML() {
+    const fo = S.foresightOf(g);
+    const wKit = S.kitEff(g, 'weather', 'fore');
+    const st = S.readPower(g);
+    return '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
+      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
+      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
+      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
+      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>';
   }
   /* ---- 装備を1段上げる小窓 ----
      備品・施設と同じ形。押した瞬間に数千万が出ていくのをやめ、
      いま何段目で、次が何をしてくれて、いくらかかるのかを先に見せる */
-  function openKitBuy(key) {
+  function openKitBuy(key, from) {
     const k = (S.kitList(g) || []).filter(x => x.def.key === key)[0];
     if (!k) return;
     const d = k.def, t = k.tier, nx = k.next;
@@ -31121,6 +31189,7 @@ GP.screens.home = function (A) {
       }
     }
     const can = !!(nx && pr && g.funds >= pr.price);
+    const back = kitBack(from);
     U.popup('🧰 ' + d.icon + ' ' + d.name, h, [
       { label: nx ? '🧰 持ち込む　💰' + money(pr.price) + '万' : '上限です',
         cls: 'primary', disabled: !can,
@@ -31130,15 +31199,32 @@ GP.screens.home = function (A) {
           GP.sound.play('build');
           U.log(g, r.icon + ' ' + r.name + ' を持ち込むことにした（' + r.desc + '）', 'good');
           U.toast(r.icon + ' ' + r.name + '！', 'good');
-          S.save(g); render(); U.closePopup(); cmdLogi();
+          S.save(g); render();
+          if ($('baseCv')) drawBase();
+          back();
         } },
-      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+      { label: from === 'gear' ? '戻る' : 'やめる',
+        fn: () => { GP.sound.play('tap'); back(); } }
     ]);
   }
 
-  function bindKit() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-kit]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); openKitBuy(b.dataset.kit); };
+  /* 一覧の小窓から来たときは、決めても・やめても一覧へ戻す。
+     備品とまったく同じ運びにしてある                       */
+  function kitBack(from) {
+    return () => {
+      if (from === 'gear') return openGearList('depot');
+      U.closePopup();
+      if (from === 'logi') cmdLogi();
+    };
+  }
+
+  function bindKit(root) {
+    const box = root || $('modalBody');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-kit]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        openKitBuy(b.dataset.kit, root ? 'gear' : 'logi');
+      };
     });
   }
 
@@ -35506,6 +35592,16 @@ window.GP = window.GP || {};
     GP.sound.play('crit');
     U.log(g, '🎊 パーツが出そろい、マシンが「' + up.to + '」に更新された！ ' +
              'パーツ上限 ' + up.cap + '／車体上限 ' + up.bodyCap, 'good');
+    /* 仕込んであったぶんは、ここで新型の出発点になる。
+       黙って消えると「バーが 0% に戻った」としか見えない      */
+    if (up.advance > 0.05) {
+      /* 日誌は素のテキストとして出す（ui.js が esc する）。
+         ここに飾りのタグを混ぜると、そのまま文字として出てしまう  */
+      U.log(g, '🌱 仕込んであった ' + up.stock + ' が、そのまま新型の出発点になった' +
+               '（車体の各項目 +' + up.advance + '）。' +
+               '仕込みはここで使い切ったので、また 0 から溜まります', 'good');
+      U.pop('🌱 仕込み +' + up.advance, 'good');
+    }
     U.toast('🎊 マシンが「' + up.to + '」に更新！', 'good');
     U.pop('🏎️ ' + up.to, 'crit');
   }

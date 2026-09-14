@@ -453,6 +453,9 @@ GP.screens.home = function (A) {
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
       '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>です。' +
       '上の施設を押すと、そこに据えられる備品が出ます。一度買えば残ります。</p>' +
+      '<p class="desc">🚚 <b>遠征チーム</b>には、据える備品のほかに' +
+      '<b>現地へ持ち込む装備</b>（天気の読み・チーム無線・ピットウォール・モーターホーム）も' +
+      'まとめてあります。</p>' +
       '<p class="note">🔧 いま持っている装備の維持費は <b>💰' + money(up.net) +
       '万／週</b>です' + (up.cut > 0
         ? '（サプライヤーの割引 <b>-' + Math.round(up.cut * 100) + '%</b> 込み。定価なら ' +
@@ -809,13 +812,27 @@ GP.screens.home = function (A) {
           : (off ? '<s>' + money(x.cost) + '</s><br>' : '') + '💰' + money(x.price)) +
         '</span></button>';
     });
-    h += '</div><p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
+    h += '</div>';
+    /* 🚚遠征チームの備品には、現地へ持ち込む装備も並べる。
+       倉庫に据えるものと現地に持ち込むものは、
+       買う人から見ればどちらも「遠征チームの道具」。
+       遠征タブの奥にだけ置いてあると、備品を見に来た人には届かない */
+    if (fac === 'depot') {
+      h += '<div class="sub small">🧰 現地に持ち込む装備</div>' +
+        foreBoxHTML() +
+        '<p class="desc">倉庫に据えるのではなく、週末ごとに運んでいくもの。' +
+        'こちらは一度きりの買い物ではなく、<b>段を上げていきます</b>。一度買えば残ります。</p>' +
+        '<div class="pick gearpick">' + kitRowsHTML() + '</div>';
+    }
+    h += '<p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
       money(up.net) + '万／週</b>です。買った道具は、置いてあるだけで金を食います。</p>';
     const box = U.popup('🧰 ' + (f ? f.icon + ' ' + f.name : '備品'), h,
       [{ label: '戻る', cls: 'primary', fn: () => { GP.sound.play('tap'); U.closePopup(); } }]);
     Array.prototype.forEach.call(box.querySelectorAll('[data-gpop]'), b => {
       b.onclick = () => { GP.sound.play('tap'); openGearBuy(fac, b.dataset.gpop, true); };
     });
+    if (fac === 'depot') bindKit(box);
+    return box;
   }
 
   function openGearBuy(fac, key, fromList) {
@@ -2443,18 +2460,19 @@ GP.screens.home = function (A) {
      段階ごとに買い上げていく                                      */
   function kitBoxHTML() {
     // いまの「読み」がどこから来ているのかを、その場に出す
-    const fo = S.foresightOf(g);
-    const wKit = S.kitEff(g, 'weather', 'fore');
-    const st = S.readPower(g);
     let h = '<div class="sub">🧰 トラックサイド装備</div>' +
-      '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
-      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
-      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
-      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
-      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
-      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>' +
-      '<p class="desc">現地に持ち込むもの。一度買えば残ります。</p>' +
+      foreBoxHTML() +
+      '<p class="desc">現地に持ち込むもの。一度買えば残ります。' +
+      'これは<b>🚚遠征チームの備品</b>でもあるので、' +
+      '「🏗️ 施設 → 🧰 備品 → 🚚 遠征チーム」からも同じものが出ます。</p>' +
       '<div class="pick gearpick">';
+    h += kitRowsHTML();
+    return h + '</div>';
+  }
+  /* 装備4つの行。遠征タブと、🚚遠征チームの備品の小窓と、
+     どちらからも同じものを見せるので、行だけ切り出してある     */
+  function kitRowsHTML() {
+    let h = '';
     S.kitList(g).forEach(k => {
       const d = k.def, t = k.tier, nx = k.next;
       const pr = S.kitPrice(g, d.key);
@@ -2479,12 +2497,24 @@ GP.screens.home = function (A) {
             '💰' + money(pr.price) + '<br><i class="tyuse">維持 ' + money(pr.up) + '/週</i>'
           : '—') + '</span></button>';
     });
-    return h + '</div>';
+    return h;
+  }
+  /* 🌦️ 読みの箱。装備4つが何を買っているのかの見出し */
+  function foreBoxHTML() {
+    const fo = S.foresightOf(g);
+    const wKit = S.kitEff(g, 'weather', 'fore');
+    const st = S.readPower(g);
+    return '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
+      '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
+      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
+      '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
+      '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>';
   }
   /* ---- 装備を1段上げる小窓 ----
      備品・施設と同じ形。押した瞬間に数千万が出ていくのをやめ、
      いま何段目で、次が何をしてくれて、いくらかかるのかを先に見せる */
-  function openKitBuy(key) {
+  function openKitBuy(key, from) {
     const k = (S.kitList(g) || []).filter(x => x.def.key === key)[0];
     if (!k) return;
     const d = k.def, t = k.tier, nx = k.next;
@@ -2513,6 +2543,7 @@ GP.screens.home = function (A) {
       }
     }
     const can = !!(nx && pr && g.funds >= pr.price);
+    const back = kitBack(from);
     U.popup('🧰 ' + d.icon + ' ' + d.name, h, [
       { label: nx ? '🧰 持ち込む　💰' + money(pr.price) + '万' : '上限です',
         cls: 'primary', disabled: !can,
@@ -2522,15 +2553,32 @@ GP.screens.home = function (A) {
           GP.sound.play('build');
           U.log(g, r.icon + ' ' + r.name + ' を持ち込むことにした（' + r.desc + '）', 'good');
           U.toast(r.icon + ' ' + r.name + '！', 'good');
-          S.save(g); render(); U.closePopup(); cmdLogi();
+          S.save(g); render();
+          if ($('baseCv')) drawBase();
+          back();
         } },
-      { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
+      { label: from === 'gear' ? '戻る' : 'やめる',
+        fn: () => { GP.sound.play('tap'); back(); } }
     ]);
   }
 
-  function bindKit() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-kit]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); openKitBuy(b.dataset.kit); };
+  /* 一覧の小窓から来たときは、決めても・やめても一覧へ戻す。
+     備品とまったく同じ運びにしてある                       */
+  function kitBack(from) {
+    return () => {
+      if (from === 'gear') return openGearList('depot');
+      U.closePopup();
+      if (from === 'logi') cmdLogi();
+    };
+  }
+
+  function bindKit(root) {
+    const box = root || $('modalBody');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-kit]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        openKitBuy(b.dataset.kit, root ? 'gear' : 'logi');
+      };
     });
   }
 

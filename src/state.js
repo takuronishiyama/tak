@@ -1057,8 +1057,9 @@ GP.state = (function () {
     const from = D.CAR_GENS[g2.carGen];
     g2.carGen++;
     const to = D.CAR_GENS[g2.carGen];
-    // 車体は新造される。前の知見と、来季ぶんの仕込みを引き継ぐ
+    // 車体は新造される。前の知見と、仕込んであったぶんを引き継ぐ
     const stock = g2.nextCar || 0;
+    const advance = Math.round(stock * D.CARRY_TO_NEXT / D.BODY_ATTRS.length * 10) / 10;
     g2.body = makeBody(g2, g2.body, stock);
     g2.nextCar = 0;
     /* 新造した車は、前の車とは別の性格になる。
@@ -1080,7 +1081,11 @@ GP.state = (function () {
       g2.engine.power = spu.power;
       spu.gen = g2.carGen;
     }
-    return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2) };
+    /* 仕込みがここで使われたことを、呼び出し側に返す。
+       黙って吸い込むと、溜めていたバーが 0% に戻るだけに見えて、
+       「進まない」と受け取られてしまう                           */
+    return { from: from.name, to: to.name, cap: to.cap, bodyCap: bodyCap(g2),
+             stock: Math.round(stock * 10) / 10, advance: advance };
   }
 
   /* 新しい車体を作る。前の知見を一部引き継ぐ */
