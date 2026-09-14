@@ -1488,6 +1488,16 @@ GP.state = (function () {
      名前がひらめきの名前に変わる。
      「形にする」が新品を作るのに対して、こちらは載せ替えない。
      煮詰めた資産を捨てずに、もう一段先へ行ける                */
+  /* 個体に貼られた札。何を持ち込んだ車なのかが、ここに残る */
+  function innovsOf(p) { return (p && p.innovs) || []; }
+  /* いまの器から、次の段がどこか。
+     段が近すぎるとき（並→良品は +0.03）は、ひとつ飛ばす      */
+  function nextQualStep(q) {
+    const need = q + D.INNOV_UP.minStep;
+    const hit = D.QUALITY.filter(t => t.at >= need)[0];
+    const top = D.QUALITY[D.QUALITY.length - 1];
+    return hit ? hit.at : top.at;
+  }
   function innovCost(g2) {
     const gen = clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1);
     return {
@@ -1510,6 +1520,7 @@ GP.state = (function () {
     const top = D.QUALITY[D.QUALITY.length - 1];
     const cost = innovCost(g2);
     const already = p ? qualOf(p) >= top.at - 0.001 : false;
+    const after = p ? nextQualStep(qualOf(p)) : 0;
     const why = [];
     if (!p) why.push('この部位を積んでいません');
     if (!idea) why.push('この部位の💡ひらめきがありません');
@@ -1522,11 +1533,12 @@ GP.state = (function () {
       why.push('技術部門が薄すぎます（開発＋設計 ' + dept.toFixed(1) +
                ' / ' + D.INNOV_UP.dept + '）');
     }
-    if (already) why.push('この個体はすでに' + top.name + 'です');
+    if (already) why.push('この個体はすでに' + top.name + 'で、これ以上は上がりません');
     if (g2.funds < cost.money || g2.rp < cost.rp) why.push('資金か研究Pが足りません');
     return {
       cat: catKey, part: p, idea: idea, ratio: ratio, dept: dept,
-      cap: cap, capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * top.at) : 0,
+      cap: cap, capAfter: p ? Math.round(D.CAR_GENS[g2.carGen].cap * after) : 0,
+      qual: p ? qualOf(p) : 0, qualAfter: after,
       cost: cost, top: top, ok: !why.length, why: why
     };
   }
@@ -1542,14 +1554,18 @@ GP.state = (function () {
     const r = innovCheck(g2, catKey);
     if (!r.ok) return null;
     const p = r.part;
-    const before = { name: p.name, qual: qualOf(p), cap: r.cap };
+    const before = { name: p.name, qual: qualOf(p), cap: r.cap,
+                     tier: qualTier(qualOf(p)).name };
     g2.funds -= r.cost.money; g2.rp -= r.cost.rp;
-    p.quality = Math.round(r.top.at * 1000) / 1000;
-    p.name = r.idea.name;               // 名前はひらめきのものを引き継ぐ
-    p.idea = r.idea.name;
+    /* 器は一段だけ上げる。名前はいじらない。
+       持ち込んだものは、札として個体に積む                   */
+    p.quality = Math.round(r.qualAfter * 1000) / 1000;
+    p.innovs = innovsOf(p).concat([r.idea.name]);
     useIdea(g2, r.idea.id);
-    return { before: before, name: p.name, qual: qualOf(p),
-             cap: partCap(g2, p), power: p.power, cost: r.cost };
+    return { before: before, name: p.name, tag: r.idea.name,
+             qual: qualOf(p), tier: qualTier(qualOf(p)).name,
+             cap: partCap(g2, p), power: p.power, cost: r.cost,
+             innovs: innovsOf(p) };
   }
   function ideaOf(g2, id) { return ideaList(g2).filter(x => x.id === id)[0] || null; }
   function useIdea(g2, id) {
@@ -4833,7 +4849,7 @@ GP.state = (function () {
     supplyList, supplySlots, supplyOpen, signSupply, dropSupply, dropSupplyCost,
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
     ideaList, addIdea, ideaOf, useIdea, ideaLeft,
-    innovCost, innovDept, innovCheck, innovList, innovate, rollEraFit, eraFitOf, eraReadOf,
+    innovCost, innovDept, innovCheck, innovList, innovate, innovsOf, nextQualStep, rollEraFit, eraFitOf, eraReadOf,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,

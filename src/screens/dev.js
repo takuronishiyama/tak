@@ -387,7 +387,13 @@ GP.screens.dev = function (A) {
     const m = D.MATERIALS[p.mat || 0] || D.MATERIALS[0];
     return '<b class="qchip" style="border-color:' + t.color + ';color:' + t.color + '"' +
       ' title="' + esc(t.note) + '">' + t.name + ' ' + q.toFixed(2) + '</b>' +
-      '<b class="mchip" title="' + esc(m.note) + '">' + m.icon + ' ' + m.name + '</b>';
+      '<b class="mchip" title="' + esc(m.note) + '">' + m.icon + ' ' + m.name + '</b>' +
+      innovChips(p);
+  }
+  /* ⚡ 持ち込んだものの札。名前を差し替えるのではなく、ここに積む */
+  function innovChips(p) {
+    return S.innovsOf(p).map(n =>
+      '<b class="ichip" title="イノベーション">⚡ ' + esc(n) + '</b>').join('');
   }
 
   /* note はこちらで書いた文で、中に <b> が入っている。
@@ -1992,8 +1998,11 @@ GP.screens.dev = function (A) {
     const q = Math.min(D.QUAL.max,
       Math.max(top, S.rollQuality(g, c.key) + D.IDEA.qual));
     const p = S.makePart(c.key, g.carGen, q);
-    p.name = it.name;                       // 掘り当てたものの名前で残す
-    p.idea = it.name;
+    /* 名前は型式のまま（MK-I ベーシックV6）。
+       掘り当てたものは、名前ではなく札として個体に残す。
+       名前を差し替えると世代も型式も読めなくなり、
+       保管庫で見分けがつかなくなっていた                    */
+    p.innovs = [it.name];
     /* 生まれた時点で、ふつうに設計したものより先へ進んでいる。
        Math.max ではなく足し算にしないと、
        序盤は素の出来のほうが大きくて、何も効かなかった        */
@@ -2003,8 +2012,9 @@ GP.screens.dev = function (A) {
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
     U.log(g, '💡 「' + it.name + '」を形にした！ ' +
-      c.name + 'として保管庫に入った（' + S.qualTier(q).name +
-      '　品質 ' + q.toFixed(2) + '）。' +
+      esc(p.name) + '（' + S.qualTier(q).name +
+      '　品質 ' + q.toFixed(2) + '）として保管庫に入った。' +
+      '⚡' + it.name + ' の札が付いている。' +
       '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
@@ -2280,9 +2290,11 @@ GP.screens.dev = function (A) {
       const top = D.QUALITY[D.QUALITY.length - 1];
       body += '<div class="sub">⚡ イノベーション</div>' +
         '<p class="desc">いま載っている個体を、<b>載せ替えずにそのまま格上げ</b>します。' +
-        '性能も消耗もそのまま、<b>器（品質）だけが' + top.name + 'まで上がり</b>、' +
-        '名前がひらめきのものに変わります。' +
-        '上限が伸びるので、そこからまた煮詰められます。<br>' +
+        '性能も消耗もそのまま、<b>器（品質）が一段上がり</b>、' +
+        '持ち込んだものが<b>⚡の札</b>として個体に残ります' +
+        '（名前は型式のままです）。' +
+        '上限が伸びるので、そこからまた煮詰められます。' +
+        '育てて、また一段——<b>' + top.name + 'が天井</b>です。<br>' +
         '起こすには、<b>その部位の💡ひらめき</b>と、' +
         '<b>いまの個体が器の ' + Math.round(D.INNOV_UP.need * 100) + '% まで育っていること</b>、' +
         '<b>技術部門（開発＋設計）が ' + D.INNOV_UP.dept + ' 以上</b>。' +
@@ -2299,9 +2311,11 @@ GP.screens.dev = function (A) {
             '<span class="pb-body"><b>' + esc(r.idea.name) + '</b>' +
             '<small>' + r.def.icon + ' ' + esc(p2.name) + '　' +
             Math.round(p2.power) + ' / ' + r.cap + '（' + Math.round(r.ratio * 100) + '%）' +
+            (S.innovsOf(p2).length ? '<br>' + innovChips(p2) : '') +
             '<br>' + (r.ok
-              ? '<b class="up">器が ' + r.cap + ' → ' + r.capAfter +
-                ' になります（性能 ' + Math.round(p2.power) + ' はそのまま）</b>'
+              ? '<b class="up">' + S.qualTier(r.qual).name + ' → ' +
+                S.qualTier(r.qualAfter).name + '　器が ' + r.cap + ' → ' + r.capAfter +
+                '（性能 ' + Math.round(p2.power) + ' はそのまま）</b>'
               : '<b class="warn">' + esc(r.why[0]) + '</b>') +
             '</small></span>' +
             '<span class="pb-cost">' + (r.ok
@@ -2456,18 +2470,25 @@ GP.screens.dev = function (A) {
     const h = '<div class="popsum"><span class="pb-ic" style="background:' +
       c.color + '">⚡</span><span class="popsum-b"><b>' + esc(r.idea.name) +
       '</b><small>いま載っている ' + esc(p.name) + ' を格上げします</small></span></div>' +
-      '<p class="desc">載せ替えません。いまの個体のまま、器だけが大きくなります。' +
+      '<p class="desc">載せ替えません。いまの個体のまま、器が一段大きくなります。' +
       '性能も消耗もそのまま残るので、<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
       '<div class="popcost"><span>品質</span><span>' +
-        S.qualTier(S.qualOf(p)).name + ' ' + S.qualOf(p).toFixed(2) +
-        ' → <b class="up">' + r.top.name + ' ' + r.top.at.toFixed(2) + '</b></span></div>' +
+        S.qualTier(r.qual).name + ' ' + r.qual.toFixed(2) +
+        ' → <b class="up">' + S.qualTier(r.qualAfter).name + ' ' +
+        r.qualAfter.toFixed(2) + '</b></span></div>' +
       '<div class="popcost"><span>器（上限）</span><span>' + r.cap +
-        ' → <b class="up">' + r.capAfter + '</b></span></div>' +
+        ' → <b class="up">' + r.capAfter + '</b>' +
+        (r.qualAfter < r.top.at - 0.001
+          ? '<br><small>' + r.top.name + ' が天井。ここまではあと何段か上げられます</small>'
+          : '<br><small>ここが天井（' + r.top.name + '）です</small>') + '</span></div>' +
       '<div class="popcost"><span>いまの性能</span><span><b>' + Math.round(p.power) +
         '</b>（そのまま。' + Math.round(r.ratio * 100) + '% → ' +
         Math.round(p.power / Math.max(1, r.capAfter) * 100) + '% になります）</span></div>' +
-      '<div class="popcost"><span>名前</span><span>' + esc(p.name) +
-        ' → <b>' + esc(r.idea.name) + '</b></span></div>' +
+      '<div class="popcost"><span>名前</span><span><b>' + esc(p.name) +
+        '</b>　変わりません</span></div>' +
+      '<div class="popcost"><span>付く札</span><span>' +
+        S.innovsOf(p).map(n => '<b class="ichip">⚡ ' + esc(n) + '</b>').join('') +
+        '<b class="ichip up">⚡ ' + esc(r.idea.name) + '</b></span></div>' +
       '<div class="popcost"><span>費用</span><span><b>💰' + money(r.cost.money) +
         '万</b>／🔬' + r.cost.rp + '　1週</span></div>';
     U.popup('⚡ イノベーション', h, [
@@ -2482,11 +2503,11 @@ GP.screens.dev = function (A) {
     capSpend(r.cost.money);
     GP.sound.play('levelup');
     U.closePopup();
-    U.log(g, '⚡ 「' + r.before.name + '」が「' + r.name + '」になった！ ' +
-      '器が ' + r.before.cap + ' → ' + r.cap + '（性能 ' + Math.round(r.power) +
-      ' はそのまま）。ここからまた煮詰められる', 'good');
-    U.toast('⚡ ' + r.name + '！', 'good');
-    S.pushNews(g, 'brk', r.name);
+    U.log(g, '⚡ ' + r.name + ' に「' + r.tag + '」を持ち込んだ！ ' +
+      r.before.tier + ' → ' + r.tier + '、器が ' + r.before.cap + ' → ' + r.cap +
+      '（性能 ' + Math.round(r.power) + ' はそのまま）。ここからまた煮詰められる', 'good');
+    U.toast('⚡ ' + r.tag + '！', 'good');
+    S.pushNews(g, 'brk', r.tag);
     S.save(g);
     endWeek();
   }

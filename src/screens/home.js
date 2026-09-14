@@ -106,7 +106,7 @@ GP.screens.home = function (A) {
     const again = back || cmdGarage;
     bindAct('data-pu', () => { GP.sound.play('tap'); openPu(null, again); });
     bindAct('data-swap', k => openSwap(k));
-    bindAct('data-eq', id => { doEquip(id); again(); });
+    bindAct('data-eq', id => doEquip(id, again));
     bindAct('data-fuse', id => openFuse(id));
     /* 予備は「思い出したときに買う一台」ではなく、
        製造方針の結果として毎週すこしずつ組み上がるものになった   */
@@ -284,10 +284,10 @@ GP.screens.home = function (A) {
     });
     body += '</div>';
     U.modal('🔄 パーツ交換', body, [{ label: '戻る', fn: cmdGarage }], { wide: true });
-    bindAct('data-eq', id => { doEquip(id); cmdGarage(); });
+    bindAct('data-eq', id => doEquip(id, cmdGarage));
   }
 
-  function doEquip(id) {
+  function doEquip(id, after) {
     const p = g.inventory.find(x => x.id === id);
     if (!p) return;
     const old = g.equipped[p.cat];
@@ -297,6 +297,50 @@ GP.screens.home = function (A) {
     U.log(g, '🔄 ' + p.name + ' を装着した。' + (old ? '（' + old.name + ' を保管）' : ''), 'good');
     U.toast('🔄 ' + p.name + ' を装着！', 'good');
     S.save(g); render();
+    /* 外したほうは、たいていそのまま合成の素材になる。
+       これまでは保管庫から自分で探して合成を選ぶ必要があり、
+       せっかくの素材が棚で眠ったままになっていた             */
+    if (old) offerFuse(old, p, after);
+  }
+
+  /* 外したパーツを、いま着けたほうに吸わせるかを、その場で聞く */
+  function offerFuse(oldPart, newPart, after) {
+    const cost = fuseCost(oldPart);
+    const gain = Math.round(oldPart.power * 0.45 * 10) / 10;
+    const mq = S.qualOf(oldPart);
+    const upChance = 0.18 + Math.max(0, mq - 1) * 0.30;
+    const short = Math.max(0, cost - g.funds);
+    const done = () => { if (after) after(); else cmdGarage(); };
+    /* 型式名は同じことが多いので、名前だけだとどちらの話か分からない。
+       出来と性能を添えて見分けられるようにする                  */
+    const tag = q => esc(S.qualTier(S.qualOf(q)).name) + ' ' +
+                     S.qualOf(q).toFixed(2) + '／性能 ' + Math.round(q.power);
+    const h = '<p class="lead">外した <b>' + esc(oldPart.name) + '</b>' +
+      '<small>（' + tag(oldPart) + '）</small> を、<br>' +
+      'いま着けた <b>' + esc(newPart.name) + '</b>' +
+      '<small>（' + tag(newPart) + '）</small> に吸わせますか？</p>' +
+      '<div class="popcost"><span>引き継ぐ性能</span><span><b class="up">+' +
+        gain.toFixed(1) + '</b>（' + Math.round(newPart.power) + ' → ' +
+        Math.round(newPart.power + gain) + '）</span></div>' +
+      '<div class="popcost"><span>器が広がる見込み</span><span><b>' +
+        Math.round(upChance * 100) + '%</b>　出来の良い素材ほど拾えます</span></div>' +
+      '<div class="popcost"><span>素材の出来</span><span>' +
+        esc(S.qualTier(mq).name) + ' ' + mq.toFixed(2) + '／性能 ' +
+        Math.round(oldPart.power) + '</span></div>' +
+      '<div class="popcost"><span>費用</span><span><b>💰' + money(cost) +
+        '万</b>　週は進みません</span></div>' +
+      (short > 0
+        ? '<p class="note"><b class="warn">資金が足りません。</b>あと 💰' +
+          money(short) + '万です。素材は保管庫に残るので、あとからでも合成できます。</p>'
+        : '<p class="note">吸わせると、外したほうは<b>無くなります</b>。' +
+          '取っておきたいなら「保管しておく」を。</p>');
+    U.popup('⚗️ 外したパーツをどうしますか', h, [
+      { label: '⚗️ 吸わせる　💰' + money(cost) + '万', cls: 'primary',
+        disabled: short > 0,
+        fn: () => { U.closePopup(); doFuse(newPart.id, oldPart.id, after); } },
+      { label: '📦 保管しておく',
+        fn: () => { GP.sound.play('tap'); U.closePopup(); done(); } }
+    ]);
   }
 
   function openFuse(materialId) {
@@ -341,7 +385,7 @@ GP.screens.home = function (A) {
     bindAct('data-base', id => doFuse(id, materialId));
   }
 
-  function doFuse(baseId, materialId) {
+  function doFuse(baseId, materialId, after) {
     const m = g.inventory.find(x => x.id === materialId);
     if (!m) return;
     const base = (g.equipped[m.cat] && g.equipped[m.cat].id === baseId)
@@ -387,7 +431,8 @@ GP.screens.home = function (A) {
     U.toast(up ? '⭐ 品質 ' + S.qualOf(base).toFixed(2) + ' へ！'
                : '⚗️ 合成成功！ 性能 +' + gain.toFixed(1), up ? 'good' : '');
     U.pop('+' + gain.toFixed(1), up ? 'crit' : 'good');
-    S.save(g); render(); cmdGarage();
+    S.save(g); render();
+    if (after) after(); else cmdGarage();
   }
 
   /* =======================================================
