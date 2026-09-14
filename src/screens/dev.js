@@ -194,32 +194,49 @@ GP.screens.dev = function (A) {
      金は寝るが、クルーを潰さずに日曜を迎えられる          */
   function spareBoxHTML() {
     const now = S.spareOf(g);
-    const cost = S.spareCost(g);
+    const pl = S.mfgPlanOf(g);
+    const cut = S.spareRepairCut(g);
     const full = now >= D.SPARE.max;
-    const ok = !full && g.funds >= cost;
-    /* パワーユニットと同じ考えかたで、数を持つ。
-       ただしこちらに基数制限はない。何台持っておくかだけの話   */
     let dots = '';
     for (let i = 0; i < D.SPARE.max; i++) {
       dots += '<b class="' + (i < now ? 'on' : '') + '"></b>';
     }
-    return '<div class="sub">シャシーの在庫</div>' +
-      '<p class="desc">組んである車体を何台持っておくか。' +
-      'パワーユニットとちがって使える数に決まりはなく、' +
-      '<b>週末に壊したときの逃げ道</b>としてだけ効きます。' +
-      '無ければ徹夜で叩き直すか、応急処置のまま日曜を迎えることになります。' +
-      U.helpLink('car') + '</p>' +
-      '<div class="stockbar"><span>🚛 いまの在庫</span>' +
+    /* 半端に組み上がっているぶんも出す。
+       「毎週じわじわ進んでいる」ことが見えないと、
+       方針を選んだ手ごたえがどこにもない                    */
+    const wip = Math.min(0.99, Math.max(0, g.spareWip || 0));
+    return '<div class="sub">製造方針</div>' +
+      '<p class="desc">工房のラインを、<b>作るものだけ</b>に使うか、' +
+      '<b>予備も組んでおく</b>か。どちらも週は使いません。決めたら効き続けます。' +
+      U.helpLink('car') + '</p><div class="pick">' +
+      D.MFG_PLANS.map(x => {
+        const on = x.key === pl.key;
+        return '<button class="pickbtn' + (on ? ' on' : '') + '" data-mfg="' + x.key + '">' +
+          '<span class="pb-ic" style="background:' + x.color + '">' + x.icon + '</span>' +
+          '<span class="pb-body"><b>' + x.name +
+          (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + esc(x.desc) + '<br>' +
+          '<b class="up">○ ' + esc(x.good) + '</b>' +
+          (x.qual ? '（品質 +' + x.qual.toFixed(2) + '）' : '') +
+          (x.build ? '（1週あたり ' + Math.round(x.build * 100) + '% ぶん）' : '') +
+          '<br><b class="warn">△ ' + esc(x.bad) + '</b>' +
+          '</small></span>' +
+          '<span class="pb-cost"><b>' + esc(x.note) + '</b></span></button>';
+      }).join('') + '</div>' +
+      '<div class="stockbar"><span>🚛 予備の在庫</span>' +
       '<i class="stockdots">' + dots + '</i>' +
-      '<em>' + now + ' / ' + D.SPARE.max + ' 台</em></div>' +
-      '<div class="pick">' +
-      '<button class="pickbtn" data-spare="1"' + (ok ? '' : ' disabled') + '>' +
-      '<span class="pb-ic" style="background:#c98b4a">🚛</span>' +
-      '<span class="pb-body"><b>もう1台ぶん組んでおく</b>' +
-      '<small>' + (full ? 'これ以上は置く場所がありません'
-                        : '載せ替えなら、クルーの疲労は +9 で済みます（徹夜なら +22）') +
-      '</small></span>' +
-      '<span class="pb-cost">' + (full ? '—' : '💰' + money(cost)) + '</span></button></div>';
+      '<em>' + now + ' / ' + D.SPARE.max + ' 台' +
+      (pl.build && !full ? '（次まで あと ' + Math.round((1 - wip) * 100) + '%）' : '') +
+      '</em></div>' +
+      '<p class="note">' +
+      (now > 0
+        ? '予備があるので、壊した週末は<b>載せ替えで済みます</b>' +
+          '（クルーの疲労 +9。徹夜なら +22）。' +
+          'さらに、組んである部品を回せるぶん<b>修理費が -' + Math.round(cut * 100) + '%</b>です。'
+        : '予備がないので、壊した週末は<b>徹夜で叩き直す</b>か、' +
+          '<b>応急処置のまま日曜を迎える</b>かのどちらかになります。' +
+          '週末のアクシデントは、年12戦でおよそ1〜2回起きます。') +
+      '</p>';
   }
 
   /* ---- 素材 ----
@@ -260,6 +277,21 @@ GP.screens.dev = function (A) {
     return h + '</div>';
   }
 
+  /* 製造方針。週は進まない。どこの画面から触っても同じ挙動にする。
+     after は、押したあとに開き直す先                           */
+  function bindMfg(after) {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mfg]'), b => {
+      b.onclick = () => {
+        g.mfgPlan = b.dataset.mfg;
+        const pl = S.mfgPlanOf(g);
+        GP.sound.play('tap');
+        U.log(g, '🏭 製造方針を「' + pl.name + '」にした（' + pl.good + '）。');
+        U.toast(pl.icon + ' ' + pl.name, 'good');
+        S.save(g); render();
+        if (after) after();
+      };
+    });
+  }
   function bindMat() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mat]'), b => {
       b.onclick = () => {
@@ -2137,8 +2169,9 @@ GP.screens.dev = function (A) {
     } else if (shopTab === 'line') {
       body += lineBoxHTML();
     } else {
-      // 流行の話は、何を作るか決めたあとに効いてくるもの。一覧の下へ
-      body += makeBoxHTML() + trendBoxHTML();
+      /* 何を作るかの前に、ラインをどう使うかを決める。
+         製造方針はここが本籍（マシン画面からも触れる）     */
+      body += spareBoxHTML() + makeBoxHTML() + trendBoxHTML();
     }
 
     body += interiorHTML('factory');
@@ -2147,6 +2180,7 @@ GP.screens.dev = function (A) {
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
+    bindMfg(() => cmdShop());
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stab2]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdShop(b.dataset.stab2); };
     });
@@ -3149,7 +3183,7 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: { spareBoxHTML: spareBoxHTML,
+    api: { spareBoxHTML: spareBoxHTML, bindMfg: bindMfg,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
       cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };

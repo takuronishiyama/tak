@@ -5230,6 +5230,37 @@ GP.data = (function () {
     cost: 0.34          // 新車の何割で1台ぶん組めるか
   };
 
+  /* ---------- 製造方針 ----------
+     工房のラインをどう使うか。ひとつの標準的な判断として立てる。
+
+     予備は元は「思い出したときに買う一台」だった。ところが
+     週末のアクシデントは年12戦でおよそ1.4回（実測 12.1%/戦）しか起きず、
+     1台 💰1,088万＝パーツ1.1個ぶん。保険としてだけでは、
+     期待値で負けるので誰も選ばない札になっていた。
+
+     そこで「常時の見返り」を足して、二択を生かす。
+     ・一点もの＝作るものの出来が良くなる（いま作っているものが強くなる）
+     ・予備も回す＝壊したときの立ち直りが速く、修理費も安い
+     どちらも毎週の週コマンドは使わない。方針なので、決めたら効き続ける  */
+  const MFG_PLANS = [
+    { key: 'one',   icon: '🎯', name: '一点ものを作り込む', color: '#e04a3f',
+      note: '尖らせる',
+      desc: 'ラインを作るものだけに使う。予備は組まない',
+      good: '作るパーツの品質が底上げされる',
+      bad:  '壊したときは、徹夜か応急処置しかない',
+      qual: 0.08,           // 作るときの品質の底上げ
+      build: 0 },
+    { key: 'spare', icon: '🧰', name: '予備も回す', color: '#3a7ad9',
+      note: '守る',
+      desc: '作るかたわら、予備を少しずつ組んでおく',
+      good: '毎週すこしずつ予備が増え、修理費も安くなる',
+      bad:  '作るものの出来は素のまま',
+      qual: 0,
+      build: 0.22 }         // 1週あたり、予備が何台ぶん組み上がるか
+  ];
+  /* 予備が組んであると、壊した週末の修理費がこれだけ安くなる（台数ぶん） */
+  const SPARE_REPAIR_CUT = 0.20;
+
   /* ---------- つなぎ込み（自動） ----------
      以前は「まとめ上げ」を週コマンドとして毎回押させていた。
      ところがレース間の準備週は3週しかなく、開発の中だけで
@@ -7995,7 +8026,7 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, MFG_PLANS, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS,
            RACES, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
 
@@ -8746,7 +8777,9 @@ GP.state = (function () {
                // 作り慣れたラインは、同じ図面でも良いものを出す
                + lineOf(g, catKey).qual
                // 塵ひとつない部屋で組むと、同じ図面でも出来が揃う
-               + (hasGear(g, 'factory', 'clean') ? 0.05 : 0);
+               + (hasGear(g, 'factory', 'clean') ? 0.05 : 0)
+               // ラインを作るものだけに使っているぶん、出来が良くなる
+               + mfgPlanOf(g).qual;
     // 運。上振れのほうがわずかに長い尻尾を持たせてある
     const luck = rnd(-Q.spread * 0.9, Q.spread * 1.1);
     return clamp(Math.round((base + luck) * 1000) / 1000, Q.min, Q.max);
@@ -10837,6 +10870,33 @@ GP.state = (function () {
 
   /* ---------- 予備シャシー ----------
      週末に壊しても、もう1台あれば載せ替えて走れる          */
+  /* ---------- 製造方針 ----------
+     ラインを「作るもの」に全部使うか、予備も組んでおくか。
+     週コマンドは使わない。決めたら効き続ける                  */
+  function mfgPlanOf(g2) {
+    return D.MFG_PLANS.filter(x => x.key === (g2 && g2.mfgPlan))[0] || D.MFG_PLANS[0];
+  }
+  /* 予備を組む側を選んでいるあいだ、毎週すこしずつ組み上がる。
+     半端なぶんは g2.spareWip に溜めておき、1台ぶん貯まったら繰り上げる */
+  function tickSpare(g2) {
+    const pl = mfgPlanOf(g2);
+    if (!(pl.build > 0)) return null;
+    if (spareOf(g2) >= D.SPARE.max) return null;
+    /* 工房の段と、ファクトリーの規模で速くなる。
+       作るものと同じラインを使うので、同じものが効く         */
+    const rate = pl.build * (1 + (g2.facilities.factory || 0) * 0.08)
+               * (1 + workshopOf(g2).rar * 0.5);
+    g2.spareWip = (g2.spareWip || 0) + rate;
+    if (g2.spareWip < 1) return { wip: g2.spareWip, done: false };
+    g2.spareWip -= 1;
+    g2.spare = spareOf(g2) + 1;
+    return { wip: g2.spareWip, done: true, now: g2.spare };
+  }
+  /* 予備が組んであると、壊した週末の修理費が安くなる。
+     部品を一から起こさずに、組んであるほうから回せるため     */
+  function spareRepairCut(g2) {
+    return Math.min(0.5, spareOf(g2) * D.SPARE_REPAIR_CUT);
+  }
   function spareOf(g2) { return clamp(Math.round((g2 && g2.spare) || 0), 0, D.SPARE.max); }
   function spareCost(g2) {
     const gen = D.CAR_GENS[clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1)];
@@ -11349,6 +11409,8 @@ GP.state = (function () {
     // 整備性の高い車体は、直すのも速くて安い。
     // 高耐久の技術も、同じところに効く
     const svc = repairCut(g2);
+    // 組んである予備から部品を回せるぶん、起こし直す手間が要らない
+    const sp = spareRepairCut(g2);
     let sum = 0;
     const lines = [];
     (res.entries || []).filter(e => e.isPlayer).forEach(e => {
@@ -11358,7 +11420,7 @@ GP.state = (function () {
       else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
       n += R2.dmg * (e.damage || 0);
       if (n <= 0) return;
-      n = Math.round(n * genMul * diff * (1 - svc));
+      n = Math.round(n * genMul * diff * (1 - svc) * (1 - sp));
       sum += n;
       lines.push({ name: e.driver.name, cost: n,
                    what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
@@ -13025,7 +13087,7 @@ GP.state = (function () {
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
-    autoIntStep, autoIntegrate, intPlanOf,
+    autoIntStep, autoIntegrate, intPlanOf, mfgPlanOf, tickSpare, spareRepairCut,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
@@ -22608,32 +22670,49 @@ GP.screens.dev = function (A) {
      金は寝るが、クルーを潰さずに日曜を迎えられる          */
   function spareBoxHTML() {
     const now = S.spareOf(g);
-    const cost = S.spareCost(g);
+    const pl = S.mfgPlanOf(g);
+    const cut = S.spareRepairCut(g);
     const full = now >= D.SPARE.max;
-    const ok = !full && g.funds >= cost;
-    /* パワーユニットと同じ考えかたで、数を持つ。
-       ただしこちらに基数制限はない。何台持っておくかだけの話   */
     let dots = '';
     for (let i = 0; i < D.SPARE.max; i++) {
       dots += '<b class="' + (i < now ? 'on' : '') + '"></b>';
     }
-    return '<div class="sub">シャシーの在庫</div>' +
-      '<p class="desc">組んである車体を何台持っておくか。' +
-      'パワーユニットとちがって使える数に決まりはなく、' +
-      '<b>週末に壊したときの逃げ道</b>としてだけ効きます。' +
-      '無ければ徹夜で叩き直すか、応急処置のまま日曜を迎えることになります。' +
-      U.helpLink('car') + '</p>' +
-      '<div class="stockbar"><span>🚛 いまの在庫</span>' +
+    /* 半端に組み上がっているぶんも出す。
+       「毎週じわじわ進んでいる」ことが見えないと、
+       方針を選んだ手ごたえがどこにもない                    */
+    const wip = Math.min(0.99, Math.max(0, g.spareWip || 0));
+    return '<div class="sub">製造方針</div>' +
+      '<p class="desc">工房のラインを、<b>作るものだけ</b>に使うか、' +
+      '<b>予備も組んでおく</b>か。どちらも週は使いません。決めたら効き続けます。' +
+      U.helpLink('car') + '</p><div class="pick">' +
+      D.MFG_PLANS.map(x => {
+        const on = x.key === pl.key;
+        return '<button class="pickbtn' + (on ? ' on' : '') + '" data-mfg="' + x.key + '">' +
+          '<span class="pb-ic" style="background:' + x.color + '">' + x.icon + '</span>' +
+          '<span class="pb-body"><b>' + x.name +
+          (on ? '　<em class="free">選択中</em>' : '') + '</b>' +
+          '<small>' + esc(x.desc) + '<br>' +
+          '<b class="up">○ ' + esc(x.good) + '</b>' +
+          (x.qual ? '（品質 +' + x.qual.toFixed(2) + '）' : '') +
+          (x.build ? '（1週あたり ' + Math.round(x.build * 100) + '% ぶん）' : '') +
+          '<br><b class="warn">△ ' + esc(x.bad) + '</b>' +
+          '</small></span>' +
+          '<span class="pb-cost"><b>' + esc(x.note) + '</b></span></button>';
+      }).join('') + '</div>' +
+      '<div class="stockbar"><span>🚛 予備の在庫</span>' +
       '<i class="stockdots">' + dots + '</i>' +
-      '<em>' + now + ' / ' + D.SPARE.max + ' 台</em></div>' +
-      '<div class="pick">' +
-      '<button class="pickbtn" data-spare="1"' + (ok ? '' : ' disabled') + '>' +
-      '<span class="pb-ic" style="background:#c98b4a">🚛</span>' +
-      '<span class="pb-body"><b>もう1台ぶん組んでおく</b>' +
-      '<small>' + (full ? 'これ以上は置く場所がありません'
-                        : '載せ替えなら、クルーの疲労は +9 で済みます（徹夜なら +22）') +
-      '</small></span>' +
-      '<span class="pb-cost">' + (full ? '—' : '💰' + money(cost)) + '</span></button></div>';
+      '<em>' + now + ' / ' + D.SPARE.max + ' 台' +
+      (pl.build && !full ? '（次まで あと ' + Math.round((1 - wip) * 100) + '%）' : '') +
+      '</em></div>' +
+      '<p class="note">' +
+      (now > 0
+        ? '予備があるので、壊した週末は<b>載せ替えで済みます</b>' +
+          '（クルーの疲労 +9。徹夜なら +22）。' +
+          'さらに、組んである部品を回せるぶん<b>修理費が -' + Math.round(cut * 100) + '%</b>です。'
+        : '予備がないので、壊した週末は<b>徹夜で叩き直す</b>か、' +
+          '<b>応急処置のまま日曜を迎える</b>かのどちらかになります。' +
+          '週末のアクシデントは、年12戦でおよそ1〜2回起きます。') +
+      '</p>';
   }
 
   /* ---- 素材 ----
@@ -22674,6 +22753,21 @@ GP.screens.dev = function (A) {
     return h + '</div>';
   }
 
+  /* 製造方針。週は進まない。どこの画面から触っても同じ挙動にする。
+     after は、押したあとに開き直す先                           */
+  function bindMfg(after) {
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mfg]'), b => {
+      b.onclick = () => {
+        g.mfgPlan = b.dataset.mfg;
+        const pl = S.mfgPlanOf(g);
+        GP.sound.play('tap');
+        U.log(g, '🏭 製造方針を「' + pl.name + '」にした（' + pl.good + '）。');
+        U.toast(pl.icon + ' ' + pl.name, 'good');
+        S.save(g); render();
+        if (after) after();
+      };
+    });
+  }
   function bindMat() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mat]'), b => {
       b.onclick = () => {
@@ -24551,8 +24645,9 @@ GP.screens.dev = function (A) {
     } else if (shopTab === 'line') {
       body += lineBoxHTML();
     } else {
-      // 流行の話は、何を作るか決めたあとに効いてくるもの。一覧の下へ
-      body += makeBoxHTML() + trendBoxHTML();
+      /* 何を作るかの前に、ラインをどう使うかを決める。
+         製造方針はここが本籍（マシン画面からも触れる）     */
+      body += spareBoxHTML() + makeBoxHTML() + trendBoxHTML();
     }
 
     body += interiorHTML('factory');
@@ -24561,6 +24656,7 @@ GP.screens.dev = function (A) {
       { label: 'やめる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
+    bindMfg(() => cmdShop());
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-stab2]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdShop(b.dataset.stab2); };
     });
@@ -25563,7 +25659,7 @@ GP.screens.dev = function (A) {
     name: 'dev',
     link: link,
     setG: function (v) { g = v; },
-    api: { spareBoxHTML: spareBoxHTML,
+    api: { spareBoxHTML: spareBoxHTML, bindMfg: bindMfg,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
       cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
@@ -29354,14 +29450,9 @@ GP.screens.home = function (A) {
     bindAct('data-swap', k => openSwap(k));
     bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
-    bindAct('data-spare', () => {
-      const r2 = S.buySpare(g);
-      if (!r2) return;
-      GP.sound.play('build');
-      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
-      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
-      S.save(g); render(); again();
-    });
+    /* 予備は「思い出したときに買う一台」ではなく、
+       製造方針の結果として毎週すこしずつ組み上がるものになった   */
+    if (A.bindMfg) A.bindMfg(again);
     bindAct('data-del', id => {
       const p = g.inventory.find(x => x.id === id);
       if (!p) return;
@@ -32143,6 +32234,12 @@ GP.screens.help = function (A) {
           '方針に逆らう向きは、<b>上限そのもの</b>が 58% までしかありません。いくらガレージで作り込んでも、その手前で止まります。「ストレート重視なのに曲がる車も欲しい」は、本来なら諦めるしかない相談です。',
           '研究は、その線を外へ押していく仕事です。扇（空気と足／骨と制動／動力）をひとつ選んで調べ、溜まった<b>知見</b>を使うと、その扇の線が一段外へ動きます。5回ぶん積めば、押さえつけはなくなります。',
           '1年目はまだ方針を決めていないので、押し広げるものがありません。溜めた知見は消えないので、オフシーズンに方針を決めてから使えます。'
+        ] },
+        { h: '製造方針 ― 一点ものか、予備も回すか', p: [
+          '🏭工房のラインを、<b>作るものだけ</b>に使うか、<b>予備も組んでおく</b>かを決めます。週は使いません。決めたら効き続けます。',
+          '<b>🎯 一点ものを作り込む</b>＝作るパーツの<b>品質が +0.08</b>。作ったパーツの上限が 29 → 31 になります（素材を一段上げたのと同じ大きさが、ずっと続きます）。そのかわり予備は組まれません。',
+          '<b>🧰 予備も回す</b>＝毎週すこしずつ予備が組み上がります（ファクトリー Lv.1 で5週に1台、Lv.6 で2週に1台／最大2台）。予備があると、壊した週末は<b>載せ替えで済み</b>（クルーの疲労 +9。徹夜なら +22）、さらに組んである部品を回せるぶん<b>修理費が1台につき -20%</b>。',
+          '週末のアクシデントは年12戦でおよそ1〜2回。それだけなら保険として割に合いませんが、<b>修理費の割引はぶつけるたびに効きます</b>。荒っぽいドライバーを乗せているなら、こちらが効きます。'
         ] },
         { h: '工房でやる二つ ―「作る」と「煮詰める」', p: [
           '🏭工房の<b>煮詰める</b>では、いま積んでいるパーツの性能を上限へ近づけます。上限は「世代 × そのパーツの品質」で決まっていて、叩いても動きません。',
@@ -35138,6 +35235,16 @@ window.GP = window.GP || {};
       U.log(g, '⚠️ 資金が底をついた！（' + money(g.funds) + '万）', 'bad');
       U.toast('⚠️ 資金がマイナスです！', 'bad');
       if (g.funds < -20000) return gameOver();
+    }
+    /* 製造方針が「予備も回す」なら、毎週すこしずつ組み上がる。
+       思い出したときに買う一台ではなく、方針の結果として増える  */
+    {
+      const sp = S.tickSpare(g);
+      if (sp && sp.done) {
+        U.log(g, '🧰 予備が1台 組み上がった（いま ' + sp.now + ' / ' + D.SPARE.max +
+          '）。壊した週末に載せ替えられる', 'good');
+        U.toast('🧰 予備が組み上がった（' + sp.now + '台）', 'good');
+      }
     }
     /* つなぎ込みは、技術部門が黙って進めている。
        以前はこれを毎週プレイヤーに押させていたが、

@@ -108,14 +108,9 @@ GP.screens.home = function (A) {
     bindAct('data-swap', k => openSwap(k));
     bindAct('data-eq', id => { doEquip(id); again(); });
     bindAct('data-fuse', id => openFuse(id));
-    bindAct('data-spare', () => {
-      const r2 = S.buySpare(g);
-      if (!r2) return;
-      GP.sound.play('build');
-      U.log(g, '🚛 シャシーをもう1台組んだ（在庫 ' + r2.now + '台／💰' + money(r2.cost) + '万）', 'good');
-      U.toast('🚛 シャシーの在庫 ' + r2.now + '台', 'good');
-      S.save(g); render(); again();
-    });
+    /* 予備は「思い出したときに買う一台」ではなく、
+       製造方針の結果として毎週すこしずつ組み上がるものになった   */
+    if (A.bindMfg) A.bindMfg(again);
     bindAct('data-del', id => {
       const p = g.inventory.find(x => x.id === id);
       if (!p) return;

@@ -467,7 +467,9 @@ GP.state = (function () {
                // 作り慣れたラインは、同じ図面でも良いものを出す
                + lineOf(g, catKey).qual
                // 塵ひとつない部屋で組むと、同じ図面でも出来が揃う
-               + (hasGear(g, 'factory', 'clean') ? 0.05 : 0);
+               + (hasGear(g, 'factory', 'clean') ? 0.05 : 0)
+               // ラインを作るものだけに使っているぶん、出来が良くなる
+               + mfgPlanOf(g).qual;
     // 運。上振れのほうがわずかに長い尻尾を持たせてある
     const luck = rnd(-Q.spread * 0.9, Q.spread * 1.1);
     return clamp(Math.round((base + luck) * 1000) / 1000, Q.min, Q.max);
@@ -2558,6 +2560,33 @@ GP.state = (function () {
 
   /* ---------- 予備シャシー ----------
      週末に壊しても、もう1台あれば載せ替えて走れる          */
+  /* ---------- 製造方針 ----------
+     ラインを「作るもの」に全部使うか、予備も組んでおくか。
+     週コマンドは使わない。決めたら効き続ける                  */
+  function mfgPlanOf(g2) {
+    return D.MFG_PLANS.filter(x => x.key === (g2 && g2.mfgPlan))[0] || D.MFG_PLANS[0];
+  }
+  /* 予備を組む側を選んでいるあいだ、毎週すこしずつ組み上がる。
+     半端なぶんは g2.spareWip に溜めておき、1台ぶん貯まったら繰り上げる */
+  function tickSpare(g2) {
+    const pl = mfgPlanOf(g2);
+    if (!(pl.build > 0)) return null;
+    if (spareOf(g2) >= D.SPARE.max) return null;
+    /* 工房の段と、ファクトリーの規模で速くなる。
+       作るものと同じラインを使うので、同じものが効く         */
+    const rate = pl.build * (1 + (g2.facilities.factory || 0) * 0.08)
+               * (1 + workshopOf(g2).rar * 0.5);
+    g2.spareWip = (g2.spareWip || 0) + rate;
+    if (g2.spareWip < 1) return { wip: g2.spareWip, done: false };
+    g2.spareWip -= 1;
+    g2.spare = spareOf(g2) + 1;
+    return { wip: g2.spareWip, done: true, now: g2.spare };
+  }
+  /* 予備が組んであると、壊した週末の修理費が安くなる。
+     部品を一から起こさずに、組んであるほうから回せるため     */
+  function spareRepairCut(g2) {
+    return Math.min(0.5, spareOf(g2) * D.SPARE_REPAIR_CUT);
+  }
   function spareOf(g2) { return clamp(Math.round((g2 && g2.spare) || 0), 0, D.SPARE.max); }
   function spareCost(g2) {
     const gen = D.CAR_GENS[clamp((g2 && g2.carGen) || 0, 0, D.CAR_GENS.length - 1)];
@@ -3070,6 +3099,8 @@ GP.state = (function () {
     // 整備性の高い車体は、直すのも速くて安い。
     // 高耐久の技術も、同じところに効く
     const svc = repairCut(g2);
+    // 組んである予備から部品を回せるぶん、起こし直す手間が要らない
+    const sp = spareRepairCut(g2);
     let sum = 0;
     const lines = [];
     (res.entries || []).filter(e => e.isPlayer).forEach(e => {
@@ -3079,7 +3110,7 @@ GP.state = (function () {
       else if (e.dnf && ['クラッシュ', '接触', 'コースアウト'].indexOf(e.dnfReason) >= 0) n += R2.crash;
       n += R2.dmg * (e.damage || 0);
       if (n <= 0) return;
-      n = Math.round(n * genMul * diff * (1 - svc));
+      n = Math.round(n * genMul * diff * (1 - svc) * (1 - sp));
       sum += n;
       lines.push({ name: e.driver.name, cost: n,
                    what: e.dnf ? e.dnfReason : (e.spins + '回スピン') });
@@ -4746,7 +4777,7 @@ GP.state = (function () {
     puTired, puDur, puHard, puCeil, puForm, puRelDrop, puPerf, puFreshCost, fitFreshPU, puPenaltyNext, puPenaltyText, puGridWord, mountPU, puMode, setPuMode, overtakeEase,
     bodyCap, bodyCapOf, conceptOf, conceptOpen, setConcept, conceptDir, conceptMul,
     conceptPartMul, mgrFit, designBase, designMul,
-    autoIntStep, autoIntegrate, intPlanOf,
+    autoIntStep, autoIntegrate, intPlanOf, mfgPlanOf, tickSpare, spareRepairCut,
     makeBody, bodyStats, bodyVal, bodyRatio, genProgress, genLagging, tryAdvanceGen, GEN_STEP_AT, focusOf, nextCarProgress, nextCarPreview, applyStock,
     logiPlan, logiLoad, logiCrew, crewEff, hasMission, missionLv, depotLv, depotCut, logiPower, logiCost, logiRisk, rollLogi, useSpares, crewPenalty, pitCrew, org, groupOf, groupTable, synergyList, devPower, designPower, pitPower, readPower, trainPower, analystPower, tyreWear, naturalStops, tireCrew, restCrew,
     makePart, partNote, partModel, partStats, partCap, partScore, rollRarity, workshopOf, workshopNext, rigOf, rigNext, rigMul, rigTiers, wearParts, hasT,
