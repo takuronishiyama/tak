@@ -11,13 +11,15 @@ GP.screens.home = function (A) {
   const D = GP.data, S = GP.state, U = GP.ui, R = GP.race, RV = GP.raceview;
   let g = null;
   /* ほかの画面と main.js から借りているもの。link() で埋まる */
-  let $, bindPick, capSpend, cmdImprove, cmdInfo, cmdMaintain, cmdRace, cmdResearch, cmdSponsor, cmdStaff, cmdTrain, doDebrief, doPoach, doScout, endWeek, esc, grantFame, isRaceWeek, money, nextSeason, perkChip, render, rigBoxHTML, scoutCardHTML, staffExp, startRace;
+  let $, bindPick, capSpend, cmdDesign, cmdImprove, cmdInfo, cmdMaintain, cmdShop, cmdRace, cmdResearch, cmdSponsor, cmdStaff, cmdTrain, doDebrief, doPoach, doScout, endWeek, esc, grantFame, isRaceWeek, money, nextSeason, perkChip, render, rigBoxHTML, scoutCardHTML, staffExp, startRace;
   function link() {
     $ = A.$;
     bindPick = A.bindPick;
     capSpend = A.capSpend;
+    cmdDesign = A.cmdDesign;
     cmdImprove = A.cmdImprove;
     cmdInfo = A.cmdInfo;
+    cmdShop = A.cmdShop;
     cmdMaintain = A.cmdMaintain;
     cmdRace = A.cmdRace;
     cmdResearch = A.cmdResearch;
@@ -2158,14 +2160,30 @@ GP.screens.home = function (A) {
 
   const openFacility = key => { baseSel = key; cmdFacility(); };
 
+  /* ---- 敷地の入口 ----
+     マシンを速くする部屋は、🔧開発のハブでは
+     「設計室・工房・ガレージ・研究所」と呼んでいるのに、
+     ここでは「改良」「研究」という別の言葉で出していた。
+     しかも4部屋のうち2つしか札が無く、「改良」を押すと
+     ファクトリーではなくガレージが開いた。
+     札をハブの4部屋にそのまま合わせて、言葉を1組に揃える。
+     at は、絵の中でどの建物を光らせるか（部屋≠建物のとき使う） */
   const HUB_DOORS = {
-    // 敷地の絵と同じ並び。手前の列を左から、そのあと奥の列を左から
+    /* だいたい敷地の絵の並びだが、マシンを速くする4部屋は
+       絵の中では離れていても、ここでは続けて並べる。
+       同じ仕事の入口が散っていると、どれを押すか決められない */
     pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
-    factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
+    design:  { icon: '🖊️', label: '設計室',  to: '決める', short: '設計室',
+               sub: '決める', at: 'factory', fn: () => cmdDesign() },
+    factory: { icon: '🏭', label: '工房',    to: '作る',   short: '工房',
+               sub: '作る',   fn: () => cmdShop() },
+    garage:  { icon: '🔧', label: 'ガレージ', to: '寄せる', short: 'ガレージ',
+               sub: '寄せる', at: 'factory', fn: () => cmdImprove() },
+    tunnel:  { icon: '🔬', label: '研究所',   to: '探す',   short: '研究所',
+               sub: '探す',  fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
-    tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     depot:   { icon: '🚚', label: '遠征チーム',  to: '手配',   short: '遠征',
                fn: () => { baseTab = 'logi'; openFacility('depot'); } },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
@@ -2181,6 +2199,13 @@ GP.screens.home = function (A) {
      いまは絵を「いまどこに居るか」を見せるためのものとして残し、
      建物や人を直接押すか、下のタイルを押すかで入る。       */
   let hubSel = null, hubBusy = false;
+
+  /* 絵の中で光らせる建物。ひとつの建物に部屋が何室かあるので、
+     入口の鍵と建物の鍵は必ずしも同じではない                  */
+  function hubSpot(k) {
+    const d = k && hubDoors()[k];
+    return (d && d.at) || k || null;
+  }
 
   function stopHub() { hubSel = null; }
 
@@ -2208,7 +2233,7 @@ GP.screens.home = function (A) {
     // 本拠地とパドックでは絵の広さが違う。合わせておかないと右側が空く
     const mp = hubMap();
     if (cv.width !== mp.W || cv.height !== mp.H) { cv.width = mp.W; cv.height = mp.H; }
-    mp.drawWith(cv, g, hubSel, null);
+    mp.drawWith(cv, g, hubSpot(hubSel), null);
 
     // 画面上の座標をキャンバスの座標へ直す
     const at = ev => {
@@ -2229,14 +2254,14 @@ GP.screens.home = function (A) {
       if (!k) return;
       batchStop();
       hubSel = k;
-      hubMap().drawWith(cv, g, hubSel, null);
+      hubMap().drawWith(cv, g, hubSpot(hubSel), null);
       hubEnter(k);
     };
     // 押せるところの上では指の形にする（どこが押せるか分かるように）
     cv.onmousemove = ev => {
       const k = keyAt(ev);
       cv.style.cursor = k ? 'pointer' : 'default';
-      if (k !== hubSel) { hubSel = k; hubMap().drawWith(cv, g, hubSel, null); }
+      if (k !== hubSel) { hubSel = k; hubMap().drawWith(cv, g, hubSpot(hubSel), null); }
     };
     cv.onmouseleave = () => {
       cv.style.cursor = 'default';
@@ -2375,7 +2400,7 @@ GP.screens.home = function (A) {
         const k = b.getAttribute('data-hub');
         hubSel = k;
         const cv = $('hubCv');
-        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        if (cv) hubMap().drawWith(cv, g, hubSpot(hubSel), null);
         GP.sound.play('tap');
         hubEnter(k);
       };
@@ -2453,12 +2478,18 @@ GP.screens.home = function (A) {
     /* 建物は札を2段に積まず、絵の下の一列に畳む。
        名前は絵の中の看板が言っているので、ここでは
        絵柄と用事だけあれば足りる                            */
+    /* 札はふだん一語だけ。マシンを速くする4部屋だけは、
+       部屋の名前（ハブと同じ言葉）と「すること」を2段で出す。
+       部屋の名前だけだと、はじめて見た人には
+       そこで何をするのかが読めない                            */
     const chip = k => {
       const d = doors[k];
-      return '<button class="hlchip' + (d.done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+      return '<button class="hlchip' + (d.done ? ' done' : '') + (d.sub ? ' two' : '') +
+        '" data-hub="' + esc(k) + '"' +
         ' title="' + esc((d.label || k) + '／' + (d.to || '入る')) + '">' +
         '<i>' + (d.icon || '•') + '</i><b>' +
-        esc(d.short || d.to || d.label || k) + '</b></button>';
+        esc(d.short || d.to || d.label || k) + '</b>' +
+        (d.sub ? '<em>' + esc(d.sub) + '</em>' : '') + '</button>';
     };
     /* 「まとめて回る」も一列に混ぜる。
        行をもう1段作ると、そのぶん絵が痩せてしまう              */
@@ -2487,7 +2518,7 @@ GP.screens.home = function (A) {
         // 押した先を絵の中でも光らせてから開く
         hubSel = k;
         const cv = $('hubCv');
-        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        if (cv) hubMap().drawWith(cv, g, hubSpot(hubSel), null);
         GP.sound.play('tap');
         hubEnter(k);
       };

@@ -328,6 +328,9 @@ table.rank.grid td.dim{opacity:.35}
         font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35);cursor:pointer}
 .hlchip i{font-style:normal;font-size:17px;line-height:1.1}
 .hlchip b{font-size:10px;font-weight:bold}
+/* マシンを速くする4部屋だけ、部屋の名前の下に「すること」を添える */
+.hlchip.two{padding:2px 5px 3px}
+.hlchip em{font-style:normal;font-size:8px;line-height:1.2;opacity:.75;letter-spacing:-.2px}
 .hlchip:active{transform:translateY(2px);box-shadow:0 0 0 rgba(74,47,26,.35)}
 .hlchip.done{opacity:.72}
 /* 「まとめて回る」。残り件数を肩に出す */
@@ -5577,11 +5580,11 @@ GP.data = (function () {
   const GEAR = {
     factory: [
       { key: 'jig',  name: '専用治具の棚', icon: '🗜️', cost: 1600, need: 1, env: 1,
-        eff: '改良の伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
+        eff: 'パーツの伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
       { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
         eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
       { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
-        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
+        eff: 'パーツの伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
       { key: 'clean', name: 'クリーンルーム', icon: '🧼', cost: 7800, need: 8, env: 2,
         eff: '作るパーツの品質 +0.05',
         note: '塵ひとつない部屋で組む。同じ図面でも、出てくるものが変わる' }
@@ -6740,7 +6743,7 @@ GP.data = (function () {
     { key: 'design',  name: '設計グループ',   short: '設計', icon: '🎨', place: 'factory', of: 'designer',
       desc: '図面を引く。作るパーツの格が決まる' },
     { key: 'develop', name: '開発グループ',   short: '開発', icon: '👷', place: 'factory', of: 'engineer',
-      desc: '風洞と工作機械を回す。改良の伸びが決まる' },
+      desc: '風洞と工作機械を回す。パーツの伸びが決まる' },
     { key: 'data',    name: '解析グループ',   short: '解析', icon: '📊', place: 'factory', of: 'analyst',
       desc: '数字を回す。ここが厚いと、ほかの全部が底上げされる' },
     { key: 'crew',    name: 'ピットクルー',   short: 'クルー', icon: '🔩', place: 'track',   of: 'mechanic',
@@ -23138,7 +23141,7 @@ GP.screens.hr = function (A) {
 <script>
 /* ===== src/screens/dev.js ===== */
 /* =========================================================
-   画面：車体と開発（改良・設計・研究・整備・練習）
+   画面：車体と開発（設計室・工房・ガレージ・研究所・整備・練習）
    main.js から切り出したもの。中身はそのまま動かしていない。
    ほかの画面と共有しているものは、文脈（A）から link() で受け取る。
    ========================================================= */
@@ -29439,7 +29442,7 @@ GP.screens.biz = function (A) {
     const rows = [
       { key: 'car', icon: '🏎️', name: 'マシンの速さ', mine: mineCar,
         rivals: (g.rivals || []).map(r => S.carScoreOf(r.stats, track)),
-        advice: 'パーツの改良と車体の熟成にコマンドを割きましょう。' },
+        advice: '🏭工房で作り、🔬研究所で当たりを取りに行きましょう。' },
       { key: 'drv', icon: '🧑‍✈️', name: 'ドライバーの腕', mine: mineDrv,
         rivals: (g.rivals || []).map(r => r.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, r.drivers.length)),
         advice: '練習で鍛えるか、市場でより速い人を獲りましょう。' },
@@ -30128,13 +30131,15 @@ GP.screens.home = function (A) {
   const D = GP.data, S = GP.state, U = GP.ui, R = GP.race, RV = GP.raceview;
   let g = null;
   /* ほかの画面と main.js から借りているもの。link() で埋まる */
-  let $, bindPick, capSpend, cmdImprove, cmdInfo, cmdMaintain, cmdRace, cmdResearch, cmdSponsor, cmdStaff, cmdTrain, doDebrief, doPoach, doScout, endWeek, esc, grantFame, isRaceWeek, money, nextSeason, perkChip, render, rigBoxHTML, scoutCardHTML, staffExp, startRace;
+  let $, bindPick, capSpend, cmdDesign, cmdImprove, cmdInfo, cmdMaintain, cmdShop, cmdRace, cmdResearch, cmdSponsor, cmdStaff, cmdTrain, doDebrief, doPoach, doScout, endWeek, esc, grantFame, isRaceWeek, money, nextSeason, perkChip, render, rigBoxHTML, scoutCardHTML, staffExp, startRace;
   function link() {
     $ = A.$;
     bindPick = A.bindPick;
     capSpend = A.capSpend;
+    cmdDesign = A.cmdDesign;
     cmdImprove = A.cmdImprove;
     cmdInfo = A.cmdInfo;
+    cmdShop = A.cmdShop;
     cmdMaintain = A.cmdMaintain;
     cmdRace = A.cmdRace;
     cmdResearch = A.cmdResearch;
@@ -32275,14 +32280,30 @@ GP.screens.home = function (A) {
 
   const openFacility = key => { baseSel = key; cmdFacility(); };
 
+  /* ---- 敷地の入口 ----
+     マシンを速くする部屋は、🔧開発のハブでは
+     「設計室・工房・ガレージ・研究所」と呼んでいるのに、
+     ここでは「改良」「研究」という別の言葉で出していた。
+     しかも4部屋のうち2つしか札が無く、「改良」を押すと
+     ファクトリーではなくガレージが開いた。
+     札をハブの4部屋にそのまま合わせて、言葉を1組に揃える。
+     at は、絵の中でどの建物を光らせるか（部屋≠建物のとき使う） */
   const HUB_DOORS = {
-    // 敷地の絵と同じ並び。手前の列を左から、そのあと奥の列を左から
+    /* だいたい敷地の絵の並びだが、マシンを速くする4部屋は
+       絵の中では離れていても、ここでは続けて並べる。
+       同じ仕事の入口が散っていると、どれを押すか決められない */
     pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
-    factory: { icon: '🏭', label: 'ファクトリー', to: '改良',   fn: () => cmdImprove() },
+    design:  { icon: '🖊️', label: '設計室',  to: '決める', short: '設計室',
+               sub: '決める', at: 'factory', fn: () => cmdDesign() },
+    factory: { icon: '🏭', label: '工房',    to: '作る',   short: '工房',
+               sub: '作る',   fn: () => cmdShop() },
+    garage:  { icon: '🔧', label: 'ガレージ', to: '寄せる', short: 'ガレージ',
+               sub: '寄せる', at: 'factory', fn: () => cmdImprove() },
+    tunnel:  { icon: '🔬', label: '研究所',   to: '探す',   short: '研究所',
+               sub: '探す',  fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
     youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
-    tunnel:  { icon: '🌀', label: '風洞',        to: '研究',   fn: () => cmdResearch() },
     depot:   { icon: '🚚', label: '遠征チーム',  to: '手配',   short: '遠征',
                fn: () => { baseTab = 'logi'; openFacility('depot'); } },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
@@ -32298,6 +32319,13 @@ GP.screens.home = function (A) {
      いまは絵を「いまどこに居るか」を見せるためのものとして残し、
      建物や人を直接押すか、下のタイルを押すかで入る。       */
   let hubSel = null, hubBusy = false;
+
+  /* 絵の中で光らせる建物。ひとつの建物に部屋が何室かあるので、
+     入口の鍵と建物の鍵は必ずしも同じではない                  */
+  function hubSpot(k) {
+    const d = k && hubDoors()[k];
+    return (d && d.at) || k || null;
+  }
 
   function stopHub() { hubSel = null; }
 
@@ -32325,7 +32353,7 @@ GP.screens.home = function (A) {
     // 本拠地とパドックでは絵の広さが違う。合わせておかないと右側が空く
     const mp = hubMap();
     if (cv.width !== mp.W || cv.height !== mp.H) { cv.width = mp.W; cv.height = mp.H; }
-    mp.drawWith(cv, g, hubSel, null);
+    mp.drawWith(cv, g, hubSpot(hubSel), null);
 
     // 画面上の座標をキャンバスの座標へ直す
     const at = ev => {
@@ -32346,14 +32374,14 @@ GP.screens.home = function (A) {
       if (!k) return;
       batchStop();
       hubSel = k;
-      hubMap().drawWith(cv, g, hubSel, null);
+      hubMap().drawWith(cv, g, hubSpot(hubSel), null);
       hubEnter(k);
     };
     // 押せるところの上では指の形にする（どこが押せるか分かるように）
     cv.onmousemove = ev => {
       const k = keyAt(ev);
       cv.style.cursor = k ? 'pointer' : 'default';
-      if (k !== hubSel) { hubSel = k; hubMap().drawWith(cv, g, hubSel, null); }
+      if (k !== hubSel) { hubSel = k; hubMap().drawWith(cv, g, hubSpot(hubSel), null); }
     };
     cv.onmouseleave = () => {
       cv.style.cursor = 'default';
@@ -32492,7 +32520,7 @@ GP.screens.home = function (A) {
         const k = b.getAttribute('data-hub');
         hubSel = k;
         const cv = $('hubCv');
-        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        if (cv) hubMap().drawWith(cv, g, hubSpot(hubSel), null);
         GP.sound.play('tap');
         hubEnter(k);
       };
@@ -32570,12 +32598,18 @@ GP.screens.home = function (A) {
     /* 建物は札を2段に積まず、絵の下の一列に畳む。
        名前は絵の中の看板が言っているので、ここでは
        絵柄と用事だけあれば足りる                            */
+    /* 札はふだん一語だけ。マシンを速くする4部屋だけは、
+       部屋の名前（ハブと同じ言葉）と「すること」を2段で出す。
+       部屋の名前だけだと、はじめて見た人には
+       そこで何をするのかが読めない                            */
     const chip = k => {
       const d = doors[k];
-      return '<button class="hlchip' + (d.done ? ' done' : '') + '" data-hub="' + esc(k) + '"' +
+      return '<button class="hlchip' + (d.done ? ' done' : '') + (d.sub ? ' two' : '') +
+        '" data-hub="' + esc(k) + '"' +
         ' title="' + esc((d.label || k) + '／' + (d.to || '入る')) + '">' +
         '<i>' + (d.icon || '•') + '</i><b>' +
-        esc(d.short || d.to || d.label || k) + '</b></button>';
+        esc(d.short || d.to || d.label || k) + '</b>' +
+        (d.sub ? '<em>' + esc(d.sub) + '</em>' : '') + '</button>';
     };
     /* 「まとめて回る」も一列に混ぜる。
        行をもう1段作ると、そのぶん絵が痩せてしまう              */
@@ -32604,7 +32638,7 @@ GP.screens.home = function (A) {
         // 押した先を絵の中でも光らせてから開く
         hubSel = k;
         const cv = $('hubCv');
-        if (cv) hubMap().drawWith(cv, g, hubSel, null);
+        if (cv) hubMap().drawWith(cv, g, hubSpot(hubSel), null);
         GP.sound.play('tap');
         hubEnter(k);
       };

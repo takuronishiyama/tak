@@ -634,7 +634,7 @@ GP.screens.biz = function (A) {
     const rows = [
       { key: 'car', icon: '🏎️', name: 'マシンの速さ', mine: mineCar,
         rivals: (g.rivals || []).map(r => S.carScoreOf(r.stats, track)),
-        advice: 'パーツの改良と車体の熟成にコマンドを割きましょう。' },
+        advice: '🏭工房で作り、🔬研究所で当たりを取りに行きましょう。' },
       { key: 'drv', icon: '🧑‍✈️', name: 'ドライバーの腕', mine: mineDrv,
         rivals: (g.rivals || []).map(r => r.drivers.reduce((a, d) => a + S.driverRating(d), 0) / Math.max(1, r.drivers.length)),
         advice: '練習で鍛えるか、市場でより速い人を獲りましょう。' },

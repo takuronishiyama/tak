@@ -313,6 +313,9 @@ table.rank.grid td.dim{opacity:.35}
         font-family:inherit;box-shadow:0 2px 0 rgba(74,47,26,.35);cursor:pointer}
 .hlchip i{font-style:normal;font-size:17px;line-height:1.1}
 .hlchip b{font-size:10px;font-weight:bold}
+/* マシンを速くする4部屋だけ、部屋の名前の下に「すること」を添える */
+.hlchip.two{padding:2px 5px 3px}
+.hlchip em{font-style:normal;font-size:8px;line-height:1.2;opacity:.75;letter-spacing:-.2px}
 .hlchip:active{transform:translateY(2px);box-shadow:0 0 0 rgba(74,47,26,.35)}
 .hlchip.done{opacity:.72}
 /* 「まとめて回る」。残り件数を肩に出す */

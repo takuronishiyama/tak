@@ -1007,11 +1007,11 @@ GP.data = (function () {
   const GEAR = {
     factory: [
       { key: 'jig',  name: '専用治具の棚', icon: '🗜️', cost: 1600, need: 1, env: 1,
-        eff: '改良の伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
+        eff: 'パーツの伸び +6%', note: '同じ部品を同じ精度で何度でも。段取りの時間が仕事の時間になる' },
       { key: 'cmm',  name: '三次元測定機', icon: '📏', cost: 3400, need: 4, env: 1,
         eff: '熟成が +12% 速く溜まる', note: '図面どおりに出来ているかを、勘ではなく数字で見られるようになる' },
       { key: 'am',   name: '金属積層造形機', icon: '🧪', cost: 6200, need: 7, env: 2,
-        eff: '改良の伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
+        eff: 'パーツの伸び +9%／熟成 +10%', note: '削り出せない形が作れる。設計が構造から自由になる' },
       { key: 'clean', name: 'クリーンルーム', icon: '🧼', cost: 7800, need: 8, env: 2,
         eff: '作るパーツの品質 +0.05',
         note: '塵ひとつない部屋で組む。同じ図面でも、出てくるものが変わる' }
@@ -2170,7 +2170,7 @@ GP.data = (function () {
     { key: 'design',  name: '設計グループ',   short: '設計', icon: '🎨', place: 'factory', of: 'designer',
       desc: '図面を引く。作るパーツの格が決まる' },
     { key: 'develop', name: '開発グループ',   short: '開発', icon: '👷', place: 'factory', of: 'engineer',
-      desc: '風洞と工作機械を回す。改良の伸びが決まる' },
+      desc: '風洞と工作機械を回す。パーツの伸びが決まる' },
     { key: 'data',    name: '解析グループ',   short: '解析', icon: '📊', place: 'factory', of: 'analyst',
       desc: '数字を回す。ここが厚いと、ほかの全部が底上げされる' },
     { key: 'crew',    name: 'ピットクルー',   short: 'クルー', icon: '🔩', place: 'track',   of: 'mechanic',
