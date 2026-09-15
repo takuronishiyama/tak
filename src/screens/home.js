@@ -54,8 +54,8 @@ GP.screens.home = function (A) {
      組み立てと配線を分けてある。
      戻り先が画面によって違うので、配線のほうは受け取る    */
   function cmdGarage() {
-    // 積んでいるものの管理は、整備の2枚目に置いてある
-    A.cmdMaintain('kit');
+    // 積んでいるものの管理は、🔧ガレージの1枚目
+    A.cmdImprove('kit');
   }
 
   function garageHTML() {
@@ -1340,7 +1340,7 @@ GP.screens.home = function (A) {
   }
 
   const PADDOCK_DOORS = {
-    garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
+    garage:  { icon: '🔧', label: '自チームのガレージ', to: 'ガレージ', fn: () => cmdGarage() },
     drivers: { icon: '🧑‍✈️', label: 'ドライバーの控え', to: 'ドライバー',
                fn: () => { A.hrTab = 'drivers'; cmdStaff(); } },
     timing:  { icon: '📊', label: 'タイミングブース', to: '情報',   fn: () => cmdInfo() },
@@ -2172,13 +2172,13 @@ GP.screens.home = function (A) {
     /* だいたい敷地の絵の並びだが、マシンを速くする4部屋は
        絵の中では離れていても、ここでは続けて並べる。
        同じ仕事の入口が散っていると、どれを押すか決められない */
-    pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
+    pit:     { icon: '🛠️', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
     design:  { icon: '🖊️', label: '設計室',  to: '決める', short: '設計室',
                sub: '決める', at: 'factory', fn: () => cmdDesign() },
     factory: { icon: '🏭', label: '工房',    to: '作る',   short: '工房',
                sub: '作る',   fn: () => cmdShop() },
-    garage:  { icon: '🔧', label: 'ガレージ', to: '寄せる', short: 'ガレージ',
-               sub: '寄せる', at: 'factory', fn: () => cmdImprove() },
+    garage:  { icon: '🔧', label: 'ガレージ', to: '載せる', short: 'ガレージ',
+               sub: '載せる', at: 'factory', fn: () => cmdImprove() },
     tunnel:  { icon: '🔬', label: '研究所',   to: '探す',   short: '研究所',
                sub: '探す',  fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },

@@ -4031,7 +4031,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
   <nav class="cmdbar">
     <div id="cmdNormal" class="cmdset">
       <button class="cmd" id="cMeet" title="首脳陣に、いま何が起きているかを聞く。週は進まない"><span>🗣️</span>相談</button>
-      <button class="cmd" id="cCar" title="設計室・工房・ガレージ・研究所への入口。1週使って車を速くする"><span>🔧</span>開発</button>
+      <button class="cmd" id="cCar" title="設計室・工房・ガレージ・研究所への入口。1週使って車を速くする"><span>🏎️</span>開発</button>
       <button class="cmd" id="cMaintain" title="傷んだところを直す。信頼性が戻る"><span>🛠️</span>整備</button>
       <button class="cmd" id="cDriver" title="ドライバーを鍛える。練習と、下部組織の育成"><span>🧑‍✈️</span>ドライバー</button>
       <button class="cmd" id="cSponsor"><span>📣</span>営業</button>
@@ -4040,7 +4040,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <button class="cmd" id="cKart" title="自前のカート場でレースを開く。若手が伸び、街の子が見つかる"><span>🏁</span>カート</button>
       <span class="cmd-sep"></span>
       <div class="cmdsubs">
-        <button class="cmd sub" id="cGarage" title="いま積んでいるものを見て、載せ替える"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cGarage" title="パーツを載せ替える。寄せかたと噛み合いもここ"><span>🔧</span>ガレージ</button>
         <button class="cmd sub" id="cFacility"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaff"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogi"><span>🚚</span>遠征</button>
@@ -4053,7 +4053,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <button class="cmd big" id="cRaceGo"><span>🏁</span>レースへ向かう！</button>
       <span class="cmd-sep"></span>
       <div class="cmdsubs">
-        <button class="cmd sub" id="cGarageR"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cGarageR" title="パーツを載せ替える"><span>🔧</span>ガレージ</button>
         <button class="cmd sub" id="cFacilityR"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaffR"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogiR"><span>🚚</span>遠征</button>
@@ -4065,7 +4065,7 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
       <button class="cmd big" id="cOffGo"><span>🌱</span>来季を始める</button>
       <span class="cmd-sep"></span>
       <div class="cmdsubs">
-        <button class="cmd sub" id="cGarageO"><span>🏎️</span>マシン</button>
+        <button class="cmd sub" id="cGarageO" title="パーツを載せ替える"><span>🔧</span>ガレージ</button>
         <button class="cmd sub" id="cFacilityO"><span>🏗️</span>施設</button>
         <button class="cmd sub" id="cStaffO"><span>👥</span>人事</button>
         <button class="cmd sub" id="cLogiO"><span>🚚</span>遠征</button>
@@ -23241,7 +23241,7 @@ GP.screens.dev = function (A) {
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
       /* 見出しも案内文も置かない。
-         題が「🔧 開発」で、下に3つ並んでいれば分かる。
+         題が「🏎️ 開発」で、下に4つ並んでいれば分かる。
          横向きのスマホは縦が 320px しかなく、
          28px の見出しひとつで3つ目が画面の外へ出てしまう      */
       /* 場所ひとつに仕事ひとつ。
@@ -23264,8 +23264,9 @@ GP.screens.dev = function (A) {
         '新しいパーツを作る。煮詰めるのは<b>工房が毎週やっています</b>——' +
         'あなたの出番は、器の上限に届いたときです', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
-        'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
-        'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
+        '工房で作ったパーツを<b>載せ替える</b>。つなぎ込みは' +
+        '<b>技術部門が毎週ひとりでに進める</b>ので、決めるのは' +
+        '<b>どちらへ寄せるか</b>だけ。週は進みません', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
         '育てた個体を<b>⚡イノベーション</b>で格上げする。' +
         '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
@@ -23282,7 +23283,7 @@ GP.screens.dev = function (A) {
       mechMapHTML(g) +
       '<div class="sub">🔍 見立て</div>' +
       mechReadHTML(g);
-    U.modal('🔧 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    U.modal('🏎️ 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
@@ -23868,7 +23869,7 @@ GP.screens.dev = function (A) {
   }
 
   /* 改良のタブ。まとめ上げる作業と、噛み合いの見取り図で分ける */
-  let impTab = 'int';
+  let impTab = 'kit';
   /* 先週、その項目が何ぶん動いたか。動いた行にだけ数字を出す */
   function last2(key) {
     const l = g.lastInt;
@@ -23881,9 +23882,16 @@ GP.screens.dev = function (A) {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const it0 = S.integrateRate(g);
+    /* 積んでいるもの（載せ替え・保管庫・PU・シャシー）は、
+       長いこと🛠️整備の2枚目に居候していた。ハブの③は
+       「載せて作り込む」と言っているのに、載せる場所がガレージの
+       中に無かった。下段の「マシン」ボタンも実は整備の2枚目で、
+       ガレージと何が違うのか読めなかった。載せるのはここに一本化 */
     const ITABS = [
+      ['kit',  '🧩', '積んでいるもの',
+               (g.inventory || []).length ? '保管 ' + g.inventory.length : ''],
       ['int',  '🔗', 'まとめ上げ', Math.round(it0.rate * 100) + '%'],
-      ['mesh', '🧩', '噛み合い',   '']
+      ['mesh', '🔩', '噛み合い',   '']
     ];
     /* 工房の絵は、決めたあとの景色。先に出すと一覧が画面の外へ出る。
        選ぶものを上に、読むものと絵を下に回す                     */
@@ -23891,6 +23899,16 @@ GP.screens.dev = function (A) {
       '<div class="tabs qtabs bastabs">' + ITABS.map(t =>
         '<button class="tab' + (impTab === t[0] ? ' on' : '') + '" data-itab="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+    if (impTab === 'kit') {
+      body += A.garageHTML() + interiorHTML('factory');
+      U.modal('🔧 ガレージ', body, [{ label: '閉じる', cls: 'primary', fn: U.closeModal }]);
+      paintInterior();
+      A.bindGarage(() => cmdImprove('kit'));
+      Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
+        b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
+      });
+      return;
+    }
     // ---- 機構の噛み合い（見取り図のタブ） ----
     if (impTab === 'mesh') {
     body += '<div class="sub">🔗 機構の噛み合い</div>' +
@@ -24964,7 +24982,7 @@ GP.screens.dev = function (A) {
       U.closeModal();
       if (done) done();
     };
-    U.modal('🔧 開発', body, [{ label: '次へ', cls: 'primary', fn: finish }]);
+    U.modal('🏎️ 開発', body, [{ label: '次へ', cls: 'primary', fn: finish }]);
     if (x) x.onclick = finish;
     // ゲージと数字を動かす
     const el = $('dvNew'), num = $('dvNum'), val = $('dvVal');
@@ -25020,7 +25038,7 @@ GP.screens.dev = function (A) {
       esc(p.name) + '（' + S.qualTier(q).name +
       '　品質 ' + q.toFixed(2) + '）として保管庫に入った。' +
       '⚡' + it.name + ' の札が付いている。' +
-      '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
+      '🔧ガレージ →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
     S.save(g);
@@ -25957,15 +25975,11 @@ GP.screens.dev = function (A) {
     const per = (100 - rel) / 100 * 0.0022 * ((t && t.risk) || 1);
     return (1 - Math.pow(1 - per, laps)) * 100;
   }
-  /* 整備の画面は二枚。
-       🔧 整備する     … 傷んだところを直す（1週）
-       🧩 積んでいるもの … 載せ替え・保管庫・エンジン・シャシーの在庫
-     作ったパーツをどこで積むのかが分からない、という声があった。
-     直す場所と積み替える場所が別々の入口だったのが原因なので、
-     ひとつの画面の中に並べる                                    */
-  let mtTab = 'fix';
-  function cmdMaintain(tab) {
-    if (tab) mtTab = tab;
+  /* 整備は「傷んだところを直す」だけの画面。
+     以前は2枚目に「積んでいるもの」を置いていたが、
+     🔧ガレージへ移した。直す場所と載せる場所が同じ画面にあると、
+     ガレージとの違いが読めなくなっていた                        */
+  function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
@@ -25986,24 +26000,7 @@ GP.screens.dev = function (A) {
       return v;
     })();
 
-    const TABS = [['fix', '🔧', '整備する', ''],
-                  ['kit', '🧩', '積んでいるもの',
-                   (g.inventory || []).length ? '保管 ' + g.inventory.length : '']];
-    const tabsHTML = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
-      '<button class="tab' + (mtTab === t[0] ? ' on' : '') + '" data-mtab="' + t[0] + '">' +
-      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
-
-    /* ---- 積んでいるものの管理 ---- */
-    if (mtTab === 'kit') {
-      let kit = interiorHTML('pit') + tabsHTML + A.garageHTML();
-      U.modal('🛠️ 整備', kit, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-      paintInterior();
-      A.bindGarage(() => cmdMaintain('kit'));
-      bindMtTabs();
-      return;
-    }
-
-    let body = interiorHTML('pit') + tabsHTML +
+    let body = interiorHTML('pit') +
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
         '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
@@ -26048,13 +26045,7 @@ GP.screens.dev = function (A) {
       { label: 'やめる', fn: U.closeModal }
     ], { wide: true });
     paintInterior();
-    bindMtTabs();
-    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain('fix')); });
-  }
-  function bindMtTabs() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); cmdMaintain(b.dataset.mtab); };
-    });
+    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain()); });
   }
   function doMaintain(cost) {
     g.funds -= cost;
@@ -30174,8 +30165,8 @@ GP.screens.home = function (A) {
      組み立てと配線を分けてある。
      戻り先が画面によって違うので、配線のほうは受け取る    */
   function cmdGarage() {
-    // 積んでいるものの管理は、整備の2枚目に置いてある
-    A.cmdMaintain('kit');
+    // 積んでいるものの管理は、🔧ガレージの1枚目
+    A.cmdImprove('kit');
   }
 
   function garageHTML() {
@@ -31460,7 +31451,7 @@ GP.screens.home = function (A) {
   }
 
   const PADDOCK_DOORS = {
-    garage:  { icon: '🏎️', label: '自チームのガレージ', to: 'マシン', fn: () => cmdGarage() },
+    garage:  { icon: '🔧', label: '自チームのガレージ', to: 'ガレージ', fn: () => cmdGarage() },
     drivers: { icon: '🧑‍✈️', label: 'ドライバーの控え', to: 'ドライバー',
                fn: () => { A.hrTab = 'drivers'; cmdStaff(); } },
     timing:  { icon: '📊', label: 'タイミングブース', to: '情報',   fn: () => cmdInfo() },
@@ -32292,13 +32283,13 @@ GP.screens.home = function (A) {
     /* だいたい敷地の絵の並びだが、マシンを速くする4部屋は
        絵の中では離れていても、ここでは続けて並べる。
        同じ仕事の入口が散っていると、どれを押すか決められない */
-    pit:     { icon: '🔧', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
+    pit:     { icon: '🛠️', label: 'ピット設備',   to: '整備',   fn: () => cmdMaintain() },
     design:  { icon: '🖊️', label: '設計室',  to: '決める', short: '設計室',
                sub: '決める', at: 'factory', fn: () => cmdDesign() },
     factory: { icon: '🏭', label: '工房',    to: '作る',   short: '工房',
                sub: '作る',   fn: () => cmdShop() },
-    garage:  { icon: '🔧', label: 'ガレージ', to: '寄せる', short: 'ガレージ',
-               sub: '寄せる', at: 'factory', fn: () => cmdImprove() },
+    garage:  { icon: '🔧', label: 'ガレージ', to: '載せる', short: 'ガレージ',
+               sub: '載せる', at: 'factory', fn: () => cmdImprove() },
     tunnel:  { icon: '🔬', label: '研究所',   to: '探す',   short: '研究所',
                sub: '探す',  fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
@@ -33058,7 +33049,7 @@ GP.screens.help = function (A) {
         { h: '予備シャシーと、土曜の夜', p: [
           'フリー走行や予選で壊すと、土曜の夜に三つの選択肢が出ます。どれを選んでも日曜には走れますが、失うものがちがいます。',
           '🌙 徹夜で直す … クルーの疲労 +22、マシンのコンディション -8。／🔧 予備シャシーに載せ替える … 疲労 +9、コンディション -4、予備を1台使う。／🩹 応急処置で済ます … 疲労 +4だが、コンディション -30。',
-          '予備シャシーは🛠️整備の「🧩 積んでいるもの」で組んでおけます。置いてあるだけで金は寝ますが、壊したときにクルーを潰さずに済みます。',
+          '予備シャシーは🔧ガレージの「🧩 積んでいるもの」で組んでおけます。置いてあるだけで金は寝ますが、壊したときにクルーを潰さずに済みます。',
           '日曜に<b>期待順位を上回る</b>と、上回った順位ぶんだけクルーの疲れが飛びます（1つにつき2.6、最大16）。しんどい週末でも、結果が出れば取り返せます。'
         ] },
         { h: '三つの輪', p: [
@@ -33076,7 +33067,7 @@ GP.screens.help = function (A) {
           '車体の仕事は<b>場所で分かれています</b>。場所ひとつに仕事ひとつで、どれも1週ぶんです。',
           '<b>🖊️ 設計室</b>＝<b>これから作るものと、チームの技術を決める</b>。ひらめきを図面に落とし、素材を選び、技術を積み上げます。技術はいまの車にもそのまま効きますが、<b>パーツ1点ずつには手を入れません</b>。',
           '<b>🏭 工房</b>＝<b>パーツそのものに手を入れる</b>＝<b>内側の輪（パーツ）</b>。図面を形にして（作る）、いま積んでいるものを上限へ近づけます（煮詰める）。パーツの輪が動くのは、ここだけです。',
-          '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。ここは<b>技術部門が毎週ひとりでに進めます</b>。あなたが決めるのは「薄いところから埋めるか／強みを尖らせるか」だけで、<b>週は進みません</b>。速くしたければ、押す回数ではなく👥人事で技術部門を厚くします。',
+          '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。工房で作ったパーツを載せ替えるのはここ。つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。あなたが決めるのは「薄いところから埋めるか／強みを尖らせるか」だけで、<b>週は進みません</b>。速くしたければ、押す回数ではなく👥人事で技術部門を厚くします。',
           '<b>🔬 研究所</b>＝<b>当たりを取りに行く</b>。扇を調べて<b>知見</b>を溜め、それを<b>💡ひらめき</b>に変える（＝会心作の出るパーツ設計）か、<b>方針が引いた線そのもの</b>を押し広げる（＝いちばん外の輪）かに使います。',
           '迷ったら、<b>設計室で決めて、工房で作って、ガレージで仕上げる</b>——この順に回してください。'
         ] },
@@ -33139,7 +33130,7 @@ GP.screens.help = function (A) {
         ] },
         { h: '作ったパーツを積む', p: [
           '🏭工房で作ったパーツは、その場では積まれません。いったん<b>保管庫</b>に入ります。',
-          '積み替えるのは <b>🛠️ 整備 →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
+          '積み替えるのは <b>🔧 ガレージ →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
           'コマンドバーの「🏎️ マシン」を押しても、同じところが開きます。'
         ] },
         { h: '素材', p: [
@@ -37377,7 +37368,7 @@ window.GP = window.GP || {};
       '連盟から届く券です。</p>' +
       '<div class="popcost"><span>使うと</span><span><b>その1回で週が進みません</b></span></div>' +
       '<div class="popcost"><span>資金と研究P</span><span>いつもどおりかかります</span></div>' +
-      '<div class="popcost"><span>使える場所</span><span>🔧 開発 の中の<br>' +
+      '<div class="popcost"><span>使える場所</span><span>🏎️ 開発 の中の<br>' +
       '設計室・工房・ガレージ・研究所</span></div>' +
       '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
       d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +

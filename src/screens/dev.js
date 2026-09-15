@@ -99,7 +99,7 @@ GP.screens.dev = function (A) {
       '<div class="racehead"><b>🏎️ ' + esc(D.CAR_GENS[g.carGen].name) + '</b>' +
       '<span>' + esc(t.name) + ' でのマシン評価 ' + sc + '</span></div>' +
       /* 見出しも案内文も置かない。
-         題が「🔧 開発」で、下に3つ並んでいれば分かる。
+         題が「🏎️ 開発」で、下に4つ並んでいれば分かる。
          横向きのスマホは縦が 320px しかなく、
          28px の見出しひとつで3つ目が画面の外へ出てしまう      */
       /* 場所ひとつに仕事ひとつ。
@@ -122,8 +122,9 @@ GP.screens.dev = function (A) {
         '新しいパーツを作る。煮詰めるのは<b>工房が毎週やっています</b>——' +
         'あなたの出番は、器の上限に届いたときです', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
-        'つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。' +
-        'ここで決めるのは<b>どちらへ寄せるか</b>だけなので、週は進みません', 'imp', cst.imp, false) +
+        '工房で作ったパーツを<b>載せ替える</b>。つなぎ込みは' +
+        '<b>技術部門が毎週ひとりでに進める</b>ので、決めるのは' +
+        '<b>どちらへ寄せるか</b>だけ。週は進みません', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
         '育てた個体を<b>⚡イノベーション</b>で格上げする。' +
         '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
@@ -140,7 +141,7 @@ GP.screens.dev = function (A) {
       mechMapHTML(g) +
       '<div class="sub">🔍 見立て</div>' +
       mechReadHTML(g);
-    U.modal('🔧 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    U.modal('🏎️ 開発', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
     const go = { imp: cmdImprove, des: cmdDesign, shop: cmdShop, res: cmdResearch };
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
       b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
@@ -726,7 +727,7 @@ GP.screens.dev = function (A) {
   }
 
   /* 改良のタブ。まとめ上げる作業と、噛み合いの見取り図で分ける */
-  let impTab = 'int';
+  let impTab = 'kit';
   /* 先週、その項目が何ぶん動いたか。動いた行にだけ数字を出す */
   function last2(key) {
     const l = g.lastInt;
@@ -739,9 +740,16 @@ GP.screens.dev = function (A) {
     const tk = g.tickets || 0;
     if (!tk) useTicket = false;
     const it0 = S.integrateRate(g);
+    /* 積んでいるもの（載せ替え・保管庫・PU・シャシー）は、
+       長いこと🛠️整備の2枚目に居候していた。ハブの③は
+       「載せて作り込む」と言っているのに、載せる場所がガレージの
+       中に無かった。下段の「マシン」ボタンも実は整備の2枚目で、
+       ガレージと何が違うのか読めなかった。載せるのはここに一本化 */
     const ITABS = [
+      ['kit',  '🧩', '積んでいるもの',
+               (g.inventory || []).length ? '保管 ' + g.inventory.length : ''],
       ['int',  '🔗', 'まとめ上げ', Math.round(it0.rate * 100) + '%'],
-      ['mesh', '🧩', '噛み合い',   '']
+      ['mesh', '🔩', '噛み合い',   '']
     ];
     /* 工房の絵は、決めたあとの景色。先に出すと一覧が画面の外へ出る。
        選ぶものを上に、読むものと絵を下に回す                     */
@@ -749,6 +757,16 @@ GP.screens.dev = function (A) {
       '<div class="tabs qtabs bastabs">' + ITABS.map(t =>
         '<button class="tab' + (impTab === t[0] ? ' on' : '') + '" data-itab="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
+    if (impTab === 'kit') {
+      body += A.garageHTML() + interiorHTML('factory');
+      U.modal('🔧 ガレージ', body, [{ label: '閉じる', cls: 'primary', fn: U.closeModal }]);
+      paintInterior();
+      A.bindGarage(() => cmdImprove('kit'));
+      Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
+        b.onclick = () => { GP.sound.play('tap'); cmdImprove(b.dataset.itab); };
+      });
+      return;
+    }
     // ---- 機構の噛み合い（見取り図のタブ） ----
     if (impTab === 'mesh') {
     body += '<div class="sub">🔗 機構の噛み合い</div>' +
@@ -1822,7 +1840,7 @@ GP.screens.dev = function (A) {
       U.closeModal();
       if (done) done();
     };
-    U.modal('🔧 開発', body, [{ label: '次へ', cls: 'primary', fn: finish }]);
+    U.modal('🏎️ 開発', body, [{ label: '次へ', cls: 'primary', fn: finish }]);
     if (x) x.onclick = finish;
     // ゲージと数字を動かす
     const el = $('dvNew'), num = $('dvNum'), val = $('dvVal');
@@ -1878,7 +1896,7 @@ GP.screens.dev = function (A) {
       esc(p.name) + '（' + S.qualTier(q).name +
       '　品質 ' + q.toFixed(2) + '）として保管庫に入った。' +
       '⚡' + it.name + ' の札が付いている。' +
-      '🛠️整備 →「🧩 積んでいるもの」で積み替えられる', 'good');
+      '🔧ガレージ →「🧩 積んでいるもの」で積み替えられる', 'good');
     U.toast('💡 ' + it.name + ' が形になった！', 'good');
     S.pushNews(g, 'brk', it.name);
     S.save(g);
@@ -2815,15 +2833,11 @@ GP.screens.dev = function (A) {
     const per = (100 - rel) / 100 * 0.0022 * ((t && t.risk) || 1);
     return (1 - Math.pow(1 - per, laps)) * 100;
   }
-  /* 整備の画面は二枚。
-       🔧 整備する     … 傷んだところを直す（1週）
-       🧩 積んでいるもの … 載せ替え・保管庫・エンジン・シャシーの在庫
-     作ったパーツをどこで積むのかが分からない、という声があった。
-     直す場所と積み替える場所が別々の入口だったのが原因なので、
-     ひとつの画面の中に並べる                                    */
-  let mtTab = 'fix';
-  function cmdMaintain(tab) {
-    if (tab) mtTab = tab;
+  /* 整備は「傷んだところを直す」だけの画面。
+     以前は2枚目に「積んでいるもの」を置いていたが、
+     🔧ガレージへ移した。直す場所と載せる場所が同じ画面にあると、
+     ガレージとの違いが読めなくなっていた                        */
+  function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
@@ -2844,24 +2858,7 @@ GP.screens.dev = function (A) {
       return v;
     })();
 
-    const TABS = [['fix', '🔧', '整備する', ''],
-                  ['kit', '🧩', '積んでいるもの',
-                   (g.inventory || []).length ? '保管 ' + g.inventory.length : '']];
-    const tabsHTML = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
-      '<button class="tab' + (mtTab === t[0] ? ' on' : '') + '" data-mtab="' + t[0] + '">' +
-      t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
-
-    /* ---- 積んでいるものの管理 ---- */
-    if (mtTab === 'kit') {
-      let kit = interiorHTML('pit') + tabsHTML + A.garageHTML();
-      U.modal('🛠️ 整備', kit, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-      paintInterior();
-      A.bindGarage(() => cmdMaintain('kit'));
-      bindMtTabs();
-      return;
-    }
-
-    let body = interiorHTML('pit') + tabsHTML +
+    let body = interiorHTML('pit') +
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
         '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
@@ -2906,13 +2903,7 @@ GP.screens.dev = function (A) {
       { label: 'やめる', fn: U.closeModal }
     ], { wide: true });
     paintInterior();
-    bindMtTabs();
-    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain('fix')); });
-  }
-  function bindMtTabs() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mtab]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); cmdMaintain(b.dataset.mtab); };
-    });
+    bindAct('data-pu', () => { GP.sound.play('tap'); A.openPu(null, () => cmdMaintain()); });
   }
   function doMaintain(cost) {
     g.funds -= cost;

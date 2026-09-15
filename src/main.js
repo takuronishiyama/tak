@@ -1362,7 +1362,7 @@ window.GP = window.GP || {};
       '連盟から届く券です。</p>' +
       '<div class="popcost"><span>使うと</span><span><b>その1回で週が進みません</b></span></div>' +
       '<div class="popcost"><span>資金と研究P</span><span>いつもどおりかかります</span></div>' +
-      '<div class="popcost"><span>使える場所</span><span>🔧 開発 の中の<br>' +
+      '<div class="popcost"><span>使える場所</span><span>🏎️ 開発 の中の<br>' +
       '設計室・工房・ガレージ・研究所</span></div>' +
       '<div class="popcost"><span>届く条件</span><span>入賞なしが <b>' +
       d.ticket + '戦</b> 続いたとき（' + esc(d.name) + '）</span></div>' +
