@@ -777,6 +777,24 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-final{color:#fff2c8;font-weight:bold}
 .rv-ev.rv-home{color:#9fe6c8}
 
+/* ---- 自チームが絡む一行 ----
+   22台ぶんの出来事が同じ調子で流れるので、自分のところが埋もれていた。
+   色は種類ごとの色をそのまま残し、金の縦線・地の照り・3文字の車番で立たせる */
+.rv-ev.mine{position:relative;font-weight:bold;padding:1px 4px 1px 7px;margin-left:-4px;
+  border-left:3px solid #ffd23a;border-radius:0 5px 5px 0;
+  background:linear-gradient(90deg,rgba(255,210,58,.20),rgba(255,210,58,.02))}
+.rv-me3{font-style:normal;font-size:9px;font-weight:bold;letter-spacing:.06em;
+  background:#ffd23a;color:#2b1c0e;border-radius:3px;padding:0 4px;margin-right:5px;
+  vertical-align:1px}
+/* 流れてきた瞬間だけ、ひと呼吸ぶん光らせる */
+.rv-ev.mine.fresh::after{content:'';position:absolute;inset:0;background:#ffd23a;
+  border-radius:0 5px 5px 0;opacity:.5;pointer-events:none;
+  animation:rvMineFade .9s ease-out forwards}
+@keyframes rvMineFade{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .rv-ev.mine.fresh::after{animation:none;opacity:0}
+}
+
 /* レース中の急変を、画面いっぱいの帯で知らせる */
 .rv-flash{position:absolute;left:0;right:0;top:15%;padding:10px 8px;text-align:center;
   font-size:15px;font-weight:bold;letter-spacing:1px;color:#2a1c08;

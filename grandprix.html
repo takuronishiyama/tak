@@ -792,6 +792,24 @@ body.preboot .topbar{visibility:hidden}
 .rv-ev.rv-final{color:#fff2c8;font-weight:bold}
 .rv-ev.rv-home{color:#9fe6c8}
 
+/* ---- 自チームが絡む一行 ----
+   22台ぶんの出来事が同じ調子で流れるので、自分のところが埋もれていた。
+   色は種類ごとの色をそのまま残し、金の縦線・地の照り・3文字の車番で立たせる */
+.rv-ev.mine{position:relative;font-weight:bold;padding:1px 4px 1px 7px;margin-left:-4px;
+  border-left:3px solid #ffd23a;border-radius:0 5px 5px 0;
+  background:linear-gradient(90deg,rgba(255,210,58,.20),rgba(255,210,58,.02))}
+.rv-me3{font-style:normal;font-size:9px;font-weight:bold;letter-spacing:.06em;
+  background:#ffd23a;color:#2b1c0e;border-radius:3px;padding:0 4px;margin-right:5px;
+  vertical-align:1px}
+/* 流れてきた瞬間だけ、ひと呼吸ぶん光らせる */
+.rv-ev.mine.fresh::after{content:'';position:absolute;inset:0;background:#ffd23a;
+  border-radius:0 5px 5px 0;opacity:.5;pointer-events:none;
+  animation:rvMineFade .9s ease-out forwards}
+@keyframes rvMineFade{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .rv-ev.mine.fresh::after{animation:none;opacity:0}
+}
+
 /* レース中の急変を、画面いっぱいの帯で知らせる */
 .rv-flash{position:absolute;left:0;right:0;top:15%;padding:10px 8px;text-align:center;
   font-size:15px;font-weight:bold;letter-spacing:1px;color:#2a1c08;
@@ -19018,6 +19036,26 @@ GP.raceview = (function () {
     return leadP >= lap - 1;
   }
 
+  /* ---- 自チームが絡む実況を見分ける ----
+     22台ぶんの出来事が同じ調子で流れてくるので、
+     自分のところの一行が、目で追っていると埋もれていた。
+     ev.car が自車ならもちろん、抜かれた側や名前だけ出る行も拾いたいので、
+     自チームのドライバー名が文中にあるかも見る                  */
+  let myCars = null;
+  function myCarList() {
+    if (!myCars) myCars = res.entries.filter(e => e.isPlayer);
+    return myCars;
+  }
+  function evMine(ev) {
+    if (ev.car && ev.car.isPlayer) return ev.car;
+    const t = ev.text || '';
+    const mine = myCarList();
+    for (let i = 0; i < mine.length; i++) {
+      if (t.indexOf(mine[i].driver.name) >= 0) return mine[i];
+    }
+    return null;
+  }
+
   function flushEvents(all) {
     const leadP = all ? Infinity : leaderProgress();
     const log = document.getElementById('rvLog');
@@ -19052,9 +19090,21 @@ GP.raceview = (function () {
         }
       }
       const div = document.createElement('div');
-      div.className = 'rv-ev rv-' + ev.type;
-      div.textContent = 'L' + ev.lap + ' ' + ev.text;
+      const me = evMine(ev);
+      /* 自分のところの行は、金の縦線と3文字の車番で立たせる。
+         早送り（all）のときは光らせない。何十行も一度に流れてきて、
+         画面じゅうが光って逆に読めなくなる                    */
+      div.className = 'rv-ev rv-' + ev.type + (me ? ' mine' + (all ? '' : ' fresh') : '');
+      if (me) {
+        div.innerHTML = '<i class="rv-me3">' +
+          rvEsc(GP.data.abbr3(me.driver.name, true)) + '</i>' +
+          'L' + ev.lap + ' ' + rvEsc(ev.text);
+      } else {
+        div.textContent = 'L' + ev.lap + ' ' + ev.text;
+      }
       log.appendChild(div);
+      // 光りものは一度で役目を終える。長いレースで何十個も残さない
+      if (me && !all) setTimeout(() => div.classList.remove('fresh'), 1000);
       log.scrollTop = log.scrollHeight;
       shownEvents++;
     }
@@ -19415,6 +19465,7 @@ GP.raceview = (function () {
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
     document.getElementById('rvLog').innerHTML = '';
+    myCars = null;
     clearRadio();
     raf = requestAnimationFrame(tick);
   }

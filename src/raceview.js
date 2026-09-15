@@ -1643,6 +1643,26 @@ GP.raceview = (function () {
     return leadP >= lap - 1;
   }
 
+  /* ---- 自チームが絡む実況を見分ける ----
+     22台ぶんの出来事が同じ調子で流れてくるので、
+     自分のところの一行が、目で追っていると埋もれていた。
+     ev.car が自車ならもちろん、抜かれた側や名前だけ出る行も拾いたいので、
+     自チームのドライバー名が文中にあるかも見る                  */
+  let myCars = null;
+  function myCarList() {
+    if (!myCars) myCars = res.entries.filter(e => e.isPlayer);
+    return myCars;
+  }
+  function evMine(ev) {
+    if (ev.car && ev.car.isPlayer) return ev.car;
+    const t = ev.text || '';
+    const mine = myCarList();
+    for (let i = 0; i < mine.length; i++) {
+      if (t.indexOf(mine[i].driver.name) >= 0) return mine[i];
+    }
+    return null;
+  }
+
   function flushEvents(all) {
     const leadP = all ? Infinity : leaderProgress();
     const log = document.getElementById('rvLog');
@@ -1677,9 +1697,21 @@ GP.raceview = (function () {
         }
       }
       const div = document.createElement('div');
-      div.className = 'rv-ev rv-' + ev.type;
-      div.textContent = 'L' + ev.lap + ' ' + ev.text;
+      const me = evMine(ev);
+      /* 自分のところの行は、金の縦線と3文字の車番で立たせる。
+         早送り（all）のときは光らせない。何十行も一度に流れてきて、
+         画面じゅうが光って逆に読めなくなる                    */
+      div.className = 'rv-ev rv-' + ev.type + (me ? ' mine' + (all ? '' : ' fresh') : '');
+      if (me) {
+        div.innerHTML = '<i class="rv-me3">' +
+          rvEsc(GP.data.abbr3(me.driver.name, true)) + '</i>' +
+          'L' + ev.lap + ' ' + rvEsc(ev.text);
+      } else {
+        div.textContent = 'L' + ev.lap + ' ' + ev.text;
+      }
       log.appendChild(div);
+      // 光りものは一度で役目を終える。長いレースで何十個も残さない
+      if (me && !all) setTimeout(() => div.classList.remove('fresh'), 1000);
       log.scrollTop = log.scrollHeight;
       shownEvents++;
     }
@@ -2040,6 +2072,7 @@ GP.raceview = (function () {
     const fl = document.getElementById('rvFlash'); if (fl) fl.className = 'rv-flash';
     const bd = document.getElementById('rvBadge'); if (bd) bd.className = 'rv-badge';
     document.getElementById('rvLog').innerHTML = '';
+    myCars = null;
     clearRadio();
     raf = requestAnimationFrame(tick);
   }
