@@ -59,17 +59,23 @@ window.GP = window.GP || {};
   /* レース週かどうか。「ちょうどその週」ではなく「その週以降」で見る。
      何かの拍子に週を跨いでしまった保存データでも、決勝に行けるようにする
      （以前は === だったため、跨ぐと二度とレースに行けなくなっていた）  */
-  /* 縦向きのときだけ出る案内。一度閉じたら、その端末では出さない */
+  /* ---- 縦向きのときだけ出る案内 ----
+     一度閉じたら、その端末では二度と出さない。
+     閉じ忘れると毎画面 60px を取り続けていたので、
+     読むだけの時間が過ぎたら自分から引っ込む（そのときも覚える） */
   (function () {
     const tip = document.getElementById('rotateTip');
     const x = document.getElementById('rotateTipX');
     if (!tip || !x) return;
-    try { if (localStorage.getItem('gp-rotate-ok')) tip.style.display = 'none'; } catch (e) {}
-    x.onclick = () => {
+    const done = () => {
+      if (tip.style.display === 'none') return;
       tip.style.display = 'none';
       try { localStorage.setItem('gp-rotate-ok', '1'); } catch (e) {}
       measureTop();
     };
+    try { if (localStorage.getItem('gp-rotate-ok')) tip.style.display = 'none'; } catch (e) {}
+    x.onclick = done;
+    setTimeout(done, 9000);
   })();
 
   /* ---- 上部バーの高さを、CSS に渡す ----

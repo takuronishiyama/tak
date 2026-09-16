@@ -250,8 +250,13 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .sc-ers.low i u{background:#ff6a4a}
 
 /* ---------- 人事のタブ ---------- */
-.hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
-.hrtab{flex:1;min-width:88px;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
+/* タブも横1行の送りにする。「スタッフグループ」を入れたぶん
+   4枚でも折り返して2段になり、上に案内が積み上がっていた   */
+.hrtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:nowrap;
+        overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+        -webkit-overflow-scrolling:touch;padding-bottom:2px}
+.hrtabs::-webkit-scrollbar{display:none}
+.hrtab{flex:1 0 auto;min-width:88px;white-space:nowrap;background:#e8dcc0;border:3px solid var(--ink);border-radius:8px;
        box-shadow:0 3px 0 rgba(74,47,26,.5);padding:5px 2px;font-size:11px;font-weight:bold;
        letter-spacing:-.3px}
 .hrtab.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
@@ -2886,10 +2891,12 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
    あとに来る必要があるから。前に置くと、モニターを出したときの
    指定に上書きされて効かなかった                                  */
 @media (min-width:1000px) and (min-height:560px) and (hover:hover) and (pointer:fine){
-  .rv-wrap{max-width:min(1400px,94vw)}
+  .rv-wrap{max-width:min(1560px,96vw)}
   /* 上下の帯（ヘッダ・自車の行・実況・操作）を除いた残り。
      窓が低いときは vh 側が、高いときは px 側が効く            */
-  .rv-wrap{--rvMap:min(56vh,540px)}
+  /* vh 側は上げない（窓が低いと枠の中が送られる）。
+     px の上限だけ上げて、広くて高い窓でだけ図が伸びるようにする */
+  .rv-wrap{--rvMap:min(56vh,600px)}
   /* 順位のパネルは広げすぎても読みにくい。上限を決めて、
      余ったぶんはコース図へ渡す。高さは図に合わせて伸ばす      */
   /* ---- 無線を、コース図の上から右の帯へ ----
@@ -2913,14 +2920,27 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
      無線もコース図の右にそのまま置く（高さだけ合わせる） */
   .rv-wrap.timing .rv-radio{height:auto;max-height:var(--rvMap);top:0;bottom:auto;
                             justify-content:flex-start}
-  /* モニターを出しているあいだは表が主役。図はほどほどに */
-  .rv-wrap.timing{--rvMap:min(34vh,420px)}
+  /* モニターを出しているあいだは表が主役。図はほどほどに。
+     ここを上げると、1280〜1440 の窓で枠の中が送られる（実測） */
+  .rv-wrap.timing{--rvMap:min(34vh,440px)}
   /* 表と実況も、広がったぶんだけ見せる。
      図と表の合計が枠の高さを超えると、枠の中が送られてしまうので、
      どちらも vh で取って、窓の高さに合わせて一緒に縮むようにする   */
   .rv-wrap.timing .rv-mon .rv-sectors{max-height:min(46vh,560px)}
   .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(220px,24%,340px);
                                       max-height:min(46vh,560px)}
+}
+/* ---- さらに広い窓では、もう一段コース図へ回す ----
+   1920px の窓では、上の段でも左右に 260px ずつ余っていた。
+   図は縦横比が決まっているので、高さを上げるとそのまま横へ伸びる。
+   順位の帯と無線も、そのぶん読める幅にする                      */
+@media (min-width:1560px) and (min-height:760px) and (hover:hover) and (pointer:fine){
+  .rv-wrap{max-width:min(1840px,97vw);--rvMap:min(62vh,700px)}
+  /* モニターは表と実況が主役。図を上げすぎると枠の中が送られる */
+  .rv-wrap.timing{--rvMap:min(36vh,470px)}
+  .rv-side{flex:0 1 440px;max-width:440px;height:calc(var(--rvMap) - 158px)}
+  .rv-radio{width:440px}
+  .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(260px,22%,400px)}
 }
 /* 縦に持つ端末では並べきれないので、これまでどおり積む */
 @media (max-width:560px){
@@ -2935,9 +2955,21 @@ svg.cpl{display:block;width:196px;max-width:100%;height:auto;flex:0 0 auto}
 /* ---- 長いモーダルの区画分け ----
    見出しから次の見出しまでを一区画にして、たためるようにする。
    上に飛び先の並びを貼りつけ、いまどこを見ているかを分かるようにする。 */
+/* ---- 飛び先の並び ----
+   折り返していたので、節が6つあると3段になり、
+   スマホでは画面の4割が案内で埋まっていた。
+   横1行の送りにして、高さを1段に固定する            */
 .msecbar{position:-webkit-sticky;position:sticky;top:-12px;z-index:5;
-         display:flex;gap:4px;flex-wrap:wrap;margin:-12px -12px 8px;padding:8px 12px;
+         display:flex;gap:4px;flex-wrap:nowrap;margin:-12px -12px 8px;padding:8px 12px;
+         overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+         -webkit-overflow-scrolling:touch;
          background:var(--paper2);border-bottom:2px solid var(--ink)}
+.msecbar::-webkit-scrollbar{display:none}
+.msecbar button{flex:0 0 auto}
+/* 右へ続いていることを、端のぼかしで見せる（送れるのが分からないと押さない） */
+.msecbar::after{content:'';position:-webkit-sticky;position:sticky;right:-12px;
+  flex:0 0 22px;margin-left:-22px;align-self:stretch;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--paper2))}
 .msecbar button{background:var(--paper3);border:2px solid var(--ink);border-radius:6px;
                 font-size:11px;padding:4px 9px;box-shadow:0 2px 0 rgba(74,47,26,.35);white-space:nowrap}
 .msecbar button:active{transform:translateY(2px);box-shadow:0 0 0}
