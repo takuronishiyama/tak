@@ -469,7 +469,6 @@ GP.screens.home = function (A) {
         const tab = baseTab;
         baseSel = k;
         // 事業や遠征を見ている最中に建物を押したら、その施設の話へ戻す
-        if (baseTab === 'est' || baseTab === 'logi') baseTab = 'fac';
         GP.sound.play('tap');
         drawBase();
         /* 見ている種類に合わせて、その場で小窓を出す。
@@ -511,7 +510,7 @@ GP.screens.home = function (A) {
   function estateBoxHTML() {
     const list = S.estateList(g);
     const up = S.estateUpkeep(g);
-    let h = '<div class="sub small">事業</div>' +
+    let h = '<div class="sub">💼 事業</div>' +
       '<p class="desc">本拠地の外に持つもの。買えば維持費がかかりますが、' +
       'チームの収入と、人の集まりかたが変わります。' +
       (up ? '　いまの維持費 <b>💰' + money(up) + '万／週</b>' : '') + '</p>' +
@@ -534,7 +533,7 @@ GP.screens.home = function (A) {
     return h + '</div>';
   }
   /* ---- 事業を買う小窓。備品と同じ扱い ---- */
-  function openEstateBuy(key) {
+  function openEstateBuy(key, again) {
     const x = (S.estateList(g) || []).filter(y => y.key === key)[0];
     if (!x) return;
     const short = Math.max(0, x.cost - g.funds);
@@ -562,15 +561,16 @@ GP.screens.home = function (A) {
           U.log(g, r.icon + ' ' + r.name + ' を手に入れた（' + r.eff + '）', 'good');
           U.toast(r.icon + ' ' + r.name + '！', 'good');
           S.save(g); render();
-          if ($('baseCv')) drawBase();
           U.closePopup();
+          if (again) again();
         } },
       { label: 'やめる', fn: () => { GP.sound.play('tap'); U.closePopup(); } }
     ]);
   }
 
-  function bindEstate() {
-    const box = $('baseDetail');
+  /* 事業の一覧を貼った画面から呼ぶ。again は買ったあとに開き直す先 */
+  function bindEstate(root, again) {
+    const box = root || $('modalBody');
     if (!box) return;
     Array.prototype.forEach.call(box.querySelectorAll('[data-est]'), b => {
       b.onclick = () => {
@@ -578,7 +578,7 @@ GP.screens.home = function (A) {
         // すでに持っているカート場は、遊びに行く入口のまま
         if (key === 'kart' && S.hasEstate(g, key)) return askKart();
         GP.sound.play('tap');
-        openEstateBuy(key);
+        openEstateBuy(key, again);
       };
     });
   }
@@ -1029,32 +1029,24 @@ GP.screens.home = function (A) {
     const cost = facilityCost(baseSel);
     const facCut = S.perkCut(g, 'fac:' + baseSel);
     const max = lv >= 10;
-    const owned = S.estateList(g).filter(x => x.owned).length;
     const gearAll = D.FACILITIES.reduce((a, x) => a + (D.GEAR[x.key] || []).length, 0);
     const gearGot = D.FACILITIES.reduce((a, x) =>
       a + (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length, 0);
     /* ---- 種類ごとに分ける ----
        広げる（レベル）／備品（施設に据える道具）／事業（外に持つ店）は
        別のもの。ひと続きに積むと、どれを見ているのか分からなくなる  */
-    /* 遠征も本拠地の仕事なので、ここに並べる。
-       選んでいる手配が一目で分かるように、札に出しておく       */
-    const lp = S.logiPlan(g);
+    /* 遠征と事業は前ここに居たが、どちらも敷地の話ではない。
+       遠征は🚚遠征の画面へ、事業は🎩オーナーへ移した            */
     const TABS = [
       ['fac',  '🏗️', '広げる', 'Lv.' + lv],
-      ['gear', '🧰', '備品',   gearGot + '/' + gearAll],
-      ['logi', '🚚', '遠征',   lp.icon],
-      ['est',  '💼', '事業',   owned ? owned + '件' : '']
+      ['gear', '🧰', '備品',   gearGot + '/' + gearAll]
     ];
     let h = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
       '<button class="tab' + (baseTab === t[0] ? ' on' : '') + '" data-btab="' + t[0] + '">' +
       t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
 
-    if (baseTab === 'est') {
-      h += estateBoxHTML();
-    } else if (baseTab === 'logi') {
-      h += logiBoxHTML();
-    } else {
-      h += facPickHTML();
+    h += facPickHTML();
+    {   // 広げる／備品
       if (baseTab === 'gear') {
         h += gearLeadHTML();
       } else {
@@ -1075,20 +1067,9 @@ GP.screens.home = function (A) {
       }
     }
     $('baseDetail').innerHTML = h;
-    /* 事業は本拠地の外に持つもの。敷地の絵は関係がないので引っ込める。
-       狭い横画面では、絵が出ているだけで一覧が2件しか見えなくなる  */
-    /* モーダルの中のものを掴む。ホームの本拠地カードにも
-       同じ .basewrap があるので、範囲を絞らないとそちらを消してしまう */
-    const bw = document.querySelector('#modalBody .basewrap');
-    const bi = document.querySelector('#modalBody .baseinfo');
-    const wide = baseTab === 'est' || baseTab === 'logi';
-    if (bw) bw.style.display = wide ? 'none' : '';
-    if (bi) bi.style.display = wide ? 'none' : '';
     Array.prototype.forEach.call($('baseDetail').querySelectorAll('[data-btab]'), b => {
       b.onclick = () => { baseTab = b.dataset.btab; GP.sound.play('tap'); drawBase(); };
     });
-    bindEstate();
-    if (baseTab === 'logi') bindLogi();
 
     /* 下に残してあるボタンは、小窓への入口。
        決断そのものは小窓の中で行う（doFacUp）           */
@@ -1342,7 +1323,7 @@ GP.screens.home = function (A) {
   const PADDOCK_DOORS = {
     garage:  { icon: '🔧', label: '自チームのガレージ', to: 'ガレージ', fn: () => cmdGarage() },
     drivers: { icon: '🧑‍✈️', label: 'ドライバーの控え', to: 'ドライバー',
-               fn: () => { A.hrTab = 'drivers'; cmdStaff(); } },
+               fn: () => A.cmdDrivers() },
     timing:  { icon: '📊', label: 'タイミングブース', to: '情報',   fn: () => cmdInfo() },
     gate:    { icon: '🏁', label: 'コースへの出口',   to: 'レース', fn: () => cmdRace() }
   };
@@ -2183,9 +2164,9 @@ GP.screens.home = function (A) {
                sub: '探す',  fn: () => cmdResearch() },
     sim:     { icon: '🏛️', label: 'シミュレーター', to: '練習', fn: () => cmdTrain() },
     market:  { icon: '📣', label: 'マーケティング室', to: '営業', fn: () => cmdSponsor() },
-    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.hrTab = 'youth'; cmdStaff(); } },
+    youth:   { icon: '🎓', label: 'ユースアカデミー', to: '育成', fn: () => { A.drvTab = 'youth'; A.cmdDrivers(); } },
     depot:   { icon: '🚚', label: '遠征チーム',  to: '手配',   short: '遠征',
-               fn: () => { baseTab = 'logi'; openFacility('depot'); } },
+               fn: () => cmdLogi() },
     mission: { icon: '📡', label: 'ミッションコントロール', to: '広げる', short: '管制室',
                fn: () => openFacility('mission') },
     meeting: { icon: '🗣️', label: 'ミーティングルーム', to: '広げる', short: '会議室',
@@ -2653,12 +2634,12 @@ GP.screens.home = function (A) {
     });
   }
 
-  /* 遠征の手配。施設画面のタブとして貼るので、
-     組み立てと配線を分けてある                              */
+  /* 遠征は自分の画面。前は施設の3枚目に居候していて、
+     札・下段・施設タブの3つの入口が全部「チーム本拠地」という題に着いた */
   function cmdLogi() {
-    // 遠征も本拠地の仕事のひとつ。施設画面のタブとして開く
-    baseTab = 'logi';
-    cmdFacility();
+    U.modal('🚚 遠征', logiBoxHTML(),
+      [{ label: '閉じる', fn: () => { GP.sound.play('tap'); U.closeModal(); } }], { wide: true });
+    bindLogi();
   }
 
   let logiTab = 'plan';
@@ -2775,11 +2756,15 @@ GP.screens.home = function (A) {
         '<p class="desc">誰を現地へ連れて行くか。' + U.helpLink('logi') + '<br>' +
         (mission
           ? '🛰️ <b>ミッションコントロール室</b>があるので、本国に残った分析チームが' +
-            '回線の向こうからレースに加わります（作戦の読み +' + D.MISSION.read.toFixed(2) +
-            '／天候 +' + Math.round(D.MISSION.fore * 100) + '%）。' +
-            '人を減らして薄くなったぶんも ' + Math.round(D.MISSION.leanCover * 100) + '% 埋め戻します。'
+            '回線の向こうからレースに加わります（作戦の読み +' +
+            (S.missionLv(g) * D.MISSION.read).toFixed(2) +
+            '／天候 +' + Math.round(S.missionLv(g) * D.MISSION.fore * 100) + '%）。' +
+            /* 埋め戻す割合は crewEff と同じ式。前は存在しない定数を読んでいて NaN が出ていた */
+            '人を減らして薄くなったぶんも ' +
+            Math.round(Math.min(0.92, D.MISSION.coverBase + S.missionLv(g) * D.MISSION.coverLv) * 100) +
+            '% 埋め戻します。'
           : '本国に残した人間は、いまはレースに関われません。' +
-            '「🏭 施設 → ファクトリー」の <b>🛰️ ミッションコントロール室</b>を入れると、' +
+            '「🏗️ 施設 → 🏗️ 広げる」の <b>🛰️ ミッションコントロール室</b>を入れると、' +
             '残った分析チームが回線の向こうからレースに加わります。') +
         '</p><div class="pick">';
       D.LOGI_CREWS.forEach(pt => {
@@ -2832,7 +2817,7 @@ GP.screens.home = function (A) {
   function bindLogi() {
     const nextTrack = S.trackAt(g, g.nextRace) || D.TRACKS[0];
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-ltab]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); logiTab = b.dataset.ltab; cmdFacility(); };
+      b.onclick = () => { GP.sound.play('tap'); logiTab = b.dataset.ltab; cmdLogi(); };
     });
     bindKit();
     bindPick(k => {
@@ -2854,7 +2839,7 @@ GP.screens.home = function (A) {
         U.log(g, '📦 積荷を「' + ld.icon + ld.name + '」にした。');
       }
       GP.sound.play('confirm');
-      S.save(g); render(); drawBase();
+      S.save(g); render(); cmdLogi();
     });
   }
   return {
@@ -2867,6 +2852,7 @@ GP.screens.home = function (A) {
            openFuse: openFuse, openFacUp: openFacUp,
            openGearBuy: openGearBuy, openGearList: openGearList,
            openKitBuy: openKitBuy, openEstateBuy: openEstateBuy, openPu: openPu,
+           estateBoxHTML: estateBoxHTML, bindEstate: bindEstate,
            bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };

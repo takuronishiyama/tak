@@ -61,7 +61,7 @@ GP.screens.biz = function (A) {
     const STABS = [
       ['deal',  '🤝', 'スポンサー', g.sponsors.length + '/' + slots],
       ['title', '👑', 'タイトル',   S.titleOf(g) ? '契約中' : ''],
-      ['perk',  '🏭', '割引と供給', '']
+      ['perk',  '🏭', 'サプライヤー契約', '']
     ];
     body += '<div class="tabs qtabs bastabs">' + STABS.map(t =>
       '<button class="tab' + (spTab === t[0] ? ' on' : '') + '" data-stab="' + t[0] + '">' +
@@ -305,7 +305,11 @@ GP.screens.biz = function (A) {
     });
     body += '</div>';
 
+    /* 事業（外に持つ店）。前は施設の4枚目に居たが、敷地とは関係が無い。
+       名声・スキルと同じ「経営」の棚に置く                      */
+    body += A.estateBoxHTML();
     U.modal('🎩 オーナー', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    A.bindEstate($('modalBody'), cmdOwner);
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-osk]'), b => {
       b.onclick = () => {
         if (S.learnOwnerSkill(g, b.dataset.osk)) {
@@ -808,7 +812,7 @@ GP.screens.biz = function (A) {
 
   let infoTab = 'team';
   function cmdInfo(tab) {
-    if (tab) infoTab = tab;
+    if (typeof tab === 'string') infoTab = tab;
     /* ---- タブ ----
        4つに割る。チームの様子・お金・順位・これまで。
        「いま困っていること」と「今季どうだったか」は
@@ -818,7 +822,8 @@ GP.screens.biz = function (A) {
       ['team',  '🏢', 'チーム',  ''],
       ['money', '💰', '収支',    ''],
       ['rank',  '🏆', '選手権',  g.points ? g.points + 'pt' : ''],
-      ['log',   '📜', '記録',    done ? done + '戦' : '']
+      ['log',   '📜', '記録',    done ? done + '戦' : ''],
+      ['set',   '⚙️', '設定',    '']
     ];
     let body = '<div class="tabs qtabs bastabs">' + TABS.map(t =>
       '<button class="tab' + (infoTab === t[0] ? ' on' : '') + '" data-itab2="' + t[0] + '">' +
@@ -831,7 +836,7 @@ GP.screens.biz = function (A) {
     } else if (infoTab === 'rank') {
       body += U.standings(g);
       body += '<div class="sub">🔎 ライバルの動向</div>' + rivalTrends();
-    } else {
+    } else if (infoTab === 'log') {
       body += '<div class="sub">今季のレース結果</div>';
       if (!g.results.length) body += '<p class="desc">まだレースがありません。</p>';
       g.results.slice().reverse().forEach(r => {
@@ -843,17 +848,33 @@ GP.screens.biz = function (A) {
       if (!g.history.length) body += '<p class="desc">まだ1シーズンも終えていません。</p>';
       g.history.forEach(h => { body += '<div class="hist">シーズン' + h.season + '：コンストラクターズ ' + h.rank + '位（' + h.points + 'pt）</div>'; });
       body += '<div class="sub">通算タイトル</div><p class="desc">コンストラクターズ ' + g.titles.teams + ' 回／ドライバーズ ' + g.titles.drivers + ' 回</p>';
-      body += diffSwitchHTML();
     }
-    U.modal('📖 チーム情報', body, [
-      { label: '💾 セーブ', fn: () => { S.save(g); U.toast('💾 セーブしました', 'good'); } },
-      { label: '閉じる', fn: U.closeModal },
-      { label: '🗑️ 最初から', cls: 'danger', fn: () => {
-          U.modal('本当に最初から？', '<p class="lead">現在のデータは消えます。よろしいですか？</p>', [
-            { label: 'はい', cls: 'danger', fn: () => { S.wipe(); location.reload(); } },
-            { label: 'いいえ', fn: U.closeModal }]);
-        } }
-    ], { wide: true });
+    /* ---- 設定 ----
+       セーブ・難易度・最初から。前は「記録」の下と足元のボタンに散っていて、
+       情報を開いた最初の一画面に「最初から」が見えていた            */
+    if (infoTab === 'set') {
+      body += '<div class="sub">💾 セーブ</div>' +
+        '<p class="desc">進みは自動で保存されています。手で残したいときだけ押してください。</p>' +
+        '<div class="pick"><button class="pickbtn" data-info="save">' +
+        '<span class="pb-ic" style="background:#3a7ad9">💾</span>' +
+        '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>';
+      body += diffSwitchHTML();
+      body += '<div class="sub">🗑️ 最初から</div>' +
+        '<p class="desc">いまのチームを消して、新しく始めます。元には戻せません。</p>' +
+        '<div class="pick"><button class="pickbtn cant" data-info="wipe">' +
+        '<span class="pb-ic" style="background:#8a2a2a">🗑️</span>' +
+        '<span class="pb-body"><b>最初から</b><small>確認の小窓が出ます</small></span></button></div>';
+    }
+    U.modal('📖 チーム情報', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-info]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        if (b.dataset.info === 'save') { S.save(g); U.toast('💾 セーブしました', 'good'); return; }
+        U.modal('本当に最初から？', '<p class="lead">現在のデータは消えます。よろしいですか？</p>', [
+          { label: 'はい', cls: 'danger', fn: () => { S.wipe(); location.reload(); } },
+          { label: 'いいえ', fn: () => cmdInfo('set') }]);
+      };
+    });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab2]'), b => {
       b.onclick = () => { GP.sound.play('tap'); cmdInfo(b.dataset.itab2); };
     });

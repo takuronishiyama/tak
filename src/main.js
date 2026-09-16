@@ -1401,7 +1401,10 @@ window.GP = window.GP || {};
       if (!el) return;
       el.onclick = function () {
         A.pendingCmd = { fn: map[id], label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
-        return map[id].apply(this, arguments);
+        /* クリックのイベントは渡さない。渡すと cmdInfo(tab) のような
+           引数つきのコマンドが MouseEvent を「タブ」だと思い込み、
+           どのタブにも当たらず最後の枝（記録）を開いていた        */
+        return map[id].call(this);
       };
     });
     /* ホームの札に出したパワーユニットの一行。

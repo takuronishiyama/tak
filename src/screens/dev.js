@@ -461,91 +461,10 @@ GP.screens.dev = function (A) {
      🧑‍✈️ ドライバー
      走らせる人まわりを1つにまとめる。練習と、下部組織の育成。
      ======================================================= */
-  function cmdDriverMenu() {
-    let body = '<div class="sub">いまのドライバー</div><div class="pick">';
-    (g.drivers || []).forEach(d => {
-      const fit = S.driverFit(g, d);
-      const ct = S.careTier(d), p2 = S.persOf(d);
-      body += '<div class="pickbtn done">' +
-        '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(d.name) + '</b><small>' +
-        '総合 ' + Math.round(S.driverRating(d)) + '／調子 ' + Math.round(d.form) +
-        '／' + p2.icon + p2.name + '／' + ct.icon + ct.name +
-        '<br><em' + (fit.over ? ' class="up"' : '') + '>いまの車の力を <b>' +
-        Math.round(fit.out * 100) + '%</b> 引き出せています' +
-        (fit.over ? '　<b>車の持ち分を超えています</b>' : '') +
-        '（乗りやすさ ' + (fit.drive >= 1 ? '+' : '') + Math.round((fit.drive - 1) * 100) + '%）</em>' +
-        '</small></span></div>';
-    });
-    if (!(g.drivers || []).length) body += '<p class="desc">シートが空いています。</p>';
-    body += '</div>';
-
-    /* ---- リザーブ ----
-       万一のときに走る控え。ここに居ることが見えていないと、
-       置いたこと自体を忘れる                                   */
-    body += '<div class="sub">🪑 リザーブ</div>';
-    if (g.reserve) {
-      const r = g.reserve;
-      const openSeat = (g.drivers || []).length < 2;
-      body += '<div class="pick"><div class="pickbtn done">' +
-        '<span class="pb-ic face-ic">' + U.face(r, 30) + '</span>' +
-        '<span class="pb-body"><b>' + esc(r.name) +
-        (openSeat ? '<em class="free">昇格できます</em>' : '') + '</b><small>' +
-        S.nationOf(r).flag + ' 総合 ' + Math.round(S.driverRating(r)) + '／' + r.age + '歳／' +
-        S.persOf(r).icon + S.persOf(r).name +
-        (r.outFor > 0 ? '　<em class="warn">負傷欠場 あと' + r.outFor + '戦</em>' : '') +
-        '<br>' + (openSeat
-          ? '正ドライバーの席が空いています。人事から昇格させられます'
-          : '誰かが欠場したとき、この人が走ります') + '</small></span>' +
-        '<span class="pb-cost">週' + money(r.salary) + '万</span></div></div>';
-    } else {
-      body += '<p class="desc">リザーブはいません。' +
-        '下部組織の若手か、市場のドライバーを置けます（人事 → ドライバー）。</p>';
-    }
-
-    /* ---- 育成の若手 ----
-       契約した子が、ここに出てこないと「どこへ行った」になる      */
-    const ys = (g.youth || []).slice().sort((a, b) => S.driverRating(b) - S.driverRating(a));
-    body += '<div class="sub">🎓 育成の若手（' + ys.length + '/' + S.youthSlots(g) + '）</div>';
-    if (!ys.length) {
-      body += '<p class="desc">下部組織に誰もいません。' +
-        'ここで育てた子が、上の席を埋めていきます（人事 → 育成）。</p>';
-    } else {
-      body += '<div class="pick">';
-      ys.forEach(d => {
-        const p3 = S.potOf(d);
-        const canUp = (g.drivers || []).length < 2;
-        body += '<div class="pickbtn done">' +
-          '<span class="pb-ic face-ic">' + U.face(d, 30) + '</span>' +
-          '<span class="pb-body"><b>' + esc(d.name) +
-          '<em class="ychip">' + d.age + '歳</em>' +
-          (canUp ? '<em class="free">昇格できます</em>' : '') + '</b><small>' +
-          S.nationOf(d).flag + ' 総合 ' + Math.round(S.driverRating(d)) +
-          '／素質 <b style="color:' + p3.color + '">' + p3.name + '</b>' +
-          '<br>' + (canUp
-            ? '正ドライバーの席が空いています。人事から昇格させられます'
-            : '席が空いたとき、ここから昇格させられます') + '</small></span>' +
-          '<span class="pb-cost">週' + money(d.salary || 0) + '万</span></div>';
-      });
-      body += '</div>';
-    }
-
-    body += '<div class="sub">何をしますか</div>' +
-      '<p class="desc">乗りやすいマシンほど、ドライバーは持っているものをそのまま出せます。' +
-      '車体の<b>ドライバビリティ</b>を上げるのも、腕を上げるのと同じだけ効きます。</p>' +
-      '<div class="pick">' +
-      carPickHTML('💪', '練習', '2人を鍛える', '走り込みで能力そのものが伸びる。1週ぶん', 'train') +
-      carPickHTML('🎓', '育成', '下部組織の若手を見る', '若手の伸びと、スカウト。人事の育成タブへ', 'youth') +
-      carPickHTML('👥', '人事', 'ドライバーの入れ替えと契約', '市場から獲る／リザーブを置く／解雇する', 'hr') +
-      '</div>';
-    U.modal('🧑‍✈️ ドライバー', body, [{ label: '閉じる', fn: U.closeModal }], { wide: true });
-    const go = { train: cmdTrain,
-                 youth: () => { A.hrTab = 'youth'; cmdStaff(); },
-                 hr: () => { A.hrTab = 'drivers'; cmdStaff(); } };
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-car]'), b => {
-      b.onclick = () => { GP.sound.play('tap'); go[b.dataset.car](); };
-    });
-  }
+  /* ドライバーの画面は hr.js（契約・練習・育成）。
+     前はここに「いまのドライバー／リザーブ／若手」の要約と3枚の札を
+     置いていたが、その2枚は人事にもあって、同じ物に入口が2つあった */
+  function cmdDriverMenu() { A.cmdDrivers(); }
 
   /* =======================================================
      コマンド：開発
@@ -2351,18 +2270,16 @@ GP.screens.dev = function (A) {
         '（各項目 <b>' + nv.withStock + '</b> から再スタート' +
         (nv.gain > 0 ? '／うち +' + nv.gain + ' は来季ぶんの仕込み' : '') + '）</small></div>';
     }
-    /* パワーユニットの供給は、話が大きくなったので別の画面に移した。
-       ここからも入れるようにしておく                              */
-    body += '<div class="sub">パワーユニットの供給</div>' +
-      '<p class="desc">' + (g.engine
-        ? '<b>' + esc(g.engine.team) + '</b> から供給を受けています。'
-        : (g.customers || []).length
-          ? '<b>' + (g.customers || []).length + 'チーム</b>にパワーユニットを供給しています。'
-          : 'よそから買うことも、こちらが供給する側に回ることもできます。') +
-      '</p><div class="pick"><button class="pickbtn" data-k="__engscreen">' +
+    /* エンジン供給は🔌供給の画面の仕事。ここは入口を1行だけ残す。
+       前は見出しと本文を持っていて、「供給」が3か所にある一因だった */
+    body += '<div class="pick"><button class="pickbtn" data-k="__engscreen">' +
       '<span class="pb-ic engic">🔌</span>' +
-      '<span class="pb-body"><b>エンジン供給の画面へ</b>' +
-      '<small>買う・売る・契約を切る</small></span>' +
+      '<span class="pb-body"><b>供給の画面へ</b>' +
+      '<small>' + (g.engine
+        ? esc(g.engine.team) + ' から供給を受けています'
+        : (g.customers || []).length
+          ? (g.customers || []).length + 'チームに供給しています'
+          : 'よそから買う／こちらから分ける') + '</small></span>' +
       '<span class="pb-cost">›</span></button></div>';
 
     body = ticketBarHTML() + body;
@@ -2606,7 +2523,7 @@ GP.screens.dev = function (A) {
 
     body += customerBoxHTML();
 
-    U.modal('🔌 エンジン／パーツ供給', body, [{ label: 'とじる', fn: U.closeModal }]);
+    U.modal('🔌 エンジン／パーツ供給', body, [{ label: '閉じる', fn: U.closeModal }]);
     paintInterior();
     bindPick(k => {
       if (k === '__engoff') return doEngineOff();
@@ -2927,20 +2844,25 @@ GP.screens.dev = function (A) {
   /* =======================================================
      コマンド：練習
      ======================================================= */
-  function cmdTrain() {
-    if (!g.drivers.length) return U.toast('ドライバーがいません', 'bad');
+  /* 練習はドライバーの画面の1枚。組み立てと配線を分けて、
+     hr.js のドライバー画面がタブとして貼れるようにしてある      */
+  function trainCosts() {
+    return { cost: 250 + g.facilities.sim * 60,
+             scost: Math.round(2600 + g.season * 900),
+             wcost: Math.round(1400 + g.season * 500) };
+  }
+  function trainHTML() {
+    const { cost, scost, wcost } = trainCosts();
     const menu = [['speed', '速さ', '🏎️'], ['technique', '技術', '🎯'], ['stamina', '体力', '💪'], ['mental', '精神', '🧠']];
-    let body = interiorHTML('sim') +
-      '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
+    let body = '<p class="lead">ドライバーと鍛える能力を選んでください。</p>';
+    if (!g.drivers.length) body += '<p class="note"><b class="warn">ドライバーがいません。</b>「契約」のタブから迎えてください。</p>';
     g.drivers.forEach((d, i) => {
       body += '<div class="trainrow"><div class="tr-nm">' + esc(d.name) + '<small>調子 ' + Math.round(d.form) + '</small></div><div class="tr-btns">';
       menu.forEach(m => { body += '<button class="pickbtn small" data-k="' + i + ':' + m[0] + '">' + m[2] + ' ' + m[1] + '</button>'; });
       body += '</div></div>';
     });
-    const cost = 250 + g.facilities.sim * 60;
     body += '<p class="desc">費用：💰' + money(cost) + '万（1週消費）</p>';
 
-    const scost = Math.round(2600 + g.season * 900);
     body += '<div class="sub">スキル特訓</div>' +
       '<p class="desc">集中特訓で新しいスキルを習得させます（1週消費・費用 💰' + money(scost) + '万）。<br>' +
       'トレーナーとシミュレーターが優秀なほど、良いスキルを覚えやすくなります。</p><div class="pick">';
@@ -2958,7 +2880,6 @@ GP.screens.dev = function (A) {
     body += '</div>';
 
     // ---- スタッフの研修 ----
-    const wcost = Math.round(1400 + g.season * 500);
     const nStaff = (g.staff || []).length;
     body += '<div class="sub">スタッフの研修</div>' +
       '<p class="desc">現場を離れて学び直す週です（1週消費・費用 💰' + money(wcost) + '万）。' +
@@ -2972,7 +2893,11 @@ GP.screens.dev = function (A) {
                           : 'スタッフがいません') + '</small></span>' +
       '<span class="pb-cost">💰' + money(wcost) + '</span></button></div>';
 
-    U.modal('💪 トレーニング', body, [{ label: 'やめる', fn: U.closeModal }], { wide: true });
+    // 絵は決めたあとの景色。上に置くと一覧が画面の外へ出るので下に
+    return body + interiorHTML('sim');
+  }
+  function bindTrain() {
+    const { cost, scost, wcost } = trainCosts();
     paintInterior();
     bindPick(k => {
       if (k === 'wkshop') doWorkshop(wcost);
@@ -2980,6 +2905,8 @@ GP.screens.dev = function (A) {
       else doTrain(k, cost);
     });
   }
+  /* 札やヘルプから「練習」へ来たとき。ドライバーの画面の練習タブを開く */
+  function cmdTrain() { A.drvTab = 'train'; A.cmdDrivers(); }
 
   /* ---- スタッフの全体研修 ---- */
   function doWorkshop(cost) {
@@ -3234,6 +3161,6 @@ GP.screens.dev = function (A) {
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML, bindMfg: bindMfg,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
-      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, trainHTML: trainHTML, bindTrain: bindTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };

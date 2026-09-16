@@ -31,7 +31,9 @@ GP.screens.hr = function (A) {
      ======================================================= */
   let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
   let rivalStaffMarket = null;      // よそのチームで働いている人（引き抜きの相手）
-  A.hrTab = 'drivers';        // 人事のいまのタブ（本拠地からも切り替える）
+  A.hrTab = 'staff';          // 人事（働く人）のいまのタブ
+  A.drvTab = 'drivers';       // ドライバー（走る人）のいまのタブ（本拠地からも切り替える）
+  let hrMode = 'staff';       // いま開いているのがどちらか。再描画はこれに従う
 
   function teamQuality() { return GP.base.scale(g).value; }
 
@@ -240,35 +242,58 @@ GP.screens.hr = function (A) {
       '<span class="pb-cost">週' + money(st.salary) + '万<br>' + actions + '</span></div>';
   }
 
-  function cmdStaff() {
+  /* ---- 人事とドライバー ----
+     働く人（スタッフグループ・首脳陣・講習・FIA）と、走る人（契約・練習・育成）は
+     主題がちがう。前は「人事」に6枚あり、「ドライバー」のハブにも同じ2枚が
+     あって、同じ物に入口が2つあった。画面を2つに分け、
+     買った・雇ったあとの開き直しは、いま開いているほうに従う      */
+  const HR_TABS = {
+    staff: [['staff', '👥 スタッフグループ'], ['mgmt', '👔 首脳陣'],
+            ['school', '🏛️ 講習'], ['fia', '🌐 FIA']],
+    drv:   [['drivers', '🧑‍✈️ 契約'], ['train', '💪 練習'], ['youth', '🎓 育成']]
+  };
+  function cmdStaff() { hrMode = 'staff'; openHr(); }
+  function cmdDrivers() { hrMode = 'drv'; openHr(); }
+  function reopenHr() { openHr(); }
+  function openHr() {
     refreshMarkets(false);
-    const tabs = [['drivers', '🧑‍✈️ ドライバー'], ['youth', '🎓 育成'],
-                  ['staff', '👥 スタッフグループ'], ['mgmt', '👔 首脳陣'],
-                  ['school', '🏛️ 講習'], ['fia', '🌐 FIA']];
+    const drv = hrMode === 'drv';
+    const tabs = HR_TABS[hrMode];
+    const keys = tabs.map(t => t[0]);
+    let cur = drv ? A.drvTab : A.hrTab;
+    if (keys.indexOf(cur) < 0) cur = keys[0];
+    if (drv) A.drvTab = cur; else A.hrTab = cur;
     let body = '<div class="hrtabs">' +
-      tabs.map(t => '<button class="hrtab' + (A.hrTab === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
+      tabs.map(t => '<button class="hrtab' + (cur === t[0] ? ' on' : '') + '" data-hr="' + t[0] + '">' + t[1] + '</button>').join('') +
       '</div>';
 
-    if (A.hrTab === 'drivers') body += hrDrivers();
-    else if (A.hrTab === 'youth') body += hrYouth();
-    else if (A.hrTab === 'staff') body += hrStaff();
-    else if (A.hrTab === 'school') body += hrSchool();
-    else if (A.hrTab === 'fia') body += hrFIA();
+    if (cur === 'drivers') body += hrDrivers();
+    else if (cur === 'train') body += A.trainHTML();
+    else if (cur === 'youth') body += hrYouth();
+    else if (cur === 'staff') body += hrStaff();
+    else if (cur === 'school') body += hrSchool();
+    else if (cur === 'fia') body += hrFIA();
     else body += hrManagement();
 
-    U.modal('👥 人事', body, [
+    const btns = [];
+    if (cur !== 'train') btns.push(
       { label: '🔄 市場を更新（500万）', disabled: g.funds < 500,
         fn: () => {
           g.funds -= 500; refreshMarkets(true);
           U.log(g, '🔄 市場を更新した（💰500万）。顔ぶれが入れ替わった');
-          S.save(g); render(); cmdStaff();
-        } },
-      { label: '閉じる', fn: U.closeModal }
-    ], { wide: true });
+          S.save(g); render(); reopenHr();
+        } });
+    btns.push({ label: '閉じる', fn: U.closeModal });
+    U.modal(drv ? '🧑‍✈️ ドライバー' : '👥 人事', body, btns, { wide: true });
 
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.hrtab'), b => {
-      b.onclick = () => { A.hrTab = b.dataset.hr; GP.sound.play('tap'); cmdStaff(); };
+      b.onclick = () => {
+        if (drv) A.drvTab = b.dataset.hr; else A.hrTab = b.dataset.hr;
+        GP.sound.play('tap'); reopenHr();
+      };
     });
+    // 練習の配線は dev.js の側。bindPick を二重に掛けないよう、ここで抜ける
+    if (cur === 'train') { A.bindTrain(); return; }
     bindPick(k => hrPick(k));
     bindHrActions();
     bindSchool();
@@ -361,7 +386,7 @@ GP.screens.hr = function (A) {
   function bindSchool() {
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-swho]'), wrap => {
       Array.prototype.forEach.call(wrap.children, b => {
-        b.onclick = () => { schoolPick = b.dataset.v; GP.sound.play('tap'); cmdStaff(); };
+        b.onclick = () => { schoolPick = b.dataset.v; GP.sound.play('tap'); reopenHr(); };
       });
     });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-fia]'), b => {
@@ -371,7 +396,7 @@ GP.screens.hr = function (A) {
         U.log(g, '🌐 かつての仲間を訪ねて、競技団体に顔を出した（関係 +' + gain + '）', 'good');
         U.toast('🌐 顔を出してきた', 'good');
         GP.sound.play('confirm');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
   }
@@ -385,7 +410,7 @@ GP.screens.hr = function (A) {
       '」へ送り出した（' + r.course.weeks + '週不在）', 'good');
     U.toast(r.course.icon + ' ' + r.person.name + ' が講習へ', 'good');
     GP.sound.play('buy');
-    S.save(g); render(); cmdStaff();
+    S.save(g); render(); reopenHr();
   }
 
   /* =======================================================
@@ -583,7 +608,7 @@ GP.screens.hr = function (A) {
         g.funds -= fee;
         g.drivers = g.drivers.filter(x => x.id !== d.id);
         U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(fee) + '万）。');
-        S.save(g); render(); U.closePopup(); cmdStaff();
+        S.save(g); render(); U.closePopup(); reopenHr();
       } });
     } else if (seat === 'res') {
       const full = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
@@ -596,7 +621,7 @@ GP.screens.hr = function (A) {
           GP.sound.play('levelup');
           U.log(g, '🎉 リザーブの ' + r.name + ' が正ドライバーに昇格！（週' + money(r.salary) + '万）', 'good');
           U.toast('🎉 ' + r.name + ' が正ドライバーに！', 'good');
-          S.save(g); render(); U.closePopup(); cmdStaff();
+          S.save(g); render(); U.closePopup(); reopenHr();
         } });
       }
       (g.drivers || []).forEach(o => {
@@ -605,14 +630,14 @@ GP.screens.hr = function (A) {
           if (!r) return;
           GP.sound.play('levelup');
           U.log(g, '🔁 ' + r.inD.name + ' が正ドライバーに、' + r.outD.name + ' がリザーブに回った。', 'good');
-          S.save(g); render(); U.closePopup(); cmdStaff();
+          S.save(g); render(); U.closePopup(); reopenHr();
         } });
       });
       btns.push({ label: '👋 契約を解除', cls: 'danger', fn: () => {
         const r = S.clearReserve(g);
         if (!r) return;
         U.log(g, '👋 リザーブの ' + r.name + ' との契約を解除した。');
-        S.save(g); render(); U.closePopup(); cmdStaff();
+        S.save(g); render(); U.closePopup(); reopenHr();
       } });
     } else {
       if ((g.drivers || []).length < 2) {
@@ -622,7 +647,7 @@ GP.screens.hr = function (A) {
           GP.sound.play('levelup');
           U.log(g, '🎉 ' + r.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
           U.toast('🎉 ' + r.name + ' が昇格！', 'good');
-          S.save(g); render(); U.closePopup(); cmdStaff();
+          S.save(g); render(); U.closePopup(); reopenHr();
         } });
       }
       if (!g.reserve) {
@@ -631,13 +656,13 @@ GP.screens.hr = function (A) {
           S.setReserve(g, d);
           GP.sound.play('confirm');
           U.log(g, '🪑 ' + d.name + ' をリザーブドライバーにした。', 'good');
-          S.save(g); render(); U.closePopup(); cmdStaff();
+          S.save(g); render(); U.closePopup(); reopenHr();
         } });
       }
       btns.push({ label: '👋 放出する', cls: 'danger', fn: () => {
         g.youth = (g.youth || []).filter(x => x.id !== d.id);
         U.log(g, '👋 若手の ' + d.name + ' を放出した。');
-        S.save(g); render(); U.closePopup(); cmdStaff();
+        S.save(g); render(); U.closePopup(); reopenHr();
       } });
     }
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); back(); } });
@@ -730,13 +755,13 @@ GP.screens.hr = function (A) {
       if (!roomY) h += '<p class="note"><b class="warn">下部組織の席が埋まっています。</b></p>';
       btns.push({ label: '🎓 下部組織に迎える　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || !roomY,
-        fn: () => { hrPick('ym:' + i); U.closePopup(); cmdStaff(); } });
+        fn: () => { hrPick('ym:' + i); U.closePopup(); reopenHr(); } });
     } else {
       if (!roomFull) h += '<p class="note">フルタイムの席は埋まっています（2/2）。' +
         (roomRes ? 'リザーブとしてなら迎えられます。' : '') + '</p>';
       btns.push({ label: '✍️ 契約する（フルタイム）　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || !roomFull,
-        fn: () => { hrPick('dm:' + i); U.closePopup(); cmdStaff(); } });
+        fn: () => { hrPick('dm:' + i); U.closePopup(); reopenHr(); } });
       if (roomRes) {
         const rfee = Math.round(d.salary * 12 * S.RESERVE_PAY);
         btns.push({ label: '🪑 リザーブとして迎える　💰' + money(rfee) + '万',
@@ -748,7 +773,7 @@ GP.screens.hr = function (A) {
             GP.sound.play('confirm');
             U.log(g, '🪑 ' + d.name + ' をリザーブドライバーとして迎えた（' + money(rfee) + '万）。', 'good');
             U.toast('🪑 ' + d.name + ' がリザーブに', 'good');
-            S.save(g); render(); U.closePopup(); cmdStaff();
+            S.save(g); render(); U.closePopup(); reopenHr();
           } });
       }
     }
@@ -776,6 +801,20 @@ GP.screens.hr = function (A) {
         '<span class="pb-cost">' + (full ? '満員' : '＋迎える') + '</span></button>';
     });
     body += '</div>';
+
+    /* ---- いまの車との相性 ----
+       前はドライバーのハブに出ていた一行。ハブをやめたので、ここに残す */
+    if ((g.drivers || []).length) {
+      body += '<div class="sub">🏎️ いまの車との相性</div>' +
+        '<div class="trustrow">' + g.drivers.map(d => {
+          const fit = S.driverFit(g, d);
+          return '<span class="tr-one">' + esc(d.name) + '　車の力を <b>' +
+            Math.round(fit.out * 100) + '%</b> 引き出せています' +
+            (fit.over ? '<em class="up">（持ち分を超えています）</em>' : '') + '</span>';
+        }).join('') + '</div>' +
+        '<p class="desc">乗りやすいマシンほど、持っているものをそのまま出せます。' +
+        '車体の<b>ドライバビリティ</b>を上げるのも、腕を上げるのと同じだけ効きます。</p>';
+    }
 
     // ---- 信頼と、走らせかたの話 ----
     body += '<div class="sub">🗣️ ピットへの信頼</div>' +
@@ -1048,7 +1087,7 @@ GP.screens.hr = function (A) {
     U.popup((t.icon || '👤') + ' ' + esc(st.name), h, [
       { label: '✍️ 雇う　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || room <= 0,
-        fn: () => { hrPick('sm:' + i); U.closePopup(); cmdStaff(); } },
+        fn: () => { hrPick('sm:' + i); U.closePopup(); reopenHr(); } },
       { label: '戻る', fn: () => { GP.sound.play('tap'); openStaffMarket(key); } }
     ]);
   }
@@ -1079,7 +1118,7 @@ GP.screens.hr = function (A) {
           U.log(g, '👔 ' + rr.name + ' が ' + m.name + ' に昇進した！（技能 ' + rr.skill +
                    '／週' + money(rr.salary) + '万）', 'good');
           U.toast('👔 ' + rr.name + ' が' + m.name + 'に昇進！', 'good');
-          S.save(g); render(); U.closePopup(); cmdStaff();
+          S.save(g); render(); U.closePopup(); reopenHr();
         } };
     });
     btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger',
@@ -1088,7 +1127,7 @@ GP.screens.hr = function (A) {
         g.staff = g.staff.filter(x => x.id !== id);
         U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(fee) + '万）。');
         U.toast('👋 ' + st.name + ' を解雇');
-        S.save(g); render(); U.closePopup(); cmdStaff();
+        S.save(g); render(); U.closePopup(); reopenHr();
       } });
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } });
     U.popup((t.icon || '👤') + ' ' + esc(st.name), h, btns);
@@ -1598,7 +1637,7 @@ GP.screens.hr = function (A) {
         (cur ? ' ' + cur.name + ' は退任した。' : ''), 'good');
       U.toast('👔 ' + m.name + '：' + cand.name + ' が就任！', 'good');
     }
-    S.save(g); render(); cmdStaff();
+    S.save(g); render(); reopenHr();
   }
 
   function bindHrActions() {
@@ -1619,7 +1658,7 @@ GP.screens.hr = function (A) {
         GP.sound.play('levelup');
         U.log(g, '🎉 ' + d.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
         U.toast('🎉 ' + d.name + ' が昇格！', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-tores]'), b => {
@@ -1630,7 +1669,7 @@ GP.screens.hr = function (A) {
         S.setReserve(g, d);
         GP.sound.play('confirm');
         U.log(g, '🪑 ' + d.name + ' をリザーブドライバーにした。', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-mktres]'), b => {
@@ -1645,7 +1684,7 @@ GP.screens.hr = function (A) {
         S.setReserve(g, d);
         GP.sound.play('confirm');
         U.log(g, '🪑 ' + d.name + ' とリザーブ契約を結んだ（契約金 ' + money(fee) + '万）。', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promres]'), b => {
@@ -1656,7 +1695,7 @@ GP.screens.hr = function (A) {
         U.log(g, '🎉 リザーブの ' + d.name + ' が正ドライバーに昇格！（週' +
                  money(d.salary) + '万）', 'good');
         U.toast('🎉 ' + d.name + ' が正ドライバーに！', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-swapres]'), b => {
@@ -1665,7 +1704,7 @@ GP.screens.hr = function (A) {
         if (!r) return;
         GP.sound.play('levelup');
         U.log(g, '🔁 ' + r.inD.name + ' が正ドライバーに、' + r.outD.name + ' がリザーブに回った。', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-relres]'), b => {
@@ -1673,7 +1712,7 @@ GP.screens.hr = function (A) {
         const d = S.clearReserve(g);
         if (!d) return;
         U.log(g, '👋 リザーブの ' + d.name + ' との契約を解除した。');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-promote-staff]'), b => {
@@ -1686,7 +1725,7 @@ GP.screens.hr = function (A) {
         U.log(g, '👔 ' + r.name + ' が ' + m.name + ' に昇進した！（技能 ' + r.skill +
                  '／週' + money(r.salary) + '万）', 'good');
         U.toast('👔 ' + r.name + ' が' + m.name + 'に昇進！', 'good');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-release]'), b => {
@@ -1695,7 +1734,7 @@ GP.screens.hr = function (A) {
         if (!d) return;
         g.youth = g.youth.filter(x => x.id !== b.dataset.release);
         U.log(g, '👋 若手の ' + d.name + ' を放出した。');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-fired]'), b => {
@@ -1705,7 +1744,7 @@ GP.screens.hr = function (A) {
         g.funds -= d.salary * 6;
         g.drivers = g.drivers.filter(x => x.id !== b.dataset.fired);
         U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(d.salary * 6) + '万）。');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-firestaff]'), b => {
@@ -1715,7 +1754,7 @@ GP.screens.hr = function (A) {
         g.funds -= st.salary * 4;
         g.staff = g.staff.filter(x => x.id !== b.dataset.firestaff);
         U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(st.salary * 4) + '万）。');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
     Array.prototype.forEach.call(body.querySelectorAll('[data-firemgr]'), b => {
@@ -1727,7 +1766,7 @@ GP.screens.hr = function (A) {
         delete g.managers[key];
         const m = D.MANAGERS.find(x => x.key === key);
         U.log(g, '👋 ' + m.name + ' の ' + cur.name + ' を解任した（違約金 ' + money(cur.salary * 6) + '万）。');
-        S.save(g); render(); cmdStaff();
+        S.save(g); render(); reopenHr();
       };
     });
   }
@@ -1980,6 +2019,6 @@ GP.screens.hr = function (A) {
     name: 'hr',
     link: link,
     setG: function (v) { g = v; },
-    api: { refreshMarkets: refreshMarkets, scoutCardHTML: scoutCardHTML, cmdStaff: cmdStaff, askPoach: askPoach, doPoach: doPoach, doScout: doScout }
+    api: { cmdDrivers: cmdDrivers, refreshMarkets: refreshMarkets, scoutCardHTML: scoutCardHTML, cmdStaff: cmdStaff, askPoach: askPoach, doPoach: doPoach, doScout: doScout }
   };
 };
