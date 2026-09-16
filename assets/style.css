@@ -408,6 +408,15 @@ table.rank.grid td.dim{opacity:.35}
 .mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
 .mtag.pin .mt-pill i{font-size:13px}
 .mtag.mini .mt-short{display:none}
+/* 狭い画面では、絵そのものが 352px しかない。
+   そこへ呼び名つきの札を7枚置くと、札のほうが絵より目立つ。
+   印だけにして、名前は下のタイルの一覧にまかせる            */
+@media (max-width:560px){
+  .mtag.pin .mt-short{display:none}
+  .mtag.pin .mt-pill{padding:1px 4px;border-width:2px}
+  .mtag.pin .mt-pill i{font-size:12px}
+  .mt-stem{height:4px}
+}
 @media (hover:hover) and (pointer:fine){
   .mtag.pin:hover{z-index:5}
   .mtag.pin:hover .mt-pill b{display:block}
@@ -419,7 +428,7 @@ table.rank.grid td.dim{opacity:.35}
 [data-skin="hd"] .mt-pill em{background:#4b3d68;color:#efe4cf}
 [data-skin="hd"] .mt-stem{background:var(--gold);opacity:.85}
 
-#baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
+#baseCv{display:block;width:100%;height:auto;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
 .lvbar i b{flex:1;height:12px;background:var(--trough);border:2px solid var(--ink);border-radius:3px}
@@ -1449,8 +1458,10 @@ body[data-skin="hd"]{
    （はじめの手引きが出ている週に、半分の幅へ落ちていた） */
 .col-left > .card.hub{grid-column:1 / -1}
 .card.hub .basewrap{margin-bottom:6px;display:flex;justify-content:center;align-items:center}
-#hubCv{display:block;width:100%;height:auto;cursor:pointer;
-       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+/* 裏の大きさを表の実画素に合わせて描くようになったので、
+   引き伸ばしの指定はもう要らない（指定が残っていると、
+   画素比2倍の画面で縮めるときにギザギザになる）        */
+#hubCv{display:block;width:100%;height:auto;cursor:pointer}
 /* 広い窓では、絵が縦に伸びすぎて下のカードが押し出される。
    高さで止めて、そのぶん横を中央に寄せる                */
 @media (min-width:1000px){
@@ -1483,8 +1494,7 @@ body[data-skin="hd"]{
    押せるものが下へ逃げる。天井から切って、床の側を残す      */
 .intwrap.top{margin:0 0 8px;max-height:min(21vh,164px);
              display:flex;align-items:flex-end}
-#intCv{display:block;width:100%;height:auto;
-       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+#intCv{display:block;width:100%;height:auto}
 [data-skin="hd"] .intwrap{border-color:var(--gold2);
   box-shadow:inset 0 0 0 1px rgba(214,178,106,.30), 0 4px 16px rgba(0,0,0,.6)}
 /* エンジン供給の申し出。絵文字は色を指定できないので、下地を明るくして

@@ -423,6 +423,15 @@ table.rank.grid td.dim{opacity:.35}
 .mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
 .mtag.pin .mt-pill i{font-size:13px}
 .mtag.mini .mt-short{display:none}
+/* 狭い画面では、絵そのものが 352px しかない。
+   そこへ呼び名つきの札を7枚置くと、札のほうが絵より目立つ。
+   印だけにして、名前は下のタイルの一覧にまかせる            */
+@media (max-width:560px){
+  .mtag.pin .mt-short{display:none}
+  .mtag.pin .mt-pill{padding:1px 4px;border-width:2px}
+  .mtag.pin .mt-pill i{font-size:12px}
+  .mt-stem{height:4px}
+}
 @media (hover:hover) and (pointer:fine){
   .mtag.pin:hover{z-index:5}
   .mtag.pin:hover .mt-pill b{display:block}
@@ -434,7 +443,7 @@ table.rank.grid td.dim{opacity:.35}
 [data-skin="hd"] .mt-pill em{background:#4b3d68;color:#efe4cf}
 [data-skin="hd"] .mt-stem{background:var(--gold);opacity:.85}
 
-#baseCv{display:block;width:100%;height:auto;image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;cursor:pointer}
+#baseCv{display:block;width:100%;height:auto;cursor:pointer}
 .lvbar{display:flex;align-items:center;gap:8px;font-size:11px;margin:6px 0}
 .lvbar i{flex:1;display:flex;gap:2px}
 .lvbar i b{flex:1;height:12px;background:var(--trough);border:2px solid var(--ink);border-radius:3px}
@@ -1464,8 +1473,10 @@ body[data-skin="hd"]{
    （はじめの手引きが出ている週に、半分の幅へ落ちていた） */
 .col-left > .card.hub{grid-column:1 / -1}
 .card.hub .basewrap{margin-bottom:6px;display:flex;justify-content:center;align-items:center}
-#hubCv{display:block;width:100%;height:auto;cursor:pointer;
-       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+/* 裏の大きさを表の実画素に合わせて描くようになったので、
+   引き伸ばしの指定はもう要らない（指定が残っていると、
+   画素比2倍の画面で縮めるときにギザギザになる）        */
+#hubCv{display:block;width:100%;height:auto;cursor:pointer}
 /* 広い窓では、絵が縦に伸びすぎて下のカードが押し出される。
    高さで止めて、そのぶん横を中央に寄せる                */
 @media (min-width:1000px){
@@ -1498,8 +1509,7 @@ body[data-skin="hd"]{
    押せるものが下へ逃げる。天井から切って、床の側を残す      */
 .intwrap.top{margin:0 0 8px;max-height:min(21vh,164px);
              display:flex;align-items:flex-end}
-#intCv{display:block;width:100%;height:auto;
-       image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+#intCv{display:block;width:100%;height:auto}
 [data-skin="hd"] .intwrap{border-color:var(--gold2);
   box-shadow:inset 0 0 0 1px rgba(214,178,106,.30), 0 4px 16px rgba(0,0,0,.6)}
 /* エンジン供給の申し出。絵文字は色を指定できないので、下地を明るくして
@@ -4782,6 +4792,126 @@ GP.fx = (function () {
 
   return { init, begin, composite, addLight, spawn, stepParticles, drawParticles,
            clearParticles, count, supportsBlur };
+})();
+
+</script>
+<script>
+/* ===== src/gfx.js ===== */
+/* =========================================================
+   絵の解像度あわせ
+
+   canvas は「裏の大きさ（width/height）」と「表に出る大きさ（CSS）」が
+   別々に決まる。これまでは裏を 780×340 に固定したまま、
+   表では 352px まで縮めて出していた。つまり絵を 0.45 倍に間引いて
+   見せていたことになる。線は飛び、看板の字はつぶれる。
+   逆に広い画面では裏のほうが小さく、引き伸ばしてぼやける。
+
+   ここでは、表に出る大きさ（×端末の画素比）にあわせて裏の大きさを決め、
+   絵のほうを同じ倍率で拡大して描く。どの画面でも、実際の画素の数だけ
+   描くことになるので、縮んでも伸びてもいちばん綺麗なところに来る。
+
+   使う側は、これまでどおり「絵の座標」で描けばいい。
+   fit() が返す倍率を setTransform に入れるだけ。
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.gfx = (function () {
+  'use strict';
+
+  /* 端末の画素比。3倍より上は、描く量のわりに見た目が変わらない */
+  function dpr() {
+    const d = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    return Math.max(1, Math.min(3, d));
+  }
+
+  /* 表に出ている幅から、絵をどれだけ拡大して描くかを決める。
+     裏の大きさもここで合わせる。返り値をそのまま setTransform に渡す */
+  function fit(cv, artW, artH, opt) {
+    opt = opt || {};
+    let cssW = 0;
+    try { cssW = cv.getBoundingClientRect().width; } catch (e) { cssW = 0; }
+    /* まだ表に出ていない（幅が取れない）ときは、等倍で用意しておく。
+       出たあとの描き直しで、ちゃんとした倍率に入れ替わる        */
+    if (!cssW) cssW = artW;
+    let k = (cssW / artW) * dpr();
+    // 上限を決めないと、4Kの窓で1枚の絵に何百万画素も塗ることになる
+    k = Math.max(opt.min || 0.2, Math.min(opt.max || 3, k));
+    const w = Math.max(1, Math.round(artW * k));
+    const h = Math.max(1, Math.round(artH * k));
+    if (cv.width !== w) cv.width = w;
+    if (cv.height !== h) cv.height = h;
+    return k;
+  }
+
+  /* 裏の大きさだけ合わせた、別紙（合成用の下敷き） */
+  function sheet(artW, artH, k) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(artW * k));
+    c.height = Math.max(1, Math.round(artH * k));
+    return c;
+  }
+
+  /* 絵の座標で描き始める。倍率を入れて、にじみ止めを切る */
+  function begin(ctx, k) {
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    return ctx;
+  }
+
+  /* 小さい字は、倍率で縮むと読めなくなる。
+     実際の画素で何px になるかを見て、下限を切る（絵の座標での大きさを返す） */
+  function fontAt(px, k, min) {
+    const real = px * k;
+    const need = min == null ? 10 : min;
+    return real >= need ? px : need / k;
+  }
+
+  /* ---------- 描きかたの共通部品 ----------
+     実画素で描くようになったら、今度は「ただの四角」が目立つようになった。
+     そこで、置くものはぜんぶ同じ約束で描く：
+       ・上から光が当たる（上の辺は明るく、下の辺は暗い）
+       ・輪郭は下地より暗い線で締める
+       ・床に触れているものは、足もとに影を落とす
+     この3つを揃えるだけで、絵がばらばらに見えなくなる        */
+  function shade(hex, amt) {
+    if (!hex || hex[0] !== '#') return hex;
+    let h = hex.slice(1);
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    const c = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+    return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
+  }
+
+  /* 置きもの。輪郭・上の光・下の影を、いつも同じ向きで付ける */
+  function prop(g, x, y, w, h, fill, opt) {
+    opt = opt || {};
+    const line = opt.line || shade(fill, -0.30);
+    const lit = opt.lit || shade(fill, 0.16);
+    const dim = opt.dim || shade(fill, -0.14);
+    g.fillStyle = line; g.fillRect(x - 1, y - 1, w + 2, h + 2);
+    g.fillStyle = fill; g.fillRect(x, y, w, h);
+    if (h > 3) {
+      g.fillStyle = lit; g.fillRect(x, y, w, Math.max(1, Math.min(3, h * 0.22)));
+      g.fillStyle = dim; g.fillRect(x, y + h - Math.max(1, h * 0.16), w, Math.max(1, h * 0.16));
+    }
+    if (w > 3 && h > 5) {
+      g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(x, y, Math.max(1, w * 0.10), h);
+      g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(x + w - Math.max(1, w * 0.10), y, Math.max(1, w * 0.10), h);
+    }
+  }
+
+  /* 床に落ちる影。楕円ひとつ。濃さは大きさで決める */
+  function shadow(g, cx, y, w, alpha) {
+    g.save();
+    g.fillStyle = 'rgba(0,0,0,' + (alpha == null ? 0.26 : alpha) + ')';
+    g.beginPath();
+    /* 平たく。丸に近いと、床ではなく壁に貼った染みに見える */
+    g.ellipse(cx, y, w / 2, Math.max(1.1, w * 0.075), 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+
+  return { fit, sheet, begin, dpr, fontAt, prop, shadow, shade };
 })();
 
 </script>
@@ -20307,13 +20437,18 @@ GP.base = (function () {
   }
 
   function sign(g, x, y, text, color) {
-    g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
-    const w = g.measureText(text).width + 10;
+    /* 絵ごと縮むと、看板の字がいちばん先につぶれる。
+       実際の画素で9pxを下回らないところで止める            */
+    const fs = GP.gfx.fontAt(9, PX, 9);
+    g.font = 'bold ' + fs.toFixed(2) + 'px sans-serif';
+    g.textAlign = 'center';
+    const w = g.measureText(text).width + fs * 1.1;
+    const h2 = fs * 1.25;
     // 端の施設でも文字が切れないよう、看板を画面内に収める
     x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, x));
-    g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, 13);
-    g.fillStyle = color; g.fillRect(x - w / 2, y, w, 11);
-    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + 8);
+    g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, h2 + 2);
+    g.fillStyle = color; g.fillRect(x - w / 2, y, w, h2);
+    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + h2 - fs * 0.28);
   }
 
   /* ---------- 各施設 ---------- */
@@ -20554,11 +20689,12 @@ GP.base = (function () {
   }
 
   /* ---------- 全体 ---------- */
+  /* 合成用の下敷き。裏の大きさは PX ぶん大きく取り、
+     描くときは絵の座標のままでいいように倍率を入れておく */
   function layer() {
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
+    const c = GP.gfx.sheet(W, H, PX);
     const g = c.getContext('2d');
-    g.imageSmoothingEnabled = false;
+    GP.gfx.begin(g, PX);
     return { c: c, g: g };
   }
 
@@ -20566,9 +20702,11 @@ GP.base = (function () {
      人が歩くと毎フレーム描き直すことになるが、背景は変わらない。
      一度描いたものを取っておき、キャラだけを上に重ねる。            */
   let cache = null, cacheKey = '';
+  /* 絵の座標1が、実際の画素いくつぶんか。表に出ている大きさで決まる */
+  let PX = 1;
 
   function keyOf(g2, sel) {
-    return [document.body.getAttribute('data-skin'), sel || '', g2.offseason ? 'off' : '',
+    return [PX.toFixed(3), document.body.getAttribute('data-skin'), sel || '', g2.offseason ? 'off' : '',
             Math.floor(g2.fans), g2.season, g2.titles.teams, g2.titles.drivers, g2.color,
             PLOTS.map(p => g2.facilities[p.key]).join('-')].join('|');
   }
@@ -20577,9 +20715,8 @@ GP.base = (function () {
   function scene(g2, sel) {
     const k = keyOf(g2, sel);
     if (cache && cacheKey === k) return cache;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    render(c, g2, sel);
+    const c = GP.gfx.sheet(W, H, PX);
+    render(c, g2, sel, true);
     cache = c; cacheKey = k;
     return cache;
   }
@@ -20588,23 +20725,27 @@ GP.base = (function () {
 
   /* 背景＋歩いている人を、表の画面へ描く */
   function drawWith(cv, g2, sel, actor) {
+    PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
     out.drawImage(scene(g2, sel), 0, 0);
-    if (actor) drawActor(out, actor);
+    if (actor) { GP.gfx.begin(out, PX); drawActor(out, actor); }
   }
 
-  function render(cv, g2, sel) {
+  function render(cv, g2, sel, onSheet) {
     dusk = document.body.getAttribute('data-skin') === 'hd';
     off = !!g2.offseason;
+    /* 表の canvas に直に描くときは、ここで裏の大きさを合わせる。
+       下敷き（キャッシュ）へ描くときは、もう合わせてある      */
+    if (!onSheet) PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     // 夕景では、いったん裏画面に描いてから光と色を乗せる
-    if (dusk) GP.fx.init(W, H);
+    if (dusk) GP.fx.init(W * PX, H * PX);
     const ctx = dusk ? GP.fx.begin() : out;
-    ctx.imageSmoothingEnabled = false;
+    GP.gfx.begin(ctx, PX);
+    if (!dusk) ctx.clearRect(0, 0, W, H);
     hitBoxes = [];
     const D = GP.data;
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 7 + g2.titles.teams * 13);
@@ -21006,14 +21147,14 @@ GP.base = (function () {
     if (GP.fx.supportsBlur()) {
       const sil = layer();
       sil.g.filter = 'brightness(0)';
-      sil.g.drawImage(bl.c, 0, 0);
+      sil.g.drawImage(bl.c, 0, 0, W, H);
       sil.g.filter = 'none';
       ctx.save();
       ctx.globalAlpha = 0.11;
-      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1);
+      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1, W, H);
       ctx.restore();
     }
-    ctx.drawImage(bl.c, 0, 0);
+    ctx.drawImage(bl.c, 0, 0, W, H);
 
     // 夕暮れの空気。地平線あたりに橙、手前に紫を落とす
     const air = ctx.createLinearGradient(0, 60, 0, H);
@@ -34996,22 +35137,114 @@ GP.interior = (function () {
     const walk = opt.walk ? Math.sin(phase * 0.7 + T * 0.9) * opt.walk : 0;
     x += walk;
     const arm = Math.sin(ph * 1.7) * 2.2;
-    g.fillStyle = 'rgba(0,0,0,.26)'; g.fillRect(x - 4, y + 1, 8, 2);
+    const skin = opt.skin || '#e8b98e';
+    const hair = opt.hair || '#3a2718';
+    GP.gfx.shadow(g, x, y + 2, 11, 0.30);
+    // 体。輪郭で締めてから、上に光、下に影
+    g.fillStyle = mix(col, -0.42); g.fillRect(x - 5, y - 14 + bob, 10, 15);
     g.fillStyle = mix(col, -0.20); g.fillRect(x - 4, y - 13 + bob, 8, 13);
     g.fillStyle = col;             g.fillRect(x - 4, y - 13 + bob, 8, 5);
+    g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x - 4, y - 13 + bob, 8, 1.4);
+    g.fillStyle = 'rgba(0,0,0,.20)';       g.fillRect(x - 4, y - 3 + bob, 8, 3);
     // 腕。持ち場では叩き、歩いているときは振る
-    g.fillStyle = mix(col, -0.30);
-    g.fillRect(x + 3, y - 11 + bob + (opt.walk ? arm * 0.5 : arm), 3, 5);
-    g.fillStyle = opt.skin || '#e8b98e'; g.fillRect(x - 3, y - 19 + bob, 6, 6);   // 顔
-    g.fillStyle = opt.hair || '#3a2718'; g.fillRect(x - 3, y - 20 + bob, 6, 3);   // 髪
+    g.fillStyle = mix(col, -0.34);
+    g.fillRect(x + 3, y - 11 + bob + (opt.walk ? arm * 0.5 : arm), 3.4, 5);
+    // 顔。輪郭・肌・頬の影、そして髪
+    g.fillStyle = 'rgba(30,18,10,.55)'; g.fillRect(x - 4, y - 20.4 + bob, 8, 8);
+    g.fillStyle = skin;                 g.fillRect(x - 3, y - 19 + bob, 6, 6);
+    g.fillStyle = 'rgba(0,0,0,.14)';    g.fillRect(x + 1, y - 19 + bob, 2, 6);
+    g.fillStyle = hair;                 g.fillRect(x - 3, y - 20 + bob, 6, 3);
+    g.fillStyle = GP.gfx.shade(hair, 0.10); g.fillRect(x - 3, y - 20 + bob, 6, 1);
+    // 目。1画素でも、あるとないとで顔が違う
+    g.fillStyle = 'rgba(28,18,12,.85)';
+    g.fillRect(x - 2, y - 16.4 + bob, 1.2, 1.6);
+    g.fillRect(x + 0.8, y - 16.4 + bob, 1.2, 1.6);
     if (opt.name) {
-      g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
+      g.font = 'bold ' + GP.gfx.fontAt(7, PX, 9).toFixed(2) + 'px sans-serif';
+      g.textAlign = 'center';
       g.fillStyle = 'rgba(16,10,6,.55)';
       const w = g.measureText(opt.name).width + 6;
       g.fillRect(x - w / 2, y - 31 + bob, w, 9);
       g.fillStyle = '#ffeec4'; g.fillText(opt.name, x, y - 24 + bob);
       g.textAlign = 'left';
     }
+  }
+
+  /* ---- 横から見たマシン ----
+     赤い板を置いただけでは車に見えない。
+     鼻から後ろへ、低い→高い→低い の線を作り、
+     前後に車輪、後ろに翼、真ん中にコクピットの穴を置く       */
+  function carSide(g, x, fy, w, col) {
+    const wr = w * 0.105;                    // 車輪の半径。ここを基準に全部決める
+    const line = GP.gfx.shade(col, -0.36);
+    const dark = GP.gfx.shade(col, -0.18);
+    GP.gfx.shadow(g, x + w * 0.5, fy, w * 0.98, 0.30);
+
+    // 後ろの翼。胴より先に置いて、後ろにあることを見せる
+    g.fillStyle = GP.gfx.shade(col, -0.34);
+    g.fillRect(x + w * 0.845, fy - wr * 2.60, w * 0.045, wr * 1.50);       // 支柱
+    g.fillStyle = '#23262e';
+    g.fillRect(x + w * 0.775, fy - wr * 2.78, w * 0.175, wr * 0.30);       // 翼板
+    g.fillStyle = col;
+    g.fillRect(x + w * 0.785, fy - wr * 2.74, w * 0.155, wr * 0.12);
+    g.fillStyle = '#2b2e36';
+    g.fillRect(x + w * 0.935, fy - wr * 2.86, w * 0.024, wr * 1.05);       // 翼端板
+
+    // 胴。鼻先は低く細く、コクピットで高く、後ろへなだらかに落ちる
+    const shape = (o, fill) => {
+      g.fillStyle = fill;
+      g.beginPath();
+      g.moveTo(x + w * 0.015 - o, fy - wr * 0.78);
+      g.lineTo(x + w * 0.22,      fy - wr * 1.05 - o);
+      g.lineTo(x + w * 0.34,      fy - wr * 1.72 - o);
+      g.lineTo(x + w * 0.44,      fy - wr * 2.02 - o);
+      g.lineTo(x + w * 0.60,      fy - wr * 2.02 - o);
+      g.lineTo(x + w * 0.71,      fy - wr * 1.52 - o);
+      g.lineTo(x + w * 0.93 + o,  fy - wr * 1.18 - o);
+      g.lineTo(x + w * 0.93 + o,  fy - wr * 0.42 + o);
+      g.lineTo(x + w * 0.015 - o, fy - wr * 0.42 + o);
+      g.closePath(); g.fill();
+    };
+    shape(1.3, line);
+    shape(0, col);
+    // 上面の光と、下面の影
+    g.fillStyle = 'rgba(255,255,255,.24)';
+    g.fillRect(x + w * 0.44, fy - wr * 1.99, w * 0.16, wr * 0.22);
+    g.fillStyle = 'rgba(0,0,0,.24)';
+    g.fillRect(x + w * 0.05, fy - wr * 0.62, w * 0.86, wr * 0.20);
+    // サイドポッド
+    g.fillStyle = dark;
+    g.fillRect(x + w * 0.47, fy - wr * 1.48, w * 0.24, wr * 1.00);
+    g.fillStyle = 'rgba(0,0,0,.30)';
+    g.fillRect(x + w * 0.47, fy - wr * 1.42, w * 0.05, wr * 0.55);         // 空気取り入れ口
+    // コクピットと、その後ろのロールフープ
+    g.fillStyle = '#15161b';
+    g.fillRect(x + w * 0.42, fy - wr * 1.98, w * 0.13, wr * 0.62);
+    g.fillStyle = line;
+    g.fillRect(x + w * 0.555, fy - wr * 2.62, w * 0.055, wr * 0.64);
+    g.fillStyle = col;
+    g.fillRect(x + w * 0.565, fy - wr * 2.58, w * 0.035, wr * 0.55);
+    // 前の翼
+    g.fillStyle = '#23262e';
+    g.fillRect(x - w * 0.03, fy - wr * 0.44, w * 0.17, wr * 0.30);
+    g.fillRect(x - w * 0.045, fy - wr * 0.72, w * 0.022, wr * 0.86);       // 翼端板
+    g.fillStyle = col;
+    g.fillRect(x - w * 0.02, fy - wr * 0.40, w * 0.14, wr * 0.11);
+
+    // 車輪。胴より手前に置く。F1は車輪が胴より高く出ている
+    const wheel = (wx) => {
+      g.fillStyle = '#0d0e12';
+      g.beginPath(); g.arc(wx, fy - wr, wr, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#23262d';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.86, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#9aa3ad';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.40, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#5c646e';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.18, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.16)';                                // 上から当たる光
+      g.beginPath(); g.arc(wx - wr * 0.18, fy - wr * 1.42, wr * 0.30, 0, Math.PI * 2); g.fill();
+    };
+    wheel(x + w * 0.175); wheel(x + w * 0.795);
   }
 
   /* 部屋の枠。レベルが上がるほど天井が高く、明かりが増える */
@@ -35099,8 +35332,8 @@ GP.interior = (function () {
       const n = Math.min(5, 1 + Math.floor(lv / 2.2));
       for (let i = 0; i < n; i++) {                     // 部品棚
         const x = 14 + i * 42;
-        g.fillStyle = '#4a4034'; g.fillRect(x, fy - 46, 34, 46);
-        g.fillStyle = '#5e5344'; g.fillRect(x + 1, fy - 45, 32, 44);
+        GP.gfx.shadow(g, x + 17, fy + 1, 38, 0.24);
+        GP.gfx.prop(g, x, fy - 46, 34, 46, '#5e5344');
         for (let r = 0; r < 3; r++) {
           g.fillStyle = '#3a3229'; g.fillRect(x + 2, fy - 42 + r * 14, 30, 2);
           for (let c = 0; c < 3; c++) {
@@ -35112,15 +35345,10 @@ GP.interior = (function () {
       }
       // 組み立て中のマシン
       const cx = W - 150, cy = fy - 8;
-      g.fillStyle = '#3a3d46'; g.fillRect(cx - 4, cy - 4, 118, 6);          // 作業台
+      GP.gfx.prop(g, cx - 4, cy - 4, 118, 6, '#3a3d46');                   // 作業台
+      g.fillStyle = '#2b2e36';
       g.fillRect(cx + 4, cy + 2, 6, 6); g.fillRect(cx + 96, cy + 2, 6, 6);
-      g.fillStyle = mix(col, -0.18); g.fillRect(cx + 10, cy - 20, 86, 16);
-      g.fillStyle = col; g.fillRect(cx + 14, cy - 20, 78, 12);
-      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx + 14, cy - 20, 78, 3);
-      g.fillStyle = '#17181c';
-      g.fillRect(cx + 16, cy - 10, 14, 8); g.fillRect(cx + 76, cy - 10, 14, 8);
-      g.fillStyle = '#2b2e36'; g.fillRect(cx + 4, cy - 24, 14, 4);          // ウイング
-      g.fillRect(cx + 92, cy - 26, 16, 5);
+      carSide(g, cx + 6, cy - 4, 100, col);
       if (lv >= 5) {                                                        // ロボットアーム
         g.fillStyle = '#f0a020'; g.fillRect(cx + 44, fy - 74, 6, 30);
         g.fillRect(cx + 44, fy - 76, 26, 6);
@@ -35265,13 +35493,10 @@ GP.interior = (function () {
     /* ピット設備：ジャッキに載ったマシンと工具棚 */
     pit: function (g, lv, col, fy, rnd) {
       const cx = 150, cy = fy - 16;
-      g.fillStyle = '#3a3d46'; g.fillRect(cx - 66, cy + 8, 132, 8);          // ジャッキ
+      GP.gfx.prop(g, cx - 66, cy + 8, 132, 8, '#3a3d46');                   // ジャッキ
+      g.fillStyle = '#2b2e36';
       g.fillRect(cx - 58, cy + 2, 10, 8); g.fillRect(cx + 48, cy + 2, 10, 8);
-      g.fillStyle = mix(col, -0.18); g.fillRect(cx - 56, cy - 16, 112, 18);
-      g.fillStyle = col; g.fillRect(cx - 52, cy - 16, 104, 13);
-      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx - 52, cy - 16, 104, 3);
-      g.fillStyle = '#2b2e36'; g.fillRect(cx - 66, cy - 20, 16, 5);
-      g.fillRect(cx + 50, cy - 22, 18, 6);
+      carSide(g, cx - 60, cy + 8, 120, col);
       // 外したタイヤ
       for (let i = 0; i < 4; i++) {
         const x = cx - 40 + i * 26;
@@ -35282,8 +35507,8 @@ GP.interior = (function () {
       const cab = Math.min(4, 1 + Math.floor(lv / 2.6));
       for (let i = 0; i < cab; i++) {
         const x = W - 40 - i * 46;
-        g.fillStyle = '#241a10'; g.fillRect(x - 1, fy - 43, 38, 43);
-        g.fillStyle = mix(col, -0.05); g.fillRect(x, fy - 42, 36, 42);
+        GP.gfx.shadow(g, x + 18, fy + 1, 40, 0.24);
+        GP.gfx.prop(g, x, fy - 42, 36, 42, mix(col, -0.05));
         for (let r = 0; r < 4; r++) {
           g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(x + 2, fy - 38 + r * 10, 32, 2);
           g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(x + 14, fy - 35 + r * 10, 8, 2);
@@ -35322,11 +35547,13 @@ GP.interior = (function () {
      貼る（2倍の寄り）。切り取る位置はゆっくり左右に流して、
      見ているうちに部屋のぜんぶが通り過ぎるようにする        */
   const CAM = { w: 307, h: 112, mid: 106, amp: 106, speed: 0.15 };
+  /* 絵の座標1が、実際の画素いくつぶんか。
+     部屋は「切り出した窓」のほうが表に出るので、倍率は窓を基準に決める */
+  let PX = 1;
   let buf = null, bctx = null;
-  function getBuf() {
-    if (!buf) {
-      buf = document.createElement('canvas');
-      buf.width = W; buf.height = H;
+  function getBuf(k) {
+    if (!buf || buf.width !== Math.round(W * k)) {
+      buf = GP.gfx.sheet(W, H, k);
       bctx = buf.getContext('2d');
     }
     return bctx;
@@ -35337,14 +35564,14 @@ GP.interior = (function () {
     const dusk = document.body.getAttribute('data-skin') === 'hd';
     const lv = Math.max(1, Math.min(10, (g2.facilities && g2.facilities[key]) || 1));
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
-    const base = getBuf();
-    base.imageSmoothingEnabled = false;
-    base.setTransform(1, 0, 0, 1, 0, 0);
+    // 表に出るのは切り出した窓のほう。そこに実画素を合わせる
+    PX = GP.gfx.fit(cv, CAM.w, CAM.h, { max: 5 });
+    const base = getBuf(PX);
+    GP.gfx.begin(base, PX);
     base.clearRect(0, 0, W, H);
-    if (dusk) GP.fx.init(W, H);
+    if (dusk) GP.fx.init(W * PX, H * PX);
     const g = dusk ? GP.fx.begin() : base;
-    g.imageSmoothingEnabled = false;
+    GP.gfx.begin(g, PX);
     const rnd = seeded(lv * 31 + key.length * 7);
     const col = g2.color || '#e04a3f';
 
@@ -35378,7 +35605,8 @@ GP.interior = (function () {
     }
 
     // レベルと、いま何人いるか
-    g.font = 'bold 10px sans-serif'; g.textAlign = 'left';
+    g.font = 'bold ' + GP.gfx.fontAt(10, PX, 10).toFixed(2) + 'px sans-serif';
+    g.textAlign = 'left';
     const tag = 'Lv.' + lv + ' / 10' + (crew.length ? '　👥' + crew.length : '');
     const tw = g.measureText(tag).width + 10;
     g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, tw, 14);
@@ -35388,12 +35616,15 @@ GP.interior = (function () {
        人も機材も見えない。にじみを強めて、四隅の落としを弱める */
     if (dusk) GP.fx.composite(base, { dof: 0, bloom: 1.25, warm: 1.0, vignette: 0.45, night: true });
 
-    // 切り出して貼る。横にゆっくり流す
-    const sx = Math.round(CAM.mid + Math.sin(T * CAM.speed) * CAM.amp - CAM.w / 2);
+    // 切り出して貼る。横にゆっくり流す（実画素で1対1になるように）
+    const sx = Math.max(0, Math.min(W - CAM.w,
+      Math.round(CAM.mid + Math.sin(T * CAM.speed) * CAM.amp - CAM.w / 2)));
     const sy = H - CAM.h;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
-    out.drawImage(buf, Math.max(0, Math.min(W - CAM.w, sx)), sy, CAM.w, CAM.h, 0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
+    out.drawImage(buf, Math.round(sx * PX), Math.round(sy * PX),
+                  cv.width, cv.height, 0, 0, cv.width, cv.height);
   }
 
   /* ---- 動かす ----

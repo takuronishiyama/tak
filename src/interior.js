@@ -37,22 +37,114 @@ GP.interior = (function () {
     const walk = opt.walk ? Math.sin(phase * 0.7 + T * 0.9) * opt.walk : 0;
     x += walk;
     const arm = Math.sin(ph * 1.7) * 2.2;
-    g.fillStyle = 'rgba(0,0,0,.26)'; g.fillRect(x - 4, y + 1, 8, 2);
+    const skin = opt.skin || '#e8b98e';
+    const hair = opt.hair || '#3a2718';
+    GP.gfx.shadow(g, x, y + 2, 11, 0.30);
+    // 体。輪郭で締めてから、上に光、下に影
+    g.fillStyle = mix(col, -0.42); g.fillRect(x - 5, y - 14 + bob, 10, 15);
     g.fillStyle = mix(col, -0.20); g.fillRect(x - 4, y - 13 + bob, 8, 13);
     g.fillStyle = col;             g.fillRect(x - 4, y - 13 + bob, 8, 5);
+    g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x - 4, y - 13 + bob, 8, 1.4);
+    g.fillStyle = 'rgba(0,0,0,.20)';       g.fillRect(x - 4, y - 3 + bob, 8, 3);
     // 腕。持ち場では叩き、歩いているときは振る
-    g.fillStyle = mix(col, -0.30);
-    g.fillRect(x + 3, y - 11 + bob + (opt.walk ? arm * 0.5 : arm), 3, 5);
-    g.fillStyle = opt.skin || '#e8b98e'; g.fillRect(x - 3, y - 19 + bob, 6, 6);   // 顔
-    g.fillStyle = opt.hair || '#3a2718'; g.fillRect(x - 3, y - 20 + bob, 6, 3);   // 髪
+    g.fillStyle = mix(col, -0.34);
+    g.fillRect(x + 3, y - 11 + bob + (opt.walk ? arm * 0.5 : arm), 3.4, 5);
+    // 顔。輪郭・肌・頬の影、そして髪
+    g.fillStyle = 'rgba(30,18,10,.55)'; g.fillRect(x - 4, y - 20.4 + bob, 8, 8);
+    g.fillStyle = skin;                 g.fillRect(x - 3, y - 19 + bob, 6, 6);
+    g.fillStyle = 'rgba(0,0,0,.14)';    g.fillRect(x + 1, y - 19 + bob, 2, 6);
+    g.fillStyle = hair;                 g.fillRect(x - 3, y - 20 + bob, 6, 3);
+    g.fillStyle = GP.gfx.shade(hair, 0.10); g.fillRect(x - 3, y - 20 + bob, 6, 1);
+    // 目。1画素でも、あるとないとで顔が違う
+    g.fillStyle = 'rgba(28,18,12,.85)';
+    g.fillRect(x - 2, y - 16.4 + bob, 1.2, 1.6);
+    g.fillRect(x + 0.8, y - 16.4 + bob, 1.2, 1.6);
     if (opt.name) {
-      g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
+      g.font = 'bold ' + GP.gfx.fontAt(7, PX, 9).toFixed(2) + 'px sans-serif';
+      g.textAlign = 'center';
       g.fillStyle = 'rgba(16,10,6,.55)';
       const w = g.measureText(opt.name).width + 6;
       g.fillRect(x - w / 2, y - 31 + bob, w, 9);
       g.fillStyle = '#ffeec4'; g.fillText(opt.name, x, y - 24 + bob);
       g.textAlign = 'left';
     }
+  }
+
+  /* ---- 横から見たマシン ----
+     赤い板を置いただけでは車に見えない。
+     鼻から後ろへ、低い→高い→低い の線を作り、
+     前後に車輪、後ろに翼、真ん中にコクピットの穴を置く       */
+  function carSide(g, x, fy, w, col) {
+    const wr = w * 0.105;                    // 車輪の半径。ここを基準に全部決める
+    const line = GP.gfx.shade(col, -0.36);
+    const dark = GP.gfx.shade(col, -0.18);
+    GP.gfx.shadow(g, x + w * 0.5, fy, w * 0.98, 0.30);
+
+    // 後ろの翼。胴より先に置いて、後ろにあることを見せる
+    g.fillStyle = GP.gfx.shade(col, -0.34);
+    g.fillRect(x + w * 0.845, fy - wr * 2.60, w * 0.045, wr * 1.50);       // 支柱
+    g.fillStyle = '#23262e';
+    g.fillRect(x + w * 0.775, fy - wr * 2.78, w * 0.175, wr * 0.30);       // 翼板
+    g.fillStyle = col;
+    g.fillRect(x + w * 0.785, fy - wr * 2.74, w * 0.155, wr * 0.12);
+    g.fillStyle = '#2b2e36';
+    g.fillRect(x + w * 0.935, fy - wr * 2.86, w * 0.024, wr * 1.05);       // 翼端板
+
+    // 胴。鼻先は低く細く、コクピットで高く、後ろへなだらかに落ちる
+    const shape = (o, fill) => {
+      g.fillStyle = fill;
+      g.beginPath();
+      g.moveTo(x + w * 0.015 - o, fy - wr * 0.78);
+      g.lineTo(x + w * 0.22,      fy - wr * 1.05 - o);
+      g.lineTo(x + w * 0.34,      fy - wr * 1.72 - o);
+      g.lineTo(x + w * 0.44,      fy - wr * 2.02 - o);
+      g.lineTo(x + w * 0.60,      fy - wr * 2.02 - o);
+      g.lineTo(x + w * 0.71,      fy - wr * 1.52 - o);
+      g.lineTo(x + w * 0.93 + o,  fy - wr * 1.18 - o);
+      g.lineTo(x + w * 0.93 + o,  fy - wr * 0.42 + o);
+      g.lineTo(x + w * 0.015 - o, fy - wr * 0.42 + o);
+      g.closePath(); g.fill();
+    };
+    shape(1.3, line);
+    shape(0, col);
+    // 上面の光と、下面の影
+    g.fillStyle = 'rgba(255,255,255,.24)';
+    g.fillRect(x + w * 0.44, fy - wr * 1.99, w * 0.16, wr * 0.22);
+    g.fillStyle = 'rgba(0,0,0,.24)';
+    g.fillRect(x + w * 0.05, fy - wr * 0.62, w * 0.86, wr * 0.20);
+    // サイドポッド
+    g.fillStyle = dark;
+    g.fillRect(x + w * 0.47, fy - wr * 1.48, w * 0.24, wr * 1.00);
+    g.fillStyle = 'rgba(0,0,0,.30)';
+    g.fillRect(x + w * 0.47, fy - wr * 1.42, w * 0.05, wr * 0.55);         // 空気取り入れ口
+    // コクピットと、その後ろのロールフープ
+    g.fillStyle = '#15161b';
+    g.fillRect(x + w * 0.42, fy - wr * 1.98, w * 0.13, wr * 0.62);
+    g.fillStyle = line;
+    g.fillRect(x + w * 0.555, fy - wr * 2.62, w * 0.055, wr * 0.64);
+    g.fillStyle = col;
+    g.fillRect(x + w * 0.565, fy - wr * 2.58, w * 0.035, wr * 0.55);
+    // 前の翼
+    g.fillStyle = '#23262e';
+    g.fillRect(x - w * 0.03, fy - wr * 0.44, w * 0.17, wr * 0.30);
+    g.fillRect(x - w * 0.045, fy - wr * 0.72, w * 0.022, wr * 0.86);       // 翼端板
+    g.fillStyle = col;
+    g.fillRect(x - w * 0.02, fy - wr * 0.40, w * 0.14, wr * 0.11);
+
+    // 車輪。胴より手前に置く。F1は車輪が胴より高く出ている
+    const wheel = (wx) => {
+      g.fillStyle = '#0d0e12';
+      g.beginPath(); g.arc(wx, fy - wr, wr, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#23262d';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.86, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#9aa3ad';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.40, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#5c646e';
+      g.beginPath(); g.arc(wx, fy - wr, wr * 0.18, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.16)';                                // 上から当たる光
+      g.beginPath(); g.arc(wx - wr * 0.18, fy - wr * 1.42, wr * 0.30, 0, Math.PI * 2); g.fill();
+    };
+    wheel(x + w * 0.175); wheel(x + w * 0.795);
   }
 
   /* 部屋の枠。レベルが上がるほど天井が高く、明かりが増える */
@@ -140,8 +232,8 @@ GP.interior = (function () {
       const n = Math.min(5, 1 + Math.floor(lv / 2.2));
       for (let i = 0; i < n; i++) {                     // 部品棚
         const x = 14 + i * 42;
-        g.fillStyle = '#4a4034'; g.fillRect(x, fy - 46, 34, 46);
-        g.fillStyle = '#5e5344'; g.fillRect(x + 1, fy - 45, 32, 44);
+        GP.gfx.shadow(g, x + 17, fy + 1, 38, 0.24);
+        GP.gfx.prop(g, x, fy - 46, 34, 46, '#5e5344');
         for (let r = 0; r < 3; r++) {
           g.fillStyle = '#3a3229'; g.fillRect(x + 2, fy - 42 + r * 14, 30, 2);
           for (let c = 0; c < 3; c++) {
@@ -153,15 +245,10 @@ GP.interior = (function () {
       }
       // 組み立て中のマシン
       const cx = W - 150, cy = fy - 8;
-      g.fillStyle = '#3a3d46'; g.fillRect(cx - 4, cy - 4, 118, 6);          // 作業台
+      GP.gfx.prop(g, cx - 4, cy - 4, 118, 6, '#3a3d46');                   // 作業台
+      g.fillStyle = '#2b2e36';
       g.fillRect(cx + 4, cy + 2, 6, 6); g.fillRect(cx + 96, cy + 2, 6, 6);
-      g.fillStyle = mix(col, -0.18); g.fillRect(cx + 10, cy - 20, 86, 16);
-      g.fillStyle = col; g.fillRect(cx + 14, cy - 20, 78, 12);
-      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx + 14, cy - 20, 78, 3);
-      g.fillStyle = '#17181c';
-      g.fillRect(cx + 16, cy - 10, 14, 8); g.fillRect(cx + 76, cy - 10, 14, 8);
-      g.fillStyle = '#2b2e36'; g.fillRect(cx + 4, cy - 24, 14, 4);          // ウイング
-      g.fillRect(cx + 92, cy - 26, 16, 5);
+      carSide(g, cx + 6, cy - 4, 100, col);
       if (lv >= 5) {                                                        // ロボットアーム
         g.fillStyle = '#f0a020'; g.fillRect(cx + 44, fy - 74, 6, 30);
         g.fillRect(cx + 44, fy - 76, 26, 6);
@@ -306,13 +393,10 @@ GP.interior = (function () {
     /* ピット設備：ジャッキに載ったマシンと工具棚 */
     pit: function (g, lv, col, fy, rnd) {
       const cx = 150, cy = fy - 16;
-      g.fillStyle = '#3a3d46'; g.fillRect(cx - 66, cy + 8, 132, 8);          // ジャッキ
+      GP.gfx.prop(g, cx - 66, cy + 8, 132, 8, '#3a3d46');                   // ジャッキ
+      g.fillStyle = '#2b2e36';
       g.fillRect(cx - 58, cy + 2, 10, 8); g.fillRect(cx + 48, cy + 2, 10, 8);
-      g.fillStyle = mix(col, -0.18); g.fillRect(cx - 56, cy - 16, 112, 18);
-      g.fillStyle = col; g.fillRect(cx - 52, cy - 16, 104, 13);
-      g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(cx - 52, cy - 16, 104, 3);
-      g.fillStyle = '#2b2e36'; g.fillRect(cx - 66, cy - 20, 16, 5);
-      g.fillRect(cx + 50, cy - 22, 18, 6);
+      carSide(g, cx - 60, cy + 8, 120, col);
       // 外したタイヤ
       for (let i = 0; i < 4; i++) {
         const x = cx - 40 + i * 26;
@@ -323,8 +407,8 @@ GP.interior = (function () {
       const cab = Math.min(4, 1 + Math.floor(lv / 2.6));
       for (let i = 0; i < cab; i++) {
         const x = W - 40 - i * 46;
-        g.fillStyle = '#241a10'; g.fillRect(x - 1, fy - 43, 38, 43);
-        g.fillStyle = mix(col, -0.05); g.fillRect(x, fy - 42, 36, 42);
+        GP.gfx.shadow(g, x + 18, fy + 1, 40, 0.24);
+        GP.gfx.prop(g, x, fy - 42, 36, 42, mix(col, -0.05));
         for (let r = 0; r < 4; r++) {
           g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(x + 2, fy - 38 + r * 10, 32, 2);
           g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(x + 14, fy - 35 + r * 10, 8, 2);
@@ -363,11 +447,13 @@ GP.interior = (function () {
      貼る（2倍の寄り）。切り取る位置はゆっくり左右に流して、
      見ているうちに部屋のぜんぶが通り過ぎるようにする        */
   const CAM = { w: 307, h: 112, mid: 106, amp: 106, speed: 0.15 };
+  /* 絵の座標1が、実際の画素いくつぶんか。
+     部屋は「切り出した窓」のほうが表に出るので、倍率は窓を基準に決める */
+  let PX = 1;
   let buf = null, bctx = null;
-  function getBuf() {
-    if (!buf) {
-      buf = document.createElement('canvas');
-      buf.width = W; buf.height = H;
+  function getBuf(k) {
+    if (!buf || buf.width !== Math.round(W * k)) {
+      buf = GP.gfx.sheet(W, H, k);
       bctx = buf.getContext('2d');
     }
     return bctx;
@@ -378,14 +464,14 @@ GP.interior = (function () {
     const dusk = document.body.getAttribute('data-skin') === 'hd';
     const lv = Math.max(1, Math.min(10, (g2.facilities && g2.facilities[key]) || 1));
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
-    const base = getBuf();
-    base.imageSmoothingEnabled = false;
-    base.setTransform(1, 0, 0, 1, 0, 0);
+    // 表に出るのは切り出した窓のほう。そこに実画素を合わせる
+    PX = GP.gfx.fit(cv, CAM.w, CAM.h, { max: 5 });
+    const base = getBuf(PX);
+    GP.gfx.begin(base, PX);
     base.clearRect(0, 0, W, H);
-    if (dusk) GP.fx.init(W, H);
+    if (dusk) GP.fx.init(W * PX, H * PX);
     const g = dusk ? GP.fx.begin() : base;
-    g.imageSmoothingEnabled = false;
+    GP.gfx.begin(g, PX);
     const rnd = seeded(lv * 31 + key.length * 7);
     const col = g2.color || '#e04a3f';
 
@@ -419,7 +505,8 @@ GP.interior = (function () {
     }
 
     // レベルと、いま何人いるか
-    g.font = 'bold 10px sans-serif'; g.textAlign = 'left';
+    g.font = 'bold ' + GP.gfx.fontAt(10, PX, 10).toFixed(2) + 'px sans-serif';
+    g.textAlign = 'left';
     const tag = 'Lv.' + lv + ' / 10' + (crew.length ? '　👥' + crew.length : '');
     const tw = g.measureText(tag).width + 10;
     g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, tw, 14);
@@ -429,12 +516,15 @@ GP.interior = (function () {
        人も機材も見えない。にじみを強めて、四隅の落としを弱める */
     if (dusk) GP.fx.composite(base, { dof: 0, bloom: 1.25, warm: 1.0, vignette: 0.45, night: true });
 
-    // 切り出して貼る。横にゆっくり流す
-    const sx = Math.round(CAM.mid + Math.sin(T * CAM.speed) * CAM.amp - CAM.w / 2);
+    // 切り出して貼る。横にゆっくり流す（実画素で1対1になるように）
+    const sx = Math.max(0, Math.min(W - CAM.w,
+      Math.round(CAM.mid + Math.sin(T * CAM.speed) * CAM.amp - CAM.w / 2)));
     const sy = H - CAM.h;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
-    out.drawImage(buf, Math.max(0, Math.min(W - CAM.w, sx)), sy, CAM.w, CAM.h, 0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
+    out.drawImage(buf, Math.round(sx * PX), Math.round(sy * PX),
+                  cv.width, cv.height, 0, 0, cv.width, cv.height);
   }
 
   /* ---- 動かす ----

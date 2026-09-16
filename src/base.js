@@ -319,13 +319,18 @@ GP.base = (function () {
   }
 
   function sign(g, x, y, text, color) {
-    g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
-    const w = g.measureText(text).width + 10;
+    /* 絵ごと縮むと、看板の字がいちばん先につぶれる。
+       実際の画素で9pxを下回らないところで止める            */
+    const fs = GP.gfx.fontAt(9, PX, 9);
+    g.font = 'bold ' + fs.toFixed(2) + 'px sans-serif';
+    g.textAlign = 'center';
+    const w = g.measureText(text).width + fs * 1.1;
+    const h2 = fs * 1.25;
     // 端の施設でも文字が切れないよう、看板を画面内に収める
     x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, x));
-    g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, 13);
-    g.fillStyle = color; g.fillRect(x - w / 2, y, w, 11);
-    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + 8);
+    g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, h2 + 2);
+    g.fillStyle = color; g.fillRect(x - w / 2, y, w, h2);
+    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + h2 - fs * 0.28);
   }
 
   /* ---------- 各施設 ---------- */
@@ -566,11 +571,12 @@ GP.base = (function () {
   }
 
   /* ---------- 全体 ---------- */
+  /* 合成用の下敷き。裏の大きさは PX ぶん大きく取り、
+     描くときは絵の座標のままでいいように倍率を入れておく */
   function layer() {
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
+    const c = GP.gfx.sheet(W, H, PX);
     const g = c.getContext('2d');
-    g.imageSmoothingEnabled = false;
+    GP.gfx.begin(g, PX);
     return { c: c, g: g };
   }
 
@@ -578,9 +584,11 @@ GP.base = (function () {
      人が歩くと毎フレーム描き直すことになるが、背景は変わらない。
      一度描いたものを取っておき、キャラだけを上に重ねる。            */
   let cache = null, cacheKey = '';
+  /* 絵の座標1が、実際の画素いくつぶんか。表に出ている大きさで決まる */
+  let PX = 1;
 
   function keyOf(g2, sel) {
-    return [document.body.getAttribute('data-skin'), sel || '', g2.offseason ? 'off' : '',
+    return [PX.toFixed(3), document.body.getAttribute('data-skin'), sel || '', g2.offseason ? 'off' : '',
             Math.floor(g2.fans), g2.season, g2.titles.teams, g2.titles.drivers, g2.color,
             PLOTS.map(p => g2.facilities[p.key]).join('-')].join('|');
   }
@@ -589,9 +597,8 @@ GP.base = (function () {
   function scene(g2, sel) {
     const k = keyOf(g2, sel);
     if (cache && cacheKey === k) return cache;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    render(c, g2, sel);
+    const c = GP.gfx.sheet(W, H, PX);
+    render(c, g2, sel, true);
     cache = c; cacheKey = k;
     return cache;
   }
@@ -600,23 +607,27 @@ GP.base = (function () {
 
   /* 背景＋歩いている人を、表の画面へ描く */
   function drawWith(cv, g2, sel, actor) {
+    PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
     out.drawImage(scene(g2, sel), 0, 0);
-    if (actor) drawActor(out, actor);
+    if (actor) { GP.gfx.begin(out, PX); drawActor(out, actor); }
   }
 
-  function render(cv, g2, sel) {
+  function render(cv, g2, sel, onSheet) {
     dusk = document.body.getAttribute('data-skin') === 'hd';
     off = !!g2.offseason;
+    /* 表の canvas に直に描くときは、ここで裏の大きさを合わせる。
+       下敷き（キャッシュ）へ描くときは、もう合わせてある      */
+    if (!onSheet) PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     // 夕景では、いったん裏画面に描いてから光と色を乗せる
-    if (dusk) GP.fx.init(W, H);
+    if (dusk) GP.fx.init(W * PX, H * PX);
     const ctx = dusk ? GP.fx.begin() : out;
-    ctx.imageSmoothingEnabled = false;
+    GP.gfx.begin(ctx, PX);
+    if (!dusk) ctx.clearRect(0, 0, W, H);
     hitBoxes = [];
     const D = GP.data;
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 7 + g2.titles.teams * 13);
@@ -1018,14 +1029,14 @@ GP.base = (function () {
     if (GP.fx.supportsBlur()) {
       const sil = layer();
       sil.g.filter = 'brightness(0)';
-      sil.g.drawImage(bl.c, 0, 0);
+      sil.g.drawImage(bl.c, 0, 0, W, H);
       sil.g.filter = 'none';
       ctx.save();
       ctx.globalAlpha = 0.11;
-      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1);
+      for (let k = 1; k <= 7; k++) ctx.drawImage(sil.c, k * 2.8, k * 1.1, W, H);
       ctx.restore();
     }
-    ctx.drawImage(bl.c, 0, 0);
+    ctx.drawImage(bl.c, 0, 0, W, H);
 
     // 夕暮れの空気。地平線あたりに橙、手前に紫を落とす
     const air = ctx.createLinearGradient(0, 60, 0, H);
