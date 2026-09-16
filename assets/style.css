@@ -4034,6 +4034,10 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .ln-body > b{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
 .ln-lv{font-style:normal;font-size:10px;font-weight:700;background:var(--ink);
   color:#ffeec4;border-radius:4px;padding:1px 6px}
+/* いま扱える素材。ラインの段からそのまま決まるので、段の札の隣に置く */
+.ln-mat{font-style:normal;font-size:10px;font-weight:700;margin-left:4px;
+  border:1px solid var(--faceEdge,rgba(0,0,0,.25));border-radius:4px;padding:0 5px;
+  background:var(--paper2);color:var(--faceSub)}
 .ln-body small{font-size:10px;line-height:1.45}
 .ln-eff{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.5}
 .ln-tag{font-style:normal;font-size:9px;background:rgba(0,0,0,.10);

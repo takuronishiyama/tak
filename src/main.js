@@ -477,7 +477,8 @@ window.GP = window.GP || {};
         const y = g.youth[0]; y.exp = (y.exp || 0) + 40;
         return '🎓 ' + y.name + ' が下部カテゴリで表彰台に乗った'; } },
     { p: 0.02, run: () => { const c = S.pick(D.PART_CATS);
-        S.addMatPoint(g, c.key, S.rint(4, 9));
+        // ラインの勘所が1回ぶん進む（作らずに、見て覚えた）
+        S.addLineMade(g, c.key);
         return '🧪 ' + c.name + 'の作りかたで、ひとつ勘所が見えた'; } },
     { p: 0.02, run: () => { const m = S.rint(500, 1800); g.funds -= m;
         return '⚖️ 車検で細かい指摘を受け、直しに費用がかかった… -' + money(m) + '万'; } }

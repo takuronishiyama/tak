@@ -496,9 +496,8 @@ GP.state = (function () {
 
   function rollQuality(g, catKey) {
     const Q = D.QUAL;
-    const m = D.MATERIALS[matOf(g, groupOfPart(catKey))] || D.MATERIALS[0];
     const dz = designPower(g) + (g.designEdge || 0) * 1.4;
-    const base = m.mid
+    const base = Q.base
                + workshopOf(g).rar * Q.rig
                + dz * Q.eng
                // 作り慣れたラインは、同じ図面でも良いものを出す
@@ -558,39 +557,16 @@ GP.state = (function () {
     return t;
   }
 
-  /* ---------- 扇（グループ）と素材 ---------- */
+  /* ---------- 扇（グループ） ---------- */
   function groupOfPart(catKey) {
     const gr = D.PART_GROUPS.filter(x => x.parts.indexOf(catKey) >= 0)[0];
     return gr ? gr.key : D.PART_GROUPS[0].key;
   }
-  function matOf(g2, groupKey) {
-    return clamp(Math.round(((g2 && g2.mat) || {})[groupKey] || 0),
-                 0, D.MATERIALS.length - 1);
+  /* 何で作れるかは、そのラインの段がそのまま決める（見た目の名前だけ） */
+  function matOfCat(g2, catKey) {
+    return clamp(lineLv(g2, catKey), 0, D.MATERIALS.length - 1);
   }
-  function matDef(g2, groupKey) { return D.MATERIALS[matOf(g2, groupKey)]; }
-  function matNext(g2, groupKey) {
-    const n = matOf(g2, groupKey);
-    return n + 1 < D.MATERIALS.length ? D.MATERIALS[n + 1] : null;
-  }
-  function matPoints(g2, groupKey) {
-    return Math.round(((g2 && g2.matP) || {})[groupKey] || 0);
-  }
-  /* パーツを作る／煮詰めるたびに、その扇へ貯まる。
-     作った経験がそのまま「次の素材を扱えるかどうか」になる */
-  function addMatPoint(g2, catKey, n) {
-    if (!g2.matP) g2.matP = {};
-    const k = groupOfPart(catKey);
-    g2.matP[k] = (g2.matP[k] || 0) + n;
-  }
-  /* 素材を一段上げる。足りていれば true */
-  function matUp(g2, groupKey) {
-    const nx = matNext(g2, groupKey);
-    if (!nx || matPoints(g2, groupKey) < nx.cost) return null;
-    if (!g2.mat) g2.mat = {};
-    g2.matP[groupKey] -= nx.cost;
-    g2.mat[groupKey] = matOf(g2, groupKey) + 1;
-    return nx;
-  }
+  function matDefCat(g2, catKey) { return D.MATERIALS[matOfCat(g2, catKey)]; }
 
   /* ---------- インテグレート（扇の中） ----------
      その扇の作り込み（剛性・軽量化…）が、上限に対してどこまで来ているか。
@@ -1089,7 +1065,6 @@ GP.state = (function () {
       toNext += share * fc.next;
       if (add <= 0.001) return;
       x.p.power = Math.round((x.p.power + add) * 10) / 10;
-      addMatPoint(g2, x.c.key, D.MAT.perImprove * 0.5);
       out.push({ key: x.c.key, name: x.c.name, icon: x.c.icon,
                  gain: Math.round(add * 10) / 10,
                  capped: x.p.power >= x.cap - 0.05 });
@@ -1541,7 +1516,7 @@ GP.state = (function () {
         legacy.up.push({ cat: c.name, from: oq, to: q2 });
       }
       g2.equipped[c.key] = makePart(c.key, 0, q2,
-        { power: 10 + carry + spare, mat: matOf(g2, groupOfPart(c.key)) });
+        { power: 10 + carry + spare, mat: matOfCat(g2, c.key) });
     });
     // 旧規則のパーツそのものは使えなくなる
     // （ここが inventory ではなく stock になっていて、保管しておけば
@@ -4258,8 +4233,6 @@ GP.state = (function () {
       spare: 0,             // 予備シャシーの数
       capLift: {},          // 研究で押し広げた、コンセプトの線（扇ごと）
       ideas: [],            // 抱えているひらめき（形にすると新しいパーツになる）
-      mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
-      matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
       log: [],
       flags: { firstWin: false, tutorial: true },
@@ -4267,7 +4240,6 @@ GP.state = (function () {
     };
     g.calendar = buildCalendar(g);
     g.prep = null; g.prepFor = '';
-    D.PART_GROUPS.forEach(gr => { g.mat[gr.key] = 0; g.matP[gr.key] = 0; });
     g.chassis = rollChassis(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1.0, { power: 10, cond: 92, traits: [] }); });
     g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
@@ -5105,12 +5077,24 @@ GP.state = (function () {
       }
       // 規則の読みかたは、途中から入れたぶんを引いておく
       if ((g.rivals || []).some(r => r.eraRoll == null)) rollEraFit(g);
-      if (!g.mat) g.mat = {};
-      if (!g.matP) g.matP = {};
-      D.PART_GROUPS.forEach(gr => {
-        if (g.mat[gr.key] == null) g.mat[gr.key] = 0;
-        if (g.matP[gr.key] == null) g.matP[gr.key] = 0;
-      });
+      /* 素材はラインの段へ吸収した。古いセーブが持っている
+         扇ごとの段と勘所は、もう読むところがないので捨てる。
+         代わりに、貯めていた勘所ぶんをラインの製作数へ振り替えて、
+         それまでの積み上げが無かったことにならないようにする      */
+      if (g.mat || g.matP) {
+        const NEED = D.LINE.need;
+        D.PART_GROUPS.forEach(gr => {
+          const step = Math.round(g.mat ? (g.mat[gr.key] || 0) : 0);
+          if (step <= 0) return;
+          // その扇のパーツそれぞれに、同じ段まで届くぶんの製作数を入れておく
+          gr.parts.forEach(ck => {
+            const want = NEED[Math.min(NEED.length - 1, step)] || 0;
+            if (!g.lines) g.lines = {};
+            if ((g.lines[ck] || 0) < want) g.lines[ck] = want;
+          });
+        });
+        delete g.mat; delete g.matP;
+      }
       // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
       if (g.equipped) {
         D.PART_CATS.forEach(c => {
@@ -5154,7 +5138,7 @@ GP.state = (function () {
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
-    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf, depotSetup,
+    matOfCat, matDefCat, integrateOf, depotSetup,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,

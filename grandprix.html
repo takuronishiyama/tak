@@ -4049,6 +4049,10 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .ln-body > b{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
 .ln-lv{font-style:normal;font-size:10px;font-weight:700;background:var(--ink);
   color:#ffeec4;border-radius:4px;padding:1px 6px}
+/* いま扱える素材。ラインの段からそのまま決まるので、段の札の隣に置く */
+.ln-mat{font-style:normal;font-size:10px;font-weight:700;margin-left:4px;
+  border:1px solid var(--faceEdge,rgba(0,0,0,.25));border-radius:4px;padding:0 5px;
+  background:var(--paper2);color:var(--faceSub)}
 .ln-body small{font-size:10px;line-height:1.45}
 .ln-eff{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.5}
 .ln-tag{font-style:normal;font-size:9px;background:rgba(0,0,0,.10);
@@ -5160,15 +5164,18 @@ GP.data = (function () {
   /* 品質の振れかた。
      rig  … 工作機械の世代ぶん   eng … 設計陣の腕ぶん
      spread … 運の幅（ここがあるから「当たりを引く」が起きる） */
-  const QUAL = { min: 0.74, max: 1.52, rig: 0.030, eng: 0.0014, spread: 0.13 };
+  const QUAL = { min: 0.74, max: 1.52, base: 0.94, rig: 0.030, eng: 0.0014, spread: 0.13 };
 
   /* ---------- 製造ライン ----------
      パーツの種類ごとに、それを削り出す一本のライン。
-     素材が「何で作るか」（扇ごと）を受け持つのに対して、
-     ラインは「どれだけ作り慣れているか」（パーツごと）を受け持つ。
-
      そこで作るほど勘所が溜まり、段が上がる。段が上がると
      出来上がりの底（品質）と、性能に乗る精度が上がり、費用も少し下がる。
+
+     以前はここに「素材」という別の軸が並んでいた。扇ごとに勘所を貯め、
+     溜まったぶんを手で一段上げる——やることはラインと同じ
+     （作り慣れるほど良いものが出る）なのに、画面もポイントも別だった。
+     素材はラインの段に吸収して、扱える素材は段からそのまま決まるようにした。
+     数字の重みも素材ぶんをこちらへ寄せてあるので、伸びの総量は変わらない。
      一点ものを気まぐれに作るより、同じところを作り続けたほうが
      良いものが出てくる——という、工場のあたりまえをそのまま入れてある。
 
@@ -5176,8 +5183,8 @@ GP.data = (function () {
   const LINE = {
     max: 5,
     need: [0, 3, 8, 16, 28],
-    qual: 0.032,     // 段ごとに、出来上がりの底がどれだけ上がるか
-    prec: 0.024,     // 段ごとに、性能へ乗る倍率
+    qual: 0.112,     // 段ごとに、出来上がりの底がどれだけ上がるか（旧 0.032 ＋ 素材ぶん）
+    prec: 0.1225,    // 段ごとに、性能へ乗る倍率（旧 0.024 ＋ 素材ぶん）
     cut:  0.05,      // 段ごとに、作る費用がどれだけ安くなるか
     names: ['間に合わせの台', '専用の治具', '一貫ライン', '無人ライン', '職人のライン'],
     icons: ['🪚', '🗜️', '🏭', '🤖', '🏅'],
@@ -5191,27 +5198,21 @@ GP.data = (function () {
   };
 
   /* ---------- 素材 ----------
-     扇（空気と足／骨と制動／動力）ごとに、いま何で作れるか。
-     パーツを作るたびにその扇へポイントが貯まり、
-     溜まったぶんをファクトリーで使うと、素材が一段上がる。
-     上がると、その扇で<b>これから作るパーツ</b>の質が底上げされる。
-     mid はその素材で作ったときの品質の真ん中で、そこから運で上下する。
-     すでに載っているパーツは作り直さないと変わらない。      */
+     何で作れるかは、そのラインの段がそのまま決めている。
+     手で上げるものではなくなったので、ここにあるのは見た目の名前だけ。
+     （段0＝スチール …… 段4＝複合材）                       */
   const MATERIALS = [
-    { n: 0, name: 'スチール',   icon: '🔩', mid: 0.94, mul: 1.00, cost: 0,
+    { n: 0, name: 'スチール',   icon: '🔩',
       note: '重いが安い。曲げも溶接も、どこの町工場でもできる' },
-    { n: 1, name: 'アルミ合金', icon: '🥈', mid: 1.02, mul: 1.07, cost: 70,
+    { n: 1, name: 'アルミ合金', icon: '🥈',
       note: '同じ強さなら軽い。削りかたに癖があり、慣れが要る' },
-    { n: 2, name: 'チタン',     icon: '⚙️', mid: 1.10, mul: 1.15, cost: 170,
+    { n: 2, name: 'チタン',     icon: '⚙️',
       note: '強くて軽い。そのぶん刃物がすぐ駄目になる' },
-    { n: 3, name: 'カーボン',   icon: '🕸️', mid: 1.18, mul: 1.25, cost: 340,
+    { n: 3, name: 'カーボン',   icon: '🕸️',
       note: '積層の向きで性質が変わる。焼く釜と、焼ける人が要る' },
-    { n: 4, name: '複合材',     icon: '💠', mid: 1.26, mul: 1.36, cost: 560,
+    { n: 4, name: '複合材',     icon: '💠',
       note: '金属と樹脂を使い分ける。設計から作りかたまでが一続きになる' }
   ];
-  /* パーツを1つ作ると、その扇にこれだけ貯まる。
-     素材を1段上げるのに要るポイントは MATERIALS[n].cost   */
-  const MAT = { perDesign: 14, perImprove: 3 };
 
   /* ---------- 開発技術（タグ）----------
      以前は、パーツを作るたびに運で付いてくる「追加効果」だった。
@@ -8484,7 +8485,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, REG_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
            RACES, REGIONS, CALENDAR, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -9265,9 +9266,8 @@ GP.state = (function () {
 
   function rollQuality(g, catKey) {
     const Q = D.QUAL;
-    const m = D.MATERIALS[matOf(g, groupOfPart(catKey))] || D.MATERIALS[0];
     const dz = designPower(g) + (g.designEdge || 0) * 1.4;
-    const base = m.mid
+    const base = Q.base
                + workshopOf(g).rar * Q.rig
                + dz * Q.eng
                // 作り慣れたラインは、同じ図面でも良いものを出す
@@ -9327,39 +9327,16 @@ GP.state = (function () {
     return t;
   }
 
-  /* ---------- 扇（グループ）と素材 ---------- */
+  /* ---------- 扇（グループ） ---------- */
   function groupOfPart(catKey) {
     const gr = D.PART_GROUPS.filter(x => x.parts.indexOf(catKey) >= 0)[0];
     return gr ? gr.key : D.PART_GROUPS[0].key;
   }
-  function matOf(g2, groupKey) {
-    return clamp(Math.round(((g2 && g2.mat) || {})[groupKey] || 0),
-                 0, D.MATERIALS.length - 1);
+  /* 何で作れるかは、そのラインの段がそのまま決める（見た目の名前だけ） */
+  function matOfCat(g2, catKey) {
+    return clamp(lineLv(g2, catKey), 0, D.MATERIALS.length - 1);
   }
-  function matDef(g2, groupKey) { return D.MATERIALS[matOf(g2, groupKey)]; }
-  function matNext(g2, groupKey) {
-    const n = matOf(g2, groupKey);
-    return n + 1 < D.MATERIALS.length ? D.MATERIALS[n + 1] : null;
-  }
-  function matPoints(g2, groupKey) {
-    return Math.round(((g2 && g2.matP) || {})[groupKey] || 0);
-  }
-  /* パーツを作る／煮詰めるたびに、その扇へ貯まる。
-     作った経験がそのまま「次の素材を扱えるかどうか」になる */
-  function addMatPoint(g2, catKey, n) {
-    if (!g2.matP) g2.matP = {};
-    const k = groupOfPart(catKey);
-    g2.matP[k] = (g2.matP[k] || 0) + n;
-  }
-  /* 素材を一段上げる。足りていれば true */
-  function matUp(g2, groupKey) {
-    const nx = matNext(g2, groupKey);
-    if (!nx || matPoints(g2, groupKey) < nx.cost) return null;
-    if (!g2.mat) g2.mat = {};
-    g2.matP[groupKey] -= nx.cost;
-    g2.mat[groupKey] = matOf(g2, groupKey) + 1;
-    return nx;
-  }
+  function matDefCat(g2, catKey) { return D.MATERIALS[matOfCat(g2, catKey)]; }
 
   /* ---------- インテグレート（扇の中） ----------
      その扇の作り込み（剛性・軽量化…）が、上限に対してどこまで来ているか。
@@ -9858,7 +9835,6 @@ GP.state = (function () {
       toNext += share * fc.next;
       if (add <= 0.001) return;
       x.p.power = Math.round((x.p.power + add) * 10) / 10;
-      addMatPoint(g2, x.c.key, D.MAT.perImprove * 0.5);
       out.push({ key: x.c.key, name: x.c.name, icon: x.c.icon,
                  gain: Math.round(add * 10) / 10,
                  capped: x.p.power >= x.cap - 0.05 });
@@ -10310,7 +10286,7 @@ GP.state = (function () {
         legacy.up.push({ cat: c.name, from: oq, to: q2 });
       }
       g2.equipped[c.key] = makePart(c.key, 0, q2,
-        { power: 10 + carry + spare, mat: matOf(g2, groupOfPart(c.key)) });
+        { power: 10 + carry + spare, mat: matOfCat(g2, c.key) });
     });
     // 旧規則のパーツそのものは使えなくなる
     // （ここが inventory ではなく stock になっていて、保管しておけば
@@ -13027,8 +13003,6 @@ GP.state = (function () {
       spare: 0,             // 予備シャシーの数
       capLift: {},          // 研究で押し広げた、コンセプトの線（扇ごと）
       ideas: [],            // 抱えているひらめき（形にすると新しいパーツになる）
-      mat: {},              // 扇ごとの素材の段（スチール → アルミ → …）
-      matP: {},             // 扇ごとに貯まる勘所。素材を上げる元手になる
       standings: [], results: [],
       log: [],
       flags: { firstWin: false, tutorial: true },
@@ -13036,7 +13010,6 @@ GP.state = (function () {
     };
     g.calendar = buildCalendar(g);
     g.prep = null; g.prepFor = '';
-    D.PART_GROUPS.forEach(gr => { g.mat[gr.key] = 0; g.matP[gr.key] = 0; });
     g.chassis = rollChassis(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1.0, { power: 10, cond: 92, traits: [] }); });
     g.owner = makeOwner(null, pick(D.OWNER_PASTS).key);
@@ -13874,12 +13847,24 @@ GP.state = (function () {
       }
       // 規則の読みかたは、途中から入れたぶんを引いておく
       if ((g.rivals || []).some(r => r.eraRoll == null)) rollEraFit(g);
-      if (!g.mat) g.mat = {};
-      if (!g.matP) g.matP = {};
-      D.PART_GROUPS.forEach(gr => {
-        if (g.mat[gr.key] == null) g.mat[gr.key] = 0;
-        if (g.matP[gr.key] == null) g.matP[gr.key] = 0;
-      });
+      /* 素材はラインの段へ吸収した。古いセーブが持っている
+         扇ごとの段と勘所は、もう読むところがないので捨てる。
+         代わりに、貯めていた勘所ぶんをラインの製作数へ振り替えて、
+         それまでの積み上げが無かったことにならないようにする      */
+      if (g.mat || g.matP) {
+        const NEED = D.LINE.need;
+        D.PART_GROUPS.forEach(gr => {
+          const step = Math.round(g.mat ? (g.mat[gr.key] || 0) : 0);
+          if (step <= 0) return;
+          // その扇のパーツそれぞれに、同じ段まで届くぶんの製作数を入れておく
+          gr.parts.forEach(ck => {
+            const want = NEED[Math.min(NEED.length - 1, step)] || 0;
+            if (!g.lines) g.lines = {};
+            if ((g.lines[ck] || 0) < want) g.lines[ck] = want;
+          });
+        });
+        delete g.mat; delete g.matP;
+      }
       // あとから増えたパーツ区分は、いまのマシン世代の下限で作っておく
       if (g.equipped) {
         D.PART_CATS.forEach(c => {
@@ -13923,7 +13908,7 @@ GP.state = (function () {
     chassisStats, chassisOf, chassisTrait, rollChassis,
     spareOf, spareCost, buySpare, weekendHitOdds, rollWeekendHit, applyWeekendFix, crewBoost,
     partsLean, carDirection, meshScore, integrateRate,
-    matOf, matDef, matNext, matPoints, addMatPoint, matUp, integrateOf, depotSetup,
+    matOfCat, matDefCat, integrateOf, depotSetup,
     hasGear, gearList, buyGear, envScore, envTier,
     kitLv, kitOf, kitEff, kitList, buyKit,
     hasEstate, estateList, buyEstate, estateUpkeep, runKart, kartReward, kartRating, kartName,
@@ -23705,7 +23690,7 @@ GP.screens.dev = function (A) {
       /* 説明は1行に詰める。2行あると、スマホでは4枚目が画面の外に出た。
          役に立っているのは下の「いまの状態」の行のほうなので、そちらは残す */
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
-        'ひらめきを図面に落とし、素材と技術を積む', 'des', cst.des) +
+        'ひらめきを図面に落とし、チームの技術を積む', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
         '新しいパーツを作る（煮詰めるのは工房が毎週やっています）', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
@@ -23822,44 +23807,6 @@ GP.screens.dev = function (A) {
       '</p>';
   }
 
-  /* ---- 素材 ----
-     扇ごとに、いま何で作れるか。
-     パーツを作り、煮詰めるたびに、その扇に「勘所」が貯まる。
-     溜まったぶんを使うと素材が一段上がり、
-     以後その扇で<b>作るパーツ</b>の出来が底上げされる。
-     すでに載っているものは変わらない（作り直しが要る）        */
-  function matBoxHTML() {
-    let h = '<div class="sub">素材</div>' +
-      '<p class="desc">扇ごとに、いま何で作れるか。' +
-      '手を動かすほど勘所が貯まり、溜まったぶんで一段上げられます。' +
-      '上がるのは<b>これから作るパーツ</b>で、いま載っているものは変わりません。' +
-      U.helpLink('car') + '</p><div class="pick matpick">';
-    D.PART_GROUPS.forEach(gr => {
-      const now = S.matDef(g, gr.key);
-      const nx = S.matNext(g, gr.key);
-      const pt = S.matPoints(g, gr.key);
-      const ok = !!nx && pt >= nx.cost;
-      const pct = nx ? Math.min(100, Math.round(pt / nx.cost * 100)) : 100;
-      h += '<button class="pickbtn matrow" data-mat="' + gr.key + '"' +
-        (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + gr.color + '">' + gr.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(gr.name) +
-        '<em class="matnow">' + now.icon + ' ' + esc(now.name) + '</em></b>' +
-        '<small>' + esc(now.note) +
-        (nx
-          ? '<br><b>次は ' + nx.icon + ' ' + esc(nx.name) + '</b>' +
-            '（品質の真ん中が ' + now.mid.toFixed(2) + ' → ' + nx.mid.toFixed(2) +
-            '／作るときの性能 ×' + nx.mul.toFixed(2) + '）' +
-            '<span class="skbar"><i style="width:' + pct + '%;background:' + gr.color + '"></i></span>' +
-            '<span class="devnow">勘所 ' + pt + ' / ' + nx.cost + '</span>'
-          : '<br><b>これ以上の素材はありません</b>') +
-        '</small></span>' +
-        '<span class="pb-cost">' + (nx ? (ok ? '🔨 上げる' : 'あと ' + (nx.cost - pt)) : '—') +
-        '</span></button>';
-    });
-    return h + '</div>';
-  }
-
   /* 製造方針。週は進まない。どこの画面から触っても同じ挙動にする。
      after は、押したあとに開き直す先                           */
   function bindMfg(after) {
@@ -23875,24 +23822,6 @@ GP.screens.dev = function (A) {
       };
     });
   }
-  function bindMat() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mat]'), b => {
-      b.onclick = () => {
-        const k = b.dataset.mat;
-        const up = S.matUp(g, k);
-        if (!up) return;
-        const gr = D.PART_GROUPS.filter(x => x.key === k)[0];
-        GP.sound.play('levelup');
-        U.log(g, up.icon + ' ' + gr.name + ' を ' + up.name + 'で作れるようになった' +
-          '（これから作るパーツの出来が上がる）', 'good');
-        U.toast(up.icon + ' ' + gr.name + ' → ' + up.name + '！', 'good');
-        S.save(g);
-        render();
-        cmdDesign();
-      };
-    });
-  }
-
   /* ---- 速さの成り立ち ----
        （マシン本体 ＋ パーツ ＋ 作り込みの向き） × インテグレート率
      足し算と掛け算の順番が、そのままこのゲームの考え方になっている。
@@ -24023,7 +23952,7 @@ GP.screens.dev = function (A) {
     const it = Math.round(S.integrateRate(g).rate * 100);
     return {
       des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
-           (ideaN ? '' : '（いまは素材と技術を積む場所）'),
+           (ideaN ? '' : '（いまは技術を積む場所）'),
       shop: (capped
               ? '🔩 <b>' + capped + ' が器の上限に届いています</b>　'
               : '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>　') +
@@ -24428,7 +24357,7 @@ GP.screens.dev = function (A) {
       body += '<div class="regwarn">' +
         '<b>📜 今季が終わると、レギュレーションが変わります</b>' +
         '<small>いま積み上げているパーツと車体は、来季には<b>白紙に戻ります</b>。' +
-        '持ち越せるのは<b>チームのほう</b>——施設・人・技術・素材・設計の腕です。' +
+        '持ち越せるのは<b>チームのほう</b>——施設・人・技術・ラインの勘所・設計の腕です。' +
         'いま載っている個体の性能と、その個体の当たり（品質）は持ち越せません。<br>' +
         'ただし<b>「来季に回した開発」</b>だけは、そのまま新型の出発点になります。' +
         '今季を捨てて来季に振るなら、開発リソースの配分を「来季優先」寄りに。<br>' +
@@ -24492,7 +24421,7 @@ GP.screens.dev = function (A) {
   /* =======================================================
      🖊️ 設計室 ── 何を作るかを決める場所
 
-     ここでは車は1ミリも速くならない。決まるのは図面と素材と技術で、
+     ここでは車は1ミリも速くならない。決まるのは図面と技術で、
      それを形にするのは工房の仕事。決める場所と作る場所を分けてある。
      ======================================================= */
   function cmdDesign(tab) {
@@ -24504,13 +24433,12 @@ GP.screens.dev = function (A) {
     /* 抱えているひらめきが無いなら、空の棚を見せても仕方がない。
        自分でそのタブを選んだのでなければ、配分のほうを開く  */
     if (!tab && !ideaN && desTab === 'idea') desTab = 'plan';
-    /* 「素材と技術」の中に開発リソースの配分まで入れていたため、
-       そのタブを開くと配分が先に立って、素材と技術が下に沈んでいた。
-       性質のちがう3つなので、3つに割る                             */
+    /* 配分と技術は性質がちがうので、タブを分けてある。
+       素材は工房の製造ラインへ吸収したので、ここにはもう無い  */
     const DTABS = [
       ['idea', '💡', 'ひらめき',   ideaN ? String(ideaN) : ''],
       ['plan', '🌱', '配分と世代', ''],
-      ['base', '🧪', '素材と技術', '']
+      ['base', '📐', '技術',       '']
     ];
     let body =
       '<p class="desc">ここで決めるのは、<b>これから作るもの</b>と、' +
@@ -24542,9 +24470,6 @@ GP.screens.dev = function (A) {
       }
       // 今季と次のマシンへの振り分け、仕込み、世代の進み
       body += devHeadHTML();
-    } else {
-      // 素材と技術。すぐには速くならないが、あとで効く
-      body += matBoxHTML();
     }
 
     // ---- 技術開発（土台のタブ） ----
@@ -24619,7 +24544,6 @@ GP.screens.dev = function (A) {
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
     });
-    bindMat();
     bindAct('data-idea', id => doIdea(id));
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
@@ -25407,7 +25331,7 @@ GP.screens.dev = function (A) {
     p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
     g.inventory.push(p);
     S.guideMark(g, 'make');
-    S.addMatPoint(g, c.key, D.MAT.perDesign);
+    S.addLineMade(g, c.key);
     GP.sound.play('levelup');
     U.log(g, '💡 「' + it.name + '」を形にした！ ' +
       esc(p.name) + '（' + S.qualTier(q).name +
@@ -25431,25 +25355,21 @@ GP.screens.dev = function (A) {
 
     const hinted = (g.designEdge || 0) > 0;
     /* ---- 出来 ----
-       素材が底を決め、工作機械と設計陣がそこへ積み、最後に運が乗る。
+       ラインの段が底を決め、工作機械と設計陣がそこへ積み、最後に運が乗る。
        同じ図面でも毎回ちがう出来になるのは、この最後のひと振りのため */
     const quality = S.rollQuality(g, key);
     if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
     const ws = S.workshopOf(g);
-    const grp = S.groupOfPart(key);
-    const part = S.makePart(key, g.carGen, quality, { mat: S.matOf(g, grp) });
-    // 作れば作るほど、その扇の勘所が溜まる
-    S.addMatPoint(g, key, D.MAT.perDesign);
-    /* そして、そのパーツのラインそのものも作り慣れていく。
-       素材が「何で作るか」なら、こちらは「どれだけ作り慣れたか」 */
+    const part = S.makePart(key, g.carGen, quality, { mat: S.matOfCat(g, key) });
+    /* そのパーツのラインが作り慣れていく。
+       段が上がると、出来の底・性能の精度・費用・扱える素材が一緒に動く */
     const ln0 = S.lineOf(g, key);
     const ln = S.addLineMade(g, key);
     /* 同じ図面でも、どの機械で削ったかで出来が変わる。
        そしてその図面そのものの質が、基本設計能力で決まる。
        （人事の噛み合わせ × 開発責任者とコンセプトの相性）      */
     const dm = S.designMul(g);
-    const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
-    part.power = Math.round(part.power * ws.prec * ln0.prec * dm * mm * 10) / 10;
+    part.power = Math.round(part.power * ws.prec * ln0.prec * dm * 10) / 10;
     g.inventory.push(part);
     S.guideMark(g, 'make');
 
@@ -25485,11 +25405,9 @@ GP.screens.dev = function (A) {
     let h = '<div class="sub">🛠️ 製造ライン</div>' +
       '<p class="desc">パーツの種類ごとに、それを削り出すラインがあります。' +
       '<b>そこで作った本数だけ</b>段が上がり、出来上がりの底と精度が上がって、' +
-      '作る費用も下がります。<br>' +
-      '素材（設計室）が「<b>何で作るか</b>」なら、ラインは「<b>どれだけ作り慣れたか</b>」です。' +
-      'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。<br>' +
-      '上がりきると<b>品質の底 +0.13</b>と<b>精度 +10%</b>。' +
-      'この二つが掛かるので、出来上がりは<b>2割ほど</b>良くなり、費用は<b>2割</b>安くなります。</p>' +
+      '扱える素材も上がり、作る費用も下がります。<br>' +
+      'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。' +
+      '上がりきると<b>品質の底 +0.45</b>と<b>精度 +49%</b>。</p>' +
       '<div class="linelist">';
     D.PART_CATS.forEach(c => {
       const ln = S.lineOf(g, c.key);
@@ -25499,7 +25417,9 @@ GP.screens.dev = function (A) {
       h += '<div class="linerow">' +
         '<span class="ln-ic" style="background:' + c.color + '">' + U.partIcon(c.key, 24, 0) + '</span>' +
         '<span class="ln-body"><b>' + esc(c.name) +
-          '<em class="ln-lv">' + ln.icon + ' ' + esc(ln.name) + '</em></b>' +
+          '<em class="ln-lv">' + ln.icon + ' ' + esc(ln.name) + '</em>' +
+          '<em class="ln-mat">' + S.matDefCat(g, c.key).icon + ' ' +
+            esc(S.matDefCat(g, c.key).name) + '</em></b>' +
         '<small><em class="pnote">' + esc(ln.note) + '</em><br>' +
         '作った数 <b>' + ln.made + '</b>本　' +
         (ln.isTop ? '<b class="free">これ以上は上がりません</b>'
@@ -33558,7 +33478,7 @@ GP.screens.help = function (A) {
         ] },
         { h: '四つの場所と、三つの輪', p: [
           '車体の仕事は<b>場所で分かれています</b>。場所ひとつに仕事ひとつで、どれも1週ぶんです。',
-          '<b>🖊️ 設計室</b>＝<b>これから作るものと、チームの技術を決める</b>。ひらめきを図面に落とし、素材を選び、技術を積み上げます。技術はいまの車にもそのまま効きますが、<b>パーツ1点ずつには手を入れません</b>。',
+          '<b>🖊️ 設計室</b>＝<b>これから作るものと、チームの技術を決める</b>。ひらめきを図面に落とし、技術を積み上げます。技術はいまの車にもそのまま効きますが、<b>パーツ1点ずつには手を入れません</b>。',
           '<b>🏭 工房</b>＝<b>パーツそのものに手を入れる</b>＝<b>内側の輪（パーツ）</b>。図面を形にして（作る）、いま積んでいるものを上限へ近づけます（煮詰める）。パーツの輪が動くのは、ここだけです。',
           '<b>🔧 ガレージ</b>＝<b>載せて作り込む</b>＝<b>真ん中の輪（インテグレート）</b>。工房で作ったパーツを載せ替えるのはここ。つなぎ込みは<b>技術部門が毎週ひとりでに進めます</b>。あなたが決めるのは「薄いところから埋めるか／強みを尖らせるか」だけで、<b>週は進みません</b>。速くしたければ、押す回数ではなく👥人事で技術部門を厚くします。',
           '<b>🔬 研究所</b>＝<b>当たりを取りに行く</b>。扇を調べて<b>知見</b>を溜め、それを<b>💡ひらめき</b>に変える（＝会心作の出るパーツ設計）か、<b>方針が引いた線そのもの</b>を押し広げる（＝いちばん外の輪）かに使います。',
@@ -33581,7 +33501,7 @@ GP.screens.help = function (A) {
         ] },
         { h: '製造方針 ― 一点ものか、予備も回すか', p: [
           '🏭工房のラインを、<b>作るものだけ</b>に使うか、<b>予備も組んでおく</b>かを決めます。週は使いません。決めたら効き続けます。',
-          '<b>🎯 一点ものを作り込む</b>＝作るパーツの<b>品質が +0.08</b>。作ったパーツの上限が 29 → 31 になります（素材を一段上げたのと同じ大きさが、ずっと続きます）。そのかわり予備は組まれません。',
+          '<b>🎯 一点ものを作り込む</b>＝作るパーツの<b>品質が +0.08</b>。作ったパーツの上限が 29 → 31 になります。そのかわり予備は組まれません。',
           '<b>🧰 予備も回す</b>＝毎週すこしずつ予備が組み上がります（ファクトリー Lv.1 で5週に1台、Lv.6 で2週に1台／最大2台）。予備があると、壊した週末は<b>載せ替えで済み</b>（クルーの疲労 +9。徹夜なら +22）、さらに組んである部品を回せるぶん<b>修理費が1台につき -20%</b>。',
           '週末のアクシデントは年12戦でおよそ1〜2回。それだけなら保険として割に合いませんが、<b>修理費の割引はぶつけるたびに効きます</b>。荒っぽいドライバーを乗せているなら、こちらが効きます。'
         ] },
@@ -33600,7 +33520,7 @@ GP.screens.help = function (A) {
         ] },
         { h: '製造ライン ― 作り慣れるということ', p: [
           'パーツの種類ごとに、それを削り出す<b>ライン</b>が一本ずつあります。そこで作った本数だけ段が上がり、出来上がりの底（品質）と性能に乗る精度が上がって、作る費用も下がります。',
-          '上がりきると<b>品質の底が +0.13</b>、<b>削り出しの精度が +10%</b>。この二つが掛かるので、出来上がったパーツは<b>2割ほど</b>良くなり、<b>費用は2割</b>安くなります。素材が「<b>何で作るか</b>」なら、ラインは「<b>どれだけ作り慣れたか</b>」です。',
+          '上がりきると<b>品質の底が +0.45</b>、<b>削り出しの精度が +49%</b>、扱える素材も<b>複合材</b>まで上がります。あれこれ手を出すより、一つを作り続けたほうが同じ金でいいものが出ます。',
           'だから、あれこれ手を出すより<b>一つを作り続けた</b>ほうが、同じ金で良いものが出ます。「うちはエアロを作らせたら速い」というチームの色は、ここでつきます。段は🏭工房の「🛠️ライン」で見られます。'
         ] },
         { h: 'ひらめきを形にする', p: [
@@ -33612,7 +33532,7 @@ GP.screens.help = function (A) {
           '⚡イノベーションが入ったことで、<b>作る</b>の立ち位置が変わりました。新品は<b>性能が下から始まる</b>ので、そのまま載せ替えると<b>その場では遅くなります</b>。育てた個体をそのまま格上げしたいなら⚡のほうです。',
           'いまの「作る」の値打ちはふたつ。ひとつは<b>いま載っているものより大きな器を引き当てること</b>。工房の画面に「いまより大きな器を引く見込み ○%」と出ています。',
           'もうひとつは<b>外れても素材になること</b>。「🏎️ マシン」でいま載っているものに吸わせると、<b>性能の45%</b>を引き継ぎ、<b>18%ほど</b>の見込みで器そのものも少し広がります。パーツを交換したときにも、その場で聞かれます。',
-          'つまり作るのは<b>賭け</b>です。当たれば天井が上がり、外れても素材が残る。素材（設計室）と工作機械と製造方針「🎯一点もの」で、当たりの出る確率そのものを上げられます。'
+          'つまり作るのは<b>賭け</b>です。当たれば天井が上がり、外れても素材が残る。製造ラインの段と工作機械と製造方針「🎯一点もの」で、当たりの出る確率そのものを上げられます。'
         ] },
         { h: '⚡ イノベーション ― 育てた個体を格上げする', p: [
           'ひらめきを「形にする」と、必ず会心作のパーツが生まれます。ただしそれは<b>新品</b>なので、性能はまた下から。上限まで煮詰めた個体を捨てることになります。',
@@ -33626,10 +33546,9 @@ GP.screens.help = function (A) {
           '積み替えるのは <b>🔧 ガレージ →「🧩 積んでいるもの」</b>です。装着中のパーツの横の「交換」を押すと、同じ部位の保管パーツと入れ替わり、降ろしたほうが保管庫に戻ります。パワーユニットの載せ替えと、シャシーの在庫も同じ場所にあります。',
           'コマンドバーの「🏎️ マシン」を押しても、同じところが開きます。'
         ] },
-        { h: '素材', p: [
-          'パーツを作り、煮詰めるたびに、その扇に勘所が貯まります。溜まったぶんをファクトリーで使うと、その扇の素材が一段上がります（スチール → アルミ合金 → チタン → カーボン → 複合材）。',
-          '素材が上がると、その扇で<b>これから作るパーツ</b>の品質の真ん中が上がります。すでに載っているものは変わらないので、作り直しが要ります。',
-          '扇ごとに別々に貯まるので、どこから手をつけるかを選ぶことになります。'
+        { h: '素材は、ラインの段がそのまま決める', p: [
+          '何で作れるかは、そのパーツの<b>製造ライン</b>の段がそのまま決めます（スチール → アルミ合金 → チタン → カーボン → 複合材）。別に貯めるポイントも、上げるボタンもありません。',
+          '同じパーツを作り続けてラインの段が上がると、扱える素材も一緒に上がります。「作り慣れるほど、良い材料を扱えるようになる」というだけの話です。'
         ] },
         { h: 'コンセプトは境目', p: [
           'いちばん外の線が、コンセプトの引いた境目です。方針に逆らう向きのインテグレートは、この線の手前で止まります（上限が58%まで下がります）。',
@@ -37029,7 +36948,8 @@ window.GP = window.GP || {};
         const y = g.youth[0]; y.exp = (y.exp || 0) + 40;
         return '🎓 ' + y.name + ' が下部カテゴリで表彰台に乗った'; } },
     { p: 0.02, run: () => { const c = S.pick(D.PART_CATS);
-        S.addMatPoint(g, c.key, S.rint(4, 9));
+        // ラインの勘所が1回ぶん進む（作らずに、見て覚えた）
+        S.addLineMade(g, c.key);
         return '🧪 ' + c.name + 'の作りかたで、ひとつ勘所が見えた'; } },
     { p: 0.02, run: () => { const m = S.rint(500, 1800); g.funds -= m;
         return '⚖️ 車検で細かい指摘を受け、直しに費用がかかった… -' + money(m) + '万'; } }

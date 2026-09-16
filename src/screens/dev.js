@@ -118,7 +118,7 @@ GP.screens.dev = function (A) {
       /* 説明は1行に詰める。2行あると、スマホでは4枚目が画面の外に出た。
          役に立っているのは下の「いまの状態」の行のほうなので、そちらは残す */
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
-        'ひらめきを図面に落とし、素材と技術を積む', 'des', cst.des) +
+        'ひらめきを図面に落とし、チームの技術を積む', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
         '新しいパーツを作る（煮詰めるのは工房が毎週やっています）', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
@@ -235,44 +235,6 @@ GP.screens.dev = function (A) {
       '</p>';
   }
 
-  /* ---- 素材 ----
-     扇ごとに、いま何で作れるか。
-     パーツを作り、煮詰めるたびに、その扇に「勘所」が貯まる。
-     溜まったぶんを使うと素材が一段上がり、
-     以後その扇で<b>作るパーツ</b>の出来が底上げされる。
-     すでに載っているものは変わらない（作り直しが要る）        */
-  function matBoxHTML() {
-    let h = '<div class="sub">素材</div>' +
-      '<p class="desc">扇ごとに、いま何で作れるか。' +
-      '手を動かすほど勘所が貯まり、溜まったぶんで一段上げられます。' +
-      '上がるのは<b>これから作るパーツ</b>で、いま載っているものは変わりません。' +
-      U.helpLink('car') + '</p><div class="pick matpick">';
-    D.PART_GROUPS.forEach(gr => {
-      const now = S.matDef(g, gr.key);
-      const nx = S.matNext(g, gr.key);
-      const pt = S.matPoints(g, gr.key);
-      const ok = !!nx && pt >= nx.cost;
-      const pct = nx ? Math.min(100, Math.round(pt / nx.cost * 100)) : 100;
-      h += '<button class="pickbtn matrow" data-mat="' + gr.key + '"' +
-        (ok ? '' : ' disabled') + '>' +
-        '<span class="pb-ic" style="background:' + gr.color + '">' + gr.icon + '</span>' +
-        '<span class="pb-body"><b>' + esc(gr.name) +
-        '<em class="matnow">' + now.icon + ' ' + esc(now.name) + '</em></b>' +
-        '<small>' + esc(now.note) +
-        (nx
-          ? '<br><b>次は ' + nx.icon + ' ' + esc(nx.name) + '</b>' +
-            '（品質の真ん中が ' + now.mid.toFixed(2) + ' → ' + nx.mid.toFixed(2) +
-            '／作るときの性能 ×' + nx.mul.toFixed(2) + '）' +
-            '<span class="skbar"><i style="width:' + pct + '%;background:' + gr.color + '"></i></span>' +
-            '<span class="devnow">勘所 ' + pt + ' / ' + nx.cost + '</span>'
-          : '<br><b>これ以上の素材はありません</b>') +
-        '</small></span>' +
-        '<span class="pb-cost">' + (nx ? (ok ? '🔨 上げる' : 'あと ' + (nx.cost - pt)) : '—') +
-        '</span></button>';
-    });
-    return h + '</div>';
-  }
-
   /* 製造方針。週は進まない。どこの画面から触っても同じ挙動にする。
      after は、押したあとに開き直す先                           */
   function bindMfg(after) {
@@ -288,24 +250,6 @@ GP.screens.dev = function (A) {
       };
     });
   }
-  function bindMat() {
-    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-mat]'), b => {
-      b.onclick = () => {
-        const k = b.dataset.mat;
-        const up = S.matUp(g, k);
-        if (!up) return;
-        const gr = D.PART_GROUPS.filter(x => x.key === k)[0];
-        GP.sound.play('levelup');
-        U.log(g, up.icon + ' ' + gr.name + ' を ' + up.name + 'で作れるようになった' +
-          '（これから作るパーツの出来が上がる）', 'good');
-        U.toast(up.icon + ' ' + gr.name + ' → ' + up.name + '！', 'good');
-        S.save(g);
-        render();
-        cmdDesign();
-      };
-    });
-  }
-
   /* ---- 速さの成り立ち ----
        （マシン本体 ＋ パーツ ＋ 作り込みの向き） × インテグレート率
      足し算と掛け算の順番が、そのままこのゲームの考え方になっている。
@@ -436,7 +380,7 @@ GP.screens.dev = function (A) {
     const it = Math.round(S.integrateRate(g).rate * 100);
     return {
       des: '💡 抱えているひらめき <b>' + ideaN + '件</b>' +
-           (ideaN ? '' : '（いまは素材と技術を積む場所）'),
+           (ideaN ? '' : '（いまは技術を積む場所）'),
       shop: (capped
               ? '🔩 <b>' + capped + ' が器の上限に届いています</b>　'
               : '🔩 いま積んでいるパーツ、上限まで <b>' + fillPct + '%</b>　') +
@@ -841,7 +785,7 @@ GP.screens.dev = function (A) {
       body += '<div class="regwarn">' +
         '<b>📜 今季が終わると、レギュレーションが変わります</b>' +
         '<small>いま積み上げているパーツと車体は、来季には<b>白紙に戻ります</b>。' +
-        '持ち越せるのは<b>チームのほう</b>——施設・人・技術・素材・設計の腕です。' +
+        '持ち越せるのは<b>チームのほう</b>——施設・人・技術・ラインの勘所・設計の腕です。' +
         'いま載っている個体の性能と、その個体の当たり（品質）は持ち越せません。<br>' +
         'ただし<b>「来季に回した開発」</b>だけは、そのまま新型の出発点になります。' +
         '今季を捨てて来季に振るなら、開発リソースの配分を「来季優先」寄りに。<br>' +
@@ -905,7 +849,7 @@ GP.screens.dev = function (A) {
   /* =======================================================
      🖊️ 設計室 ── 何を作るかを決める場所
 
-     ここでは車は1ミリも速くならない。決まるのは図面と素材と技術で、
+     ここでは車は1ミリも速くならない。決まるのは図面と技術で、
      それを形にするのは工房の仕事。決める場所と作る場所を分けてある。
      ======================================================= */
   function cmdDesign(tab) {
@@ -917,13 +861,12 @@ GP.screens.dev = function (A) {
     /* 抱えているひらめきが無いなら、空の棚を見せても仕方がない。
        自分でそのタブを選んだのでなければ、配分のほうを開く  */
     if (!tab && !ideaN && desTab === 'idea') desTab = 'plan';
-    /* 「素材と技術」の中に開発リソースの配分まで入れていたため、
-       そのタブを開くと配分が先に立って、素材と技術が下に沈んでいた。
-       性質のちがう3つなので、3つに割る                             */
+    /* 配分と技術は性質がちがうので、タブを分けてある。
+       素材は工房の製造ラインへ吸収したので、ここにはもう無い  */
     const DTABS = [
       ['idea', '💡', 'ひらめき',   ideaN ? String(ideaN) : ''],
       ['plan', '🌱', '配分と世代', ''],
-      ['base', '🧪', '素材と技術', '']
+      ['base', '📐', '技術',       '']
     ];
     let body =
       '<p class="desc">ここで決めるのは、<b>これから作るもの</b>と、' +
@@ -955,9 +898,6 @@ GP.screens.dev = function (A) {
       }
       // 今季と次のマシンへの振り分け、仕込み、世代の進み
       body += devHeadHTML();
-    } else {
-      // 素材と技術。すぐには速くならないが、あとで効く
-      body += matBoxHTML();
     }
 
     // ---- 技術開発（土台のタブ） ----
@@ -1032,7 +972,6 @@ GP.screens.dev = function (A) {
       if (kind === 'tec') doTech(key);
       else if (kind === 'des') doDesign(key);
     });
-    bindMat();
     bindAct('data-idea', id => doIdea(id));
     bindAct('data-copytrend', () => doCopyTrend());
     bindAct('data-leadcopy', () => doLeadCopy());
@@ -1820,7 +1759,7 @@ GP.screens.dev = function (A) {
     p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
     g.inventory.push(p);
     S.guideMark(g, 'make');
-    S.addMatPoint(g, c.key, D.MAT.perDesign);
+    S.addLineMade(g, c.key);
     GP.sound.play('levelup');
     U.log(g, '💡 「' + it.name + '」を形にした！ ' +
       esc(p.name) + '（' + S.qualTier(q).name +
@@ -1844,25 +1783,21 @@ GP.screens.dev = function (A) {
 
     const hinted = (g.designEdge || 0) > 0;
     /* ---- 出来 ----
-       素材が底を決め、工作機械と設計陣がそこへ積み、最後に運が乗る。
+       ラインの段が底を決め、工作機械と設計陣がそこへ積み、最後に運が乗る。
        同じ図面でも毎回ちがう出来になるのは、この最後のひと振りのため */
     const quality = S.rollQuality(g, key);
     if (hinted) g.designEdge = Math.max(0, (g.designEdge || 0) - 1);   // ヒントは1回で使い切る
     const ws = S.workshopOf(g);
-    const grp = S.groupOfPart(key);
-    const part = S.makePart(key, g.carGen, quality, { mat: S.matOf(g, grp) });
-    // 作れば作るほど、その扇の勘所が溜まる
-    S.addMatPoint(g, key, D.MAT.perDesign);
-    /* そして、そのパーツのラインそのものも作り慣れていく。
-       素材が「何で作るか」なら、こちらは「どれだけ作り慣れたか」 */
+    const part = S.makePart(key, g.carGen, quality, { mat: S.matOfCat(g, key) });
+    /* そのパーツのラインが作り慣れていく。
+       段が上がると、出来の底・性能の精度・費用・扱える素材が一緒に動く */
     const ln0 = S.lineOf(g, key);
     const ln = S.addLineMade(g, key);
     /* 同じ図面でも、どの機械で削ったかで出来が変わる。
        そしてその図面そのものの質が、基本設計能力で決まる。
        （人事の噛み合わせ × 開発責任者とコンセプトの相性）      */
     const dm = S.designMul(g);
-    const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
-    part.power = Math.round(part.power * ws.prec * ln0.prec * dm * mm * 10) / 10;
+    part.power = Math.round(part.power * ws.prec * ln0.prec * dm * 10) / 10;
     g.inventory.push(part);
     S.guideMark(g, 'make');
 
@@ -1898,11 +1833,9 @@ GP.screens.dev = function (A) {
     let h = '<div class="sub">🛠️ 製造ライン</div>' +
       '<p class="desc">パーツの種類ごとに、それを削り出すラインがあります。' +
       '<b>そこで作った本数だけ</b>段が上がり、出来上がりの底と精度が上がって、' +
-      '作る費用も下がります。<br>' +
-      '素材（設計室）が「<b>何で作るか</b>」なら、ラインは「<b>どれだけ作り慣れたか</b>」です。' +
-      'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。<br>' +
-      '上がりきると<b>品質の底 +0.13</b>と<b>精度 +10%</b>。' +
-      'この二つが掛かるので、出来上がりは<b>2割ほど</b>良くなり、費用は<b>2割</b>安くなります。</p>' +
+      '扱える素材も上がり、作る費用も下がります。<br>' +
+      'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。' +
+      '上がりきると<b>品質の底 +0.45</b>と<b>精度 +49%</b>。</p>' +
       '<div class="linelist">';
     D.PART_CATS.forEach(c => {
       const ln = S.lineOf(g, c.key);
@@ -1912,7 +1845,9 @@ GP.screens.dev = function (A) {
       h += '<div class="linerow">' +
         '<span class="ln-ic" style="background:' + c.color + '">' + U.partIcon(c.key, 24, 0) + '</span>' +
         '<span class="ln-body"><b>' + esc(c.name) +
-          '<em class="ln-lv">' + ln.icon + ' ' + esc(ln.name) + '</em></b>' +
+          '<em class="ln-lv">' + ln.icon + ' ' + esc(ln.name) + '</em>' +
+          '<em class="ln-mat">' + S.matDefCat(g, c.key).icon + ' ' +
+            esc(S.matDefCat(g, c.key).name) + '</em></b>' +
         '<small><em class="pnote">' + esc(ln.note) + '</em><br>' +
         '作った数 <b>' + ln.made + '</b>本　' +
         (ln.isTop ? '<b class="free">これ以上は上がりません</b>'
