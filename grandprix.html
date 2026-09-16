@@ -132,6 +132,26 @@ button{font-family:inherit;color:inherit;cursor:pointer}
         border-left:3px solid var(--line,#d9d5cc);line-height:1.6}
 .nextup b{margin-left:6px;color:var(--ink)}
 /* 今週の一手。開発責任者の結論を、相談を開かなくても読める場所に */
+/* ---- はじめの手引き ----
+   1年目だけ本拠地のいちばん上に出る。順番そのものが説明になるので、
+   済んだ行も消さず、線を引いて残す                              */
+.card.guide .pad{padding-top:6px}
+.gd-lead{margin:0 0 6px;font-size:11px;line-height:1.55;color:var(--faceSub)}
+.gdlist{display:flex;flex-direction:column;gap:4px}
+.gdrow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:8px;
+  padding:6px 8px;font:inherit;color:inherit}
+.gdrow>i{font-style:normal;font-size:17px;width:24px;text-align:center;flex:none}
+.gdrow>span{flex:1;display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.gdrow>span b{font-size:12px}
+.gdrow>span small{font-size:10px;color:var(--faceSub)}
+.gdrow>em{font-style:normal;opacity:.6}
+.gdrow.now{border-color:var(--gold,#d8a020);box-shadow:0 0 0 2px rgba(216,160,32,.35)}
+.gdrow.done{opacity:.55}
+.gdrow.done>span b{text-decoration:line-through}
+.gd-off{display:block;margin:7px auto 0;background:none;border:0;font:inherit;
+  font-size:10.5px;color:var(--faceSub);text-decoration:underline}
+
 .weektip{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
   background:linear-gradient(#fff8e3,#f6ebcc);border:3px solid var(--ink);border-radius:8px;
   padding:6px 9px;margin:0 0 8px;box-shadow:0 2px 0 rgba(74,47,26,.4);
@@ -598,6 +618,12 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
   border-radius:0 8px 8px 0;padding:6px 10px;margin:4px 0 8px}
 .erabox>b{display:block;font-size:12.5px;margin-bottom:2px}
 .erabox small{display:block;font-size:10.5px;line-height:1.6;opacity:.88}
+/* 規則が変わった年の朝。4年に一度しか出ないので、ここだけ大きく */
+.erabox.big{border-left-width:8px;padding:9px 11px;margin:8px 0}
+.erabox.big>b{font-size:15px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}
+.erabox.big>b em{font-style:normal;font-size:12px;margin-left:auto;
+  border:2px solid var(--ink);border-radius:6px;padding:0 7px;background:var(--paper2)}
+.erabox>b em{font-style:normal;font-size:11.5px;margin-left:8px;opacity:.9}
 .erabox.up{border-left-color:var(--green,#4ea63f)}
 .erabox.down{border-left-color:var(--blueInk,#2a5aa8)}
 [data-skin="hd"] .erabox{background:rgba(75,61,104,.4);border-color:var(--gold)}
@@ -12915,6 +12941,45 @@ GP.state = (function () {
   /* ---------- 新規ゲーム ---------- */
   const diffOf = g2 => D.DIFFICULTIES.find(x => x.key === (g2 && g2.mode)) || D.DIFFICULTIES[1];
 
+  /* ---------- はじめての手引き ----------
+     1年目のあいだだけ、本拠地のいちばん上に出る覚え書き。
+     「決める→作る→載せる」の順に一度ずつ触れば消える。
+     済んだかどうかは、状態から読めるものは状態から読み、
+     読めないもの（作った・載せた・迎えた）だけ印を置く       */
+  function guideMark(g2, key) {
+    if (!g2) return;
+    if (!g2.guide) g2.guide = {};
+    g2.guide[key] = 1;
+  }
+  function guideSteps(g2) {
+    const gd = g2.guide || {};
+    return [
+      { key: 'design', icon: '🖊️', name: '設計室で、何を作るか決める',
+        note: 'コンセプトは一度決めると外せません', tap: true,
+        done: !!conceptOf(g2) },
+      { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
+        note: '決めた向きのパーツが手に入ります', tap: true,
+        done: !!gd.make || (g2.inventory || []).length > 0 },
+      { key: 'fit', icon: '🔧', name: 'ガレージで、車に載せる',
+        note: '作っただけでは速くなりません', tap: true,
+        done: !!gd.fit },
+      { key: 'hire', icon: '👥', name: '人事で、人をひとり迎える',
+        note: '部門の厚みが、毎週の伸びになります', tap: true,
+        done: !!gd.hire || (g2.staff || []).length > 3 },
+      /* ここは押させない。レース週でないのに開くと、
+         週末が始まってしまう                        */
+      { key: 'race', icon: '🏁', name: '第1戦を走る',
+        note: '週が来たら「🏁 レースへ向かう！」', tap: false,
+        done: (g2.nextRace || 0) > 0 }
+    ];
+  }
+  /* 出すかどうか。1年目だけ、全部済むまで */
+  function guideOn(g2) {
+    if (!g2 || (g2.season || 1) > 1) return false;
+    if (g2.guide && g2.guide.off) return false;
+    return guideSteps(g2).some(x => !x.done);
+  }
+
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
@@ -13877,6 +13942,7 @@ GP.state = (function () {
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
+    guideMark, guideSteps, guideOn,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
@@ -23098,6 +23164,7 @@ GP.screens.hr = function (A) {
       const st = staffMarket[idx], fee = staffFee(st);
       if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee; g.staff.push(st);
+      S.guideMark(g, 'hire');
       staffMarket.splice(idx, 1);
       U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
       U.toast('👥 ' + st.name + ' が加入！', 'good');
@@ -23110,6 +23177,7 @@ GP.screens.hr = function (A) {
       const from = st.team;
       delete st.team;
       g.staff.push(st);
+      S.guideMark(g, 'hire');
       rivalStaffMarket.splice(idx, 1);
       GP.sound.play('crit');
       U.log(g, '🕵️ ' + from + ' から ' + st.name + '（技能 ' + st.skill + '）を引き抜いた！', 'good');
@@ -25338,6 +25406,7 @@ GP.screens.dev = function (A) {
     const icap = S.partCap(g, p);
     p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
     g.inventory.push(p);
+    S.guideMark(g, 'make');
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
     U.log(g, '💡 「' + it.name + '」を形にした！ ' +
@@ -25382,6 +25451,7 @@ GP.screens.dev = function (A) {
     const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
     part.power = Math.round(part.power * ws.prec * ln0.prec * dm * mm * 10) / 10;
     g.inventory.push(part);
+    S.guideMark(g, 'make');
 
     const qt = S.qualTier(quality);
     const star = S.qualStars(quality);
@@ -26992,13 +27062,20 @@ GP.screens.weekend = function (A) {
         '「🚚 遠征」で運びかたと積荷を見直せます。</small></div>';
     }
 
+    /* ---- 読みもの2つは、決めたあとに回す ----
+       この画面は「作戦を決める」ための画面なのに、
+       路面の読みとピットの秒数の説明が先に900px近く積まれていて、
+       縦持ちだと最初に押せるものが画面の外に出ていた。
+       中身は変えず、置く場所だけ決めごとのうしろへ送る       */
+    let readStrat = '', readPit = '';
     // ---- 雨になったときに、誰の判断で走ることになるのか ----
     {
       const f = S.foresightOf(g);
       const strat = (g.staff || []).filter(x => x.type === 'strategist')
         .sort((a, b) => b.skill - a.skill)[0];
       const fName = f >= 0.7 ? '先を読める' : f >= 0.5 ? '読める' : f >= 0.32 ? 'やや後手' : '後手';
-      body += '<div class="stratbox">' +
+      readStrat = '<div class="sub">🧠 路面を読む力</div>' +
+        '<div class="stratbox">' +
         '<b>🧠 路面を読む力 <em class="' + (f >= 0.5 ? 'good' : f >= 0.32 ? '' : 'bad') + '">' +
         Math.round(f * 100) + '／100（' + fName + '）</em></b>' +
         '<small>' + (strat
@@ -27036,7 +27113,8 @@ GP.screens.weekend = function (A) {
       const lanes = D.TRACKS.map(x => x.pitLane || 18).sort((a, b) => a - b);
       const rank = lanes.indexOf(lane) + 1;
       const heavy = rank > D.RACES * 0.6;
-      body += '<div class="stratbox pitbox">' +
+      readPit = '<div class="sub">🔧 ピットで失う時間</div>' +
+        '<div class="stratbox pitbox">' +
         '<b>🔧 1回のピットで失う時間 <em>' + one.toFixed(1) + '秒</em></b>' +
         '<div class="pitsplit">' +
           '<span class="lane" style="flex:' + lane.toFixed(1) + '">🛣️ ' + lane.toFixed(1) + '秒</span>' +
@@ -27157,6 +27235,9 @@ GP.screens.weekend = function (A) {
       pendingStrategy['stops_' + d.id] = 'auto';
       pendingStrategy['tbias_' + d.id] = '1';
     });
+
+    // 決めごとが終わったところで、読みもの2つを置く
+    body += readStrat + readPit;
 
     // ---- ライバルの作戦の傾向 ----
     // 対戦を重ねると読めるように、チームごとの性格を出しておく
@@ -27387,8 +27468,9 @@ GP.screens.weekend = function (A) {
   function fpTyreHTML() {
     const cur = pendingStrategy.fpt || 'mix';
     const crew = S.readCrew(g);
-    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
-      '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
+    /* 長い説明は選び終えたあとに回す。
+       先に5行読ませると、縦持ちでは最初の選択肢が画面の下に落ちる */
+    const fpNote = '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
       '（ハード' + D.TYRE_ALLOC.sets.hard + '／ミディアム' + D.TYRE_ALLOC.sets.medium +
       '／ソフト' + D.TYRE_ALLOC.sets.soft + '）。' +
       '雨用はインター' + D.TYRE_ALLOC.wet.inter + '・ウェット' + D.TYRE_ALLOC.wet.wet +
@@ -27400,7 +27482,11 @@ GP.screens.weekend = function (A) {
       '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
       'ただし、データは読める人がいてはじめて数字になります' +
       '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
-      '：ストラテジストとエンジニアの両方が要ります）。</p><div class="pick fptyre" data-fpt="1">';
+      '：ストラテジストとエンジニアの両方が要ります）。</p>';
+    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
+      '<p class="desc">ちがいは<b>ソフトを何本使うか</b>。' +
+      '履いたものが、そのまま日曜に分かっていることになります。</p>' +
+      '<div class="pick fptyre" data-fpt="1">';
     D.FP_TYRE.forEach(p => {
       const read = S.tyreRead(g, p.key, 1);
       h += '<button class="pickbtn' + (p.key === cur ? ' on' : '') + '" data-v="' + p.key + '">' +
@@ -27416,7 +27502,7 @@ GP.screens.weekend = function (A) {
         p.sets.filter(k => k === 'medium').length + 'M ' +
         p.sets.filter(k => k === 'hard').length + 'H</i></span></button>';
     });
-    return h + '</div>';
+    return h + '</div>' + fpNote;
   }
 
   function cmdPractice() {
@@ -27834,11 +27920,11 @@ GP.screens.weekend = function (A) {
     if (!st.done) {
       body += '<p class="desc">' +
         (up ? '今日は<b>' + st.c.icon + ' ' + esc(st.c.name) +
-              '</b>という手応えです。足りないところが見当たらない週末で、' +
-              'ここから<b>もう一段詰めにいく</b>か、<b>この形のまま日曜へ持っていく</b>かを選びます。'
-            : '言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) + '</b>。') +
-        'ここでの返し方が、そのままこの週末のマシンと、' +
-        'この人のピットへの信頼に効きます。<br>' +
+              '</b>という手応え。もう一段詰めにいくか、この形のまま日曜へ持っていくか。'
+            : '言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) + '</b>。') + '</p>';
+      // 返しかたの効きめの説明は、選び終えたあとに置く
+      const brNote = '<p class="desc">ここでの返し方が、そのままこの週末のマシンと、' +
+        'この人のピットへの信頼に効きます。' +
         '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
         S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
       body += '<div class="pick">';
@@ -27858,7 +27944,7 @@ GP.screens.weekend = function (A) {
           '<span class="pb-cost">' + (odds == null ? '結果しだい'
             : '決まる<br>' + Math.round(odds * 100) + '%') + '</span></button>';
       });
-      body += '</div>';
+      body += '</div>' + brNote;
       U.modal('🎙️ ブリーフィング', body, [
         { label: '何も言わずに送り出す', fn: () => { briefState.done = { skip: true }; showBrief(); } }
       ], { wide: true });
@@ -30809,6 +30895,7 @@ GP.screens.home = function (A) {
     const old = g.equipped[p.cat];
     g.inventory = g.inventory.filter(x => x.id !== id);
     g.equipped[p.cat] = p;
+    S.guideMark(g, 'fit');
     if (old) g.inventory.push(old);
     U.log(g, '🔄 ' + p.name + ' を装着した。' + (old ? '（' + old.name + ' を保管）' : ''), 'good');
     U.toast('🔄 ' + p.name + ' を装着！', 'good');
@@ -33417,6 +33504,12 @@ GP.screens.help = function (A) {
       key: 'basics', icon: '📅', name: '週とコマンド',
       lead: '1週に打てる手は決まっている。何に使うかがこのゲームです。',
       secs: [
+        { h: 'はじめの5手', p: [
+          '迷ったら、この順に一度ずつ触ってみてください。本拠地のいちばん上に出ている「🧭 はじめの手引き」と同じ並びです。',
+          '① <b>🖊️ 設計室</b>で、何を作るか決める（コンセプトは一度決めると外せません）。② <b>🏭 工房</b>で、パーツを作る。③ <b>🔧 ガレージ</b>で、作ったパーツを車に載せる——作っただけでは速くなりません。',
+          '④ <b>👥 人事</b>で、人をひとり迎える。部門の厚みが、毎週の伸びそのものになります。⑤ そして<b>🏁 第1戦</b>へ。ここまで来れば、あとはこの繰り返しです。',
+          '週ごとに何をすればいいか迷ったら、本拠地の「🗣️ 今週の一手」を見てください。開発責任者の結論がそのまま出ています。'
+        ] },
         { h: '週が進む手・進まない手', p: [
           'コマンドバーの上の段（車体・整備・ドライバー・営業・休養）は、1回打つと週の持ち駒をひとつ使います。持ち駒を使いきると次の週へ進みます。',
           '下の段（マシン・施設・人事・遠征・エンジン・情報・オーナー）は、何度開いても週は進みません。見るだけ、決めるだけの場所です。契約や配属もここでやれば週は減りません。',
@@ -35327,6 +35420,31 @@ GP.ui = (function () {
       '<i>🗣️</i><span><u>今週の一手</u><b>' + esc(t.head) + '</b></span><em>›</em></button>';
   }
 
+  /* ---------- はじめての手引き ----------
+     1年目だけ、本拠地のいちばん上に出す。
+     「決める→作る→載せる」の順に一度ずつ触れば消える。
+     済んだ行は畳まず、線を引いて残す。順番そのものが説明になる  */
+  function guideCard(g) {
+    if (!S.guideOn || !S.guideOn(g)) return '';
+    const steps = S.guideSteps(g);
+    const done = steps.filter(x => x.done).length;
+    const now = steps.filter(x => !x.done)[0];
+    return '<div class="card guide"><div class="card-h">🧭 はじめの手引き' +
+      '<b class="foldnote">' + done + ' / ' + steps.length + '</b></div>' +
+      '<div class="pad">' +
+      '<p class="gd-lead">1週につき、下のコマンドを<b>ひとつ</b>だけ選べます。' +
+      'まずはこの順に一度ずつ。</p>' +
+      '<div class="gdlist">' + steps.map(x =>
+        '<button class="gdrow' + (x.done ? ' done' : x === now ? ' now' : '') + '"' +
+        (x.done || !x.tap ? ' disabled' : ' data-guide="' + x.key + '"') + '>' +
+        '<i>' + (x.done ? '✔' : x.icon) + '</i>' +
+        '<span><b>' + x.name + '</b><small>' + x.note + '</small></span>' +
+        (x.done || !x.tap ? '' : '<em>›</em>') + '</button>').join('') +
+      '</div>' +
+      '<button class="gd-off" data-guideoff="1">この案内をしまう</button>' +
+      '</div></div>';
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -36066,7 +36184,8 @@ GP.ui = (function () {
   /* ---------- 全体再描画 ---------- */
   function renderAll(g, special) {
     renderTop(g);
-    $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
+    $('viewPanel').innerHTML = guideCard(g) + specialCard(g, special) + hubCard(g) +
+                               nextRaceCard(g) + carCard(g) + driverCards(g);
     applyFolds($('viewPanel'));
     if (g.nextRace < D.RACES) drawMini(S.trackAt(g, g.nextRace));
     renderSide(g);
@@ -37527,8 +37646,26 @@ window.GP = window.GP || {};
     S.save(g); render();
     if (regChange) {
       const lg = g.legacy;
+      /* ---- 規則が変わった年の、朝いちばんの画面 ----
+         ここは4年に一度しか来ない。日誌の一行で流すには大きすぎるので、
+         「何が消えて」「何が残って」「うちはこの規則を読めているのか」を
+         一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
+      const rd = S.myEraRead(g), fit = S.myEraFit(g);
+      const fitPct = Math.round((fit - 1) * 100);
       U.modal('📜 レギュレーション変更',
         '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        '<div class="erabox big' + (fit >= 1.05 ? ' up' : fit <= 0.95 ? ' down' : '') + '">' +
+        '<b>' + rd.icon + ' うちは、この規則を「' + rd.name + '」' +
+        '<em>開発の伸び ' + (fitPct >= 0 ? '+' : '') + fitPct + '%</em></b>' +
+        '<small>' +
+        (fit >= 1.05
+          ? '設計室が新しい規則の骨をつかんでいます。同じ金をかけても、よそより速く仕上がります。'
+          : fit <= 0.95
+            ? 'まだ骨がつかめていません。同じ金をかけても、仕上がりはよそより遅い。'
+              + '<b>研究と技術に回して、読みの差を埋める年</b>にするのも手です。'
+            : '飛び抜けても沈んでもいません。手の打ちかたでどちらにも転びます。') +
+        'この読みは<b>いま引き直されたばかり</b>で、次の規則までは変わりません。' +
+        'ライバルにも同じように当たり外れがあります。</small></div>' +
         '<div class="rewardbox">' +
         '<div>パーツ・車体 <b>白紙から</b><small>積んだ知見のぶんだけ、ゼロよりは良い所から。レアリティ（到達できる上限）は引き継ぎます</small></div>' +
         (lg && lg.count
@@ -37541,15 +37678,18 @@ window.GP = window.GP || {};
             || 'まだありません。技術は規則が変わっても残る、数少ないものです') + '</small></div>' +
         '<div>施設・スタッフ・ドライバー・ファン・資金・オーナー <b>そのまま</b><small>積み上げたチーム力は失われません</small></div>' +
         '</div>' +
-        '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
-        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>' +
-        '<p class="desc"><b>🔬 いまがいちばん掘れる年です。</b>新しい規則には、まだ誰も' +
-        '見つけていない構造が残っています。改良でブレイクスルーを掘り当てる確率が' +
-        '<b>×' + S.innovFresh(g).toFixed(1) + '</b> になり、当たれば熟成が一気に進んで' +
-        'パーツの格が早く上がります。ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが' +
-        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。' +
-        'ただし灰色の領域が広いぶん、掘り当てたものが<b>あとから裁定で取り上げられる</b>' +
-        '確率も、いまがいちばん高くなります。</p>',
+        '<div class="erabox"><b>🔬 いまがいちばん掘れる年　' +
+        '<em>ブレイクスルー ×' + S.innovFresh(g).toFixed(1) + '</em></b>' +
+        '<small>新しい規則には、まだ誰も見つけていない構造が残っています。' +
+        '当たれば熟成が一気に進み、パーツの格が早く上がります。' +
+        'ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが出はじめます。' +
+        'ただし灰色の領域が広いぶん、掘り当てたものが' +
+        '<b>あとから裁定で取り上げられる</b>確率も、いまがいちばん高い。</small></div>' +
+        '<p class="desc">上位と下位の差は一度リセットされました。' +
+        'ここからまた作り直しの勝負で、次の変更は ' + S.REG_EVERY + ' シーズン後です。</p>' +
+        '<p class="note">まずは<b>🖊️ 設計室</b>でコンセプトを決め直し、' +
+        '<b>🏭 工房</b>でパーツを作り直すところから。' +
+        '読みの数字は設計室の「決める」にいつでも出ています。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
       S.pushNews(g, 'reg', '新しい規則');
@@ -37935,6 +38075,23 @@ window.GP = window.GP || {};
       GP.sound.play('tap');
       if (A.openTalk) A.openTalk('technical');
       else if (A.cmdMeet) A.cmdMeet();
+    });
+    /* はじめの手引き。行を押したら、その部屋をそのまま開く */
+    document.addEventListener('click', function (ev) {
+      const off = ev.target && ev.target.closest ? ev.target.closest('[data-guideoff]') : null;
+      if (off) {
+        ev.preventDefault(); GP.sound.play('tap');
+        g.guide = g.guide || {}; g.guide.off = 1; S.save(g); render();
+        U.toast('🧭 案内をしまいました（❓ からいつでも読めます）', 'good');
+        return;
+      }
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-guide]') : null;
+      if (!t || t.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      const go = { design: 'cmdDesign', make: 'cmdShop', fit: 'cmdGarage',
+                   hire: 'cmdStaff', race: 'cmdRace' }[t.dataset.guide];
+      if (go && typeof A[go] === 'function') A[go]();
     });
     document.addEventListener('click', function (ev) {
       const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;

@@ -103,6 +103,31 @@ GP.ui = (function () {
       '<i>🗣️</i><span><u>今週の一手</u><b>' + esc(t.head) + '</b></span><em>›</em></button>';
   }
 
+  /* ---------- はじめての手引き ----------
+     1年目だけ、本拠地のいちばん上に出す。
+     「決める→作る→載せる」の順に一度ずつ触れば消える。
+     済んだ行は畳まず、線を引いて残す。順番そのものが説明になる  */
+  function guideCard(g) {
+    if (!S.guideOn || !S.guideOn(g)) return '';
+    const steps = S.guideSteps(g);
+    const done = steps.filter(x => x.done).length;
+    const now = steps.filter(x => !x.done)[0];
+    return '<div class="card guide"><div class="card-h">🧭 はじめの手引き' +
+      '<b class="foldnote">' + done + ' / ' + steps.length + '</b></div>' +
+      '<div class="pad">' +
+      '<p class="gd-lead">1週につき、下のコマンドを<b>ひとつ</b>だけ選べます。' +
+      'まずはこの順に一度ずつ。</p>' +
+      '<div class="gdlist">' + steps.map(x =>
+        '<button class="gdrow' + (x.done ? ' done' : x === now ? ' now' : '') + '"' +
+        (x.done || !x.tap ? ' disabled' : ' data-guide="' + x.key + '"') + '>' +
+        '<i>' + (x.done ? '✔' : x.icon) + '</i>' +
+        '<span><b>' + x.name + '</b><small>' + x.note + '</small></span>' +
+        (x.done || !x.tap ? '' : '<em>›</em>') + '</button>').join('') +
+      '</div>' +
+      '<button class="gd-off" data-guideoff="1">この案内をしまう</button>' +
+      '</div></div>';
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -842,7 +867,8 @@ GP.ui = (function () {
   /* ---------- 全体再描画 ---------- */
   function renderAll(g, special) {
     renderTop(g);
-    $('viewPanel').innerHTML = specialCard(g, special) + hubCard(g) + nextRaceCard(g) + carCard(g) + driverCards(g);
+    $('viewPanel').innerHTML = guideCard(g) + specialCard(g, special) + hubCard(g) +
+                               nextRaceCard(g) + carCard(g) + driverCards(g);
     applyFolds($('viewPanel'));
     if (g.nextRace < D.RACES) drawMini(S.trackAt(g, g.nextRace));
     renderSide(g);

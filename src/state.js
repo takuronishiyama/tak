@@ -4172,6 +4172,45 @@ GP.state = (function () {
   /* ---------- 新規ゲーム ---------- */
   const diffOf = g2 => D.DIFFICULTIES.find(x => x.key === (g2 && g2.mode)) || D.DIFFICULTIES[1];
 
+  /* ---------- はじめての手引き ----------
+     1年目のあいだだけ、本拠地のいちばん上に出る覚え書き。
+     「決める→作る→載せる」の順に一度ずつ触れば消える。
+     済んだかどうかは、状態から読めるものは状態から読み、
+     読めないもの（作った・載せた・迎えた）だけ印を置く       */
+  function guideMark(g2, key) {
+    if (!g2) return;
+    if (!g2.guide) g2.guide = {};
+    g2.guide[key] = 1;
+  }
+  function guideSteps(g2) {
+    const gd = g2.guide || {};
+    return [
+      { key: 'design', icon: '🖊️', name: '設計室で、何を作るか決める',
+        note: 'コンセプトは一度決めると外せません', tap: true,
+        done: !!conceptOf(g2) },
+      { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
+        note: '決めた向きのパーツが手に入ります', tap: true,
+        done: !!gd.make || (g2.inventory || []).length > 0 },
+      { key: 'fit', icon: '🔧', name: 'ガレージで、車に載せる',
+        note: '作っただけでは速くなりません', tap: true,
+        done: !!gd.fit },
+      { key: 'hire', icon: '👥', name: '人事で、人をひとり迎える',
+        note: '部門の厚みが、毎週の伸びになります', tap: true,
+        done: !!gd.hire || (g2.staff || []).length > 3 },
+      /* ここは押させない。レース週でないのに開くと、
+         週末が始まってしまう                        */
+      { key: 'race', icon: '🏁', name: '第1戦を走る',
+        note: '週が来たら「🏁 レースへ向かう！」', tap: false,
+        done: (g2.nextRace || 0) > 0 }
+    ];
+  }
+  /* 出すかどうか。1年目だけ、全部済むまで */
+  function guideOn(g2) {
+    if (!g2 || (g2.season || 1) > 1) return false;
+    if (g2.guide && g2.guide.off) return false;
+    return guideSteps(g2).some(x => !x.done);
+  }
+
   function newGame(teamName, color, mode) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
@@ -5134,6 +5173,7 @@ GP.state = (function () {
     fanTier, fanIncome, fanExpectation,
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
+    guideMark, guideSteps, guideOn,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,

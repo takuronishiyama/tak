@@ -1819,6 +1819,7 @@ GP.screens.dev = function (A) {
     const icap = S.partCap(g, p);
     p.power = Math.round(Math.min(icap, p.power + icap * D.IDEA.power) * 10) / 10;
     g.inventory.push(p);
+    S.guideMark(g, 'make');
     S.addMatPoint(g, c.key, D.MAT.perDesign);
     GP.sound.play('levelup');
     U.log(g, '💡 「' + it.name + '」を形にした！ ' +
@@ -1863,6 +1864,7 @@ GP.screens.dev = function (A) {
     const mm = (D.MATERIALS[S.matOf(g, grp)] || D.MATERIALS[0]).mul;
     part.power = Math.round(part.power * ws.prec * ln0.prec * dm * mm * 10) / 10;
     g.inventory.push(part);
+    S.guideMark(g, 'make');
 
     const qt = S.qualTier(quality);
     const star = S.qualStars(quality);

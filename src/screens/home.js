@@ -295,6 +295,7 @@ GP.screens.home = function (A) {
     const old = g.equipped[p.cat];
     g.inventory = g.inventory.filter(x => x.id !== id);
     g.equipped[p.cat] = p;
+    S.guideMark(g, 'fit');
     if (old) g.inventory.push(old);
     U.log(g, '🔄 ' + p.name + ' を装着した。' + (old ? '（' + old.name + ' を保管）' : ''), 'good');
     U.toast('🔄 ' + p.name + ' を装着！', 'good');

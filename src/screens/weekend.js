@@ -284,13 +284,20 @@ GP.screens.weekend = function (A) {
         '「🚚 遠征」で運びかたと積荷を見直せます。</small></div>';
     }
 
+    /* ---- 読みもの2つは、決めたあとに回す ----
+       この画面は「作戦を決める」ための画面なのに、
+       路面の読みとピットの秒数の説明が先に900px近く積まれていて、
+       縦持ちだと最初に押せるものが画面の外に出ていた。
+       中身は変えず、置く場所だけ決めごとのうしろへ送る       */
+    let readStrat = '', readPit = '';
     // ---- 雨になったときに、誰の判断で走ることになるのか ----
     {
       const f = S.foresightOf(g);
       const strat = (g.staff || []).filter(x => x.type === 'strategist')
         .sort((a, b) => b.skill - a.skill)[0];
       const fName = f >= 0.7 ? '先を読める' : f >= 0.5 ? '読める' : f >= 0.32 ? 'やや後手' : '後手';
-      body += '<div class="stratbox">' +
+      readStrat = '<div class="sub">🧠 路面を読む力</div>' +
+        '<div class="stratbox">' +
         '<b>🧠 路面を読む力 <em class="' + (f >= 0.5 ? 'good' : f >= 0.32 ? '' : 'bad') + '">' +
         Math.round(f * 100) + '／100（' + fName + '）</em></b>' +
         '<small>' + (strat
@@ -328,7 +335,8 @@ GP.screens.weekend = function (A) {
       const lanes = D.TRACKS.map(x => x.pitLane || 18).sort((a, b) => a - b);
       const rank = lanes.indexOf(lane) + 1;
       const heavy = rank > D.RACES * 0.6;
-      body += '<div class="stratbox pitbox">' +
+      readPit = '<div class="sub">🔧 ピットで失う時間</div>' +
+        '<div class="stratbox pitbox">' +
         '<b>🔧 1回のピットで失う時間 <em>' + one.toFixed(1) + '秒</em></b>' +
         '<div class="pitsplit">' +
           '<span class="lane" style="flex:' + lane.toFixed(1) + '">🛣️ ' + lane.toFixed(1) + '秒</span>' +
@@ -449,6 +457,9 @@ GP.screens.weekend = function (A) {
       pendingStrategy['stops_' + d.id] = 'auto';
       pendingStrategy['tbias_' + d.id] = '1';
     });
+
+    // 決めごとが終わったところで、読みもの2つを置く
+    body += readStrat + readPit;
 
     // ---- ライバルの作戦の傾向 ----
     // 対戦を重ねると読めるように、チームごとの性格を出しておく
@@ -679,8 +690,9 @@ GP.screens.weekend = function (A) {
   function fpTyreHTML() {
     const cur = pendingStrategy.fpt || 'mix';
     const crew = S.readCrew(g);
-    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
-      '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
+    /* 長い説明は選び終えたあとに回す。
+       先に5行読ませると、縦持ちでは最初の選択肢が画面の下に落ちる */
+    const fpNote = '<p class="desc">週末に持ち込めるドライタイヤは <b>13セット</b>' +
       '（ハード' + D.TYRE_ALLOC.sets.hard + '／ミディアム' + D.TYRE_ALLOC.sets.medium +
       '／ソフト' + D.TYRE_ALLOC.sets.soft + '）。' +
       '雨用はインター' + D.TYRE_ALLOC.wet.inter + '・ウェット' + D.TYRE_ALLOC.wet.wet +
@@ -692,7 +704,11 @@ GP.screens.weekend = function (A) {
       '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
       'ただし、データは読める人がいてはじめて数字になります' +
       '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
-      '：ストラテジストとエンジニアの両方が要ります）。</p><div class="pick fptyre" data-fpt="1">';
+      '：ストラテジストとエンジニアの両方が要ります）。</p>';
+    let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
+      '<p class="desc">ちがいは<b>ソフトを何本使うか</b>。' +
+      '履いたものが、そのまま日曜に分かっていることになります。</p>' +
+      '<div class="pick fptyre" data-fpt="1">';
     D.FP_TYRE.forEach(p => {
       const read = S.tyreRead(g, p.key, 1);
       h += '<button class="pickbtn' + (p.key === cur ? ' on' : '') + '" data-v="' + p.key + '">' +
@@ -708,7 +724,7 @@ GP.screens.weekend = function (A) {
         p.sets.filter(k => k === 'medium').length + 'M ' +
         p.sets.filter(k => k === 'hard').length + 'H</i></span></button>';
     });
-    return h + '</div>';
+    return h + '</div>' + fpNote;
   }
 
   function cmdPractice() {
@@ -1126,11 +1142,11 @@ GP.screens.weekend = function (A) {
     if (!st.done) {
       body += '<p class="desc">' +
         (up ? '今日は<b>' + st.c.icon + ' ' + esc(st.c.name) +
-              '</b>という手応えです。足りないところが見当たらない週末で、' +
-              'ここから<b>もう一段詰めにいく</b>か、<b>この形のまま日曜へ持っていく</b>かを選びます。'
-            : '言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) + '</b>。') +
-        'ここでの返し方が、そのままこの週末のマシンと、' +
-        'この人のピットへの信頼に効きます。<br>' +
+              '</b>という手応え。もう一段詰めにいくか、この形のまま日曜へ持っていくか。'
+            : '言い分は <b>' + st.c.icon + ' ' + esc(st.c.name) + '</b>。') + '</p>';
+      // 返しかたの効きめの説明は、選び終えたあとに置く
+      const brNote = '<p class="desc">ここでの返し方が、そのままこの週末のマシンと、' +
+        'この人のピットへの信頼に効きます。' +
         '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
         S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
       body += '<div class="pick">';
@@ -1150,7 +1166,7 @@ GP.screens.weekend = function (A) {
           '<span class="pb-cost">' + (odds == null ? '結果しだい'
             : '決まる<br>' + Math.round(odds * 100) + '%') + '</span></button>';
       });
-      body += '</div>';
+      body += '</div>' + brNote;
       U.modal('🎙️ ブリーフィング', body, [
         { label: '何も言わずに送り出す', fn: () => { briefState.done = { skip: true }; showBrief(); } }
       ], { wide: true });

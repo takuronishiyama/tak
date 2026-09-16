@@ -1094,8 +1094,26 @@ window.GP = window.GP || {};
     S.save(g); render();
     if (regChange) {
       const lg = g.legacy;
+      /* ---- 規則が変わった年の、朝いちばんの画面 ----
+         ここは4年に一度しか来ない。日誌の一行で流すには大きすぎるので、
+         「何が消えて」「何が残って」「うちはこの規則を読めているのか」を
+         一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
+      const rd = S.myEraRead(g), fit = S.myEraFit(g);
+      const fitPct = Math.round((fit - 1) * 100);
       U.modal('📜 レギュレーション変更',
         '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        '<div class="erabox big' + (fit >= 1.05 ? ' up' : fit <= 0.95 ? ' down' : '') + '">' +
+        '<b>' + rd.icon + ' うちは、この規則を「' + rd.name + '」' +
+        '<em>開発の伸び ' + (fitPct >= 0 ? '+' : '') + fitPct + '%</em></b>' +
+        '<small>' +
+        (fit >= 1.05
+          ? '設計室が新しい規則の骨をつかんでいます。同じ金をかけても、よそより速く仕上がります。'
+          : fit <= 0.95
+            ? 'まだ骨がつかめていません。同じ金をかけても、仕上がりはよそより遅い。'
+              + '<b>研究と技術に回して、読みの差を埋める年</b>にするのも手です。'
+            : '飛び抜けても沈んでもいません。手の打ちかたでどちらにも転びます。') +
+        'この読みは<b>いま引き直されたばかり</b>で、次の規則までは変わりません。' +
+        'ライバルにも同じように当たり外れがあります。</small></div>' +
         '<div class="rewardbox">' +
         '<div>パーツ・車体 <b>白紙から</b><small>積んだ知見のぶんだけ、ゼロよりは良い所から。レアリティ（到達できる上限）は引き継ぎます</small></div>' +
         (lg && lg.count
@@ -1108,15 +1126,18 @@ window.GP = window.GP || {};
             || 'まだありません。技術は規則が変わっても残る、数少ないものです') + '</small></div>' +
         '<div>施設・スタッフ・ドライバー・ファン・資金・オーナー <b>そのまま</b><small>積み上げたチーム力は失われません</small></div>' +
         '</div>' +
-        '<p class="desc">ライバルも同じだけ戻ります。上位と下位の差が一度リセットされ、' +
-        'ここからまた作り直しの勝負です。次の変更は ' + S.REG_EVERY + ' シーズン後。</p>' +
-        '<p class="desc"><b>🔬 いまがいちばん掘れる年です。</b>新しい規則には、まだ誰も' +
-        '見つけていない構造が残っています。改良でブレイクスルーを掘り当てる確率が' +
-        '<b>×' + S.innovFresh(g).toFixed(1) + '</b> になり、当たれば熟成が一気に進んで' +
-        'パーツの格が早く上がります。ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが' +
-        '出はじめます。ここで開発に厚く張れるかが、この4年を決めます。' +
-        'ただし灰色の領域が広いぶん、掘り当てたものが<b>あとから裁定で取り上げられる</b>' +
-        '確率も、いまがいちばん高くなります。</p>',
+        '<div class="erabox"><b>🔬 いまがいちばん掘れる年　' +
+        '<em>ブレイクスルー ×' + S.innovFresh(g).toFixed(1) + '</em></b>' +
+        '<small>新しい規則には、まだ誰も見つけていない構造が残っています。' +
+        '当たれば熟成が一気に進み、パーツの格が早く上がります。' +
+        'ライバルも同じなので、突然1周 0.2〜0.5秒 速くなるチームが出はじめます。' +
+        'ただし灰色の領域が広いぶん、掘り当てたものが' +
+        '<b>あとから裁定で取り上げられる</b>確率も、いまがいちばん高い。</small></div>' +
+        '<p class="desc">上位と下位の差は一度リセットされました。' +
+        'ここからまた作り直しの勝負で、次の変更は ' + S.REG_EVERY + ' シーズン後です。</p>' +
+        '<p class="note">まずは<b>🖊️ 設計室</b>でコンセプトを決め直し、' +
+        '<b>🏭 工房</b>でパーツを作り直すところから。' +
+        '読みの数字は設計室の「決める」にいつでも出ています。</p>',
         [{ label: 'やってやる', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
       U.log(g, '📜 レギュレーションが変わった。マシンは白紙から作り直し。', 'warn');
       S.pushNews(g, 'reg', '新しい規則');
@@ -1502,6 +1523,23 @@ window.GP = window.GP || {};
       GP.sound.play('tap');
       if (A.openTalk) A.openTalk('technical');
       else if (A.cmdMeet) A.cmdMeet();
+    });
+    /* はじめの手引き。行を押したら、その部屋をそのまま開く */
+    document.addEventListener('click', function (ev) {
+      const off = ev.target && ev.target.closest ? ev.target.closest('[data-guideoff]') : null;
+      if (off) {
+        ev.preventDefault(); GP.sound.play('tap');
+        g.guide = g.guide || {}; g.guide.off = 1; S.save(g); render();
+        U.toast('🧭 案内をしまいました（❓ からいつでも読めます）', 'good');
+        return;
+      }
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-guide]') : null;
+      if (!t || t.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      const go = { design: 'cmdDesign', make: 'cmdShop', fit: 'cmdGarage',
+                   hire: 'cmdStaff', race: 'cmdRace' }[t.dataset.guide];
+      if (go && typeof A[go] === 'function') A[go]();
     });
     document.addEventListener('click', function (ev) {
       const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;

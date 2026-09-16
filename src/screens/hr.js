@@ -1607,6 +1607,7 @@ GP.screens.hr = function (A) {
       const st = staffMarket[idx], fee = staffFee(st);
       if (g.funds < fee || S.staffRoom(g) <= 0) return;
       g.funds -= fee; g.staff.push(st);
+      S.guideMark(g, 'hire');
       staffMarket.splice(idx, 1);
       U.log(g, '👥 ' + st.name + ' を雇用した。（技能 ' + st.skill + '）', 'good');
       U.toast('👥 ' + st.name + ' が加入！', 'good');
@@ -1619,6 +1620,7 @@ GP.screens.hr = function (A) {
       const from = st.team;
       delete st.team;
       g.staff.push(st);
+      S.guideMark(g, 'hire');
       rivalStaffMarket.splice(idx, 1);
       GP.sound.play('crit');
       U.log(g, '🕵️ ' + from + ' から ' + st.name + '（技能 ' + st.skill + '）を引き抜いた！', 'good');
