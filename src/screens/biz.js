@@ -121,7 +121,7 @@ GP.screens.biz = function (A) {
     }
 
     if (spTab !== 'deal') {
-      body += interiorHTML('market');
+      body = interiorHTML('market') + body;
       U.modal('📣 営業活動', body, [{ label: '閉じる', fn: U.closeModal }]);
       paintInterior();
       bindSponsor();
@@ -154,8 +154,7 @@ GP.screens.biz = function (A) {
         '<span class="pb-cost"><button class="mini danger" data-drop="' + esc(s.name) + '">解約</button></span></div>';
     });
     body += '</div>';
-    // 絵は決めたあとの景色。上に置くと、押せるものが画面の外へ出る
-    body += interiorHTML('market');
+    body = interiorHTML('market') + body;
     U.modal('📣 営業活動', body, [{ label: '閉じる', fn: U.closeModal }]);
     paintInterior();
     bindSponsor();

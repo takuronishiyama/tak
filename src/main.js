@@ -1291,12 +1291,14 @@ window.GP = window.GP || {};
   /* 施設の内装。コマンド画面の先頭に、その施設の部屋を出す。
      レベルが上がるほど機材と人が増え、部屋が広くなる。            */
   function interiorHTML(key) {
-    return '<div class="intwrap"><canvas id="intCv" width="' + GP.interior.W +
+    /* 部屋は画面のいちばん上に出す。開いた瞬間に「どこに来たか」が
+       見えるようにするため。縦持ちでは天井を切って帯の高さに収める  */
+    return '<div class="intwrap top"><canvas id="intCv" width="' + GP.interior.W +
            '" height="' + GP.interior.H + '" data-fac="' + key + '"></canvas></div>';
   }
   function paintInterior() {
     const cv = $('intCv');
-    if (cv) GP.interior.render(cv, g, cv.dataset.fac);
+    if (cv) GP.interior.start(cv, g, cv.dataset.fac);
   }
 
   /* ---- コマンドの見返り ----

@@ -1454,6 +1454,11 @@ body[data-skin="hd"]{
 /* 施設の内装 */
 .intwrap{border:3px solid var(--ink);border-radius:10px;overflow:hidden;margin-bottom:10px;
          background:#2a2436;box-shadow:0 3px 0 rgba(74,47,26,.45)}
+/* 部屋を画面のいちばん上に出すときの帯。
+   絵の縦横比そのままだと、広い画面では帯が高くなりすぎて
+   押せるものが下へ逃げる。天井から切って、床の側を残す      */
+.intwrap.top{margin:0 0 8px;max-height:min(21vh,164px);
+             display:flex;align-items:flex-end}
 #intCv{display:block;width:100%;height:auto;
        image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
 [data-skin="hd"] .intwrap{border-color:var(--gold2);

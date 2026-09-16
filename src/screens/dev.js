@@ -615,7 +615,7 @@ GP.screens.dev = function (A) {
         '<button class="tab' + (impTab === t[0] ? ' on' : '') + '" data-itab="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
     if (impTab === 'kit') {
-      body += A.garageHTML() + interiorHTML('factory');
+      body = interiorHTML('factory') + body + A.garageHTML();
       U.modal('🔧 ガレージ', body, [{ label: '閉じる', cls: 'primary', fn: U.closeModal }]);
       paintInterior();
       A.bindGarage(() => cmdImprove('kit'));
@@ -816,8 +816,7 @@ GP.screens.dev = function (A) {
     body += aduoBoxHTML(true) + innovBoxHTML() + conceptBoxHTML();
 
     body += '</div>';
-    body += interiorHTML('factory');
-    body = ticketBarHTML() + body;
+    body = ticketBarHTML() + interiorHTML('factory') + body;
     U.modal('🔧 ガレージ', body, [
       { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -946,8 +945,7 @@ GP.screens.dev = function (A) {
 
     }
 
-    body += interiorHTML('factory');
-    body = ticketBarHTML() + body;
+    body = ticketBarHTML() + interiorHTML('factory') + body;
     U.modal('🖊️ 設計室', body, [
       { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -1962,8 +1960,7 @@ GP.screens.dev = function (A) {
       body += makeBoxHTML() + spareBoxHTML() + trendBoxHTML();
     }
 
-    body += interiorHTML('factory');
-    body = ticketBarHTML() + body;
+    body = ticketBarHTML() + interiorHTML('factory') + body;
     U.modal('🏭 工房', body, [
       { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
@@ -2235,9 +2232,7 @@ GP.screens.dev = function (A) {
           : 'よそから買う／こちらから分ける') + '</small></span>' +
       '<span class="pb-cost">›</span></button></div>';
 
-    // 絵は決めたあとの景色。上に置くと、押せるものが画面の外へ出る
-    body += interiorHTML('tunnel');
-    body = ticketBarHTML() + body;
+    body = ticketBarHTML() + interiorHTML('tunnel') + body;
     U.modal('🔬 研究所', body, [{ label: '閉じる', fn: U.closeModal }]);
     paintInterior();
     bindTicket(() => cmdResearch());
@@ -2770,7 +2765,7 @@ GP.screens.dev = function (A) {
       '走ったぶんの芯の摩耗は残ります（いまの天井 <b>' + ceil + '%</b>／残量 <b>' +
       Math.round(puNow.life) + '%</b>）。ここまで戻したら、あとは<b>新品を入れる</b>しかありません。<br>' +
       '出力モードを落とせば減りは遅くなります。押すと、そこまで小窓で決められます。</p>';
-    body += interiorHTML('pit');
+    body = interiorHTML('pit') + body;
     U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }
@@ -2849,8 +2844,7 @@ GP.screens.dev = function (A) {
                           : 'スタッフがいません') + '</small></span>' +
       '<span class="pb-cost">💰' + money(wcost) + '</span></button></div>';
 
-    // 絵は決めたあとの景色。上に置くと一覧が画面の外へ出るので下に
-    return body + interiorHTML('sim');
+    return interiorHTML('sim') + body;
   }
   function bindTrain() {
     const { cost, scost, wcost } = trainCosts();

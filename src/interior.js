@@ -10,12 +10,16 @@ GP.interior = (function () {
   'use strict';
 
   const W = 520, H = 190;
+  /* 部屋の時計。ここを見て、人も羽根もモニターも動く。
+     止まっている絵だと「入った」感じがしない          */
+  let T = 0;
 
   function seeded(n) {
     let h = (n * 2654435761) >>> 0;
     return function () { h = (h * 1103515245 + 12345) >>> 0; return h / 4294967296; };
   }
 
+  function mixTint(hex, amt) { return mix(hex, amt); }
   function mix(hex, amt) {
     if (!hex || hex[0] !== '#') return hex;
     const n = parseInt(hex.slice(1), 16);
@@ -23,14 +27,32 @@ GP.interior = (function () {
     return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
   }
 
-  /* 働いている人。レベルが上がるほど増える */
-  function worker(g, x, y, col, phase) {
-    const bob = Math.sin(phase) * 0.8;
+  /* 働いている人。レベルが上がるほど増える。
+     手を動かしている人と、行ったり来たりしている人がいる       */
+  function worker(g, x, y, col, phase, opt) {
+    opt = opt || {};
+    const ph = phase + T * 2.6;
+    const bob = Math.sin(ph) * 0.8;
+    // 歩いている人は、持ち場のまわりを行ったり来たりする
+    const walk = opt.walk ? Math.sin(phase * 0.7 + T * 0.9) * opt.walk : 0;
+    x += walk;
+    const arm = Math.sin(ph * 1.7) * 2.2;
     g.fillStyle = 'rgba(0,0,0,.26)'; g.fillRect(x - 4, y + 1, 8, 2);
     g.fillStyle = mix(col, -0.20); g.fillRect(x - 4, y - 13 + bob, 8, 13);
     g.fillStyle = col;             g.fillRect(x - 4, y - 13 + bob, 8, 5);
-    g.fillStyle = '#e8b98e';       g.fillRect(x - 3, y - 19 + bob, 6, 6);   // 顔
-    g.fillStyle = '#3a2718';       g.fillRect(x - 3, y - 20 + bob, 6, 3);   // 髪
+    // 腕。持ち場では叩き、歩いているときは振る
+    g.fillStyle = mix(col, -0.30);
+    g.fillRect(x + 3, y - 11 + bob + (opt.walk ? arm * 0.5 : arm), 3, 5);
+    g.fillStyle = opt.skin || '#e8b98e'; g.fillRect(x - 3, y - 19 + bob, 6, 6);   // 顔
+    g.fillStyle = opt.hair || '#3a2718'; g.fillRect(x - 3, y - 20 + bob, 6, 3);   // 髪
+    if (opt.name) {
+      g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
+      g.fillStyle = 'rgba(16,10,6,.55)';
+      const w = g.measureText(opt.name).width + 6;
+      g.fillRect(x - w / 2, y - 31 + bob, w, 9);
+      g.fillStyle = '#ffeec4'; g.fillText(opt.name, x, y - 24 + bob);
+      g.textAlign = 'left';
+    }
   }
 
   /* 部屋の枠。レベルが上がるほど天井が高く、明かりが増える */
@@ -38,9 +60,9 @@ GP.interior = (function () {
     const grow = Math.min(1, (lv - 1) / 9);
     const floorY = H - 22;
     // 奥の壁
-    g.fillStyle = dusk ? '#2a2436' : '#cfc6b2';
+    g.fillStyle = dusk ? '#3a3350' : '#cfc6b2';
     g.fillRect(0, 0, W, floorY);
-    g.fillStyle = dusk ? '#312b3e' : '#d8cfbb';
+    g.fillStyle = dusk ? '#443c5c' : '#d8cfbb';
     g.fillRect(0, 0, W, 16 + grow * 10);                       // 天井
     // 壁の帯（チームカラー）
     g.fillStyle = tint;
@@ -58,12 +80,56 @@ GP.interior = (function () {
       gl.addColorStop(1, 'rgba(255,240,190,0)');
       g.fillStyle = gl; g.fillRect(x - 46, 6, 92, 70);
     }
+    /* ---- 奥の壁の作り込み ----
+       近くまで寄って見せるようになったので、
+       壁が一色のままだと、カメラが流れた先が空になる。
+       柱・配管・窓・掲示を並べて、どこを切り取っても何かある状態にする */
+    const wall = dusk ? '#4a4260' : '#c2b9a4';
+    const wall2 = dusk ? '#564c70' : '#cec5ae';
+    // 柱
+    for (let x = 26; x < W; x += 92) {
+      g.fillStyle = wall; g.fillRect(x, 14, 13, floorY - 14);
+      g.fillStyle = wall2; g.fillRect(x, 14, 4, floorY - 14);
+      g.fillStyle = 'rgba(0,0,0,.20)'; g.fillRect(x + 11, 14, 2, floorY - 14);
+    }
+    /* 配管・窓・掲示は、切り取る帯（床から112px）の中に入る高さに置く。
+       天井際に置いていたころは、寄って見ると壁が一色のままだった   */
+    const pipeY = floorY - 100;
+    g.fillStyle = dusk ? '#6b5a3a' : '#8d8470';
+    g.fillRect(0, pipeY, W, 6);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, pipeY, W, 2);
+    for (let x = 12; x < W; x += 74) {
+      g.fillStyle = dusk ? '#7e6a44' : '#9a9080'; g.fillRect(x, pipeY - 2, 7, 10);
+    }
+    // 高い窓。夜は中の灯りが映るだけ
+    for (let x = 52; x < W; x += 92) {
+      g.fillStyle = dusk ? '#20304a' : '#9fb6c9';
+      g.fillRect(x, floorY - 84, 42, 22);
+      g.fillStyle = dusk ? 'rgba(150,190,255,.16)' : 'rgba(255,255,255,.34)';
+      g.fillRect(x + 2, floorY - 82, 38, 8);
+      g.fillStyle = dusk ? '#2a2030' : '#7d7364';
+      g.fillRect(x + 20, floorY - 84, 2, 22);
+    }
+    // 掲示物。チームカラーの札を等間隔で
+    for (let x = 8; x < W; x += 92) {
+      g.fillStyle = mixTint(tint, -0.25); g.fillRect(x, floorY - 58, 26, 16);
+      g.fillStyle = tint; g.fillRect(x + 1, floorY - 57, 24, 14);
+      g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(x + 4, floorY - 53, 18, 2);
+      g.fillRect(x + 4, floorY - 48, 11, 2);
+    }
     // 床
-    g.fillStyle = dusk ? '#3a3346' : '#9a9384';
+    g.fillStyle = dusk ? '#4a4258' : '#9a9384';
     g.fillRect(0, floorY, W, H - floorY);
-    g.fillStyle = dusk ? '#413a4e' : '#a49d8c';
+    g.fillStyle = dusk ? '#544b64' : '#a49d8c';
     for (let x = 0; x < W; x += 30) g.fillRect(x, floorY, 28, H - floorY);
     g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(0, floorY, W, 2);
+    // 床の区画線。奥行きが出る
+    g.fillStyle = tint; g.globalAlpha = 0.5;
+    g.fillRect(0, floorY + 8, W, 2);
+    g.globalAlpha = 1;
+    for (let x = 6; x < W; x += 46) {
+      g.fillStyle = 'rgba(255,240,200,.16)'; g.fillRect(x, floorY + 14, 22, 2);
+    }
     return floorY;
   }
 
@@ -116,7 +182,7 @@ GP.interior = (function () {
       g.beginPath(); g.arc(cx, cy, r * 0.42, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#dfe6ec'; g.lineWidth = 3;                           // 羽根
       for (let a = 0; a < 5; a++) {
-        const t = a * Math.PI * 2 / 5 + lv * 0.4;
+        const t = a * Math.PI * 2 / 5 + lv * 0.4 + T * 2.4;
         g.beginPath(); g.moveTo(cx, cy);
         g.lineTo(cx + Math.cos(t) * r * 0.8, cy + Math.sin(t) * r * 0.8); g.stroke();
       }
@@ -124,8 +190,9 @@ GP.interior = (function () {
       const lines = 3 + Math.floor(lv * 0.7);
       for (let i = 0; i < lines; i++) {
         const y = cy - r + (i + 0.5) * (r * 2 / lines);
+        const slide = ((T * 46 + i * 37) % 60) - 30;
         g.fillStyle = 'rgba(200,230,255,' + (0.16 + (i % 3) * 0.06).toFixed(2) + ')';
-        g.fillRect(cx + r + 8, y, 130 + (i % 4) * 26, 2);
+        g.fillRect(cx + r + 8 + slide, y, 130 + (i % 4) * 26, 2);
       }
       // 模型を載せた台
       const mx = W - 150;
@@ -268,13 +335,56 @@ GP.interior = (function () {
   };
 
   /* ---------- 描画 ---------- */
-  function render(cv, g2, key) {
+  /* ---- その部屋にいる人 ----
+     雇った人が名簿の中だけにいると、どこで働いているのか分からない。
+     部屋ごとに「そこにいる職種」を決めて、実際に立たせる。
+     人数が増えるほど部屋が賑やかになる                        */
+  const WHO = {
+    factory: ['mechanic', 'engineer'],
+    tunnel:  ['researcher', 'designer'],
+    sim:     ['analyst', 'strategist'],
+    market:  ['logi'],
+    youth:   ['trainer'],
+    pit:     ['mechanic', 'strategist'],
+    meeting: ['engineer', 'strategist', 'analyst']
+  };
+  const SKINS = ['#e8b98e', '#d8a074', '#c08a5e', '#f0c9a4'];
+  const HAIRS = ['#3a2718', '#1c1410', '#6b4a2a', '#8a6a3a', '#2a2a2e'];
+  function peopleOf(g2, key) {
+    const want = WHO[key] || [];
+    if (!want.length) return [];
+    return (g2.staff || []).filter(x => want.indexOf(x.type) >= 0)
+      .sort((a, b) => b.skill - a.skill);
+  }
+
+  /* ---- カメラ ----
+     部屋まるごとを帯に押し込むと、人が9pxほどにしか映らない。
+     部屋は 520×190 のまま描いて、そこから 260×95 だけ切り出して
+     貼る（2倍の寄り）。切り取る位置はゆっくり左右に流して、
+     見ているうちに部屋のぜんぶが通り過ぎるようにする        */
+  const CAM = { w: 307, h: 112, mid: 106, amp: 106, speed: 0.15 };
+  let buf = null, bctx = null;
+  function getBuf() {
+    if (!buf) {
+      buf = document.createElement('canvas');
+      buf.width = W; buf.height = H;
+      bctx = buf.getContext('2d');
+    }
+    return bctx;
+  }
+
+  function render(cv, g2, key, t) {
+    T = t || 0;
     const dusk = document.body.getAttribute('data-skin') === 'hd';
     const lv = Math.max(1, Math.min(10, (g2.facilities && g2.facilities[key]) || 1));
     const out = cv.getContext('2d');
     out.imageSmoothingEnabled = false;
+    const base = getBuf();
+    base.imageSmoothingEnabled = false;
+    base.setTransform(1, 0, 0, 1, 0, 0);
+    base.clearRect(0, 0, W, H);
     if (dusk) GP.fx.init(W, H);
-    const g = dusk ? GP.fx.begin() : out;
+    const g = dusk ? GP.fx.begin() : base;
     g.imageSmoothingEnabled = false;
     const rnd = seeded(lv * 31 + key.length * 7);
     const col = g2.color || '#e04a3f';
@@ -282,8 +392,25 @@ GP.interior = (function () {
     const fy = room(g, lv, col, dusk);
     const spots = (ROOMS[key] || ROOMS.factory)(g, lv, col, fy, rnd);
 
-    // 働いている人。レベルが上がるほど増える
-    (spots || []).forEach((x, i) => worker(g, x, fy, col, i * 1.7 + lv));
+    /* 働いている人。持ち場の数はレベルで決まり、
+       そこに立つのは実際に雇っている、その部門の人たち     */
+    const crew = peopleOf(g2, key);
+    (spots || []).forEach((x, i) => {
+      const who = crew[i];
+      const seed = who ? (who.name || '').length + i * 3 : i;
+      worker(g, x, fy, col, i * 1.7 + lv, {
+        walk: (i % 3 === 2) ? 9 : 0,
+        skin: SKINS[seed % SKINS.length],
+        hair: HAIRS[(seed + i) % HAIRS.length],
+        name: who ? String(who.name).split(/[・\s]/)[0] : ''
+      });
+    });
+    // 名簿にはいるのに立つ場所が無い人は、奥のほうに小さく足す
+    for (let i = (spots || []).length; i < Math.min(crew.length, (spots || []).length + 4); i++) {
+      const x = 40 + ((i * 97) % (W - 80));
+      worker(g, x, fy - 16, col, i * 2.3, { walk: 6,
+        skin: SKINS[i % SKINS.length], hair: HAIRS[i % HAIRS.length] });
+    }
 
     // いちばん手前に自分が立つ
     if (GP.base && GP.base.drawActor) {
@@ -291,14 +418,48 @@ GP.interior = (function () {
                              moving: false, color: col });
     }
 
-    // レベルの表示
+    // レベルと、いま何人いるか
     g.font = 'bold 10px sans-serif'; g.textAlign = 'left';
-    g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, 62, 14);
-    g.fillStyle = '#ffe9b0'; g.fillText('Lv.' + lv + ' / 10', 11, 16);
+    const tag = 'Lv.' + lv + ' / 10' + (crew.length ? '　👥' + crew.length : '');
+    const tw = g.measureText(tag).width + 10;
+    g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, tw, 14);
+    g.fillStyle = '#ffe9b0'; g.fillText(tag, 11, 16);
 
-    if (!dusk) return;
-    GP.fx.composite(out, { dof: 0, bloom: 0.9, warm: 1.0, vignette: 0.85, night: true });
+    /* 帯として小さく出すようになったので、前の沈んだ調子だと
+       人も機材も見えない。にじみを強めて、四隅の落としを弱める */
+    if (dusk) GP.fx.composite(base, { dof: 0, bloom: 1.25, warm: 1.0, vignette: 0.45, night: true });
+
+    // 切り出して貼る。横にゆっくり流す
+    const sx = Math.round(CAM.mid + Math.sin(T * CAM.speed) * CAM.amp - CAM.w / 2);
+    const sy = H - CAM.h;
+    out.setTransform(1, 0, 0, 1, 0, 0);
+    out.clearRect(0, 0, W, H);
+    out.drawImage(buf, Math.max(0, Math.min(W - CAM.w, sx)), sy, CAM.w, CAM.h, 0, 0, W, H);
   }
 
-  return { render, W, H };
+  /* ---- 動かす ----
+     入った瞬間に「人がいる場所」だと分かってほしいので、
+     部屋はゆっくり動かし続ける。札が外れたら勝手に止まる。
+     速さは 12コマ／秒。ここは主役ではないので、これで足りる  */
+  const RUN = {};
+  function start(cv, g2, key) {
+    if (!cv) return;
+    const id = (RUN.id || 0) + 1;
+    RUN.id = id;
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    let last = -1;
+    const step = () => {
+      if (RUN.id !== id) return;                    // 別の部屋へ移った
+      if (!cv.isConnected || !cv.offsetParent) { RUN.id = 0; return; }
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const t = (now - t0) / 1000;
+      if (t - last >= 1 / 12) { last = t; render(cv, g2, key, t); }
+      requestAnimationFrame(step);
+    };
+    render(cv, g2, key, 0);
+    requestAnimationFrame(step);
+  }
+  function stop() { RUN.id = 0; }
+
+  return { render, start, stop, W, H };
 })();
