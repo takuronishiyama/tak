@@ -743,8 +743,8 @@ body.preboot .topbar{visibility:hidden}
 /* ================= レース画面 ================= */
 #raceScreen{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;background:rgba(30,18,8,.86);display:none;
             align-items:center;justify-content:center;z-index:60;
-            padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
-                    calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+            padding:calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right))
+                    calc(4px + env(safe-area-inset-bottom)) calc(4px + env(safe-area-inset-left))}
 #raceScreen.show{display:flex}
 .rv-wrap{width:100%;max-width:900px;max-height:96vh;display:flex;flex-direction:column;gap:6px;
          background:var(--paper);border:4px solid var(--ink);border-radius:12px;padding:8px;
@@ -780,9 +780,13 @@ body.preboot .topbar{visibility:hidden}
    広い画面で余白が空いていても、図はいつまでも小さいままだった。
    高さを決めてしまえば、幅は縦横比のぶんだけ勝手に伸びる。
    狭い画面では max-width が先に当たり、そのぶん高さも縮む（比は保たれる） */
+/* max-height:100% は、入れ物（.rv-body）の高さが決まっているときだけ効く。
+   広い窓では枠の高さを決めて .rv-body に余りを渡しているので、そこで効く。
+   狭い窓では入れ物の高さが決まっていないぶん、これまでどおり
+   --rvMap がそのまま高さになる                                        */
 #raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
             image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
-            width:auto;height:var(--rvMap,46vh);max-width:100%;
+            width:auto;height:var(--rvMap,46vh);max-width:100%;max-height:100%;
             background:#7fbf5a}
 /* 無線に右下を譲って、カメラの切り替えは左下へ */
 .rv-cam{position:absolute;left:6px;bottom:6px;display:flex;gap:4px}
@@ -2951,12 +2955,30 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
    あとに来る必要があるから。前に置くと、モニターを出したときの
    指定に上書きされて効かなかった                                  */
 @media (min-width:1000px) and (min-height:560px) and (hover:hover) and (pointer:fine){
-  .rv-wrap{max-width:min(1560px,96vw)}
+  /* 枠の広さは、中に並ぶもの（コース図＋順位パネル）から逆に決める。
+     コース図は 560×400 の比で描くので、幅は高さ×1.4。
+     そこに順位パネルのぶんを足したのが、枠のちょうどいい広さ。
+     数えずに広げるだけだと、図と順位のあいだに何も置かれていない
+     帯ができていた。width:fit-content で中身に合わせるやり方は、
+     図の max-width と参照が輪になって縦横比が崩れたのでとらない  */
+  /* 枠の高さを決めてしまい、上下の帯を引いた残りを .rv-body に渡す。
+     こうしておくと、天気の札でヘッダが2段になった回でも、
+     図がそのぶん縮むだけで、枠の中が送られることはなくなる      */
+  .rv-wrap{height:calc(100vh - 8px);max-height:calc(100vh - 8px);margin:0 auto;
+           max-width:min(calc(100vw - 8px), calc(var(--rvMap) * 1.4 + 430px))}
+  .rv-body{flex:1 1 auto}
+  .rv-canvaswrap{max-height:100%}
+  /* モニターを出しているあいだは、余りを渡す先が表のほうになる */
+  .rv-wrap.timing .rv-body{flex:0 0 auto}
+  .rv-wrap.timing .rv-mon{flex:1 1 auto;min-height:0}
+  /* モニターを出しているあいだは表が主役なので、窓いっぱいに使う */
+  .rv-wrap.timing{max-width:calc(100vw - 8px)}
   /* 上下の帯（ヘッダ・自車の行・実況・操作）を除いた残り。
      窓が低いときは vh 側が、高いときは px 側が効く            */
-  /* vh 側は上げない（窓が低いと枠の中が送られる）。
-     px の上限だけ上げて、広くて高い窓でだけ図が伸びるようにする */
-  .rv-wrap{--rvMap:min(56vh,600px)}
+  /* 上下の帯は高さがほぼ決まっている（およそ 300px）。
+     残りをまるごと図に渡す。vh の割合で取っていたころは、
+     窓が高いほど余りが増えていた                              */
+  .rv-wrap{--rvMap:min(calc(100vh - 286px),660px)}
   /* 順位のパネルは広げすぎても読みにくい。上限を決めて、
      余ったぶんはコース図へ渡す。高さは図に合わせて伸ばす      */
   /* ---- 無線を、コース図の上から右の帯へ ----
@@ -2965,10 +2987,10 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
      枠を広げて右に帯ができたので、そこへ移す。
      #rvRadio は入れ物（.rv-canvaswrap＝コース図そのもの）を
      基準に置かれているので、left:100% がコース図の右端になる  */
-  .rv-side{flex:0 1 380px;max-width:380px;align-self:flex-start;
-           height:calc(var(--rvMap) - 158px)}
+  .rv-side{flex:0 1 400px;max-width:400px;align-self:flex-start;
+           height:calc(var(--rvMap) - 158px);max-height:calc(100% - 158px)}
   .rv-radio{left:calc(100% + 6px);right:auto;bottom:0;
-            width:380px;max-width:none;height:152px;
+            width:400px;max-width:none;height:152px;
             align-items:stretch;justify-content:flex-end;
             border:3px solid var(--ink);border-radius:8px;
             background:#141b16;padding:5px;overflow:hidden}
@@ -2986,20 +3008,22 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
   /* 表と実況も、広がったぶんだけ見せる。
      図と表の合計が枠の高さを超えると、枠の中が送られてしまうので、
      どちらも vh で取って、窓の高さに合わせて一緒に縮むようにする   */
-  .rv-wrap.timing .rv-mon .rv-sectors{max-height:min(46vh,560px)}
-  .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(220px,24%,340px);
-                                      max-height:min(46vh,560px)}
+  .rv-wrap.timing .rv-mon .rv-sectors{max-height:100%}
+  .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(220px,24%,340px);max-height:100%}
 }
 /* ---- さらに広い窓では、もう一段コース図へ回す ----
    1920px の窓では、上の段でも左右に 260px ずつ余っていた。
    図は縦横比が決まっているので、高さを上げるとそのまま横へ伸びる。
    順位の帯と無線も、そのぶん読める幅にする                      */
 @media (min-width:1560px) and (min-height:760px) and (hover:hover) and (pointer:fine){
-  .rv-wrap{max-width:min(1840px,97vw);--rvMap:min(62vh,700px)}
+  .rv-wrap{--rvMap:min(calc(100vh - 286px),820px);
+           max-width:min(calc(100vw - 8px), calc(var(--rvMap) * 1.4 + 530px))}
+  .rv-wrap.timing{max-width:calc(100vw - 8px)}
   /* モニターは表と実況が主役。図を上げすぎると枠の中が送られる */
   .rv-wrap.timing{--rvMap:min(36vh,470px)}
-  .rv-side{flex:0 1 440px;max-width:440px;height:calc(var(--rvMap) - 158px)}
-  .rv-radio{width:440px}
+  .rv-side{flex:0 1 500px;max-width:500px;
+           height:calc(var(--rvMap) - 158px);max-height:calc(100% - 158px)}
+  .rv-radio{width:500px}
   .rv-wrap.timing .rv-mon .rv-loglist{flex:0 0 clamp(260px,22%,400px)}
 }
 /* 縦に持つ端末では並べきれないので、これまでどおり積む */
@@ -17721,7 +17745,7 @@ GP.raceview = (function () {
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   /* 観戦の速さ（レース全体を何秒で見せるか）。
      じっくり見るのを基準にして、そこから3段だけ速くできる    */
-  const DEFAULT_SPEED = 200;
+  const DEFAULT_SPEED = 330;
   let vt = 0, speed = DEFAULT_SPEED, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
   /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
@@ -37941,7 +37965,7 @@ window.GP = window.GP || {};
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     /* じっくり（既定）を基準に、そこから3段だけ速くできる。
        数字は「レース全体を何秒で見せるか」 */
-    const speeds = { rvSpeed0: 200, rvSpeed1: 110, rvSpeed2: 55, rvSpeed3: 22 };
+    const speeds = { rvSpeed0: 330, rvSpeed1: 170, rvSpeed2: 80, rvSpeed3: 22 };
     const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
     const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {

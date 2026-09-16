@@ -1532,7 +1532,7 @@ window.GP = window.GP || {};
     // 数値は「レース全体を何秒で再生するか」。既定は「ゆっくり」
     /* じっくり（既定）を基準に、そこから3段だけ速くできる。
        数字は「レース全体を何秒で見せるか」 */
-    const speeds = { rvSpeed0: 200, rvSpeed1: 110, rvSpeed2: 55, rvSpeed3: 22 };
+    const speeds = { rvSpeed0: 330, rvSpeed1: 170, rvSpeed2: 80, rvSpeed3: 22 };
     const allIds = Object.keys(speeds).concat(['rvSpeedReal']);
     const mark = id => allIds.forEach(o => { const el = $(o); if (el) el.classList.toggle('primary', o === id); });
     Object.keys(speeds).forEach(id => {

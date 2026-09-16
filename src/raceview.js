@@ -11,7 +11,7 @@ GP.raceview = (function () {
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   /* 観戦の速さ（レース全体を何秒で見せるか）。
      じっくり見るのを基準にして、そこから3段だけ速くできる    */
-  const DEFAULT_SPEED = 200;
+  const DEFAULT_SPEED = 330;
   let vt = 0, speed = DEFAULT_SPEED, running = false, onEnd = null, lastTs = 0, lights = 0, chequer = 0, duration = 1;
   let shownEvents = 0;
   /* チーム無線。実況の下に流れる文字とは別に、短い言葉を数秒だけ出す */
