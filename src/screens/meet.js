@@ -296,8 +296,12 @@ GP.screens.meet = function (A) {
       .sort((a, b) => a.lv - b.lv)[0];
     const lines = [
       ['資金', '<b>💰' + money(g.funds) + '万</b>'],
-      ['1戦あたり', '<b class="' + (fin.net < 0 ? 'down' : 'up') + '">' +
-        sign(money(fin.net)) + '万</b>　<small>2台とも完走しての最低ライン。' +
+      /* 1戦にかかる週数は移動の長さで変わるので、次の戦のぶんで出す。
+         連戦なら週が少なく、長距離なら固定費がそのぶん積み上がる */
+      ['次の1戦', '<b class="' + (fin.net < 0 ? 'down' : 'up') + '">' +
+        sign(money(fin.net)) + '万</b>　<small>' +
+        S.hopDef(S.hopOf(g, g.nextRace)).icon + '準備' + S.prepWeeks(g, g.nextRace) +
+        '回ぶんの固定費で計算。2台とも完走しての最低ラインで、' +
         '入賞すると 1点 +💰470万</small>'],
       ['スタッフ', '<b>' + have + ' / ' + slots + '席</b>' +
         (room > 0 ? '（あと ' + room + '人 置けます）' : '（満席）')],
@@ -314,8 +318,9 @@ GP.screens.meet = function (A) {
       /* net は「2台とも最後尾で完走したとき」の額。
          入賞すればここから上がるので、そう言わないと
          ただ「赤字です」と脅しているだけになる            */
-      say = '<b>入賞できないと、1戦あたり ' + money(fin.net) + '万の赤字</b>です' +
-            '（2台とも完走しての最低ライン）。' +
+      say = '<b>入賞できないと、次の1戦で ' + money(fin.net) + '万の赤字</b>です' +
+            '（' + S.hopDef(S.hopOf(g, g.nextRace)).name + 'で準備' +
+            S.prepWeeks(g, g.nextRace) + '回ぶん、2台とも完走しての最低ライン）。' +
             'ポイントを持ち帰れば、1台につき 1点あたり 💰470万 が上乗せされます。' +
             '入賞が続けば黒字に乗ります。';
     } else if (room > 2) {
@@ -329,14 +334,14 @@ GP.screens.meet = function (A) {
       say = low.f.icon + '<b>' + low.f.name + 'がまだ Lv.' + low.lv + '</b>です。' +
             esc(low.f.desc) + '——ここが足を引っぱっています。';
     } else {
-      say = 'チームは回っています。資金 💰' + money(g.funds) + '万、1戦あたり +' +
+      say = 'チームは回っています。資金 💰' + money(g.funds) + '万、次の1戦で +' +
             money(fin.net) + '万。次に効くのは' +
             (low ? low.f.icon + low.f.name + 'の拡張' : '人の補強') + 'あたりです。';
     }
     return {
       key: 'principal', who: w,
       mood: (g.funds < fin.weekly * 6 || fin.net < 0) ? 'bad' : room > 2 ? 'warn' : 'good',
-      head: '💰' + money(g.funds) + '万　1戦 ' + sign(money(fin.net)) + '万',
+      head: '💰' + money(g.funds) + '万　次の1戦 ' + sign(money(fin.net)) + '万',
       say: say + (vac ? '<br><b class="down">' + vac + '</b>' : ''), lines: lines,
       acts: [
         { key: 'biz', icon: '📣', label: '営業へ', note: 'スポンサーを増やす',

@@ -100,7 +100,7 @@ window.GP = window.GP || {};
     if (hb) hb.onclick = () => A.cmdHelp();
   })();
 
-  function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g.nextRace); }
+  function isRaceWeek() { return g.nextRace < D.RACES && g.week >= S.raceWeek(g, g.nextRace); }
 
   function endWeek() {
     A.crunchConsume(true);
@@ -241,9 +241,9 @@ window.GP = window.GP || {};
     offerSpecial();
     offerSponsor();
 
-    if (g.week > S.SEASON_WEEKS) return seasonEnd();
+    if (g.week > S.seasonWeeks(g)) return seasonEnd();
     // シーズンの折り返し。工場ごと閉める2週間
-    if (S.inSummer(g.week) && g.summerSeason !== g.season) { S.save(g); return doSummerBreak(); }
+    if (S.inSummer(g, g.week) && g.summerSeason !== g.season) { S.save(g); return doSummerBreak(); }
     S.save(g);
     render();
     if (isRaceWeek()) U.toast('🏁 今週はレースウィーク！', 'good');
@@ -355,7 +355,7 @@ window.GP = window.GP || {};
       }
     }
     // 2週間を消化して、後半戦へ
-    g.week = S.summerTo() + 1;
+    g.week = S.summerTo(g) + 1;
     g.yardDone = [];
     S.save(g);
     const p3 = SUMMER_PLANS.find(x => x.key === key);
@@ -799,7 +799,7 @@ window.GP = window.GP || {};
   /* ---------- 特別戦の誘い ---------- */
   function offerSpecial() {
     if (isRaceWeek() || g.nextRace >= D.RACES) return;
-    if (g.week >= S.SEASON_WEEKS - 1) return;          // 最終盤には来ない
+    if (g.week >= S.seasonWeeks(g) - 1) return;        // 最終盤には来ない
     if (Math.random() > 0.24) return;
     const pool = D.SPECIALS.filter(x => g.season >= x.minSeason);
     if (!pool.length) return;
@@ -953,6 +953,7 @@ window.GP = window.GP || {};
     /* 今年の顔ぶれを組み直す。走る数は変わらず、大会が入れ替わる。
        抜けた大会と入った大会は、開幕前に知らせる               */
     g.calendar = S.buildCalendar(g);
+    g.prep = null; g.prepFor = '';   // 日程が変われば準備週も組み直す
     {
       const cd = S.calendarDiff(g);
       if (cd.added.length || cd.gone.length) {

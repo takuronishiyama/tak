@@ -588,7 +588,7 @@ GP.screens.biz = function (A) {
     // ---- 運営費 ----
     if (fin.net < 0 && fin.weekly > 900) {
       push(2, 'logistics', '運営費が重くなっています',
-        '毎週 ' + money(fin.weekly) + '万。1戦あたりの収支は <b>' +
+        '毎週 ' + money(fin.weekly) + '万。次の1戦の収支は <b>' +
         money(fin.net) + '万</b>で、賞金だけが頼りです。',
         mgmtVoice('logistics').vacant
           ? 'ロジスティクス責任者を据えれば、固定費そのものが下がります。'

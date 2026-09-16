@@ -3758,7 +3758,7 @@ GP.state = (function () {
     const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
     const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
     // パワーユニットの供給料。1戦ぶんを週あたりにならす
-    const engine = g2.engine ? Math.round(g2.engine.fee / raceWeek(0)) : 0;
+    const engine = g2.engine ? Math.round(g2.engine.fee / (PREP_WEEKS + 1)) : 0;
     const other = 150;
     const estate = estateUpkeep(g2);            // 持っている事業の維持費
     const gearUp = gearUpkeep(g2).net;          // 買った装備の維持費
@@ -3800,7 +3800,8 @@ GP.state = (function () {
     const floorOne = (800 + Math.max(0, 1300 - 22 * 50)) * (diff.prize == null ? 1 : diff.prize);
     const racePrize = Math.round(floorOne * cars);
 
-    const PREP = raceWeek(0);                       // レース1回あたりの週数
+    // 次の1戦にかかる週数（準備週＋決勝の週）。移動が長い戦ほど週が要る
+    const PREP = prepWeeks(g2, g2.nextRace) + 1;
     // 次のレースへの輸送費（コースの遠さで変わる）
     const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
     return {
@@ -3970,7 +3971,7 @@ GP.state = (function () {
   }
 
   /* ---------- カレンダー ---------- */
-  const PREP_WEEKS = 3;      // レース間の準備週
+  const PREP_WEEKS = 3;      // 1戦あたりの準備週（ならした値。年の合計はこれ×戦数）
   /* ---------- サマーブレイク ----------
      シーズンの折り返しで、工場ごと閉める2週間。
      実際のF1と同じで、ここは走ることも作ることもできない。
@@ -4033,13 +4034,97 @@ GP.state = (function () {
              gone: prev.filter(i => now.indexOf(i) < 0).map(i => D.TRACKS[i]) };
   }
 
-  function raceWeek(i) {
-    return (i + 1) * (PREP_WEEKS + 1) + (i >= SUMMER_AT ? SUMMER_WEEKS : 0);
+  /* =======================================================
+     準備週
+
+     ずっと「どの戦でも3週」だったが、実際の日程は場所で変わる。
+     同じ地域の連戦なら荷を降ろさずに次へ行くので間が無く、
+     大陸をまたぐと機材が動くぶんカレンダーのほうが空けてくれる。
+     その空きが、そのまま「その戦までに何回コマンドを使えるか」になる。
+
+     年の合計は D.RACES × PREP_WEEKS に揃える。ここが動くと、
+     1年で車がどれだけ伸びるかまで変わってしまう。
+     素のままだと合計が足りないので、余りは
+     もともと長い移動のほうへ寄せる（連戦は詰めたまま残す）。
+     ======================================================= */
+  function regionOf(t) { return (t && t.region) || 'eu'; }
+  function regionNear(a, b) {
+    return (D.CALENDAR.near || []).some(p => (p[0] === a && p[1] === b) || (p[1] === a && p[0] === b));
   }
+  /* 前の戦からこの戦への移動の種類 */
+  function hopOf(g2, round) {
+    const cal = calendarOf(g2);
+    const i = clamp(Math.round(round || 0), 0, cal.length - 1);
+    if (i === 0) return 'first';
+    const t = D.TRACKS[cal[i]], prev = D.TRACKS[cal[i - 1]];
+    const a = regionOf(prev), b = regionOf(t);
+    if (a === b) return 'back';
+    if (regionNear(a, b)) return 'near';
+    return (t.far || 1) >= D.CALENDAR.longFar ? 'long' : 'far';
+  }
+  function hopDef(key) {
+    return (D.CALENDAR.hops || []).filter(h => h.key === key)[0] || { icon: '✈️', name: '移動', note: '' };
+  }
+  function buildPrep(g2) {
+    const cal = calendarOf(g2);
+    const C = D.CALENDAR;
+    const P = cal.map((ti, i) => C.prep[hopOf(g2, i)] || PREP_WEEKS);
+    /* 足りないぶんを配る先。連戦はそのまま、長い移動から順に。
+       同じ長さなら遠いほうを先にして、毎年おなじ形にする     */
+    const order = P.map((p, i) => i).filter(i => P[i] > C.prep.back)
+      .sort((a, b) => (P[b] - P[a])
+                   || ((D.TRACKS[cal[b]].far || 1) - (D.TRACKS[cal[a]].far || 1))
+                   || (a - b));
+    let need = D.RACES * PREP_WEEKS - P.reduce((a, b) => a + b, 0);
+    for (let pass = 0; need > 0 && order.length && pass < 40; pass++) {
+      let moved = false;
+      for (let k = 0; k < order.length && need > 0; k++) {
+        const i = order[k];
+        if (P[i] >= C.max) continue;
+        P[i]++; need--; moved = true;
+      }
+      if (!moved) break;
+    }
+    // 多すぎたときは、長いほうから削る（連戦は減らさない）
+    for (let guard = 0; need < 0 && guard < 60; guard++) {
+      const cand = P.map((p, i) => i).filter(i => P[i] > C.prep.back)
+        .sort((a, b) => P[b] - P[a]);
+      if (!cand.length) break;
+      P[cand[0]]--; need++;
+    }
+    return P;
+  }
+  /* いまの年の準備週。カレンダーが変われば組み直す */
+  function prepPlan(g2) {
+    const cal = calendarOf(g2);
+    const sig = cal.join(',');
+    if (!g2) return buildPrep(null);
+    if (!g2.prep || g2.prep.length !== cal.length || g2.prepFor !== sig) {
+      g2.prep = buildPrep(g2);
+      g2.prepFor = sig;
+    }
+    return g2.prep;
+  }
+  /* 第n戦までの準備週（その戦の前に何回コマンドを使えるか） */
+  function prepWeeks(g2, round) {
+    const P = prepPlan(g2);
+    return P[clamp(Math.round(round || 0), 0, P.length - 1)];
+  }
+  /* 第n戦の決勝がある週 */
+  function raceWeek(g2, i) {
+    const P = prepPlan(g2);
+    const n = clamp(Math.round(i || 0), 0, P.length - 1);
+    let w = 0;
+    for (let k = 0; k <= n; k++) w += P[k] + 1;
+    return w + (n >= SUMMER_AT ? SUMMER_WEEKS : 0);
+  }
+  /* 年の長さ。最終戦の週まで */
+  function seasonWeeks(g2) { return raceWeek(g2, D.RACES - 1); }
+  const summerFrom = g2 => raceWeek(g2, SUMMER_AT - 1) + 1;
+  const summerTo   = g2 => summerFrom(g2) + SUMMER_WEEKS - 1;
+  function inSummer(g2, week) { return week >= summerFrom(g2) && week <= summerTo(g2); }
+  /* 週の通し番号。年ごとの長さが変わるので、十分に大きい歩幅で数える */
   const SEASON_WEEKS = D.RACES * (PREP_WEEKS + 1) + SUMMER_WEEKS;
-  const summerFrom = () => raceWeek(SUMMER_AT - 1) + 1;
-  const summerTo   = () => summerFrom() + SUMMER_WEEKS - 1;
-  function inSummer(week) { return week >= summerFrom() && week <= summerTo(); }
 
   /* ---------- 新規ゲーム ---------- */
   const diffOf = g2 => D.DIFFICULTIES.find(x => x.key === (g2 && g2.mode)) || D.DIFFICULTIES[1];
@@ -4099,6 +4184,7 @@ GP.state = (function () {
       trainedThisWeek: false
     };
     g.calendar = buildCalendar(g);
+    g.prep = null; g.prepFor = '';
     D.PART_GROUPS.forEach(gr => { g.mat[gr.key] = 0; g.matP[gr.key] = 0; });
     g.chassis = rollChassis(g);
     D.PART_CATS.forEach(c => { g.equipped[c.key] = makePart(c.key, 0, 1.0, { power: 10, cond: 92, traits: [] }); });
@@ -5024,7 +5110,8 @@ GP.state = (function () {
     fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
     mechSynergy, mechLift, mechScore, mechName, packaging, packWorst, packScore, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
-    raceWeek, SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
+    raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef,
+    SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
   };
 })();

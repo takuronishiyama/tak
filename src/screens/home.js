@@ -2791,13 +2791,19 @@ GP.screens.home = function (A) {
     if (kitOnly) return body + kitBoxHTML();
 
     // ---- この先のコースと、かかる費用の見通し ----
+    /* 費用だけでなく、その戦までに何回コマンドを使えるかも出す。
+       遠いほど金はかかるが、そのぶんカレンダーが間を空けてくれる  */
     body += '<div class="sub small">この先の遠征</div><div class="logi-cal">';
     for (let k = 0; k < 4; k++) {
-      const tk = S.trackAt(g, (g.nextRace + k) % D.RACES);
+      const r = g.nextRace + k;
+      if (r >= D.RACES) break;
+      const tk = S.trackAt(g, r);
       const c = S.logiCost(g, tk);
+      const hp = S.hopDef(S.hopOf(g, r));
       body += '<span class="lc' + (k === 0 ? ' on' : '') + (tk.far >= 1.35 ? ' far' : '') + '">' +
         tk.country + '<b>' + esc(tk.name.slice(0, 7)) + '</b>' +
-        '<em>💰' + money(c) + '</em></span>';
+        '<em>💰' + money(c) + '</em>' +
+        '<u>' + hp.icon + ' 準備' + S.prepWeeks(g, r) + '回</u></span>';
     }
     /* 効いているものを一行に畳む。仕組みの説明はヘルプへ回して、
        ここには「いま何％効いているか」だけを残す                */

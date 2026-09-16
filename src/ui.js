@@ -30,7 +30,7 @@ GP.ui = (function () {
     curG = g;
     paintModalFunds(g);
     const nextIdx = g.nextRace % D.RACES;
-    const rw = S.raceWeek(g.nextRace);
+    const rw = S.raceWeek(g, g.nextRace);
     const left = Math.max(0, rw - g.week);
     $('tTeam').textContent = S.teamLabel(g);
     $('tTeamDot').style.background = g.color;
@@ -97,8 +97,15 @@ GP.ui = (function () {
     }
     const t = S.trackAt(g, g.nextRace);
     const sc = S.carScore(g, t);
-    const left = Math.max(0, S.raceWeek(g.nextRace) - g.week);
+    const left = Math.max(0, S.raceWeek(g, g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
+    /* 準備の回数は戦ごとに変わる。なぜ多い／少ないのかを、
+       移動の種類でその場に出す（同じ地域の連戦なら1回しかない） */
+    const hop = S.hopDef(S.hopOf(g, g.nextRace));
+    const prep = S.prepWeeks(g, g.nextRace);
+    const nx = g.nextRace + 1 < D.RACES
+      ? { t: S.trackAt(g, g.nextRace + 1), p: S.prepWeeks(g, g.nextRace + 1),
+          h: S.hopDef(S.hopOf(g, g.nextRace + 1)) } : null;
     return '<div class="card foldable" data-fold="race">' +
       '<div class="card-h">🏁 第' + (g.nextRace + 1) + '戦 ' + t.country + ' ' + esc(t.name) +
       '<b class="foldnote">あと' + left + '週</b></div>' +
@@ -108,8 +115,11 @@ GP.ui = (function () {
         ? '<b>★ 今週が決勝です</b><span>「レースへ向かう！」を押してください</span>'
         : '<b>準備できるのは あと ' + left + ' 回</b>' +
           '<span class="pips">' + pips + '</span>' +
-          '<span>コマンドを1つ選ぶと1週進みます</span>') +
+          '<span>この戦は ' + hop.icon + ' <b>' + hop.name + '</b> なので、' +
+          'ぜんぶで <b>' + prep + '回</b>です</span>') +
       '</div>' +
+      (nx ? '<div class="nextup">つぎは ' + nx.t.country + ' ' + esc(nx.t.name) +
+            '　' + nx.h.icon + nx.h.name + '<b>準備 ' + nx.p + '回</b></div>' : '') +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
       '<div class="seclegend">' +
@@ -675,7 +685,7 @@ GP.ui = (function () {
      ========================================================= */
   function finance(g) {
     const f = S.finances(g);
-    const cyc = S.raceWeek(0);
+    const cyc = S.prepWeeks(g, g.nextRace) + 1;   // 次の1戦にかかる週数
     const rows = [
       ['👥 スタッフ給料', f.staff], ['👔 首脳陣の報酬', f.managers],
       ['🧑‍✈️ ドライバー給料', f.drivers], ['🎓 育成の費用', f.youth],
@@ -826,7 +836,7 @@ GP.ui = (function () {
   function hubCard(g) {
     const sc = GP.base.scale(g);
     // レースウィークは、本拠地ではなくサーキットのパドックにいる
-    const race = g.nextRace < D.RACES && g.week === GP.state.raceWeek(g.nextRace);
+    const race = g.nextRace < D.RACES && g.week === GP.state.raceWeek(g, g.nextRace);
     const track = g.nextRace < D.RACES ? S.trackAt(g, g.nextRace) : null;
     const head =
       g.onGrid ? '<div class="card-h">🏁 スターティンググリッド <b class="hubrank">' +

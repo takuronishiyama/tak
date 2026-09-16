@@ -112,6 +112,12 @@ button{font-family:inherit;color:inherit;cursor:pointer}
                    border:2px solid var(--ink);border-radius:3px}
 .countdown.now{background:linear-gradient(#ffd0c0,#ff9a80);border-color:var(--red)}
 .countdown.now b{color:#a01a10}
+/* つぎの戦への移動。いまの戦の支度をしながら、その先も見える */
+.nextup{font-size:10.5px;color:var(--ink2);margin:-4px 0 8px;padding:3px 10px;
+        border-left:3px solid var(--line,#d9d5cc);line-height:1.6}
+.nextup b{margin-left:6px;color:var(--ink)}
+[data-skin="hd"] .nextup{color:#cbbb9a;border-left-color:#5b4a74}
+[data-skin="hd"] .nextup b{color:#f2e4c4}
 
 /* ---------- タイヤ ---------- */
 .tyres{gap:5px}
@@ -1467,6 +1473,9 @@ body[data-skin="hd"]{
 .lc em{display:block;font-style:normal;font-size:10px;color:var(--ink2)}
 .lc.on{background:#ffd23a;box-shadow:inset 0 0 0 2px rgba(74,47,26,.45)}
 .lc.far{border-color:#b02a20}
+/* その戦までに何回コマンドを使えるか。遠いほど金はかかるが、間は空く */
+.lc u{display:block;text-decoration:none;font-size:9px;margin-top:2px;
+     letter-spacing:-.2px;opacity:.85}
 [data-skin="hd"] .logi-now{background:#241c30;color:#efe4cf;border-color:#5b4a74}
 [data-skin="hd"] .logi-now span{color:#cbbb9a}
 [data-skin="hd"] .logi-now .good{color:#8ef08e}
