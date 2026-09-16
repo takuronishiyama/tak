@@ -115,22 +115,16 @@ GP.screens.dev = function (A) {
       'そうやってできた速さを、どこまで<b>引き出す</b>かがドライバー。' +
       'まれに、車の持ち分を<b>超えてくる</b>人がいます。</p>' +
       '<div class="pick">' +
+      /* 説明は1行に詰める。2行あると、スマホでは4枚目が画面の外に出た。
+         役に立っているのは下の「いまの状態」の行のほうなので、そちらは残す */
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
-        'ひらめきを図面に落とし、素材と技術を積み上げる。' +
-        '<b>パーツそのものには手を入れません</b>——それは工房の仕事です', 'des', cst.des) +
+        'ひらめきを図面に落とし、素材と技術を積む', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
-        '新しいパーツを作る。煮詰めるのは<b>工房が毎週やっています</b>——' +
-        'あなたの出番は、器の上限に届いたときです', 'shop', cst.shop) +
+        '新しいパーツを作る（煮詰めるのは工房が毎週やっています）', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
-        '工房で作ったパーツを<b>載せ替える</b>。つなぎ込みは' +
-        '<b>技術部門が毎週ひとりでに進める</b>ので、決めるのは' +
-        '<b>どちらへ寄せるか</b>だけ。週は進みません', 'imp', cst.imp, false) +
+        '作ったパーツを載せ替え、寄せかたを決める', 'imp', cst.imp, false) +
       carPickHTML('🔬', '研究所', '― 当たりを取りに行く',
-        '育てた個体を<b>⚡イノベーション</b>で格上げする。' +
-        '扇を調べて<b>知見</b>を溜める。溜めた知見は、' +
-        '<b>💡ひらめき</b>（作れば必ず' + D.QUALITY[D.QUALITY.length - 1].name +
-        'になるパーツ設計）に変えるか、' +
-        '方針が引いた線そのものを押し広げるかに使えます', 'res', cst.res) +
+        '扇を調べて知見を溜め、⚡イノベーションや💡ひらめきに変える', 'res', cst.res) +
       '</div>' +
       /* ここから下は、その判断の材料。
          見出しで3つに割っておくと、ui.js が畳んで
@@ -1924,16 +1918,12 @@ GP.screens.dev = function (A) {
        ・外れても、いま載っているものへ<b>吸わせる素材</b>になること
      どちらも「引き」の話なので、見込みを押す前に出す           */
   function makeBoxHTML() {
-    let h = '<div class="sub">新しいパーツを作る</div>' + workshopBoxHTML() +
-      '<p class="desc">ここは<b>引きを回す場所</b>です。' +
-      '出来（品質）は作った瞬間に決まり、それがそのまま<b>器の大きさ</b>になります。' +
-      'いま載っているものより大きな器を引けたら、載せ替えて育て直す価値があります。<br>' +
-      '<b>外れても無駄になりません。</b>「🏎️ マシン」で' +
-      'いま載っているものに<b>吸わせる</b>と、性能の45%を引き継ぎ、' +
-      '18%ほどの見込みで器そのものも少し広がります。<br>' +
-      '<b class="warn">新品は性能が下から始まります</b>ので、' +
-      'そのまま載せ替えるとその場では遅くなります。' +
-      '育てた個体をそのまま格上げしたいなら、🔬研究所の<b>⚡イノベーション</b>です。' +
+    /* 押せるものを先に、読みものを後ろに。
+       前は工作台の一覧と5行の説明が先にあって、
+       スマホでは最初の「作る」が 716px 下に沈んでいた       */
+    let h = '<div class="sub">新しいパーツを作る</div>' +
+      '<p class="desc">出来（品質）は<b>作った瞬間に決まり</b>、それがそのまま' +
+      '<b>器の大きさ</b>になります。いまより大きな器を引けたら、載せ替える価値あり。' +
       U.helpLink('car') + '</p>' +
       '<div class="pick">';
     const desCut = S.perkCut(g, 'design');
@@ -1976,7 +1966,15 @@ GP.screens.dev = function (A) {
           (desCut > 0 ? '<s>💰' + money(Math.round(dc.money / (1 - desCut))) + '</s><br>' : '') +
           '💰' + money(dc.money) + '<br>🔬' + dc.rp + '</span></button>';
     });
-    return h + '</div>';
+    /* ここから下は、押したあとで効いてくる話。読まなくても押せる */
+    h += '</div>' + workshopBoxHTML() +
+      '<p class="desc"><b>外れても無駄になりません。</b>🔧ガレージで' +
+      'いま載っているものに<b>吸わせる</b>と、性能の45%を引き継ぎ、' +
+      '18%ほどの見込みで器そのものも少し広がります。<br>' +
+      '<b class="warn">新品は性能が下から始まります</b>ので、' +
+      'そのまま載せ替えるとその場では遅くなります。' +
+      '育てた個体をそのまま格上げしたいなら、🔬研究所の<b>⚡イノベーション</b>です。</p>';
+    return h;
   }
 
   /* =======================================================
@@ -1993,10 +1991,8 @@ GP.screens.dev = function (A) {
       ['line', '🛠️', 'ライン',   '']
     ];
     let body =
-      '<p class="desc">ここは<b>パーツそのものを作る</b>場所です。' +
-      '図面を形にするのがあなたの仕事で、' +
-      'できたものを上限へ近づける（煮詰める）のは<b>工房が毎週やっています</b>。' +
-      '何を作るかは🖊️設計室で決め、車に載せて作り込むのは🔧ガレージです。</p>' +
+      '<p class="desc">ここは<b>パーツそのものを作る</b>場所。' +
+      '煮詰めるのは<b>工房が毎週やっています</b>。</p>' +
       '<div class="tabs qtabs bastabs">' + STABS.map(t =>
         '<button class="tab' + (shopTab === t[0] ? ' on' : '') + '" data-stab2="' + t[0] + '">' +
         t[1] + ' ' + t[2] + (t[3] ? '<em>' + t[3] + '</em>' : '') + '</button>').join('') + '</div>';
@@ -2007,9 +2003,10 @@ GP.screens.dev = function (A) {
     } else if (shopTab === 'line') {
       body += lineBoxHTML();
     } else {
-      /* 何を作るかの前に、ラインをどう使うかを決める。
-         製造方針はここが本籍（マシン画面からも触れる）     */
-      body += spareBoxHTML() + makeBoxHTML() + trendBoxHTML();
+      /* この部屋の用事は「作る」。製造方針は一度決めたら触らないものなので、
+         先に開いていると、毎回来る用事のほうが畳まれていた。
+         方針はここが本籍のまま、順番だけ下げる（マシン画面からも触れる） */
+      body += makeBoxHTML() + spareBoxHTML() + trendBoxHTML();
     }
 
     body += interiorHTML('factory');
@@ -2038,7 +2035,7 @@ GP.screens.dev = function (A) {
   function cmdResearch() {
     const cur = D.CAR_GENS[g.carGen], nx = D.CAR_GENS[g.carGen + 1];
     const rp = S.researchPower(g);
-    let body = interiorHTML('tunnel') +
+    let body =
       '<div class="pick">' +
       '<button class="pickbtn" data-k="__gain"><span class="pb-ic" style="background:#8a6ad0">📊</span>' +
       '<span class="pb-body"><b>データ解析</b><small>1週かけて研究ポイントを稼ぐ</small></span>' +
@@ -2050,30 +2047,21 @@ GP.screens.dev = function (A) {
        いくら改良しても、その線の手前で止まっていた。
        研究は、その線を外へ押していく仕事                       */
     const cn = S.conceptOf(g);
-    body += '<div class="sub">🔬 コンセプトの線</div>' +
+    /* 見出しは、この節でやることの名前にする。「コンセプトの線」だと
+       読みものに見えて、1年目は使えない説明から画面が始まっていた   */
+    body += '<div class="sub">🔬 扇を調べる</div>' +
       (cn ? '' :
-        '<p class="note">📋 まだ<b>マシンの方針</b>を決めていません。' +
-        '1年目の車は何にも縛られていないので、押し広げるものがそもそもありません。' +
-        'ここで溜めた知見は消えないので、オフシーズンに方針を決めたあとで使えます。</p>') +
-      '<p class="desc">いちばん外の輪が、' +
-      (cn ? '<b>' + cn.icon + ' ' + esc(cn.name) + '</b>' : '<b>コンセプト</b>') +
-      'の引いた線です。方針に逆らう向きは、' +
-      '<b>上限そのもの</b>が ' + Math.round(D.CONCEPT.offCap * 100) + '% までしかありません。' +
-      'いくら改良しても、その手前で止まります。<br>' +
-      '研究は、その線を外へ押していく仕事です。扇をひとつ選んで1週かけて調べると、' +
-      D.RESEARCH.need + ' まで溜まったところで<b>知見</b>がひとつ生まれます' +
-      '（そのとき研究ポイントも <b>+' + D.RESEARCH.foundRp + '🔬</b>）。<br>' +
-      '掴んだ知見には、使い道が<b>ふたつ</b>あります。' +
-      '<b>💡ひらめきに変える</b>と、その扇の部位をひとつ選んで、' +
-      '<b>必ず会心作になる</b>設計の当てを持ち帰れます。' +
-      '<b>線を押し広げる</b>と、その扇の上限が <b>+' +
-      Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
-      '（' + Math.round((D.CONCEPT.offCap + D.RESEARCH.liftMax) * 100) + '% まで）。<br>' +
+        '<p class="note">📋 1年目はまだ<b>マシンの方針</b>が無いので、押し広げる線もありません。' +
+        'いまここでできるのは<b>知見を溜めて 💡ひらめきに変える</b>こと' +
+        '（作れば必ず会心作になる設計の当て）。' +
+        '溜めた知見は消えないので、方針を決めたあとで線を押し広げるのにも使えます。</p>') +
+      /* 押せるものを先に。仕組みの話は一覧の下へ回す。
+         前は8行の説明を読み切らないと、扇のボタンに届かなかった */
+      '<p class="desc">扇をひとつ選んで<b>1週</b>かけて調べます。' +
+      D.RESEARCH.need + ' まで溜まると<b>知見</b>がひとつ生まれ、' +
       '1週で進むのは <b>' + rp.toFixed(1) + '</b>。' +
-      '🔬リサーチャー・📊アナリスト・風洞の規模・' +
-      (S.hasEstate(g, 'lab') ? '<b>🔬リサーチセンター</b>' : '🔬リサーチセンター') +
-      'で速くなります。<br>費用 💰' + money(D.RESEARCH.cost) + '万／🔬' + D.RESEARCH.rp +
-      '（1週消費）' + U.helpLink('car') + '</p><div class="pick">';
+      '費用 💰' + money(D.RESEARCH.cost) + '万／🔬' + D.RESEARCH.rp +
+      U.helpLink('car') + '</p><div class="pick">';
     S.researchList(g).forEach(r => {
       const poor = g.funds < D.RESEARCH.cost || g.rp < D.RESEARCH.rp;
       const stack = r.found >= D.RESEARCH.keep;
@@ -2100,7 +2088,19 @@ GP.screens.dev = function (A) {
         '</small></span>' +
         '<span class="pb-cost">💰' + money(D.RESEARCH.cost) + '<br>🔬' + D.RESEARCH.rp + '</span></button>';
     });
-    body += '</div>';
+    body += '</div>' +
+      '<p class="desc">いちばん外の輪が、' +
+      (cn ? '<b>' + cn.icon + ' ' + esc(cn.name) + '</b>' : '<b>コンセプト</b>') +
+      'の引いた線です。方針に逆らう向きは<b>上限そのもの</b>が ' +
+      Math.round(D.CONCEPT.offCap * 100) + '% までしかなく、いくら作り込んでも手前で止まります。' +
+      '研究は、その線を外へ押していく仕事です。<br>' +
+      '掴んだ知見の使い道は<b>ふたつ</b>。<b>💡ひらめきに変える</b>と、その扇の部位をひとつ選んで' +
+      '<b>必ず会心作になる</b>設計の当てを持ち帰れます。' +
+      '<b>線を押し広げる</b>と、その扇の上限が <b>+' +
+      Math.round(D.RESEARCH.lift * 100) + '%</b> 外へ動きます' +
+      '（' + Math.round((D.CONCEPT.offCap + D.RESEARCH.liftMax) * 100) + '% まで）。<br>' +
+      '進みが速くなるのは 🔬リサーチャー・📊アナリスト・風洞の規模・' +
+      (S.hasEstate(g, 'lab') ? '<b>🔬リサーチセンター</b>' : '🔬リサーチセンター') + 'です。</p>';
 
     /* ---- イノベーション ----
        ひらめきを「形にする」と新品が生まれるが、性能はまた下から。
@@ -2282,8 +2282,10 @@ GP.screens.dev = function (A) {
           : 'よそから買う／こちらから分ける') + '</small></span>' +
       '<span class="pb-cost">›</span></button></div>';
 
+    // 絵は決めたあとの景色。上に置くと、押せるものが画面の外へ出る
+    body += interiorHTML('tunnel');
     body = ticketBarHTML() + body;
-    U.modal('🔬 研究所', body, [{ label: 'やめる', fn: U.closeModal }]);
+    U.modal('🔬 研究所', body, [{ label: '閉じる', fn: U.closeModal }]);
     paintInterior();
     bindTicket(() => cmdResearch());
     bindPick(k => {
@@ -2775,7 +2777,7 @@ GP.screens.dev = function (A) {
       return v;
     })();
 
-    let body = interiorHTML('pit') +
+    let body =
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
       '<div class="bigbox">信頼性 <b>' + Math.round(now) + '%</b>' +
         '<span class="bb-to">→ 整備後 <b>' + Math.round(after) + '%</b></span></div>' +
@@ -2815,6 +2817,7 @@ GP.screens.dev = function (A) {
       '走ったぶんの芯の摩耗は残ります（いまの天井 <b>' + ceil + '%</b>／残量 <b>' +
       Math.round(puNow.life) + '%</b>）。ここまで戻したら、あとは<b>新品を入れる</b>しかありません。<br>' +
       '出力モードを落とせば減りは遅くなります。押すと、そこまで小窓で決められます。</p>';
+    body += interiorHTML('pit');
     U.modal('🛠️ 整備', body, [
       { label: '整備する', cls: 'primary', disabled: g.funds < cost, fn: () => doMaintain(cost) },
       { label: 'やめる', fn: U.closeModal }

@@ -374,6 +374,13 @@ table.rank.grid td.dim{opacity:.35}
 .basepick .pickbtn{flex:1 1 30%;min-width:120px;justify-content:flex-start;font-size:10px;padding:4px 6px}
 .basepick .pickbtn.on{background:linear-gradient(#ffd76a,var(--yellow));transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .basepick em{font-style:normal;opacity:.7;margin-left:auto}
+/* 施設の行は2段。何が伸びるのかが読めないと、どれを上げるか決められない */
+.facrow{flex-direction:column;align-items:stretch;gap:1px;text-align:left}
+.facrow .fr-t{display:flex;align-items:center;gap:4px}
+.facrow .fr-e{font-size:9px;opacity:.72;letter-spacing:-.2px}
+/* 敷地の絵は目印。画面の主役ではないので、施設の画面では低くする */
+.basewrap.small{max-height:172px;overflow:hidden;display:flex;align-items:center}
+.basewrap.small canvas{margin-top:-6%}
 
 /* ---------- 効果音ボタン ---------- */
 .stat.sound{cursor:pointer;font-size:14px;line-height:1;padding:3px 8px}

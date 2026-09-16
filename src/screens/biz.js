@@ -48,7 +48,7 @@ GP.screens.biz = function (A) {
     const have = g.sponsors.map(s => s.name);
     const avail = D.SPONSORS.filter(s => S.sponsorOpen(g, s) && have.indexOf(s.name) < 0);
     const ht = S.hypeTier(g);
-    let body = interiorHTML('market') +
+    let body =
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
@@ -121,7 +121,8 @@ GP.screens.biz = function (A) {
     }
 
     if (spTab !== 'deal') {
-      U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
+      body += interiorHTML('market');
+      U.modal('📣 営業活動', body, [{ label: '閉じる', fn: U.closeModal }]);
       paintInterior();
       bindSponsor();
       return;
@@ -153,7 +154,9 @@ GP.screens.biz = function (A) {
         '<span class="pb-cost"><button class="mini danger" data-drop="' + esc(s.name) + '">解約</button></span></div>';
     });
     body += '</div>';
-    U.modal('📣 営業活動', body, [{ label: 'やめる', fn: U.closeModal }]);
+    // 絵は決めたあとの景色。上に置くと、押せるものが画面の外へ出る
+    body += interiorHTML('market');
+    U.modal('📣 営業活動', body, [{ label: '閉じる', fn: U.closeModal }]);
     paintInterior();
     bindSponsor();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-drop]'), b => {

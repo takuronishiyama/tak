@@ -455,7 +455,8 @@ GP.screens.home = function (A) {
     const body =
       '<div class="baseinfo"><span>チーム規模 <b>' + sc.rank + '</b></span>' +
       '<span>施設を広げるほど、本拠地は大きく賑やかになります</span></div>' +
-      '<div class="basewrap"><canvas id="baseCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
+      /* 絵は「いまどこの話をしているか」の目印。画面の主役ではないので小さく */
+      '<div class="basewrap small"><canvas id="baseCv" width="' + GP.base.W + '" height="' + GP.base.H + '"></canvas></div>' +
       '<div id="baseDetail"></div>';
     U.modal('🏗️ チーム本拠地', body, [{ label: '閉じる', fn: () => { GP.sound.play('tap'); U.closeModal(); } }], { wide: true });
     drawBase();
@@ -931,15 +932,19 @@ GP.screens.home = function (A) {
   /* 施設を選ぶ並び。以前は1,700pxの最下段にあったので、
      「選ぶ → 見る」の順になるよう、いちばん上へ持ってきた */
   function facPickHTML() {
+    /* 名前とレベルと値段だけだと、どれを上げるか決められない。
+       何が伸びるのかを、行そのものに一言入れる            */
     let h = '<div class="pick basepick">';
     D.FACILITIES.forEach(x => {
       const l2 = g.facilities[x.key], c2 = facilityCost(x.key);
       const gn = (D.GEAR[x.key] || []).filter(y => S.hasGear(g, x.key, y.key)).length;
       const gt = (D.GEAR[x.key] || []).length;
-      h += '<button class="pickbtn small' + (x.key === baseSel ? ' on' : '') + '" data-fac="' + x.key + '">' +
-        x.icon + ' ' + x.name + ' <b>Lv.' + l2 + '</b>' +
+      h += '<button class="pickbtn small facrow' + (x.key === baseSel ? ' on' : '') +
+        '" data-fac="' + x.key + '">' +
+        '<span class="fr-t">' + x.icon + ' ' + x.name + ' <b>Lv.' + l2 + '</b>' +
         (gt ? ' <i class="gearn' + (gn === gt ? ' full' : '') + '">備品 ' + gn + '/' + gt + '</i>' : '') +
-        (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</button>';
+        (l2 >= 10 ? ' <em>MAX</em>' : ' <em>💰' + money(c2) + '</em>') + '</span>' +
+        '<span class="fr-e">' + esc(x.eff || '') + '</span></button>';
     });
     return h + '</div>';
   }
