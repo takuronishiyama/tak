@@ -414,6 +414,22 @@ table.rank.grid td.dim{opacity:.35}
 /* 逃がしきれなかった札は、印だけにして場所を空ける */
 .mtag.mini .mt-pill b,.mtag.mini .mt-pill em{display:none}
 .mtag.mini .mt-pill{padding:2px 5px}
+/* ---- ふだんは小さな印 ----
+   札がフルネームと用事つきで6枚も並ぶと、建物がぜんぶ隠れていた。
+   絵が主役なので、出すのは絵文字と短い呼び名だけ。
+   指したとき（押す直前）だけ、名前と用事がひらく          */
+.mt-short{text-decoration:none;font-size:10px;font-weight:bold;letter-spacing:-.2px}
+.mtag.pin .mt-pill b,.mtag.pin .mt-pill em{display:none}
+.mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
+.mtag.pin .mt-pill i{font-size:13px}
+.mtag.mini .mt-short{display:none}
+@media (hover:hover) and (pointer:fine){
+  .mtag.pin:hover{z-index:5}
+  .mtag.pin:hover .mt-pill b{display:block}
+  .mtag.pin:hover .mt-pill em{display:inline}
+  .mtag.pin:hover .mt-short{display:none}
+  .mtag.pin:hover .mt-pill{padding:2px 7px 2px 5px;opacity:1}
+}
 [data-skin="hd"] .mt-pill{background:rgba(38,28,54,.92);color:#f4e8cf;border-color:var(--gold)}
 [data-skin="hd"] .mt-pill em{background:#4b3d68;color:#efe4cf}
 [data-skin="hd"] .mt-stem{background:var(--gold);opacity:.85}
@@ -1444,9 +1460,17 @@ body[data-skin="hd"]{
 [data-skin="hd"] .cmd-sep{background:rgba(255,238,196,.30)}
 
 /* ---------- 本拠地ハブ（メイン画面の入口） ---------- */
+/* 絵は主役。2段組みのときも、いつも横いっぱいを使う
+   （はじめの手引きが出ている週に、半分の幅へ落ちていた） */
+.col-left > .card.hub{grid-column:1 / -1}
 .card.hub .basewrap{margin-bottom:6px;display:flex;justify-content:center;align-items:center}
 #hubCv{display:block;width:100%;height:auto;cursor:pointer;
        image-rendering:-webkit-optimize-contrast;image-rendering:pixelated}
+/* 広い窓では、絵が縦に伸びすぎて下のカードが押し出される。
+   高さで止めて、そのぶん横を中央に寄せる                */
+@media (min-width:1000px){
+  #hubCv{max-height:min(44vh,460px);width:auto;max-width:100%}
+}
 
 /* パーツのアイコンは自前のドット絵。下地の色は薄く敷いて、絵を主役にする */
 .ic-art{overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center}
@@ -32889,10 +32913,19 @@ GP.screens.home = function (A) {
       list.push({ k: k, d: doors[k], x: x, y: p.y / mp.H * 100 });
     });
     if (!list.length) { box.innerHTML = ''; box.classList.remove('on'); return; }
+    /* 札は「誰がどこに居るか」の印で、絵を隠すためのものではない。
+       ふだんは絵文字と短い呼び名だけにして、
+       触れた（指した）ときだけフルネームと用事を出す。
+       全文はいつでも、下のタイルの一覧にある                */
+    const shortOf = s2 => {
+      const head = String(s2 || '').split(/[・\s（(]/)[0];
+      return head.length > 5 ? head.slice(0, 5) : head;
+    };
     box.innerHTML = list.map(t =>
-      '<button class="mtag" data-hub="' + esc(t.k) + '"' +
+      '<button class="mtag pin" data-hub="' + esc(t.k) + '"' +
       ' style="left:' + t.x.toFixed(2) + '%;top:' + t.y.toFixed(2) + '%">' +
       '<span class="mt-pill"><i>' + (t.d.icon || '•') + '</i>' +
+      '<u class="mt-short">' + esc(shortOf(t.d.label || t.k)) + '</u>' +
       '<b>' + esc(t.d.label || t.k) + '</b>' +
       '<em>' + esc(t.d.to || '入る') + '</em>' +
       '</span>' +

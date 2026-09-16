@@ -2371,10 +2371,19 @@ GP.screens.home = function (A) {
       list.push({ k: k, d: doors[k], x: x, y: p.y / mp.H * 100 });
     });
     if (!list.length) { box.innerHTML = ''; box.classList.remove('on'); return; }
+    /* 札は「誰がどこに居るか」の印で、絵を隠すためのものではない。
+       ふだんは絵文字と短い呼び名だけにして、
+       触れた（指した）ときだけフルネームと用事を出す。
+       全文はいつでも、下のタイルの一覧にある                */
+    const shortOf = s2 => {
+      const head = String(s2 || '').split(/[・\s（(]/)[0];
+      return head.length > 5 ? head.slice(0, 5) : head;
+    };
     box.innerHTML = list.map(t =>
-      '<button class="mtag" data-hub="' + esc(t.k) + '"' +
+      '<button class="mtag pin" data-hub="' + esc(t.k) + '"' +
       ' style="left:' + t.x.toFixed(2) + '%;top:' + t.y.toFixed(2) + '%">' +
       '<span class="mt-pill"><i>' + (t.d.icon || '•') + '</i>' +
+      '<u class="mt-short">' + esc(shortOf(t.d.label || t.k)) + '</u>' +
       '<b>' + esc(t.d.label || t.k) + '</b>' +
       '<em>' + esc(t.d.to || '入る') + '</em>' +
       '</span>' +
