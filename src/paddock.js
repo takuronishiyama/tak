@@ -10,6 +10,8 @@ GP.paddock = (function () {
   'use strict';
 
   const W = 600, H = 340;
+  /* 絵の座標1が、実際の画素いくつぶんか（表に出る大きさで決まる） */
+  let PX = 1;
 
   /* 歩ける範囲。ガレージの手前の通路を左右に移動する */
   const WALK = { x0: 20, x1: W - 20, y0: 264, y1: 320 };
@@ -138,12 +140,15 @@ GP.paddock = (function () {
   }
 
   /* ---------- 全体 ---------- */
-  function render(cv, g2, sel) {
+  function render(cv, g2, sel, onSheet) {
+    if (!onSheet) PX = GP.gfx.fit(cv, W, H);
     dusk = document.body.getAttribute('data-skin') === 'hd';
     const out = cv.getContext('2d');
     out.imageSmoothingEnabled = false;
-    if (dusk) GP.fx.init(W, H);
+    if (dusk) GP.fx.init(W * PX, H * PX);
     const ctx = dusk ? GP.fx.begin() : out;
+    GP.gfx.begin(ctx, PX);
+    if (!dusk) ctx.clearRect(0, 0, W, H);
     ctx.imageSmoothingEnabled = false;
     hitBoxes = [];
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 11 + g2.nextRace * 7);
@@ -516,11 +521,10 @@ GP.paddock = (function () {
   }
 
   function scene(g2, sel) {
-    const k = keyOf(g2, sel);
+    const k = PX.toFixed(3) + '|' + keyOf(g2, sel);
     if (cache && cacheKey === k) return cache;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    render(c, g2, sel);
+    const c = GP.gfx.sheet(W, H, PX);
+    render(c, g2, sel, true);
     cache = c; cacheKey = k;
     return cache;
   }
@@ -528,12 +532,13 @@ GP.paddock = (function () {
   function invalidate() { cache = null; cacheKey = ''; }
 
   function drawWith(cv, g2, sel, actor) {
+    PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
     out.drawImage(scene(g2, sel), 0, 0);
-    if (actor) GP.base.drawActor(out, actor);
+    if (actor) { GP.gfx.begin(out, PX); GP.base.drawActor(out, actor); }
   }
 
   return { render, scene, drawWith, invalidate, hit, visitors,

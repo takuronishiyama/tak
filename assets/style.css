@@ -408,6 +408,8 @@ table.rank.grid td.dim{opacity:.35}
 .mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
 .mtag.pin .mt-pill i{font-size:13px}
 .mtag.mini .mt-short{display:none}
+.mtag.pin.bare .mt-short{display:none}
+.mtag.pin.bare .mt-pill{padding:1px 4px}
 /* 狭い画面では、絵そのものが 352px しかない。
    そこへ呼び名つきの札を7枚置くと、札のほうが絵より目立つ。
    印だけにして、名前は下のタイルの一覧にまかせる            */

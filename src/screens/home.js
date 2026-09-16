@@ -2379,8 +2379,11 @@ GP.screens.home = function (A) {
       const head = String(s2 || '').split(/[・\s（(]/)[0];
       return head.length > 5 ? head.slice(0, 5) : head;
     };
+    /* 数が多いときは、呼び名も落として印だけにする。
+       パドックは用事が14件あって、呼び名つきだと絵がぜんぶ隠れた */
+    const bare = list.length > 8 ? ' bare' : '';
     box.innerHTML = list.map(t =>
-      '<button class="mtag pin" data-hub="' + esc(t.k) + '"' +
+      '<button class="mtag pin' + bare + '" data-hub="' + esc(t.k) + '"' +
       ' style="left:' + t.x.toFixed(2) + '%;top:' + t.y.toFixed(2) + '%">' +
       '<span class="mt-pill"><i>' + (t.d.icon || '•') + '</i>' +
       '<u class="mt-short">' + esc(shortOf(t.d.label || t.k)) + '</u>' +

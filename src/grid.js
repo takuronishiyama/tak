@@ -10,6 +10,8 @@ GP.grid = (function () {
   'use strict';
 
   const W = 600, H = 340;
+  /* 絵の座標1が、実際の画素いくつぶんか（表に出る大きさで決まる） */
+  let PX = 1;
 
   /* 画面の奥行き。
      真上から見下ろすのではなく、グリッドの脇に立って
@@ -285,9 +287,11 @@ GP.grid = (function () {
   }
 
   /* ---------- 全体を描く ---------- */
-  function render(cv, g2, sel) {
+  function render(cv, g2, sel, onSheet) {
+    if (!onSheet) PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
+    GP.gfx.begin(out, PX);
+    out.clearRect(0, 0, W, H);
     hitBoxes = [];
     const order = g2.gridOrder || [];
 
@@ -449,23 +453,23 @@ GP.grid = (function () {
   }
 
   function scene(g2, sel) {
-    const k = keyOf(g2, sel);
+    const k = PX.toFixed(3) + '|' + keyOf(g2, sel);
     if (cache && cacheKey === k) return cache;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    render(c, g2, sel);
+    const c = GP.gfx.sheet(W, H, PX);
+    render(c, g2, sel, true);
     cache = c; cacheKey = k;
     return cache;
   }
   function invalidate() { cache = null; cacheKey = ''; }
 
   function drawWith(cv, g2, sel, actor) {
+    PX = GP.gfx.fit(cv, W, H);
     const out = cv.getContext('2d');
-    out.imageSmoothingEnabled = false;
     out.setTransform(1, 0, 0, 1, 0, 0);
-    out.clearRect(0, 0, W, H);
+    out.imageSmoothingEnabled = false;
+    out.clearRect(0, 0, cv.width, cv.height);
     out.drawImage(scene(g2, sel), 0, 0);
-    if (actor) GP.base.drawActor(out, actor);
+    if (actor) { GP.gfx.begin(out, PX); GP.base.drawActor(out, actor); }
   }
 
   return { render, scene, drawWith, invalidate, hit, setPeople, sideCar,
