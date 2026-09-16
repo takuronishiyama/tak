@@ -737,6 +737,24 @@ GP.data = (function () {
   const BODY_CAP_RATIO = 0.35;
   /* 新型を作ったとき、前の車体の知見をどれだけ引き継ぐか */
   const BODY_CARRY = 0.50;
+  /* ---------- 規則が変わるとき ----------
+     白紙に戻るのは「いまの車」であって、チームそのものではない。
+     引き継ぐのは 施設・人・技術・素材・設計力（＝良い物を引く腕）で、
+     引き継がないのは いま載っている個体の性能と、その個体の当たり。
+
+     前はここが緩く、自分だけ車の力を半分持ち越していた（ライバルは5%）。
+     規則が変わった年に自分が場の4.2倍になり、1年まるごと独走していた   */
+  const REG_CARRY = {
+    power:    0.08,   // いま載っている性能の、このぶんだけ次の車の出発点になる
+    powerMax: 6,      // その上限
+    spare:    0.006,  // 保管していたパーツの総性能ぶん
+    spareMax: 4,
+    /* 品質（器の大きさ）は「引いた当たり」なので持ち越さない。
+       代わりに、いまのチームが自然に引ける水準で作り直す。
+       腕のあるチームはやはり良い物から始まる、という形にする     */
+    qualFloor: 0.97,  // 作り直した品質の下限（前の品質×これ）
+    rivalKeep: 0.14   // ライバルが持ち越すぶん。自分と同じ物差しにする
+  };
 
   /* ---------- 開発リソースの配分 ----------
      今シーズンの熟成に全振りするか、来季のマシンに前倒しで着手するか。
@@ -3276,18 +3294,18 @@ GP.data = (function () {
      独走しているチームは開発時間を削られ、大きく離されたチームは上乗せされる。
        share …… 首位の得点 ÷ 取りうる最大（1戦あたり P1+P2+ファステスト）
        lead …… 1戦あたり、2位に何点差をつけているか                    */
-  const ADUO_FROM = 4;            // これだけ消化してから判定する
-  const ADUO_CATCH = 0.0023;      // 離されているぶんに応じた追い上げ（1週・段位1あたり）
-  const ADUO_HALF = 0.5;          // 上乗せを受けるのは、順位表のこの割合より下
+  const ADUO_FROM = 3;            // これだけ消化してから判定する
+  const ADUO_CATCH = 0.0042;      // 離されているぶんに応じた追い上げ（1週・段位1あたり）
+  const ADUO_HALF = 0.62;         // 上乗せを受けるのは、順位表のこの割合より下
   const ADUO_LEVELS = [
-    { level: 1, share: 0.60, lead:  8, name: '是正勧告', icon: '⚖️', color: '#c98b10',
-      cut: 0.93, lift: 1.06,
+    { level: 1, share: 0.54, lead:  6, name: '是正勧告', icon: '⚖️', color: '#c98b10',
+      cut: 0.90, lift: 1.10,
       note: '首位に注意喚起。下位のチームへ少しだけ時間が回される' },
-    { level: 2, share: 0.72, lead: 13, name: '是正指令', icon: '⚖️', color: '#e07a2a',
-      cut: 0.86, lift: 1.12,
+    { level: 2, share: 0.66, lead: 10, name: '是正指令', icon: '⚖️', color: '#e07a2a',
+      cut: 0.80, lift: 1.20,
       note: '首位の風洞・CFD時間を削り、離されたチームへ回す' },
-    { level: 3, share: 0.84, lead: 18, name: '緊急是正', icon: '🚨', color: '#b02a20',
-      cut: 0.78, lift: 1.20,
+    { level: 3, share: 0.78, lead: 15, name: '緊急是正', icon: '🚨', color: '#b02a20',
+      cut: 0.68, lift: 1.34,
       note: '選手権の体裁を保つための緊急措置。独走チームは大きく削られる' }
   ];
 
@@ -3711,6 +3729,6 @@ GP.data = (function () {
   ];
 
   return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS, MAT,
-           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
+           BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, REG_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
            RACES, REGIONS, CALENDAR, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

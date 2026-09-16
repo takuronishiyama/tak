@@ -573,6 +573,14 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .outlook .ol-end{display:flex;justify-content:space-between;gap:10px;
   border-top:2px dashed rgba(74,47,26,.35);margin-top:4px;padding-top:4px;font-size:13px}
 .outlook .ol-end b{font-size:15px}
+/* いまの規則をどれだけ読めているか。年を追うごとに差は縮む */
+.erabox{background:var(--paper3,#f6efdd);border:2px solid var(--ink);border-left-width:5px;
+  border-radius:0 8px 8px 0;padding:6px 10px;margin:4px 0 8px}
+.erabox>b{display:block;font-size:12.5px;margin-bottom:2px}
+.erabox small{display:block;font-size:10.5px;line-height:1.6;opacity:.88}
+.erabox.up{border-left-color:var(--green,#4ea63f)}
+.erabox.down{border-left-color:var(--blueInk,#2a5aa8)}
+[data-skin="hd"] .erabox{background:rgba(75,61,104,.4);border-color:var(--gold)}
 .outlook.warn{border-color:var(--warn,#c2740b)}
 .outlook.bad{border-color:var(--red);background:#fdecea}
 [data-skin="hd"] .outlook{background:rgba(75,61,104,.4);border-color:var(--gold)}

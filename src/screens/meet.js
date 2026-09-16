@@ -84,6 +84,14 @@ GP.screens.meet = function (A) {
     }
     lines.push(['つなぎ込み', '<b>' + pct(it.rate) + '%</b>　今週ぶん <b class="up">+' +
       step.toFixed(1) + '</b>（' + plan.icon + plan.name + '）']);
+    /* 規則の読みは、開発の伸びにそのまま掛かる。この人の持ち場 */
+    {
+      const rd = S.myEraRead(g), fit = S.myEraFit(g), since = S.regSince(g);
+      const p2 = Math.round((fit - 1) * 100);
+      lines.push(['いまの規則', rd.icon + ' <b>' + rd.name + '</b>（' + (since + 1) + '年目）' +
+        '　開発の伸び <b class="' + (p2 > 2 ? 'up' : p2 < -2 ? 'down' : '') + '">' +
+        (p2 >= 0 ? '+' : '') + p2 + '%</b>']);
+    }
     if (thin) {
       lines.push(['いちばん薄いところ',
         thin.a.icon + ' <b>' + thin.a.name + '</b>（' + pct(thin.r) + '%）']);
@@ -165,6 +173,8 @@ GP.screens.meet = function (A) {
       key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
         : worst && worst.rel < -0.05 ? 'warn' : 'good',
       advise: advise, tip: tip, adviceAct: adviceAct,
+      /* 規則の読みは開発の伸びに直接かかるので、この人の持ち場 */
+      era: { read: S.myEraRead(g), fit: S.myEraFit(g), since: S.regSince(g) },
       head: worst && top.length
         ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
         : 'つなぎ込み ' + pct(it.rate) + '%',

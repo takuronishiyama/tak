@@ -1520,18 +1520,24 @@ GP.state = (function () {
 
     // 自チーム：パーツと車体を新規則のものに置き換える
     g2.carGen = 0;
+    const RG = D.REG_CARRY;
     D.PART_CATS.forEach(c => {
       const old2 = g2.equipped[c.key];
       // 積んできた知見のぶんだけ、ゼロよりは良いところから始まる
-      const carry = old2 ? Math.min(14, old2.power * 0.18) : 0;
+      const carry = old2 ? Math.min(RG.powerMax, old2.power * RG.power) : 0;
       // 保管していた同じ種類のパーツぶんの上乗せ
-      const spare = Math.min(8, legacy.power * 0.012);
-      // 規則が変わってもチームの設計力までは失われない。
-      // 手元にあったいちばん良い品質は引き継ぎ、性能だけが白紙に戻る。
-      // 開発で得た技術（タグ）と、扇ごとの素材も、そのまま残る
+      const spare = Math.min(RG.spareMax, legacy.power * RG.spare);
+      /* 品質（器の大きさ）は、その個体を作ったときに引いた当たり。
+         個体ごと白紙になるので、当たりも持ち越さない。
+         代わりに、いまのチームが自然に引ける水準で作り直す——
+         腕のあるチーム（設計室・ライン・素材・工作機械）は、
+         規則が変わってもやはり良い物から始められる。
+         開発で得た技術（タグ）と、扇ごとの素材はそのまま残る      */
       const oq = qualOf(old2);
-      const q2 = Math.max(oq, bestQ[c.key] || 0);
-      if (old2 && q2 > oq + 0.001) {
+      const best = Math.max(oq, bestQ[c.key] || 0);
+      const q2 = clamp(Math.max(rollQuality(g2, c.key), best * RG.qualFloor),
+                       D.QUAL.min, D.QUAL.max);
+      if (old2 && Math.abs(q2 - oq) > 0.005) {
         legacy.up.push({ cat: c.name, from: oq, to: q2 });
       }
       g2.equipped[c.key] = makePart(c.key, 0, q2,
@@ -1569,8 +1575,12 @@ GP.state = (function () {
       const pw2 = r.pw != null ? r.pw : power;
       const base = rivalLevel(pw2, g2.season, 0, d2.rivalPower, d2.rivalGrow, d2.tight || 0);
       ['speed', 'corner', 'accel'].forEach(k => {
-        // 強豪はやはり強い、ぶんだけ少し上乗せする
-        r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94 + r.stats[k] * 0.05;
+        /* 強豪はやはり強い、ぶんだけ少し上乗せする。
+           持ち越すぶんは自分と同じ物差し（REG_CARRY.rivalKeep）。
+           前はここが 5% で、自分だけ半分持ち越していたので、
+           規則が変わった年は自分が場の4倍になっていた           */
+        r.stats[k] = base * 3 * ((src.bias && src.bias[k]) || 1) * 0.94
+                   + r.stats[k] * D.REG_CARRY.rivalKeep;
       });
       r.base0 = null;
       r.concepts = [];
@@ -1938,6 +1948,8 @@ GP.state = (function () {
   function devRate(g2) {
     const rank = constructorTable(g2).findIndex(r => r.isPlayer) + 1;
     return atrOf(g2) * (diffOf(g2).dev || 1) * aduoMul(g2, rank || 99)
+         // 新しい規則を読めているかどうか。年を追うごとに収束する
+         * myEraFit(g2)
          * (1 + osk(g2, 'eye') * 0.07)
          // パワーユニットを他人に任せているぶん、ほかへ人を回せる
          * (g2.engine ? D.ENGINE.freeDev : 1);
@@ -1984,7 +1996,14 @@ GP.state = (function () {
        飛び抜けるチームも沈むチームも、いるにはいる、くらいに   */
     const bell = () => (rnd(-1, 1) + rnd(-1, 1) + rnd(-1, 1)) / 3;
     (g2.rivals || []).forEach(r => { r.eraRoll = bell(); });
+    /* 自分も引く。新しい規則を読めたかどうかは、よそだけの話ではない。
+       ここが無いせいで、規則が変わった年はプレイヤーだけが
+       手探りをせずに済み、ひとりだけ前の年の勢いで走っていた      */
+    g2.eraRoll = bell();
   }
+  /* 自分がいまの規則をどれだけ読めているか */
+  function myEraFit(g2) { return eraFitOf(g2, { eraRoll: g2.eraRoll || 0 }); }
+  function myEraRead(g2) { return eraReadOf(g2, { eraRoll: g2.eraRoll || 0 }); }
   function eraFitOf(g2, r) {
     const sp = D.RIVAL_DEV.eraSpread;
     const since = Math.min(sp.length - 1, regSince(g2));
@@ -5109,6 +5128,7 @@ GP.state = (function () {
     supplyFee, supplyDeep, tickSupply, gearUpkeep, kitPrice, sponsorOpen, titleOf, titleOpen, signTitle, teamLabel, tickTitle, atrOf, atrLabel, aduoOf, aduoMul, puLimit, innovFresh, secToScore, innovName, rollBreakthrough,
     ideaList, addIdea, ideaOf, useIdea, ideaLeft,
     innovCost, innovDept, innovCheck, innovList, innovate, innovsOf, nextQualStep, rollEraFit, eraFitOf, eraReadOf,
+    myEraFit, myEraRead,
     setTrend, trendOf, canCopyTrend, copyTrend, copyRatio, letRivalCopy, topRival, leadCopy, doLeadCopy,
     tdFresh, tdRisk, tdDismiss, tdAppeal, tdLoss, tdFee, tdAccept, tdAppealNow, weekStamp, pushNews, pressTopic, championshipStake,
     fanTier, fanIncome, fanExpectation,
