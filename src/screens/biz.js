@@ -61,7 +61,7 @@ GP.screens.biz = function (A) {
     const STABS = [
       ['deal',  '🤝', 'スポンサー', g.sponsors.length + '/' + slots],
       ['title', '👑', 'タイトル',   S.titleOf(g) ? '契約中' : ''],
-      ['perk',  '🏭', 'サプライヤー契約', '']
+      ['perk',  '🏷️', 'サプライヤー契約', '']
     ];
     body += '<div class="tabs qtabs bastabs">' + STABS.map(t =>
       '<button class="tab' + (spTab === t[0] ? ' on' : '') + '" data-stab="' + t[0] + '">' +
@@ -307,6 +307,26 @@ GP.screens.biz = function (A) {
         '</div>';
     });
     body += '</div>';
+
+    /* ---- 今季の見込み ----
+       1戦ぶんの収支は相談で聞けるが、「このままだと年末に幾ら残るか」は
+       どこにも無く、赤字に向かっているのが年末まで分からなかった   */
+    {
+      const o = S.seasonOutlook(g);
+      const bad = o.end < 0, thin = !bad && o.end < S.finances(g).weekly * 8;
+      body += '<div class="sub">📅 今季の見込み</div>' +
+        '<div class="outlook' + (bad ? ' bad' : thin ? ' warn' : '') + '">' +
+        '<div class="ol-row"><span>残り ' + o.races + '戦（' + o.weeks + '週）</span>' +
+          '<b>1戦あたり ' + (o.perRace >= 0 ? '+' : '') + money(o.perRace) + '万</b></div>' +
+        '<div class="ol-row"><span>入るぶん</span><b>+' + money(o.income) + '万</b></div>' +
+        '<div class="ol-row"><span>出るぶん（固定費＋輸送）</span><b>-' + money(o.cost) + '万</b></div>' +
+        '<div class="ol-end"><span>年末の残り</span><b class="' + (bad ? 'down' : 'up') + '">💰' +
+          money(o.end) + '万</b></div></div>' +
+        '<p class="desc">いまの顔ぶれと日程のまま、<b>入賞なし</b>で走りきったときの読みです。' +
+        'ポイントを持ち帰るぶんは入っていないので、実際はこれより上に振れます。' +
+        (bad ? '<br><b class="warn">このままだと年を越せません。</b>' +
+               '人を減らすか、スポンサーを増やすか、入賞して賞金を取るか。' : '') + '</p>';
+    }
 
     /* 事業（外に持つ店）。前は施設の4枚目に居たが、敷地とは関係が無い。
        名声・スキルと同じ「経営」の棚に置く                      */

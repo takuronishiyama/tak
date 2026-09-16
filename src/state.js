@@ -3827,6 +3827,30 @@ GP.state = (function () {
     };
   }
 
+  /* ---- 今季の見込み ----
+     1戦ぶんの収支は出ていたが、「このままだと年末に幾ら残るか」は
+     どこにも無かった。赤字に向かっているのが、年が終わるまで分からない。
+     残りの戦の週数と輸送費を、日程どおりに積んで出す              */
+  function seasonOutlook(g2) {
+    const f = finances(g2);
+    const from = Math.max(0, g2.nextRace || 0);
+    let weeks = 0, ship = 0;
+    for (let i = from; i < D.RACES; i++) {
+      weeks += prepWeeks(g2, i) + 1;
+      ship += logiCost(g2, trackAt(g2, i));
+    }
+    if (from < SUMMER_AT) weeks += SUMMER_WEEKS;
+    const left = D.RACES - from;
+    const cost = f.weekly * weeks + ship;
+    // 収入は「いまのペースがそのまま続いたら」。賞金は最低ライン
+    const income = (f.sponsorPerRace + f.merch + f.puSupply + f.paid + f.racePrize) * left;
+    return {
+      races: left, weeks: weeks, cost: Math.round(cost), income: Math.round(income),
+      net: Math.round(income - cost), end: Math.round(g2.funds + income - cost),
+      perRace: left ? Math.round((income - cost) / left) : 0
+    };
+  }
+
   /* ---------- 週あたりの固定費 ---------- */
   function weeklyCost(g) { return finances(g).weekly; }
 
@@ -5110,7 +5134,7 @@ GP.state = (function () {
     fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
     mechSynergy, mechLift, mechScore, mechName, packaging, packWorst, packScore, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
-    raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef,
+    raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef, seasonOutlook,
     SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
   };

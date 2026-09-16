@@ -1271,6 +1271,83 @@ window.GP = window.GP || {};
     if (cv) GP.interior.render(cv, g, cv.dataset.fac);
   }
 
+  /* ---- コマンドの見返り ----
+     どのコマンドも「1週」としか言っていなかったので、
+     何が幾つ動くのかを比べられなかった。
+     数字は、その画面が実際に使っている式から出す（二重に持たない） */
+  function cmdHints() {
+    const t = S.trackAt(g, g.nextRace);
+    const h = {};
+    // 整備：信頼性がどこまで戻るか（cmdMaintain と同じ式）
+    {
+      const now = S.reliability(g);
+      const mech = 1 + S.pitPower(g) * 0.13;
+      const keep = {};
+      D.PART_CATS.forEach(c => {
+        const p = g.equipped[c.key];
+        if (!p) return;
+        keep[c.key] = p.cond;
+        p.cond = c.key === 'pu'
+          ? S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100)
+          : S.clamp(p.cond + 21 * mech, 10, 100);
+      });
+      const after = S.reliability(g);
+      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+      h.cMaintain = Math.round(now) >= 99 ? '信頼性 99% 万全'
+        : '信頼性 ' + Math.round(now) + '→' + Math.round(after);
+    }
+    // 開発：今週、工房と技術部門がひとりでに進めるぶん
+    {
+      /* 押さなくても毎週進むぶん。押すのは、その上に足す一手 */
+      h.cCar = '自動で 今週 +' + S.autoImpStep(g, 'pu').toFixed(1);
+    }
+    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ倍率）
+    {
+      const d = (g.drivers || [])[0];
+      if (d) {
+        const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+                         + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+                         + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
+                    * S.persOf(d).train * S.rigMul(g, 'sim');
+        h.cDriver = '練習 能力 +' + (3.3 * bonus * (1 - d.speed / 320)).toFixed(1);
+      }
+    }
+    // 営業：プロモーションの見込み（doPromo と同じ式のならし）
+    {
+      const f = Math.round((180 + g.fans * 0.10) * (1 + g.facilities.market * 0.18));
+      h.cSponsor = 'ファン +' + U.money(f);
+    }
+    // 休養：調子とクルーの疲れ
+    {
+      const cw = Math.round(S.crewPenalty(g).level);
+      const fm = Math.round((g.drivers || []).reduce((a, d) => a + d.form, 0) /
+                            Math.max(1, (g.drivers || []).length));
+      const up = Math.min(122, fm + 10) - fm;
+      // 疲れが溜まっていないときに「疲労 0→0」と言っても何も伝わらない
+      h.cRest = cw >= 8 ? '疲労 -' + Math.min(cw, 18) + ' ／ 調子 +' + up
+                        : (up > 0 ? '調子 +' + up : 'みんな万全');
+    }
+    h.cMeet = '週は進まない';
+    h.cCrunch = (g.tired || 0) > 0 ? '反動が残っています' : '次の1回が2回ぶん';
+    return h;
+  }
+
+  function paintCmdHints() {
+    let h = {};
+    try { h = cmdHints(); } catch (e) { h = {}; }
+    Object.keys(h).forEach(id => {
+      const el = $(id);
+      if (!el || !h[id]) return;
+      let s2 = el.querySelector('.cmd-hint');
+      if (!s2) {
+        s2 = document.createElement('em');
+        s2.className = 'cmd-hint';
+        el.appendChild(s2);
+      }
+      s2.textContent = h[id];
+    });
+  }
+
   function render() {
     U.renderAll(g, specialOf(g));
     A.bindHub();
@@ -1289,6 +1366,7 @@ window.GP = window.GP || {};
       rg.classList.toggle('go', onGrid);
     }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
+    if (!offs && !race) paintCmdHints();
     const btn = $('specialGo');
     if (btn) btn.onclick = enterSpecial;
     const skip = $('specialSkip');
@@ -1410,6 +1488,15 @@ window.GP = window.GP || {};
     });
     /* ホームの札に出したパワーユニットの一行。
        札は毎週描き直されるので、個々に繋がず、上から一度だけ受ける */
+    /* 本拠地の「今週の一手」。押したら、その話をした人をそのまま開く */
+    document.addEventListener('click', function (ev) {
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-weektip]') : null;
+      if (!t || t.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      if (A.openTalk) A.openTalk('technical');
+      else if (A.cmdMeet) A.cmdMeet();
+    });
     document.addEventListener('click', function (ev) {
       const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;
       if (!b) return;

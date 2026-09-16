@@ -89,6 +89,20 @@ GP.ui = (function () {
     $('tFunds').parentElement.classList.toggle('danger', g.funds < 0);
   }
 
+  /* ---- 今週の一手 ----
+     中身は 🗣️相談 の開発責任者がすでに出しているもの。
+     押すと、その人の話がそのまま開く                              */
+  function weekTipHTML(g, left) {
+    if (left <= 0 || !GP.app || !GP.app.weekTip) return '';
+    let t = null;
+    try { t = GP.app.weekTip(); } catch (e) { return ''; }
+    if (!t || !t.head) return '';
+    /* 赤くしない。これは警告ではなく助言で、
+       開幕直後はどのチームも mood が bad になる            */
+    return '<button class="weektip" data-weektip="1">' +
+      '<i>🗣️</i><span><u>今週の一手</u><b>' + esc(t.head) + '</b></span><em>›</em></button>';
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -120,6 +134,9 @@ GP.ui = (function () {
       '</div>' +
       (nx ? '<div class="nextup">つぎは ' + nx.t.country + ' ' + esc(nx.t.name) +
             '　' + nx.h.icon + nx.h.name + '<b>準備 ' + nx.p + '回</b></div>' : '') +
+      /* 今週の一手。開発責任者の結論を、相談を開かなくても読めるところに出す。
+         ここが「何をすればいいか分からない」への直接の答えになる      */
+      weekTipHTML(g, left) +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
       '<div class="seclegend">' +

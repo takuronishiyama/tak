@@ -131,6 +131,20 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .nextup{font-size:10.5px;color:var(--ink2);margin:-4px 0 8px;padding:3px 10px;
         border-left:3px solid var(--line,#d9d5cc);line-height:1.6}
 .nextup b{margin-left:6px;color:var(--ink)}
+/* 今週の一手。開発責任者の結論を、相談を開かなくても読める場所に */
+.weektip{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  background:linear-gradient(#fff8e3,#f6ebcc);border:3px solid var(--ink);border-radius:8px;
+  padding:6px 9px;margin:0 0 8px;box-shadow:0 2px 0 rgba(74,47,26,.4);
+  font-family:inherit;color:var(--ink);cursor:pointer}
+.weektip:active{transform:translateY(2px);box-shadow:0 0 0 rgba(74,47,26,.4)}
+.weektip i{font-style:normal;font-size:17px;line-height:1}
+.weektip span{flex:1;display:flex;flex-direction:column;min-width:0}
+.weektip u{text-decoration:none;font-size:9px;letter-spacing:.08em;opacity:.7}
+.weektip b{font-size:12px;line-height:1.45}
+.weektip em{font-style:normal;opacity:.55;font-size:15px}
+.weektip.bad{background:linear-gradient(#ffe7df,#ffd2c4);border-color:var(--red)}
+[data-skin="hd"] .weektip{background:linear-gradient(#3a2f4c,#2a2139);color:#f2e4c4;border-color:var(--gold)}
+[data-skin="hd"] .weektip.bad{background:linear-gradient(#4a2a2a,#36201f);border-color:#ff9a8a}
 [data-skin="hd"] .nextup{color:#cbbb9a;border-left-color:#5b4a74}
 [data-skin="hd"] .nextup b{color:#f2e4c4}
 
@@ -561,6 +575,24 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
   transition:transform .06s,box-shadow .06s;
 }
 .cmd span{font-size:20px;line-height:1}
+/* 今週押すと何が幾つ動くか。どれも「1週」としか言っていなかった */
+.cmd-hint{display:block;font-style:normal;font-weight:normal;font-size:8.5px;
+  line-height:1.3;opacity:.68;letter-spacing:-.3px;margin-top:1px;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 今季の見込み。赤字に向かっているのが年末まで分からなかった */
+.outlook{background:var(--paper3,#f6efdd);border:2px solid var(--ink);border-radius:8px;
+  padding:6px 10px;margin:4px 0 6px;font-size:12px}
+.outlook .ol-row{display:flex;justify-content:space-between;gap:10px;line-height:1.7}
+.outlook .ol-row span{opacity:.8}
+.outlook .ol-end{display:flex;justify-content:space-between;gap:10px;
+  border-top:2px dashed rgba(74,47,26,.35);margin-top:4px;padding-top:4px;font-size:13px}
+.outlook .ol-end b{font-size:15px}
+.outlook.warn{border-color:var(--warn,#c2740b)}
+.outlook.bad{border-color:var(--red);background:#fdecea}
+[data-skin="hd"] .outlook{background:rgba(75,61,104,.4);border-color:var(--gold)}
+[data-skin="hd"] .outlook.bad{background:rgba(120,40,36,.4);border-color:#ff9a8a}
+[data-skin="hd"] .outlook .ol-end{border-top-color:rgba(214,178,106,.4)}
 .cmd:hover{background:linear-gradient(#fffdf0,#f8ebc8)}
 .cmd:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
 .cmd.sub{flex:0 0 auto;min-width:66px;background:linear-gradient(#e8dcc0,#d8c69c);font-size:11px;
@@ -5598,7 +5630,7 @@ GP.data = (function () {
     { key: 'tunnel',  name: '風洞',         icon: '💨', eff: 'エアロとサスの幅・煮詰め', desc: 'エアロとサスの開発が伸び、車体を煮詰めるのも速くなる',   base: 2200 },
     { key: 'sim',     name: 'シミュレーター', icon: '🕹️', eff: '育成・研究のデータ', desc: 'ドライバー育成が加速し、研究でとれるデータも増える',   base: 2000 },
     { key: 'market',  name: 'マーケティング室', icon: '📣', eff: 'スポンサー枠・営業', desc: '契約できるスポンサーの枠が増え、収入と営業の効きも上がる',   base: 1600 },
-    { key: 'pit',     name: 'ピット設備',   icon: '🔧', eff: 'ピットの静止・信頼性', desc: 'ピットの静止時間が縮み、信頼性も上がる', base: 1900 },
+    { key: 'pit',     name: 'ピット設備',   icon: '🛠️', eff: 'ピットの静止・信頼性', desc: 'ピットの静止時間が縮み、信頼性も上がる', base: 1900 },
     { key: 'youth',   name: 'ユースアカデミー', icon: '🎓', eff: '若手の伸び・枠', desc: '若手の成長が速くなり、枠も増える', base: 2400 },
     { key: 'mission', name: 'ミッションコントロール', icon: '🛰️', base: 2600,
       eff: '作戦と天候の読み', desc: '本国に残った人間が、回線の向こうからレースに加わる。作戦と天候の読みが伸びる' },
@@ -6481,7 +6513,7 @@ GP.data = (function () {
     { key: 'technical', name: '開発責任者',       icon: '🔬', salary: 150,
       desc: '技術部門（エンジニア・デザイナー・アナリスト）の統括。部下の出す力そのものを引き上げる',
       effect: '技術部門の効き +0.6%／技能1（部下がいなければ空回り）' },
-    { key: 'pitchief',  name: 'ピットクルーチーフ', icon: '🔧', salary: 130,
+    { key: 'pitchief',  name: 'ピットクルーチーフ', icon: '🧰', salary: 130,
       desc: '現場（メカニック・ストラテジスト）を仕切る。ピットウォールごと底上げする',
       effect: '現場部門の効き +0.6%／技能1（部下がいなければ空回り）' },
     { key: 'logistics', name: 'ロジスティクス責任者', icon: '🚚', salary: 85,
@@ -12411,6 +12443,30 @@ GP.state = (function () {
     };
   }
 
+  /* ---- 今季の見込み ----
+     1戦ぶんの収支は出ていたが、「このままだと年末に幾ら残るか」は
+     どこにも無かった。赤字に向かっているのが、年が終わるまで分からない。
+     残りの戦の週数と輸送費を、日程どおりに積んで出す              */
+  function seasonOutlook(g2) {
+    const f = finances(g2);
+    const from = Math.max(0, g2.nextRace || 0);
+    let weeks = 0, ship = 0;
+    for (let i = from; i < D.RACES; i++) {
+      weeks += prepWeeks(g2, i) + 1;
+      ship += logiCost(g2, trackAt(g2, i));
+    }
+    if (from < SUMMER_AT) weeks += SUMMER_WEEKS;
+    const left = D.RACES - from;
+    const cost = f.weekly * weeks + ship;
+    // 収入は「いまのペースがそのまま続いたら」。賞金は最低ライン
+    const income = (f.sponsorPerRace + f.merch + f.puSupply + f.paid + f.racePrize) * left;
+    return {
+      races: left, weeks: weeks, cost: Math.round(cost), income: Math.round(income),
+      net: Math.round(income - cost), end: Math.round(g2.funds + income - cost),
+      perRace: left ? Math.round((income - cost) / left) : 0
+    };
+  }
+
   /* ---------- 週あたりの固定費 ---------- */
   function weeklyCost(g) { return finances(g).weekly; }
 
@@ -13694,7 +13750,7 @@ GP.state = (function () {
     fpTyrePlan, readCrew, tyreRead, tyreLifeRead, stopsRead,
     mechSynergy, mechLift, mechScore, mechName, packaging, packWorst, packScore, driverFit, reliability, foresightOf, wetSkillOf, tyreSkillOf, staffBonus, weeklyCost,
     newGame, allTeams, constructorTable, driverTable,
-    raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef,
+    raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef, seasonOutlook,
     SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
     save, load, wipe
   };
@@ -24190,7 +24246,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🔧 ガレージ', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
@@ -24309,7 +24365,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🖊️ 設計室', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-dtab]'), b => {
@@ -25328,7 +25384,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🏭 工房', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     bindMfg(() => cmdShop());
@@ -28964,7 +29020,7 @@ GP.screens.biz = function (A) {
     const STABS = [
       ['deal',  '🤝', 'スポンサー', g.sponsors.length + '/' + slots],
       ['title', '👑', 'タイトル',   S.titleOf(g) ? '契約中' : ''],
-      ['perk',  '🏭', 'サプライヤー契約', '']
+      ['perk',  '🏷️', 'サプライヤー契約', '']
     ];
     body += '<div class="tabs qtabs bastabs">' + STABS.map(t =>
       '<button class="tab' + (spTab === t[0] ? ' on' : '') + '" data-stab="' + t[0] + '">' +
@@ -29210,6 +29266,26 @@ GP.screens.biz = function (A) {
         '</div>';
     });
     body += '</div>';
+
+    /* ---- 今季の見込み ----
+       1戦ぶんの収支は相談で聞けるが、「このままだと年末に幾ら残るか」は
+       どこにも無く、赤字に向かっているのが年末まで分からなかった   */
+    {
+      const o = S.seasonOutlook(g);
+      const bad = o.end < 0, thin = !bad && o.end < S.finances(g).weekly * 8;
+      body += '<div class="sub">📅 今季の見込み</div>' +
+        '<div class="outlook' + (bad ? ' bad' : thin ? ' warn' : '') + '">' +
+        '<div class="ol-row"><span>残り ' + o.races + '戦（' + o.weeks + '週）</span>' +
+          '<b>1戦あたり ' + (o.perRace >= 0 ? '+' : '') + money(o.perRace) + '万</b></div>' +
+        '<div class="ol-row"><span>入るぶん</span><b>+' + money(o.income) + '万</b></div>' +
+        '<div class="ol-row"><span>出るぶん（固定費＋輸送）</span><b>-' + money(o.cost) + '万</b></div>' +
+        '<div class="ol-end"><span>年末の残り</span><b class="' + (bad ? 'down' : 'up') + '">💰' +
+          money(o.end) + '万</b></div></div>' +
+        '<p class="desc">いまの顔ぶれと日程のまま、<b>入賞なし</b>で走りきったときの読みです。' +
+        'ポイントを持ち帰るぶんは入っていないので、実際はこれより上に振れます。' +
+        (bad ? '<br><b class="warn">このままだと年を越せません。</b>' +
+               '人を減らすか、スポンサーを増やすか、入賞して賞金を取るか。' : '') + '</p>';
+    }
 
     /* 事業（外に持つ店）。前は施設の4枚目に居たが、敷地とは関係が無い。
        名声・スキルと同じ「経営」の棚に置く                      */
@@ -29935,8 +30011,10 @@ GP.screens.meet = function (A) {
     const innov = S.innovList(g).filter(r => r.ok);
     const ideaN = S.ideaList(g).length;
     const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
-    let advise, adviceAct = null;
+    /* tip は本拠地の札に出す一行。advise の要点だけを、名詞で言い切る */
+    let advise, tip, adviceAct = null;
     if (innov.length) {
+      tip = '⚡ ' + innov[0].def.name + ' でイノベーションを起こす';
       advise = '⚡ <b>' + innov[0].def.name + ' でイノベーションを起こせます。</b>' +
         '器が ' + innov[0].cap + ' → ' + innov[0].capAfter +
         ' に伸びて、いまの性能はそのまま残ります。今週はこれが一番です。';
@@ -29944,21 +30022,26 @@ GP.screens.meet = function (A) {
         note: 'イノベーションを起こす',
         fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
     } else if (capped.length && ideaN) {
+      tip = '🔩 ' + capped.map(c => c.name).join('・') + ' が上限。💡ひらめきで作り直す';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '💡ひらめきは ' + ideaN + 'つ持っているので、' +
         'その部位を器の85%まで育てるか、技術部門を厚くすれば⚡が起こせます。';
     } else if (capped.length && found) {
+      tip = '🔬 知見を 💡ひらめき に変える（' + found + 'つ余っています）';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '知見が ' + found + 'つ余っているので、🔬研究所で💡ひらめきに変えるのが先です。';
       adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
         note: '知見を💡ひらめきに変える',
         fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
     } else if (capped.length) {
+      tip = '🔩 ' + capped.map(c => c.name).join('・') + ' が上限。器そのものを広げる';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '天井を上げる手は三つ。<b>🏭作り直して大きな器を引く</b>、' +
         '<b>🔬研究して⚡イノベーションへ持っていく</b>、' +
         '<b>🏗️ファクトリーか風洞を伸ばす</b>（伸ばした日に天井が上がります）。';
     } else {
+      tip = found ? '🔬 知見が ' + found + 'つ。💡ひらめきに変えるか、研究を続ける'
+                  : '🔬 研究・🖊️技術・🏭作り直し——あとで効くものに使う週';
       advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週進めています。' +
         '週は<b>あとで効くもの</b>に使うのが得です——' +
         '🔬研究（' + (found ? '知見 ' + found + 'つ持っています' : '⚡の元手になります') + '）、' +
@@ -29968,7 +30051,7 @@ GP.screens.meet = function (A) {
     return {
       key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
         : worst && worst.rel < -0.05 ? 'warn' : 'good',
-      advise: advise, adviceAct: adviceAct,
+      advise: advise, tip: tip, adviceAct: adviceAct,
       head: worst && top.length
         ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
         : 'つなぎ込み ' + pct(it.rate) + '%',
@@ -30167,6 +30250,20 @@ GP.screens.meet = function (A) {
     return [techReport2(), pitReport(), logiReport(), bossReport()];
   }
 
+  /* ---- 今週の一手 ----
+     開発責任者はもう答えを持っているのに、それが相談の奥にしか無く、
+     本拠地からは見えなかった。いちばん短い形にして表に出す。
+     文そのものは techReport2 が組むものを使う（二重に持たない）    */
+  function weekTip() {
+    let r = null;
+    try { r = techReport2(); } catch (e) { return null; }
+    if (!r || !r.advise) return null;
+    /* 札は一行。<b> の中がその手の名前になっているので、そこを抜く。
+       無ければ最初の句点までを使う                                */
+    const head = r.tip || r.advise.replace(/<[^>]+>/g, '').split('。')[0];
+    return { head: head, full: r.advise, act: r.adviceAct, mood: r.mood };
+  }
+
   /* =======================================================
      画面
      ======================================================= */
@@ -30235,7 +30332,7 @@ GP.screens.meet = function (A) {
     name: 'meet',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdMeet: cmdMeet, openTalk: openTalk, mgrReports: reports }
+    api: { cmdMeet: cmdMeet, openTalk: openTalk, mgrReports: reports, weekTip: weekTip }
   };
 };
 
@@ -35043,6 +35140,20 @@ GP.ui = (function () {
     $('tFunds').parentElement.classList.toggle('danger', g.funds < 0);
   }
 
+  /* ---- 今週の一手 ----
+     中身は 🗣️相談 の開発責任者がすでに出しているもの。
+     押すと、その人の話がそのまま開く                              */
+  function weekTipHTML(g, left) {
+    if (left <= 0 || !GP.app || !GP.app.weekTip) return '';
+    let t = null;
+    try { t = GP.app.weekTip(); } catch (e) { return ''; }
+    if (!t || !t.head) return '';
+    /* 赤くしない。これは警告ではなく助言で、
+       開幕直後はどのチームも mood が bad になる            */
+    return '<button class="weektip" data-weektip="1">' +
+      '<i>🗣️</i><span><u>今週の一手</u><b>' + esc(t.head) + '</b></span><em>›</em></button>';
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -35074,6 +35185,9 @@ GP.ui = (function () {
       '</div>' +
       (nx ? '<div class="nextup">つぎは ' + nx.t.country + ' ' + esc(nx.t.name) +
             '　' + nx.h.icon + nx.h.name + '<b>準備 ' + nx.p + '回</b></div>' : '') +
+      /* 今週の一手。開発責任者の結論を、相談を開かなくても読めるところに出す。
+         ここが「何をすればいいか分からない」への直接の答えになる      */
+      weekTipHTML(g, left) +
       '<div class="track-mini" id="trackMini"></div>' +
       '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
       '<div class="seclegend">' +
@@ -37417,6 +37531,83 @@ window.GP = window.GP || {};
     if (cv) GP.interior.render(cv, g, cv.dataset.fac);
   }
 
+  /* ---- コマンドの見返り ----
+     どのコマンドも「1週」としか言っていなかったので、
+     何が幾つ動くのかを比べられなかった。
+     数字は、その画面が実際に使っている式から出す（二重に持たない） */
+  function cmdHints() {
+    const t = S.trackAt(g, g.nextRace);
+    const h = {};
+    // 整備：信頼性がどこまで戻るか（cmdMaintain と同じ式）
+    {
+      const now = S.reliability(g);
+      const mech = 1 + S.pitPower(g) * 0.13;
+      const keep = {};
+      D.PART_CATS.forEach(c => {
+        const p = g.equipped[c.key];
+        if (!p) return;
+        keep[c.key] = p.cond;
+        p.cond = c.key === 'pu'
+          ? S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100)
+          : S.clamp(p.cond + 21 * mech, 10, 100);
+      });
+      const after = S.reliability(g);
+      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+      h.cMaintain = Math.round(now) >= 99 ? '信頼性 99% 万全'
+        : '信頼性 ' + Math.round(now) + '→' + Math.round(after);
+    }
+    // 開発：今週、工房と技術部門がひとりでに進めるぶん
+    {
+      /* 押さなくても毎週進むぶん。押すのは、その上に足す一手 */
+      h.cCar = '自動で 今週 +' + S.autoImpStep(g, 'pu').toFixed(1);
+    }
+    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ倍率）
+    {
+      const d = (g.drivers || [])[0];
+      if (d) {
+        const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+                         + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+                         + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
+                    * S.persOf(d).train * S.rigMul(g, 'sim');
+        h.cDriver = '練習 能力 +' + (3.3 * bonus * (1 - d.speed / 320)).toFixed(1);
+      }
+    }
+    // 営業：プロモーションの見込み（doPromo と同じ式のならし）
+    {
+      const f = Math.round((180 + g.fans * 0.10) * (1 + g.facilities.market * 0.18));
+      h.cSponsor = 'ファン +' + U.money(f);
+    }
+    // 休養：調子とクルーの疲れ
+    {
+      const cw = Math.round(S.crewPenalty(g).level);
+      const fm = Math.round((g.drivers || []).reduce((a, d) => a + d.form, 0) /
+                            Math.max(1, (g.drivers || []).length));
+      const up = Math.min(122, fm + 10) - fm;
+      // 疲れが溜まっていないときに「疲労 0→0」と言っても何も伝わらない
+      h.cRest = cw >= 8 ? '疲労 -' + Math.min(cw, 18) + ' ／ 調子 +' + up
+                        : (up > 0 ? '調子 +' + up : 'みんな万全');
+    }
+    h.cMeet = '週は進まない';
+    h.cCrunch = (g.tired || 0) > 0 ? '反動が残っています' : '次の1回が2回ぶん';
+    return h;
+  }
+
+  function paintCmdHints() {
+    let h = {};
+    try { h = cmdHints(); } catch (e) { h = {}; }
+    Object.keys(h).forEach(id => {
+      const el = $(id);
+      if (!el || !h[id]) return;
+      let s2 = el.querySelector('.cmd-hint');
+      if (!s2) {
+        s2 = document.createElement('em');
+        s2.className = 'cmd-hint';
+        el.appendChild(s2);
+      }
+      s2.textContent = h[id];
+    });
+  }
+
   function render() {
     U.renderAll(g, specialOf(g));
     A.bindHub();
@@ -37435,6 +37626,7 @@ window.GP = window.GP || {};
       rg.classList.toggle('go', onGrid);
     }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
+    if (!offs && !race) paintCmdHints();
     const btn = $('specialGo');
     if (btn) btn.onclick = enterSpecial;
     const skip = $('specialSkip');
@@ -37556,6 +37748,15 @@ window.GP = window.GP || {};
     });
     /* ホームの札に出したパワーユニットの一行。
        札は毎週描き直されるので、個々に繋がず、上から一度だけ受ける */
+    /* 本拠地の「今週の一手」。押したら、その話をした人をそのまま開く */
+    document.addEventListener('click', function (ev) {
+      const t = ev.target && ev.target.closest ? ev.target.closest('[data-weektip]') : null;
+      if (!t || t.closest('#modalBody')) return;
+      ev.preventDefault();
+      GP.sound.play('tap');
+      if (A.openTalk) A.openTalk('technical');
+      else if (A.cmdMeet) A.cmdMeet();
+    });
     document.addEventListener('click', function (ev) {
       const b = ev.target && ev.target.closest ? ev.target.closest('[data-pu]') : null;
       if (!b) return;

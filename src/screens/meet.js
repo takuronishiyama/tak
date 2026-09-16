@@ -124,8 +124,10 @@ GP.screens.meet = function (A) {
     const innov = S.innovList(g).filter(r => r.ok);
     const ideaN = S.ideaList(g).length;
     const found = S.researchList(g).reduce((a, r) => a + r.found, 0);
-    let advise, adviceAct = null;
+    /* tip は本拠地の札に出す一行。advise の要点だけを、名詞で言い切る */
+    let advise, tip, adviceAct = null;
     if (innov.length) {
+      tip = '⚡ ' + innov[0].def.name + ' でイノベーションを起こす';
       advise = '⚡ <b>' + innov[0].def.name + ' でイノベーションを起こせます。</b>' +
         '器が ' + innov[0].cap + ' → ' + innov[0].capAfter +
         ' に伸びて、いまの性能はそのまま残ります。今週はこれが一番です。';
@@ -133,21 +135,26 @@ GP.screens.meet = function (A) {
         note: 'イノベーションを起こす',
         fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
     } else if (capped.length && ideaN) {
+      tip = '🔩 ' + capped.map(c => c.name).join('・') + ' が上限。💡ひらめきで作り直す';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '💡ひらめきは ' + ideaN + 'つ持っているので、' +
         'その部位を器の85%まで育てるか、技術部門を厚くすれば⚡が起こせます。';
     } else if (capped.length && found) {
+      tip = '🔬 知見を 💡ひらめき に変える（' + found + 'つ余っています）';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '知見が ' + found + 'つ余っているので、🔬研究所で💡ひらめきに変えるのが先です。';
       adviceAct = { key: 'res', icon: '🔬', label: '研究所へ',
         note: '知見を💡ひらめきに変える',
         fn: () => { U.closePopup(); U.closeModal(); if (A.cmdResearch) A.cmdResearch(); } };
     } else if (capped.length) {
+      tip = '🔩 ' + capped.map(c => c.name).join('・') + ' が上限。器そのものを広げる';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '天井を上げる手は三つ。<b>🏭作り直して大きな器を引く</b>、' +
         '<b>🔬研究して⚡イノベーションへ持っていく</b>、' +
         '<b>🏗️ファクトリーか風洞を伸ばす</b>（伸ばした日に天井が上がります）。';
     } else {
+      tip = found ? '🔬 知見が ' + found + 'つ。💡ひらめきに変えるか、研究を続ける'
+                  : '🔬 研究・🖊️技術・🏭作り直し——あとで効くものに使う週';
       advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週進めています。' +
         '週は<b>あとで効くもの</b>に使うのが得です——' +
         '🔬研究（' + (found ? '知見 ' + found + 'つ持っています' : '⚡の元手になります') + '）、' +
@@ -157,7 +164,7 @@ GP.screens.meet = function (A) {
     return {
       key: 'technical', who: w, mood: worst && worst.rel < -0.12 ? 'bad'
         : worst && worst.rel < -0.05 ? 'warn' : 'good',
-      advise: advise, adviceAct: adviceAct,
+      advise: advise, tip: tip, adviceAct: adviceAct,
       head: worst && top.length
         ? worst.name + ' が ' + (worst.rel < 0 ? '-' : '+') + Math.abs(pct(worst.rel)) + '%'
         : 'つなぎ込み ' + pct(it.rate) + '%',
@@ -356,6 +363,20 @@ GP.screens.meet = function (A) {
     return [techReport2(), pitReport(), logiReport(), bossReport()];
   }
 
+  /* ---- 今週の一手 ----
+     開発責任者はもう答えを持っているのに、それが相談の奥にしか無く、
+     本拠地からは見えなかった。いちばん短い形にして表に出す。
+     文そのものは techReport2 が組むものを使う（二重に持たない）    */
+  function weekTip() {
+    let r = null;
+    try { r = techReport2(); } catch (e) { return null; }
+    if (!r || !r.advise) return null;
+    /* 札は一行。<b> の中がその手の名前になっているので、そこを抜く。
+       無ければ最初の句点までを使う                                */
+    const head = r.tip || r.advise.replace(/<[^>]+>/g, '').split('。')[0];
+    return { head: head, full: r.advise, act: r.adviceAct, mood: r.mood };
+  }
+
   /* =======================================================
      画面
      ======================================================= */
@@ -424,6 +445,6 @@ GP.screens.meet = function (A) {
     name: 'meet',
     link: link,
     setG: function (v) { g = v; },
-    api: { cmdMeet: cmdMeet, openTalk: openTalk, mgrReports: reports }
+    api: { cmdMeet: cmdMeet, openTalk: openTalk, mgrReports: reports, weekTip: weekTip }
   };
 };

@@ -874,7 +874,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🔧 ガレージ', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-itab]'), b => {
@@ -993,7 +993,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🖊️ 設計室', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-dtab]'), b => {
@@ -2012,7 +2012,7 @@ GP.screens.dev = function (A) {
     body += interiorHTML('factory');
     body = ticketBarHTML() + body;
     U.modal('🏭 工房', body, [
-      { label: 'やめる', cls: 'primary', fn: U.closeModal }
+      { label: '閉じる', cls: 'primary', fn: U.closeModal }
     ]);
     paintInterior();
     bindMfg(() => cmdShop());
