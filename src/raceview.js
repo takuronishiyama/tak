@@ -7,6 +7,13 @@ GP.raceview = (function () {
   'use strict';
 
   let cv, ctx, res, poly, trackArt = null, raf = null;
+  /* ---- 絵の広さと、実際の画素 ----
+     コース図は 560×400 の座標で描く。表に出る大きさはそのときどきで
+     変わるので、裏の大きさだけ実画素に合わせ、描くほうは倍率をかける。
+     こうしないと、広い窓では 560×400 を2倍に引き伸ばすことになり、
+     コース名やドライバーの3文字がぼやける                         */
+  const VW = 560, VH = 400;
+  let PX = 1;
   let emissive = [];        // ネオンなど、明示的に光らせたいもの（世界座標）
   let standalone = false;   // レース外で1台だけ描いているとき（カメラが無い）
   /* 観戦の速さ（レース全体を何秒で見せるか）。
@@ -241,7 +248,7 @@ GP.raceview = (function () {
 
   /* 世界座標へ移すカメラ変換。描画と発光レイヤーで同じものを使う */
   function camTransform(g) {
-    g.translate(cv.width / 2, cv.height / 2);
+    g.translate(VW / 2, VH / 2);
     g.scale(cam.z, cam.z);
     g.translate(-cam.x, -cam.y);
   }
@@ -250,15 +257,15 @@ GP.raceview = (function () {
     emissive = [];
     const th = hdTheme(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass']);
     const wet = res.weather.key === 'rain' || res.weather.key === 'storm';
-    const c = document.createElement('canvas');
-    c.width = cv.width; c.height = cv.height;
+    const c = GP.gfx.sheet(VW, VH, PX);
     const g = c.getContext('2d');
+    GP.gfx.begin(g, PX);
 
     // 地面
     g.fillStyle = wet && !th.night ? shade(th.sky, -0.22) : th.sky;
-    g.fillRect(0, 0, c.width, c.height);
+    g.fillRect(0, 0, VW, VH);
     g.fillStyle = wet && !th.night ? shade(th.dot, -0.22) : th.dot;
-    for (let y = 0; y < c.height; y += 8) for (let x = (y % 16 ? 0 : 4); x < c.width; x += 16) g.fillRect(x, y, 4, 4);
+    for (let y = 0; y < VH; y += 8) for (let x = (y % 16 ? 0 : 4); x < VW; x += 16) g.fillRect(x, y, 4, 4);
 
     // コースの外に景色を置く。
     // 影を実際のシルエットから作りたいので、いったん別レイヤーに描く。
@@ -838,7 +845,7 @@ GP.raceview = (function () {
   function updateCam(t) {
     const f = pickFocus(t);
     cam.label = f ? f.label : '';
-    if (!f) { cam.tx = cv.width / 2; cam.ty = cv.height / 2; cam.tz = 1; }
+    if (!f) { cam.tx = VW / 2; cam.ty = VH / 2; cam.tz = 1; }
     else {
       let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       f.list.forEach(o => {
@@ -849,7 +856,7 @@ GP.raceview = (function () {
       const pad = 90;
       const w = Math.max(160, maxX - minX + pad * 2), h = Math.max(120, maxY - minY + pad * 2);
       cam.tx = (minX + maxX) / 2; cam.ty = (minY + maxY) / 2;
-      cam.tz = Math.max(1, Math.min(2.6, Math.min(cv.width / w, cv.height / h)));
+      cam.tz = Math.max(1, Math.min(2.6, Math.min(VW / w, VH / h)));
     }
     // 滑らかに追従する
     const k = 0.07;
@@ -857,14 +864,22 @@ GP.raceview = (function () {
     cam.y += (cam.ty - cam.y) * k;
     cam.z += (cam.tz - cam.z) * k;
     // 画面の外が映らないように寄せる
-    const halfW = cv.width / (2 * cam.z), halfH = cv.height / (2 * cam.z);
-    cam.x = Math.max(halfW, Math.min(cv.width - halfW, cam.x));
-    cam.y = Math.max(halfH, Math.min(cv.height - halfH, cam.y));
+    const halfW = VW / (2 * cam.z), halfH = VH / (2 * cam.z);
+    cam.x = Math.max(halfW, Math.min(VW - halfW, cam.x));
+    cam.y = Math.max(halfH, Math.min(VH - halfH, cam.y));
   }
 
   /* ---------- 毎フレームの描画 ---------- */
   function draw(t) {
-    const w = cv.width, h = cv.height;
+    /* タイミングモニターを開け閉てすると、表に出る大きさが変わる。
+       変わったら裏の大きさを取り直し、コース図も引き直す        */
+    const k = GP.gfx.fit(cv, VW, VH, { max: 2 });
+    if (Math.abs(k - PX) > 0.01) {
+      PX = k;
+      GP.fx.init(VW * PX, VH * PX);
+      trackArt = buildTrackArt();
+    }
+    const w = VW, h = VH;
     const wet = wetNow;
     const night = !!(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'] || {}).night;
 
@@ -875,14 +890,14 @@ GP.raceview = (function () {
     const buf = GP.fx.begin();
     if (buf) ctx = buf;
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.scale(cam.z, cam.z);
     ctx.translate(-cam.x, -cam.y);
 
-    if (trackArt) ctx.drawImage(trackArt, 0, 0); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
+    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
 
     // 雨演出
     if (wet) {
@@ -950,6 +965,7 @@ GP.raceview = (function () {
       if (emissive.length) {
         GP.fx.addLight(function (lg) {
           lg.save();
+          lg.setTransform(PX, 0, 0, PX, 0, 0);
           camTransform(lg);
           for (let i = 0; i < emissive.length; i++) {
             const em = emissive[i];
@@ -962,8 +978,8 @@ GP.raceview = (function () {
       // カメラが寄っているときほど、周りをぼかしてジオラマらしく見せる
       const dof = Math.max(0, Math.min(1, (cam.z - 1) / 1.5));
       GP.fx.composite(out, {
-        focus: { x: w / 2, y: h / 2 },
-        focusR: w * (0.46 - dof * 0.14),
+        focus: { x: w * PX / 2, y: h * PX / 2 },
+        focusR: w * PX * (0.46 - dof * 0.14),
         dof: dof,
         bloom: night ? 1.15 : (wet ? 0.85 : 0.72),
         warm: night ? 1.1 : 0.85,
@@ -994,7 +1010,7 @@ GP.raceview = (function () {
 
   /* ---------- 画面に重ねる情報 ---------- */
   function drawOverlay(t) {
-    const w = cv.width;
+    const w = VW;
     // いま何を映しているか
     if (cam.label) {
       ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
@@ -2055,15 +2071,16 @@ GP.raceview = (function () {
   /* ---------- 公開API ---------- */
   function start(canvas, result, endCb) {
     cv = canvas; ctx = cv.getContext('2d');
+    PX = GP.gfx.fit(cv, VW, VH, { max: 2 });
     ctx.imageSmoothingEnabled = false;
     res = result; onEnd = endCb;
-    poly = buildPoly(res.track.path, cv.width, cv.height, 34);
+    poly = buildPoly(res.track.path, VW, VH, 34);
     pitFracCache = null;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
-    GP.fx.init(cv.width, cv.height);
-    cam = { x: cv.width / 2, y: cv.height / 2, z: 1, tx: cv.width / 2, ty: cv.height / 2, tz: 1,
+    GP.fx.init(VW * PX, VH * PX);
+    cam = { x: VW / 2, y: VH / 2, z: 1, tx: VW / 2, ty: VH / 2, tz: 1,
             mode: 'auto', focusId: null, label: '' };
     duration = Math.max(1, Math.max.apply(null, res.entries.map(e => e.cum[e.cum.length - 1])));
     vt = 0; shownEvents = 0; shownRadio = 0; lightBeeps = 0; running = true; lastTs = performance.now(); speed = DEFAULT_SPEED; lights = 0; chequer = 0;
@@ -2089,8 +2106,8 @@ GP.raceview = (function () {
 
   /* ---------- チェッカーフラッグ ---------- */
   function drawChequer(p) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const w = cv.width, h = cv.height;
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
+    const w = VW, h = VH;
     ctx.fillStyle = 'rgba(20,12,6,' + (0.35 * Math.min(1, p * 3)).toFixed(2) + ')';
     ctx.fillRect(0, 0, w, h);
     // 旗が振られる
@@ -2118,8 +2135,8 @@ GP.raceview = (function () {
   /* ---------- スタートシグナル ---------- */
   let lightBeeps = 0;
   function drawLights(p) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const w = cv.width;
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
+    const w = VW;
     const cxl = w / 2, cy = 46;
     const on = Math.min(5, Math.floor(p * 6.2));      // 5つ順に点灯
     const out = p > 0.86;                              // 一斉消灯＝スタート

@@ -823,7 +823,6 @@ body.preboot .topbar{visibility:hidden}
    狭い窓では入れ物の高さが決まっていないぶん、これまでどおり
    --rvMap がそのまま高さになる                                        */
 #raceCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
-            image-rendering:-webkit-optimize-contrast;image-rendering:pixelated;
             width:auto;height:var(--rvMap,46vh);max-width:100%;max-height:100%;
             background:#7fbf5a}
 /* 無線に右下を譲って、カメラの切り替えは左下へ */
