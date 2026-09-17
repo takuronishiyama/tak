@@ -418,7 +418,10 @@ table.rank.grid td.dim{opacity:.35}
    札がフルネームと用事つきで6枚も並ぶと、建物がぜんぶ隠れていた。
    絵が主役なので、出すのは絵文字と短い呼び名だけ。
    指したとき（押す直前）だけ、名前と用事がひらく          */
-.mt-short{text-decoration:none;font-size:10px;font-weight:bold;letter-spacing:-.2px}
+/* 呼び名は札の字の色をそのまま継ぐ。u の既定（緑）のままだと、
+   暗い皮の札の上で沈む                                        */
+.mt-pill u.mt-short{text-decoration:none;font-size:10px;font-weight:bold;
+  letter-spacing:-.2px;color:inherit}
 .mtag.pin .mt-pill b,.mtag.pin .mt-pill em{display:none}
 .mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
 .mtag.pin .mt-pill i{font-size:13px}
@@ -4912,7 +4915,39 @@ GP.gfx = (function () {
     g.restore();
   }
 
-  return { fit, sheet, begin, dpr, fontAt, prop, shadow, shade };
+  /* ---------- 色見本 ----------
+     絵のなかの色は、以前は 442 種類あった。その場その場で
+     16進数を決めていたので、同じ「暗い茶色」が何通りもあり、
+     部屋ごと・画面ごとに色の調子がばらついていた。
+
+     ここに並べたのが、絵で使ってよい色のすべて。
+     組ごとに 暗い→明るい の5段で、段の番号がそのまま奥行きになる
+     （0 が影、2 が地の色、4 が光）。迷ったら 2 を使う。         */
+  const pal = {
+    n:      ['#12101a', '#1e1b28', '#2b2637', '#3a3348', '#4d455c',
+             '#6b6178', '#8e8399', '#b5aabb', '#e8dfd2', '#fff8e6'],
+    red:    ['#5c1a1c', '#8f2a24', '#c23a2e', '#e2664a', '#ff9c78'],
+    amber:  ['#5e3a12', '#92601c', '#c98a22', '#edb44a', '#ffd98a'],
+    green:  ['#0f2a18', '#1d3d22', '#2e6b33', '#47a046', '#78c96a', '#b2e79a'],
+    cyan:   ['#123a44', '#1d6272', '#2e96ab', '#5cc4d6', '#9ee8f2'],
+    blue:   ['#17284e', '#26417d', '#3a67b8', '#6b9ae0', '#a8c8f2'],
+    violet: ['#2a1c46', '#452c72', '#6b47ab', '#9a7ad8', '#c8aef0'],
+    pink:   ['#4a1838', '#7a2a5c', '#b03f86', '#d873b0', '#f2aed6'],
+    gold:   ['#7a5a18', '#b08424', '#e0ae3c', '#f5cf70', '#fff0b0'],
+    grass:  ['#0e2614', '#1b3a1c', '#2f5c26', '#4d8433', '#79ad4a', '#a8cf72'],
+    road:   ['#23222c', '#33313e', '#464351', '#5d5a6b', '#7d7a8c'],
+    skin:   ['#8a5a3a', '#b07a52', '#d49a70', '#edbb90', '#ffd9b8'],
+    sky:    ['#1a1b33', '#2b2c50', '#445078', '#6d7aa8', '#a3aed0'],
+    sand:   ['#4a3c28', '#6e5a3c', '#9a8358', '#c2ab7c', '#e6d6ae'],
+    brown:  ['#2e1d10', '#4a3018', '#6b4724', '#96683a', '#c08f5c']
+  };
+  /* 組と段で引く。pal('brown', 2) のように使う */
+  function col(name, step) {
+    const v = pal[name] || pal.n;
+    return v[Math.max(0, Math.min(v.length - 1, step | 0))];
+  }
+
+  return { fit, sheet, begin, dpr, fontAt, prop, shadow, shade, pal, col };
 })();
 
 </script>
@@ -5096,7 +5131,7 @@ GP.data = (function () {
   /* names は世代ごとの型式名、notes はその世代で「何が変わったのか」。
      前の世代との差だけを、現場の言葉で書いてある                    */
   const PART_CATS = [
-    { key: 'pu',    name: 'パワーユニット', short: 'パワー', icon: '⚙️', color: '#e04a3f',
+    { key: 'pu',    name: 'パワーユニット', short: 'パワー', icon: '⚙️', color: '#dd5043',
       gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6,
       names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'],
       notes: [
@@ -5107,7 +5142,7 @@ GP.data = (function () {
         '合成燃料へ全面移行。燃焼温度が上がったぶん、冷却レイアウトが性能そのものを決めるようになった',
         '電動過給と可変圧縮比。回転域ごとに別のエンジンのように振る舞い、どこを踏んでも谷がない'
       ] },
-    { key: 'aero',  name: 'エアロダイナミクス', short: 'エアロ', icon: '🪽', color: '#3a7ad9',
+    { key: 'aero',  name: 'エアロダイナミクス', short: 'エアロ', icon: '🪽', color: '#3f79d9',
       gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6,
       names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'],
       notes: [
@@ -5118,7 +5153,7 @@ GP.data = (function () {
         '前後の翼を走行中に動かす。直線では寝かせて抵抗を捨て、コーナーで起こして押しつける',
         '境界層を能動的に制御。剥離が起きないので、抵抗を増やさずに押しつけ量だけを積める'
       ] },
-    { key: 'brake', name: 'ブレーキ', short: 'ブレーキ', icon: '🛑', color: '#c0392b',
+    { key: 'brake', name: 'ブレーキ', short: 'ブレーキ', icon: '🛑', color: '#c13a2d',
       gain: { speed: 0.05, corner: 0.55, accel: 0.40 }, cost: 250, rp: 5, wear: 1.30,
       names: ['ドラムブレーキ', 'ソリッドディスク', 'ベンチレーテッドディスク',
               'カーボンディスク', 'ブレーキ・バイ・ワイヤ', 'アクティブ熱制御ブレーキ'],
@@ -5130,7 +5165,7 @@ GP.data = (function () {
         '踏力を電気信号で送り、回生と摩擦を自動で配分する。ペダルの感触が常に一定になった',
         'ダクトと圧を走行中に制御。1コーナーも最終ラップも、まったく同じところで止まれる'
       ] },
-    { key: 'chas',  name: 'シャシー', short: 'シャシー', icon: '🧱', color: '#4ea63f',
+    { key: 'chas',  name: 'シャシー', short: 'シャシー', icon: '🧱', color: '#4aa743',
       gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
       names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'],
       notes: [
@@ -5141,7 +5176,7 @@ GP.data = (function () {
         '繊維をナノ単位で配向。荷重のかかる向きにだけ硬く、それ以外はしなやかに作り分けられる',
         'グラフェン積層の一体成型。もはや部品ではなく、車体そのものが一枚の構造材になった'
       ] },
-    { key: 'susp',  name: 'サスペンション', short: 'サス', icon: '🌀', color: '#b06fd0',
+    { key: 'susp',  name: 'サスペンション', short: 'サス', icon: '🌀', color: '#a474da',
       gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5,
       names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'],
       notes: [
@@ -5152,7 +5187,7 @@ GP.data = (function () {
         '磁性流体で減衰力を可変に。路面の入力ごとに、1ミリ秒単位で硬さを切り替える',
         'リニアアクチュエータで4輪を独立制御。もはや「ばね」ではなく、姿勢そのものを作りにいく'
       ] },
-    { key: 'gear',  name: 'ギアボックス', short: 'ギア', icon: '🔀', color: '#2ea6a0',
+    { key: 'gear',  name: 'ギアボックス', short: 'ギア', icon: '🔀', color: '#2aa4ae',
       gain: { speed: 0.20, corner: 0.05, accel: 0.75 }, cost: 270, rp: 5, wear: 1.45,
       names: ['5速マニュアル', '6速ドグミッション', 'セミオートマ', 'シームレスシフト', '電動シームレスAT', '無段変速ドライブ'],
       notes: [
@@ -5163,7 +5198,7 @@ GP.data = (function () {
         'モーターで段間のトルクを埋める。変速中も後輪は押し続け、加速の線が折れない',
         '段という概念を捨てた。エンジンは最良の回転を保ったまま、車速だけが伸びていく'
       ] },
-    { key: 'elec',  name: 'エレクトロニクス', short: '電装', icon: '💡', color: '#f0a020',
+    { key: 'elec',  name: 'エレクトロニクス', short: '電装', icon: '💡', color: '#efa11d',
       gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'],
       notes: [
@@ -5216,27 +5251,27 @@ GP.data = (function () {
 
   /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
   const OWNER_SKILLS = [
-    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
+    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#dd5043',
       desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
       eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'],
       now: lv => ['心証の伸び +' + lv * 12 + '%', '移籍金 -' + lv * 6 + '%',
                   '契約更改の要求 -' + lv * 4 + '%'] },
-    { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
+    { key: 'money', name: '商才',   icon: '💰', color: '#ffca45',
       desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
       eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'],
       now: lv => ['スポンサー収入 +' + lv * 6 + '%', '賞金 +' + lv * 5 + '%',
                   '運営費 -' + lv * 3 + '%'] },
-    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
+    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3f79d9',
       desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
       eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'],
       now: lv => ['開発の伸び +' + lv * 7 + '%', '偵察の研究P +' + lv * 25 + '%',
                   '週の研究P +' + lv] },
-    { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
+    { key: 'call',  name: '采配',   icon: '🎯', color: '#4aa743',
       desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
       eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'],
       now: lv => ['ピット作業 -' + (lv * 0.12).toFixed(2) + '秒', '仕掛ける成功率 +' + lv * 8 + '%',
                   'レース週の調子 +' + lv * 2] },
-    { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
+    { key: 'fame',  name: '知名度', icon: '📣', color: '#a474da',
       desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
       eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'],
       now: lv => ['注目度の増え +' + lv * 20 + '%', '取材の効果 +' + lv * 25 + '%',
@@ -5279,12 +5314,12 @@ GP.data = (function () {
 
   /* ---------- コースの景観テーマ ---------- */
   const THEMES = {
-    grass:  { sky: '#7fbf5a', dot: '#76b552', edge: '#e8e0c8', road: '#55585f', night: false },
-    forest: { sky: '#4f8f42', dot: '#468239', edge: '#e2dcc4', road: '#4e5158', night: false },
-    alpine: { sky: '#8fc96a', dot: '#84bd5f', edge: '#eee7d2', road: '#5b5e66', night: false },
-    street: { sky: '#9aa0a8', dot: '#8f959d', edge: '#d8d2c0', road: '#4c4f56', night: false },
-    desert: { sky: '#d8b878', dot: '#cfae6c', edge: '#f0e6cc', road: '#5a5a5e', night: true },
-    neon:   { sky: '#1b2038', dot: '#232a4a', edge: '#4a4f6a', road: '#3a3d48', night: true }
+    grass:  { sky: '#7cbe5a', dot: '#70b14f', edge: '#eadfc8', road: '#55585f', night: false },
+    forest: { sky: '#4b8f45', dot: '#42823c', edge: '#e3dac2', road: '#4e5057', night: false },
+    alpine: { sky: '#8dca6d', dot: '#80bc60', edge: '#ebe2ce', road: '#5b5e66', night: false },
+    street: { sky: '#979da5', dot: '#8d939b', edge: '#dad3c1', road: '#4d4f56', night: false },
+    desert: { sky: '#d8b878', dot: '#cfae6c', edge: '#ede2c8', road: '#5a5a5e', night: true },
+    neon:   { sky: '#1a2038', dot: '#232b4b', edge: '#484f6a', road: '#3a3d48', night: true }
   };
   const TRACK_THEME = {
     'ベイサイド・ストリート': 'street', 'シルバーウッド・パーク': 'grass',
@@ -5312,13 +5347,13 @@ GP.data = (function () {
   const QUALITY = [
     { at: 0.00, name: '並',     short: '並', color: '#a89878',
       note: '図面どおり。悪くはないが、それだけ' },
-    { at: 1.03, name: '良品',   short: '良', color: '#4ea63f',
+    { at: 1.03, name: '良品',   short: '良', color: '#4aa743',
       note: '手が入っている。数字にも出る' },
-    { at: 1.15, name: '上物',   short: '上', color: '#3a7ad9',
+    { at: 1.15, name: '上物',   short: '上', color: '#3f79d9',
       note: '狙って作れる範囲の、上のほう' },
-    { at: 1.29, name: '特上',   short: '特', color: '#b06fd0',
+    { at: 1.29, name: '特上',   short: '特', color: '#a474da',
       note: 'ここまで来ると、載せ替えたくなくなる' },
-    { at: 1.43, name: '会心作', short: '会', color: '#f0a020',
+    { at: 1.43, name: '会心作', short: '会', color: '#efa11d',
       note: '同じものをもう一度作れる保証はない' }
   ];
   /* 品質の振れかた。
@@ -5380,19 +5415,19 @@ GP.data = (function () {
      一度ものにした技術は、パーツを載せ替えても失われない。
      ここで上がるのはレベルで、レベルぶんだけ効きが強くなる。      */
   const PART_TRAITS = [
-    { key: 'boost', name: '高出力',   icon: '🔥', color: '#e04a3f',
+    { key: 'boost', name: '高出力',   icon: '🔥', color: '#dd5043',
       desc: '最高速がさらに上がる', per: 0.035, eff: '最高速 +3.5%/Lv',
       note: '燃焼室と過給を詰め直す。同じ排気量から、もう少しだけ引き出す' },
-    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4ea63f',
+    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4aa743',
       desc: 'コーナー性能がさらに上がる', per: 0.035, eff: 'コーナー +3.5%/Lv',
       note: '締結と積層を見直す。入力が逃げないぶん、狙った線をそのまま踏める' },
-    { key: 'light', name: '軽量化',   icon: '🪶', color: '#7ecbf0',
+    { key: 'light', name: '軽量化',   icon: '🪶', color: '#77cdea',
       desc: '加速がさらに上がる', per: 0.040, eff: '加速 +4%/Lv',
       note: '削れるところを削る。1グラムずつの積み重ねが、立ち上がりに出る' },
-    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#c98b4a',
+    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#ca8b4b',
       desc: 'パーツが消耗しにくい', per: 0.090, eff: '消耗 -9%/Lv',
       note: '先に音を上げる箇所を、先に潰しておく。週明けの現場が楽になる' },
-    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3a7ad9',
+    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3f79d9',
       desc: 'マシンが壊れにくくなる', per: 1.60, eff: '信頼性 +1.6/Lv',
       note: '熱の出口を作る。壊れるときは、たいてい熱から壊れる' }
   ];
@@ -5422,32 +5457,32 @@ GP.data = (function () {
      「剛性＝壊れにくさ」だけに読めてしまっていた。
      実際はどの項目も、その車の速さそのものを作っている     */
   const BODY_ATTRS = [
-    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
+    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4aa743',
       desc: 'コーナーで踏ん張る車になる',
       eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -20%）',
       gain: { speed: 0.00, corner: 0.18, accel: 0.00 } },
-    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
+    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#77cdea',
       desc: '最高速と加速が伸びる車になる',
       eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -15%）',
       gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
-    { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3a7ad9',
+    { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3f79d9',
       desc: 'コーナーで曲がる車になる',
       eff: 'エアロパーツの効きが増し、前車を追いやすい（追い抜き +11%）',
       gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
-    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
+    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#a474da',
       desc: '加速がわずかに伸びる',
       eff: '信頼性 +7。電気の回生が増え、終盤のタレが小さい',
       gain: { speed: 0.00, corner: 0.00, accel: 0.06 } },
-    { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#f0a020',
+    { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#efa11d',
       desc: '最高速と加速が伸びる車になる',
       eff: '電気の容量と放電量が増え、直線の仕掛けが決まりやすい',
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
-    { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0644a',
+    { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0634f',
       desc: '車そのものは速くならない',
       eff: '素直で乗りやすくなり、ドライバーが車の持ち分を引き出せる。' +
            '合わないタイヤでも唐突に失わない（評価 +12%／ミス -25%）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
-    { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
+    { key: 'service',  name: '整備性',     icon: '🧰', color: '#ca8b4b',
       desc: '車そのものは速くならない',
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
@@ -5478,13 +5513,13 @@ GP.data = (function () {
      11組のうち9組が固まりの内側で完結し、外へ出るのは2組だけ。
      輪に並べても線が総当たりで交差しないのは、これのおかげ。      */
   const PART_GROUPS = [
-    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3a7ad9',
+    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3f79d9',
       note: '空気をどう当てて、路面にどう置くか',
       parts: ['aero', 'susp'], body: ['aeroBody', 'drive'] },
-    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4ea63f',
+    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4aa743',
       note: '受け止めて、止めるところ',
       parts: ['chas', 'brake'], body: ['rigidity', 'light'] },
-    { key: 'power', name: '動力',     icon: '⚙️', color: '#e04a3f',
+    { key: 'power', name: '動力',     icon: '⚙️', color: '#dd5043',
       note: '前に出す力と、それを支えるもの',
       parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
   ];
@@ -5540,25 +5575,25 @@ GP.data = (function () {
      途中で大きく変えたくなったら、車のバージョンアップで作り直す。
      規則が変わる年も、そこで白紙になるので選び直せる。            */
   const CONCEPTS = [
-    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#e04a3f',
+    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#dd5043',
       lead: 'power',
       desc: '空気を切って、伸びで勝つ。ストレートの長いコースで戦え、追い抜きもしやすい',
       up:   ['light', 'cooling', 'battery'],
       down: ['aeroBody', 'drive'],
       pUp:  ['pu', 'gear'], pDown: ['aero'] },
-    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3a7ad9',
+    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3f79d9',
       lead: 'air',
       desc: '押しつける力で曲がる。低速コーナーの多い市街地に強いが、直線では伸びない',
       up:   ['aeroBody', 'rigidity'],
       down: ['light', 'battery'],
       pUp:  ['aero', 'susp'], pDown: ['pu'] },
-    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4ea63f',
+    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4aa743',
       lead: 'power',
       desc: '立ち上がりで前に出る。ストップ＆ゴーのコースとスタートで効く',
       up:   ['battery', 'light', 'service'],
       down: ['aeroBody', 'rigidity'],
       pUp:  ['pu', 'elec', 'gear'], pDown: ['aero'] },
-    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#b06fd0',
+    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#a474da',
       lead: 'air',
       desc: '限界が分かりやすく、誰が乗っても速い。'
           + 'タイヤに優しく、荒れた週末で落としにくい',
@@ -5767,14 +5802,14 @@ GP.data = (function () {
      ・予備も回す＝壊したときの立ち直りが速く、修理費も安い
      どちらも毎週の週コマンドは使わない。方針なので、決めたら効き続ける  */
   const MFG_PLANS = [
-    { key: 'one',   icon: '🎯', name: '一点ものを作り込む', color: '#e04a3f',
+    { key: 'one',   icon: '🎯', name: '一点ものを作り込む', color: '#dd5043',
       note: '尖らせる',
       desc: 'ラインを作るものだけに使う。予備は組まない',
       good: '作るパーツの品質が底上げされる',
       bad:  '壊したときは、徹夜か応急処置しかない',
       qual: 0.08,           // 作るときの品質の底上げ
       build: 0 },
-    { key: 'spare', icon: '🧰', name: '予備も回す', color: '#3a7ad9',
+    { key: 'spare', icon: '🧰', name: '予備も回す', color: '#3f79d9',
       note: '守る',
       desc: '作るかたわら、予備を少しずつ組んでおく',
       good: '毎週すこしずつ予備が増え、修理費も安くなる',
@@ -5833,10 +5868,10 @@ GP.data = (function () {
   };
   /* つなぎ込みの寄せかた。プレイヤーが決めるのはここだけ */
   const INTPLANS = [
-    { key: 'thin', icon: '🩹', name: '薄いところから埋める', color: '#4ea63f',
+    { key: 'thin', icon: '🩹', name: '薄いところから埋める', color: '#4aa743',
       desc: 'いちばんまとまっていない項目から手を付ける。穴がなくなる',
       note: 'まんべんなく' },
-    { key: 'edge', icon: '🔥', name: '強いところを先に仕上げる', color: '#e04a3f',
+    { key: 'edge', icon: '🔥', name: '強いところを先に仕上げる', color: '#dd5043',
       desc: 'すでに厚い項目を先に上限まで。車の持ち味が際立つ',
       note: '尖らせる' }
   ];
@@ -5869,13 +5904,13 @@ GP.data = (function () {
 
   /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
   const CHASSIS_TRAITS = [
-    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3a7ad9',
+    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3f79d9',
       note: '伸びる。ただし、曲がるところで貯金を吐き出す' },
-    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4ea63f',
+    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4aa743',
       note: '荷重が乗る。低速も高速も、コーナーで稼げる' },
-    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0644a',
+    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0634f',
       note: '立ち上がりが強い。ストップ&ゴーのコースで生きる' },
-    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#c98b4a',
+    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#ca8b4b',
       note: '尖ってはいないが、どこへ持って行っても大崩れしない' }
   ];
   /* 開きの大きさの呼び名（弱い軸に対する強い軸の比） */
@@ -5892,9 +5927,9 @@ GP.data = (function () {
      本体の強い軸へ積むのが補強、弱い軸を埋めるのが是正。
      どちらが正しいということはなく、走るコースで向き不向きが出る */
   const CAR_DIRS = [
-    { key: 'boost', name: '補強', icon: '⬆️', color: '#3a7ad9',
+    { key: 'boost', name: '補強', icon: '⬆️', color: '#3f79d9',
       note: '本体の得意をさらに伸ばしている。合うコースでは手がつけられない' },
-    { key: 'fix',   name: '是正', icon: '🩹', color: '#4ea63f',
+    { key: 'fix',   name: '是正', icon: '🩹', color: '#4aa743',
       note: '本体の苦手を埋めている。どこへ行っても大きくは崩れない' },
     { key: 'flat',  name: 'そのまま', icon: '➖', color: '#a89878',
       note: '本体の性格をそのまま引き継いでいる' }
@@ -6143,15 +6178,15 @@ GP.data = (function () {
   /* 運びかた。速さ・確実さ・値段の三すくみ。
      遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
-    { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
+    { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#dd5043',
       cost: 2.45, fatigue: -10, perf: 1.016, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2.5倍' },
-    { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
+    { key: 'std', name: '定期便', icon: '📦', color: '#3f79d9',
       cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.08,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
-    { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
+    { key: 'sea', name: '船便', icon: '🚢', color: '#4aa743',
       cost: 0.30, fatigue: 15, perf: 0.978, delay: 0.28,
       desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
       note: '費用は約3割' }
@@ -6159,15 +6194,15 @@ GP.data = (function () {
   /* 積荷。何をどれだけ持っていくか。
      予備を置いてくれば安いが、現場で何かあっても手当てができない     */
   const LOGI_LOADS = [
-    { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
+    { key: 'light', name: '軽装', icon: '🎒', color: '#4aa743',
       cost: 0.62, spares: 0, wear: 1.55, delay: -0.03, fatigue: -3,
       desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
       note: '費用は4割減' },
-    { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
+    { key: 'std', name: '標準', icon: '📦', color: '#3f79d9',
       cost: 1.00, spares: 1, wear: 1.00, delay: 0, fatigue: 0,
       desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
       note: '標準' },
-    { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
+    { key: 'full', name: '万全', icon: '🧰', color: '#dd5043',
       cost: 1.55, spares: 3, wear: 0.72, delay: 0.05, fatigue: 5,
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.55倍' }
@@ -6178,15 +6213,15 @@ GP.data = (function () {
      わけではなく、ミッションコントロールがあれば回線の向こうから
      同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
   const LOGI_CREWS = [
-    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
+    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4aa743',
       cost: 0.58, fatigue: -9, pit: -0.95, read: -1.10, fore: -0.07,
       desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
       note: '費用は4割減／現場が薄くなる' },
-    { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
+    { key: 'std', name: '標準', icon: '👥', color: '#3f79d9',
       cost: 1.00, fatigue: 0, pit: 0, read: 0, fore: 0,
       desc: 'いつもの遠征メンバー。過不足のない布陣',
       note: '標準' },
-    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
+    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#dd5043',
       cost: 1.70, fatigue: 9, pit: 1.15, read: 1.35, fore: 0.08,
       desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
       note: '費用は約1.7倍／全員が疲れる' }
@@ -6376,7 +6411,7 @@ GP.data = (function () {
 
   const DIFFICULTIES = [
     {
-      key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
+      key: 'easy', name: 'イージー', icon: '🌴', color: '#4aa743',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
             'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入り、' +
@@ -6386,7 +6421,7 @@ GP.data = (function () {
       ticket: 3, oilSponsor: true
     },
     {
-      key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
+      key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3f79d9',
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
             'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。' +
@@ -6396,7 +6431,7 @@ GP.data = (function () {
       ticket: 4, oilSponsor: false
     },
     {
-      key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
+      key: 'hard', name: 'ハード', icon: '🔥', color: '#dd5043',
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
             '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。' +
@@ -6406,7 +6441,7 @@ GP.data = (function () {
       ticket: 5, oilSponsor: false
     },
     {
-      key: 'hell', name: 'ヘル', icon: '💀', color: '#8a2fb0',
+      key: 'hell', name: 'ヘル', icon: '💀', color: '#793cb0',
       short: 'レギュレーション最終年、全チーム横並び',
       desc: '規則が固まりきった最終年から始まります。' +
             'どのチームも同じところに行き着いていて、上から下まで1周2秒たらず。' +
@@ -6434,10 +6469,10 @@ GP.data = (function () {
   /* ---------- 才能（成長のしやすさ）---------- */
   const POTENTIAL = [
     { n: 1, name: '平凡',   color: '#a89878', growth: 0.72 },
-    { n: 2, name: '有望',   color: '#4ea63f', growth: 0.92 },
-    { n: 3, name: '逸材',   color: '#3a7ad9', growth: 1.15 },
-    { n: 4, name: '天才肌', color: '#b06fd0', growth: 1.45 },
-    { n: 5, name: '大器',   color: '#f0a020', growth: 1.85 }
+    { n: 2, name: '有望',   color: '#4aa743', growth: 0.92 },
+    { n: 3, name: '逸材',   color: '#3f79d9', growth: 1.15 },
+    { n: 4, name: '天才肌', color: '#a474da', growth: 1.45 },
+    { n: 5, name: '大器',   color: '#efa11d', growth: 1.85 }
   ];
 
   /* ---------- 安定感 ----------
@@ -6448,15 +6483,15 @@ GP.data = (function () {
   /* 現場で人を評するときの言い方に寄せてある。
      「荒い」「手堅い」では、速さの話なのか性格の話なのか分からない */
   const CARE_TIERS = [
-    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b8291a',
+    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b72b1f',
       note: '車の限界より先まで踏む。速い日と、壊す日がある' },
-    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#96610a',
+    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#946004',
       note: '仕掛けはするが、そのぶん路面とタイヤに傷を作る' },
     { max: 105, name: 'ニュートラル',     icon: '🙂', color: '#6a5c3f',
       note: '車のとおりに走る。足しも引きもしない' },
-    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2f7a2a',
+    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2d7a2b',
       note: '車を持って帰ってくる。指示どおりのペースを刻める' },
-    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2a5fb5',
+    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2b5db3',
       note: '毎周おなじところで、限界の手前にぴたりと置く' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
@@ -6530,16 +6565,16 @@ GP.data = (function () {
   /* bias は3性能の配分。チームごとにマシンの個性が違い、
      コースとの相性で速さが変わる（合計 1.0）                       */
   const RIVALS = [
-    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
+    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#d04539', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
     { name: 'アルジェント・ワークス', abbr: 'ARG', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
-    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
-    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
-    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
-    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
-    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
-    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
-    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
-    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
+    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#143b8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
+    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#f5882d', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
+    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#32874f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
+    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#4485dd', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
+    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#5fa0e4', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
+    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#af1f23', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
+    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#4eb658', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
+    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5c77ce', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
   ];
 
   /* ---------- 英語3文字の略号 ----------
@@ -6790,22 +6825,22 @@ GP.data = (function () {
      毎戦のグッズ・入場料収入としてチームの柱になる。       */
   const FAN_TIERS = [
     { max: 1500,    name: '地元の応援団', icon: '🏠', color: '#a89878' },
-    { max: 6000,    name: '常連ファン',   icon: '🎪', color: '#8a9a6a' },
-    { max: 20000,   name: '全国区',       icon: '🎌', color: '#4ea63f' },
-    { max: 60000,   name: '人気チーム',   icon: '🎫', color: '#3a7ad9' },
-    { max: 180000,  name: '国民的チーム', icon: '📣', color: '#b06fd0' },
-    { max: Infinity, name: '世界的人気',  icon: '🌍', color: '#f0a020' }
+    { max: 6000,    name: '常連ファン',   icon: '🎪', color: '#839b6e' },
+    { max: 20000,   name: '全国区',       icon: '🎌', color: '#4aa743' },
+    { max: 60000,   name: '人気チーム',   icon: '🎫', color: '#3f79d9' },
+    { max: 180000,  name: '国民的チーム', icon: '📣', color: '#a474da' },
+    { max: Infinity, name: '世界的人気',  icon: '🌍', color: '#efa11d' }
   ];
   /* 1戦あたりのグッズ・入場料収入の係数（ファン数の平方根に掛ける） */
   const FAN_INCOME = 12;
 
   const HYPE_TIERS = [
     { max: 12,  name: '無名',       icon: '🫥', color: '#a89878' },
-    { max: 28,  name: '注目され始め', icon: '📻', color: '#8a9a6a' },
-    { max: 46,  name: '話題のチーム', icon: '📰', color: '#4ea63f' },
-    { max: 64,  name: '人気チーム',   icon: '📺', color: '#3a7ad9' },
-    { max: 82,  name: '主役',        icon: '🌟', color: '#b06fd0' },
-    { max: 101, name: '時代の顔',    icon: '👑', color: '#f0a020' }
+    { max: 28,  name: '注目され始め', icon: '📻', color: '#839b6e' },
+    { max: 46,  name: '話題のチーム', icon: '📰', color: '#4aa743' },
+    { max: 64,  name: '人気チーム',   icon: '📺', color: '#3f79d9' },
+    { max: 82,  name: '主役',        icon: '🌟', color: '#a474da' },
+    { max: 101, name: '時代の顔',    icon: '👑', color: '#efa11d' }
   ];
 
   /* 順位ごとの注目度の増減。ポイント圏外でも上位で終えれば露出は増える */
@@ -6974,15 +7009,15 @@ GP.data = (function () {
   const TRUST = {
     start: 60,
     tiers: [
-      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2b6b33',
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2e6b31',
         note: '言えば、そのとおりに走ってくれる' },
-      { at: 62, name: '信頼している', icon: '🙂', color: '#41762f',
+      { at: 62, name: '信頼している', icon: '🙂', color: '#43762e',
         note: 'おおむね指示どおりに動く' },
-      { at: 40, name: '半信半疑', icon: '😐', color: '#6d5f14',
+      { at: 40, name: '半信半疑', icon: '😐', color: '#745d13',
         note: '納得のいかない指示は、うまく飲み込めていない' },
-      { at: 22, name: '不信', icon: '😠', color: '#9c5416',
+      { at: 22, name: '不信', icon: '😠', color: '#9c5515',
         note: '無線を聞いても、自分の判断で走ることがある' },
-      { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
+      { at: -99, name: '決裂寸前', icon: '💢', color: '#af392b',
         note: 'ここを出たがっている' }
     ],
     ignoreFrom: 40,   // ここを割ると、指示を飲み込めない周が出はじめる
@@ -8215,22 +8250,22 @@ GP.data = (function () {
   const ADUO_CATCH = 0.0042;      // 離されているぶんに応じた追い上げ（1週・段位1あたり）
   const ADUO_HALF = 0.62;         // 上乗せを受けるのは、順位表のこの割合より下
   const ADUO_LEVELS = [
-    { level: 1, share: 0.54, lead:  6, name: '是正勧告', icon: '⚖️', color: '#c98b10',
+    { level: 1, share: 0.54, lead:  6, name: '是正勧告', icon: '⚖️', color: '#ca8a13',
       cut: 0.90, lift: 1.10,
       note: '首位に注意喚起。下位のチームへ少しだけ時間が回される' },
-    { level: 2, share: 0.66, lead: 10, name: '是正指令', icon: '⚖️', color: '#e07a2a',
+    { level: 2, share: 0.66, lead: 10, name: '是正指令', icon: '⚖️', color: '#df7b26',
       cut: 0.80, lift: 1.20,
       note: '首位の風洞・CFD時間を削り、離されたチームへ回す' },
-    { level: 3, share: 0.78, lead: 15, name: '緊急是正', icon: '🚨', color: '#b02a20',
+    { level: 3, share: 0.78, lead: 15, name: '緊急是正', icon: '🚨', color: '#ad271e',
       cut: 0.68, lift: 1.34,
       note: '選手権の体裁を保つための緊急措置。独走チームは大きく削られる' }
   ];
 
   const ATR = [0.84, 0.87, 0.90, 0.93, 0.96, 0.99, 1.02, 1.05, 1.08, 1.11, 1.13];
   const ATR_LABEL = [
-    { max: 0.91, name: '厳しい', icon: '🪫', color: '#e04a3f' },
-    { max: 1.00, name: '標準',   icon: '⚖️', color: '#f0a020' },
-    { max: 9.99, name: '恵まれている', icon: '🔋', color: '#4ea63f' }
+    { max: 0.91, name: '厳しい', icon: '🪫', color: '#dd5043' },
+    { max: 1.00, name: '標準',   icon: '⚖️', color: '#efa11d' },
+    { max: 9.99, name: '恵まれている', icon: '🔋', color: '#4aa743' }
   ];
 
   const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
@@ -8243,27 +8278,27 @@ GP.data = (function () {
      ここから外れるほどタイムを失う。通り雨や乾きかけの路面で
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
-    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
+    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#d04539', text: '#fff',
       pace: 0.992, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
       tLo: 28, tHi: 44,
       band: '乾き〜わずかな湿り',
       desc: 'いちばん速いが、あっという間に摩耗する。湿りにはいちばん弱い' },
-    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
+    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f2be33', text: '#3a2413',
       pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.12,
       tLo: 34, tHi: 54,
       band: '乾き〜湿りはじめ',
       desc: '速さと保ちのバランス型' },
-    { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
+    { key: 'hard',   name: 'ハード',    short: 'H', color: '#f2ede3', text: '#3a2413',
       pace: 1.009, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
       tLo: 42, tHi: 66,
       band: '乾き〜湿りはじめ',
       desc: '遅いが長く保つ。ストップを減らせる' },
-    { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
+    { key: 'inter',  name: 'インター',  short: 'I', color: '#4aa743', text: '#fff',
       pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.42, wetTol: 0.20,
       tLo: 18, tHi: 42,
       band: '湿り〜ハーフ',
       desc: '小雨と半乾き用。掻き出せる水の量には限りがあり、大雨では浮いてしまう' },
-    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
+    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3f79d9', text: '#fff',
       pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.88, wetTol: 0.18,
       tLo: 12, tHi: 34,
       band: 'ウェット〜大雨',
@@ -8553,10 +8588,10 @@ GP.data = (function () {
     pace:  0.014,  // 乗りきったときのラップタイム短縮（-1.4%）
     calm:  0.25,   // 乗っているほどミスが減る割合
     LEVELS: [
-      { at: 0.25, name: 'グリーン', short: 'G', color: '#7aa06a' },
-      { at: 0.55, name: '乗ってきた', short: '◐', color: '#b8a05a' },
-      { at: 0.85, name: '良い',     short: '◕', color: '#d09a3a' },
-      { at: 1.01, name: '完成',     short: '●', color: '#e0642a' }
+      { at: 0.25, name: 'グリーン', short: 'G', color: '#799f69' },
+      { at: 0.55, name: '乗ってきた', short: '◐', color: '#c0a35e' },
+      { at: 0.85, name: '良い',     short: '◕', color: '#d09e3c' },
+      { at: 1.01, name: '完成',     short: '●', color: '#e26040' }
     ]
   };
 
@@ -8574,11 +8609,11 @@ GP.data = (function () {
      ラバーが乗りはじめるのは「ほぼドライ」から（RUBBER.buildTo）。
      そこから乾くほど速く乗り、ハーフウェットより濡れると流れる     */
   const WET_LEVELS = [
-    { at: 0.18, name: 'ドライ',         short: 'D', color: '#c8a86a', tyre: 'medium' },
-    { at: 0.42, name: 'ほぼドライ',     short: 'd', color: '#9aae7a', tyre: 'inter' },
-    { at: 0.67, name: 'ハーフウェット', short: 'H', color: '#5f9e6a', tyre: 'inter' },
-    { at: 0.88, name: 'ウェット',       short: 'W', color: '#3f86c0', tyre: 'wet' },
-    { at: 1.01, name: 'フルウェット',   short: 'X', color: '#2a5fa0', tyre: 'wet' }
+    { at: 0.18, name: 'ドライ',         short: 'D', color: '#c9a96b', tyre: 'medium' },
+    { at: 0.42, name: 'ほぼドライ',     short: 'd', color: '#96b280', tyre: 'inter' },
+    { at: 0.67, name: 'ハーフウェット', short: 'H', color: '#639d66', tyre: 'inter' },
+    { at: 0.88, name: 'ウェット',       short: 'W', color: '#4b80c0', tyre: 'wet' },
+    { at: 1.01, name: 'フルウェット',   short: 'X', color: '#305da0', tyre: 'wet' }
   ];
 
   /* ---------- 天候 ---------- */
@@ -18348,9 +18383,9 @@ GP.raceview = (function () {
           g.rotate(Math.atan2(nm.dy, nm.dx));
           g.fillStyle = 'rgba(0,0,0,.34)';                     // 落ち影
           g.fillRect(-1.5, -2.8 + sgn * 0.8, 4.4, 6);
-          g.fillStyle = red ? '#b32b1c' : '#c9c2ad';           // 側面（段差）
+          g.fillStyle = red ? '#c23a2e' : '#edbb90';           // 側面（段差）
           g.fillRect(-1.5, -2.8, 4.2, 6);
-          g.fillStyle = red ? '#e8402c' : '#f6f2e4';           // 上面
+          g.fillStyle = red ? '#e2664a' : '#fff8e6';           // 上面
           g.fillRect(-1.5, -2.8, 4.2, 4.4);
           g.fillStyle = red ? 'rgba(255,150,120,.55)'          // 上面の照り
                             : 'rgba(255,255,255,.65)';
@@ -18376,11 +18411,11 @@ GP.raceview = (function () {
         i = (i + 1) % poly.n; steps++;
       }
       const s0 = normalAt(L.from);
-      g.fillStyle = '#5abeff'; g.strokeStyle = '#1a3a5a'; g.lineWidth = 1;
+      g.fillStyle = '#5cc4d6'; g.strokeStyle = '#123a44'; g.lineWidth = 1;
       g.save();
       g.translate(s0.x + s0.nx * 20, s0.y + s0.ny * 20);
       g.fillRect(-7, -4, 14, 8); g.strokeRect(-7, -4, 14, 8);
-      g.fillStyle = '#0a2036'; g.font = 'bold 6px sans-serif'; g.textAlign = 'center';
+      g.fillStyle = '#1a1b33'; g.font = 'bold 6px sans-serif'; g.textAlign = 'center';
       g.fillText('DRS', 0, 2);
       g.restore();
     }
@@ -18403,10 +18438,10 @@ GP.raceview = (function () {
         g.setLineDash([]);
       };
 
-      lane(20, 13, '#4c4f56');                       // 縁の締まり
-      lane(20, 11, '#6d7078');                       // 路面
+      lane(20, 13, '#4d455c');                       // 縁の締まり
+      lane(20, 11, '#6b6178');                       // 路面
       lane(20, 11.5, 'rgba(255,255,255,.42)');       // いったん白で塗り
-      lane(20, 10, '#6d7078');                       //   中を戻して両端に白線を残す
+      lane(20, 10, '#6b6178');                       //   中を戻して両端に白線を残す
       lane(20, 1.2, 'rgba(255,255,255,.30)', [4, 5]);// 中央の破線
 
       // ピットボックス（各チームの作業区画）
@@ -18423,8 +18458,8 @@ GP.raceview = (function () {
       }
 
       // ピットウォール（コース側の壁）。上面に照りを入れて立たせる
-      lane(14, 2.6, '#8d8578');
-      lane(13.4, 1.2, '#d8d2c0');
+      lane(14, 2.6, '#9a8358');
+      lane(13.4, 1.2, '#e6d6ae');
 
       // 入口と出口の白線
       [0, pit.len].forEach(k => {
@@ -18441,8 +18476,8 @@ GP.raceview = (function () {
         g.save();
         g.translate(nm.x + nm.nx * pit.side * 28, nm.y + nm.ny * pit.side * 28);
         g.rotate(Math.atan2(nm.dy, nm.dx));
-        g.fillStyle = '#efe6cc'; g.fillRect(-3, -4, 6, 8);
-        g.fillStyle = '#4a2f1a'; g.fillRect(-3, -4, 6, 1);
+        g.fillStyle = '#e8dfd2'; g.fillRect(-3, -4, 6, 8);
+        g.fillStyle = '#4a3018'; g.fillRect(-3, -4, 6, 1);
         g.restore();
       }
     }
@@ -18464,11 +18499,11 @@ GP.raceview = (function () {
     // セクター標識
     (res.geo.sectors || []).forEach((sc, si) => {
       const nm = normalAt(sc.from % poly.n);
-      const col = ['#f0a020', '#4ea63f', '#3a7ad9'][si];
+      const col = ['#e0ae3c', '#47a046', '#3a67b8'][si];
       g.save();
       g.translate(nm.x, nm.y); g.rotate(Math.atan2(nm.dy, nm.dx));
       g.fillStyle = col; g.fillRect(-1.5, -13, 3, 26);
-      g.fillStyle = '#fffdf3'; g.strokeStyle = '#4a2f1a'; g.lineWidth = 1;
+      g.fillStyle = '#fff8e6'; g.strokeStyle = '#4a3018'; g.lineWidth = 1;
       g.fillRect(-6, -21, 12, 8); g.strokeRect(-6, -21, 12, 8);
       g.fillStyle = col; g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
       g.fillText('S' + (si + 1), 0, -15);
@@ -18487,7 +18522,7 @@ GP.raceview = (function () {
       const w2 = g.measureText(label).width + 8;
       g.fillStyle = 'rgba(74,47,26,.82)';
       g.fillRect(cxm - w2 / 2, cym - 6, w2, 11);
-      g.fillStyle = '#ffeec4';
+      g.fillStyle = '#fff0b0';
       g.fillText(label, cxm, cym + 2);
     });
 
@@ -18496,7 +18531,7 @@ GP.raceview = (function () {
     g.save();
     g.translate(sf.x, sf.y); g.rotate(Math.atan2(sf.dy, sf.dx));
     for (let i = -12; i < 12; i += 4) {
-      g.fillStyle = ((i / 4) % 2 === 0) ? '#fff' : '#333';
+      g.fillStyle = ((i / 4) % 2 === 0) ? '#fff8e6' : '#33313e';
       g.fillRect(-3, i, 6, 4);
     }
     g.restore();
@@ -18535,12 +18570,12 @@ GP.raceview = (function () {
         g.translate(sx, sy);
         g.rotate(Math.atan2(nm.dy, nm.dx));
         g.scale(1, -pit.side);            // コース側がつねに手前になるように向きを揃える
-        const CROWD = ['#e8564a', '#4a86e0', '#f5aa2a', '#58b84a', '#d0d0d8', '#c060c8'];
-        g.fillStyle = '#3a352c'; g.fillRect(-6, -10, 12, 20);      // 土台の影
+        const CROWD = ['#e2664a', '#6b9ae0', '#edb44a', '#79ad4a', '#e8dfd2', '#d873b0'];
+        g.fillStyle = '#4a3018'; g.fillRect(-6, -10, 12, 20);      // 土台の影
         // 段。奥へ行くほど明るくして、せり上がって見せる
         for (let t = 0; t < 4; t++) {
           const yy = -9 + t * 4.6;
-          g.fillStyle = ['#6e6a5e', '#7c786a', '#8a8576', '#989282'][t];
+          g.fillStyle = ['#6e5a3c', '#7d7a8c', '#9a8358', '#c2ab7c'][t];
           g.fillRect(-5, yy, 10, 4.4);
           g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(-5, yy, 10, 0.9);  // 段の影
           for (let c2 = 0; c2 < 4; c2++) {                                // 観客
@@ -18550,9 +18585,9 @@ GP.raceview = (function () {
           }
         }
         // 屋根と、それを支える柱
-        g.fillStyle = '#4a4a52'; g.fillRect(-6.5, 6.4, 1.3, 3.4); g.fillRect(5.2, 6.4, 1.3, 3.4);
-        g.fillStyle = '#5e5f68'; g.fillRect(-7, 8.6, 14, 3.2);
-        g.fillStyle = '#767781'; g.fillRect(-7, 8.6, 14, 1.1);
+        g.fillStyle = '#464351'; g.fillRect(-6.5, 6.4, 1.3, 3.4); g.fillRect(5.2, 6.4, 1.3, 3.4);
+        g.fillStyle = '#5d5a6b'; g.fillRect(-7, 8.6, 14, 3.2);
+        g.fillStyle = '#7d7a8c'; g.fillRect(-7, 8.6, 14, 1.1);
         g.restore();
       }
     }
@@ -18566,9 +18601,9 @@ GP.raceview = (function () {
         pool.addColorStop(0, 'rgba(255,236,190,.30)');
         pool.addColorStop(1, 'rgba(255,236,190,0)');
         g.fillStyle = pool; g.beginPath(); g.arc(lx, ly, 34, 0, Math.PI * 2); g.fill();
-        g.fillStyle = '#3a3f52'; g.fillRect(lx - 1, ly - 9, 2, 9);
-        g.fillStyle = '#fff2c8'; g.fillRect(lx - 2, ly - 12, 5, 3);
-        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff2c8' });
+        g.fillStyle = '#464351'; g.fillRect(lx - 1, ly - 9, 2, 9);
+        g.fillStyle = '#fff0b0'; g.fillRect(lx - 2, ly - 12, 5, 3);
+        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff0b0' });
       }
     }
 
@@ -18597,8 +18632,8 @@ GP.raceview = (function () {
     if (theme === 'street') {
       // ---- 街の建物：屋上のパラペットと設備、階ごとの窓 ----
       const w = 15 + Math.round(rnd() * 13), h = 18 + Math.round(rnd() * 20);
-      const wall = ['#8e94a0', '#7c828e', '#9aa0ac', '#87909e'][Math.floor(rnd() * 4)];
-      box(x - w / 2, y - h, w, h, wall, '#3f444c');
+      const wall = ['#8e8399', '#7d7a8c', '#b5aabb', '#6b6178'][Math.floor(rnd() * 4)];
+      box(x - w / 2, y - h, w, h, wall, '#464351');
       g.fillStyle = 'rgba(255,255,255,.10)';                    // 左側に光を当てる
       g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.28), h);
       for (let a = 2; a < w - 3; a += 5) {                      // 窓
@@ -18609,20 +18644,20 @@ GP.raceview = (function () {
           g.fillRect(x - w / 2 + a, y - h + b + 3, 3, 1);       // 窓の下の影
         }
       }
-      g.fillStyle = '#5c626c'; g.fillRect(x - w / 2, y - h, w, 2.5);          // 屋上
-      g.fillStyle = '#6e7580'; g.fillRect(x - w / 2 - 1, y - h - 1.5, w + 2, 1.8);  // パラペット
+      g.fillStyle = '#5d5a6b'; g.fillRect(x - w / 2, y - h, w, 2.5);          // 屋上
+      g.fillStyle = '#7d7a8c'; g.fillRect(x - w / 2 - 1, y - h - 1.5, w + 2, 1.8);  // パラペット
       if (rnd() < 0.6) {                                                     // 屋上の設備
-        g.fillStyle = '#4e545e'; g.fillRect(x - 2, y - h - 3.5, 5, 3);
-        g.fillStyle = '#666d78'; g.fillRect(x - 2, y - h - 3.5, 5, 1);
+        g.fillStyle = '#464351'; g.fillRect(x - 2, y - h - 3.5, 5, 3);
+        g.fillStyle = '#6b6178'; g.fillRect(x - 2, y - h - 3.5, 5, 1);
       }
 
     } else if (theme === 'neon') {
       // ---- 夜の街：高い塔と、光る看板 ----
       const w = 12 + Math.round(rnd() * 12), h = 22 + Math.round(rnd() * 26);
-      box(x - w / 2, y - h, w, h, '#2a3050', '#141931');
+      box(x - w / 2, y - h, w, h, '#2b2c50', '#1a1b33');
       g.fillStyle = 'rgba(120,150,220,.12)';
       g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.3), h);
-      const nc = ['#ff4fa0', '#4fd8ff', '#ffe14f', '#8cff6a', '#c66aff'][Math.floor(rnd() * 5)];
+      const nc = ['#d873b0', '#5cc4d6', '#f5cf70', '#b2e79a', '#9a7ad8'][Math.floor(rnd() * 5)];
       // 縦看板と横看板
       g.fillStyle = nc;
       g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
@@ -18641,10 +18676,10 @@ GP.raceview = (function () {
           g.fillRect(x - w / 2 + a, y - h + b, 2, 2);
         }
       }
-      g.fillStyle = '#3b4266'; g.fillRect(x - w / 2, y - h, w, 2);
+      g.fillStyle = '#4d455c'; g.fillRect(x - w / 2, y - h, w, 2);
       if (rnd() < 0.45) {                                       // 塔の頂の航空障害灯
-        g.fillStyle = '#ff5a4a'; g.fillRect(x - 0.8, y - h - 3, 1.6, 3);
-        emissive.push({ x: x - 0.8, y: y - h - 3, w: 1.6, h: 3, c: '#ff5a4a' });
+        g.fillStyle = '#e2664a'; g.fillRect(x - 0.8, y - h - 3, 1.6, 3);
+        emissive.push({ x: x - 0.8, y: y - h - 3, w: 1.6, h: 3, c: '#e2664a' });
       }
 
     } else if (theme === 'desert') {
@@ -18652,29 +18687,29 @@ GP.raceview = (function () {
       if (k < 0.42) {
         // ヤシの木：幹に節を入れ、葉を左右に垂らす
         const th2 = 16 + Math.round(rnd() * 8);
-        g.fillStyle = '#4a3620'; g.fillRect(x - 2, y - th2, 4, th2);
-        g.fillStyle = '#7a5c32'; g.fillRect(x - 1, y - th2, 2, th2);
-        g.fillStyle = '#5c4526';
+        g.fillStyle = '#4a3018'; g.fillRect(x - 2, y - th2, 4, th2);
+        g.fillStyle = '#7a5a18'; g.fillRect(x - 1, y - th2, 2, th2);
+        g.fillStyle = '#6b4724';
         for (let b = 3; b < th2; b += 4) g.fillRect(x - 2, y - th2 + b, 4, 1);
         const leaf = (dx, dy, lw, lh, c) => { g.fillStyle = c; g.fillRect(x + dx, y - th2 + dy, lw, lh); };
-        leaf(-12, -1, 10, 3, '#255c2e'); leaf(2, -1, 10, 3, '#255c2e');
-        leaf(-9, -4, 8, 3, '#2f6b38');   leaf(1, -4, 8, 3, '#2f6b38');
-        leaf(-6, -7, 5, 3, '#3f8a4a');   leaf(1, -7, 5, 3, '#3f8a4a');
-        leaf(-2, -9, 4, 3, '#4a9a55');
-        g.fillStyle = '#8a6a3a'; g.fillRect(x - 2, y - th2 - 1, 4, 2);   // 実
+        leaf(-12, -1, 10, 3, '#2f5c26'); leaf(2, -1, 10, 3, '#2f5c26');
+        leaf(-9, -4, 8, 3, '#2e6b33');   leaf(1, -4, 8, 3, '#2e6b33');
+        leaf(-6, -7, 5, 3, '#4d8433');   leaf(1, -7, 5, 3, '#4d8433');
+        leaf(-2, -9, 4, 3, '#47a046');
+        g.fillStyle = '#96683a'; g.fillRect(x - 2, y - th2 - 1, 4, 2);   // 実
       } else if (k < 0.72) {
         // 岩：面ごとに明るさを変えて塊に見せる
         const w = 13 + Math.round(rnd() * 8), h = 8 + Math.round(rnd() * 5);
-        box(x - w / 2, y - h, w, h, '#9a8358', '#635033');
-        g.fillStyle = '#b9a077'; g.fillRect(x - w / 2 + 1, y - h + 1, w * 0.55, h * 0.45);
-        g.fillStyle = '#c8b189'; g.fillRect(x - w / 2 + 2, y - h + 1, w * 0.3, 2);
-        g.fillStyle = '#7a6544'; g.fillRect(x - w / 2, y - 2, w, 2);
+        box(x - w / 2, y - h, w, h, '#9a8358', '#6b4724');
+        g.fillStyle = '#c2ab7c'; g.fillRect(x - w / 2 + 1, y - h + 1, w * 0.55, h * 0.45);
+        g.fillStyle = '#e6d6ae'; g.fillRect(x - w / 2 + 2, y - h + 1, w * 0.3, 2);
+        g.fillStyle = '#8a5a3a'; g.fillRect(x - w / 2, y - 2, w, 2);
       } else {
         // サボテン
         const h = 12 + Math.round(rnd() * 8);
-        g.fillStyle = '#2f6b38'; g.fillRect(x - 2.5, y - h, 5, h);
-        g.fillStyle = '#3f8a4a'; g.fillRect(x - 1.5, y - h, 2, h);
-        g.fillStyle = '#2f6b38';
+        g.fillStyle = '#2e6b33'; g.fillRect(x - 2.5, y - h, 5, h);
+        g.fillStyle = '#4d8433'; g.fillRect(x - 1.5, y - h, 2, h);
+        g.fillStyle = '#2e6b33';
         g.fillRect(x - 7, y - h * 0.7, 4.5, 3); g.fillRect(x - 7, y - h * 0.7, 3, 7);
         g.fillRect(x + 2.5, y - h * 0.55, 4.5, 3); g.fillRect(x + 4, y - h * 0.55, 3, 6);
       }
@@ -18682,11 +18717,11 @@ GP.raceview = (function () {
     } else if (theme === 'alpine') {
       // ---- 針葉樹：三角を重ねて円錐にする ----
       const h = 20 + Math.round(rnd() * 10);
-      g.fillStyle = '#43301a'; g.fillRect(x - 1.5, y - 5, 3, 5);
+      g.fillStyle = '#4a3018'; g.fillRect(x - 1.5, y - 5, 3, 5);
       for (let t = 0; t < 4; t++) {
         const yy = y - 5 - t * (h / 5.2), hw = 8 - t * 1.7;
-        g.fillStyle = '#123a1c'; g.fillRect(x - hw - 1, yy - h / 4.4, hw * 2 + 2, h / 4.4 + 1);
-        g.fillStyle = ['#1d5228', '#236030', '#2a6d37', '#31793d'][t];
+        g.fillStyle = '#1b3a1c'; g.fillRect(x - hw - 1, yy - h / 4.4, hw * 2 + 2, h / 4.4 + 1);
+        g.fillStyle = ['#2f5c26', '#4d8433', '#2e6b33', '#47a046'][t];
         g.fillRect(x - hw, yy - h / 4.4, hw * 2, h / 4.4);
         g.fillStyle = 'rgba(210,235,255,.30)';                   // 左肩の雪
         g.fillRect(x - hw, yy - h / 4.4, hw * 0.7, 1.6);
@@ -18697,12 +18732,12 @@ GP.raceview = (function () {
       const dark = theme === 'forest';
       const sc = 0.85 + rnd() * 0.5;
       const cw = Math.round(9 * sc), ch = Math.round(11 * sc);
-      g.fillStyle = '#3a2712'; g.fillRect(x - 2, y - 8, 4, 8);          // 幹
-      g.fillStyle = '#6a4a2a'; g.fillRect(x - 1, y - 8, 2, 8);
-      const c0 = dark ? '#0f2d14' : '#173a1a';
-      const c1 = dark ? '#1f5024' : '#2a6b2b';
-      const c2 = dark ? '#2e6e33' : '#3f8c3c';
-      const c3 = dark ? '#3f8543' : '#59a94f';
+      g.fillStyle = '#2e1d10'; g.fillRect(x - 2, y - 8, 4, 8);          // 幹
+      g.fillStyle = '#6b4724'; g.fillRect(x - 1, y - 8, 2, 8);
+      const c0 = dark ? '#1b3a1c' : '#2f5c26';
+      const c1 = dark ? '#4d8433' : '#2e6b33';
+      const c2 = dark ? '#47a046' : '#79ad4a';
+      const c3 = dark ? '#4d8433' : '#78c96a';
       g.fillStyle = c0;                                                 // 輪郭
       g.fillRect(x - cw - 1, y - 7 - ch, cw * 2 + 2, ch + 1);
       g.fillRect(x - cw * 0.6, y - 10 - ch, cw * 1.2, 4);
@@ -18715,7 +18750,7 @@ GP.raceview = (function () {
       g.fillRect(x - cw + 1.5, y - 5.5 - ch, cw * 0.7, ch * 0.3);
       g.fillRect(x - cw * 0.4, y - 9 - ch, cw * 0.5, 2.5);
       if (!dark && rnd() < 0.25) {                                      // たまに花や実
-        g.fillStyle = '#f0d84a';
+        g.fillStyle = '#f5cf70';
         g.fillRect(x - cw * 0.2, y - 4 - ch, 1.6, 1.6);
         g.fillRect(x + cw * 0.4, y - 6 - ch, 1.6, 1.6);
       }
@@ -18842,7 +18877,7 @@ GP.raceview = (function () {
     ctx.scale(cam.z, cam.z);
     ctx.translate(-cam.x, -cam.y);
 
-    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
+    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#78c96a'; ctx.fillRect(0, 0, w, h); }
 
     // 雨演出
     if (wet) {
@@ -18874,9 +18909,9 @@ GP.raceview = (function () {
         drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
         ctx.save();
         ctx.translate(px, py - 13);
-        ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+        ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 2;
         ctx.fillRect(-13, -7, 26, 12); ctx.strokeRect(-13, -7, 26, 12);
-        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#4a3018'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('PIT ' + left.toFixed(1), 0, 2);
         ctx.restore();
         continue;
@@ -18962,7 +18997,7 @@ GP.raceview = (function () {
       const tw = ctx.measureText(cam.label).width + 14;
       ctx.fillStyle = 'rgba(40,24,10,.78)';
       ctx.fillRect(8, 8, tw, 20);
-      ctx.fillStyle = '#ffeec4';
+      ctx.fillStyle = '#fff0b0';
       ctx.fillText(cam.label, 15, 22);
     }
     // 最終ラップ
@@ -18993,31 +19028,31 @@ GP.raceview = (function () {
     ctx.fillStyle = 'rgba(0,0,0,.32)';
     ctx.fillRect(-13, -6, 27, 14);
     // タイヤ
-    ctx.fillStyle = '#15151a';
+    ctx.fillStyle = '#12101a';
     ctx.fillRect(-10, -9, 6, 3); ctx.fillRect(-10, 6, 6, 3);
     ctx.fillRect(5, -9, 6, 3);   ctx.fillRect(5, 6, 6, 3);
     // 車体（黒い縁取りをつけて、路面から浮かせる）
-    ctx.fillStyle = '#15151a'; ctx.fillRect(-14, -8, 28, 16);
-    ctx.fillStyle = '#e8e8ec'; ctx.fillRect(-13, -7, 26, 14);
-    ctx.fillStyle = '#fbfbfd'; ctx.fillRect(-13, -7, 26, 4);
-    ctx.fillStyle = '#c2c2ca'; ctx.fillRect(-13, 4, 26, 3);
+    ctx.fillStyle = '#12101a'; ctx.fillRect(-14, -8, 28, 16);
+    ctx.fillStyle = '#e8dfd2'; ctx.fillRect(-13, -7, 26, 14);
+    ctx.fillStyle = '#fff8e6'; ctx.fillRect(-13, -7, 26, 4);
+    ctx.fillStyle = '#a8c8f2'; ctx.fillRect(-13, 4, 26, 3);
     // 側面の帯（赤／黄のツートン）
-    ctx.fillStyle = '#e04a3f'; ctx.fillRect(-13, -1, 26, 2);
-    ctx.fillStyle = '#ffc93c'; ctx.fillRect(-13, 1, 26, 1);
+    ctx.fillStyle = '#e2664a'; ctx.fillRect(-13, -1, 26, 2);
+    ctx.fillStyle = '#f5cf70'; ctx.fillRect(-13, 1, 26, 1);
     // 窓（前後）と屋根
-    ctx.fillStyle = '#243040'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
-    ctx.fillStyle = '#3d5068'; ctx.fillRect(3, -5, 6, 3);
-    ctx.fillStyle = '#c6c6ce'; ctx.fillRect(-13, -6, 4, 12);    // トランク
-    ctx.fillStyle = '#d2d2da'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
+    ctx.fillStyle = '#33313e'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
+    ctx.fillStyle = '#445078'; ctx.fillRect(3, -5, 6, 3);
+    ctx.fillStyle = '#a8c8f2'; ctx.fillRect(-13, -6, 4, 12);    // トランク
+    ctx.fillStyle = '#e8dfd2'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
     // ルーフの回転灯。小さく映っても分かるように、屋根の幅いっぱいに置く
-    ctx.fillStyle = '#2a2410'; ctx.fillRect(-3, -6, 5, 12);
-    ctx.fillStyle = on ? '#ffe14a' : '#6e6018'; ctx.fillRect(-3, -6, 5, 6);
-    ctx.fillStyle = on ? '#6e6018' : '#ffe14a'; ctx.fillRect(-3, 0, 5, 6);
+    ctx.fillStyle = '#2e1d10'; ctx.fillRect(-3, -6, 5, 12);
+    ctx.fillStyle = on ? '#f5cf70' : '#7a5a18'; ctx.fillRect(-3, -6, 5, 6);
+    ctx.fillStyle = on ? '#7a5a18' : '#f5cf70'; ctx.fillRect(-3, 0, 5, 6);
     // 前後の識別灯
-    ctx.fillStyle = on ? '#fff6c8' : '#8a7a20';
+    ctx.fillStyle = on ? '#fff0b0' : '#9a8358';
     ctx.fillRect(12, -6, 2, 3); ctx.fillRect(12, 3, 2, 3);
     // ボンネットの SC
-    ctx.fillStyle = '#15151a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#12101a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
     ctx.fillText('SC', -9, 2);
     ctx.textAlign = 'left';
     ctx.restore();
@@ -19033,7 +19068,7 @@ GP.raceview = (function () {
 
     const dark = shade(color, -0.16);      // 影になる面
     const lite = shade(color, 0.18);       // 光が当たる面
-    const CARBON = '#22232a', CARBON2 = '#3a3c45', TYRE = '#15161a';
+    const CARBON = '#23222c', CARBON2 = '#3a3348', TYRE = '#12101a';
 
     // 世代ごとの寸法。新しいほど長く低く、ウイングが大きくなる
     const nose  = 15.0 + gen * 0.45;                // ノーズの先端
@@ -19075,10 +19110,10 @@ GP.raceview = (function () {
       ctx.translate(tx, ty);
       if (rot) ctx.rotate(rot);
       r(-tyL / 2, -tyH, tyL, tyH * 2, TYRE);
-      r(-tyL / 2, -tyH, tyL, 0.9, '#4e515c');                        // 上面の照り
-      r(-tyL / 2, tyH - 0.6, tyL, 0.6, '#0c0d10');                   // 下側の締まり
-      if (gen >= 2) r(-1.1, -tyH + 0.5, 2.2, tyH * 2 - 1.0, '#5c606c');  // ホイール
-      else r(-0.9, -tyH + 0.6, 1.8, tyH * 2 - 1.2, '#3d404a');
+      r(-tyL / 2, -tyH, tyL, 0.9, '#4d455c');                        // 上面の照り
+      r(-tyL / 2, tyH - 0.6, tyL, 0.6, '#12101a');                   // 下側の締まり
+      if (gen >= 2) r(-1.1, -tyH + 0.5, 2.2, tyH * 2 - 1.0, '#5d5a6b');  // ホイール
+      else r(-0.9, -tyH + 0.6, 1.8, tyH * 2 - 1.2, '#464351');
       ctx.restore();
     };
     tyre(rearAx, -trk, 0);  tyre(rearAx, trk, 0);
@@ -19123,16 +19158,16 @@ GP.raceview = (function () {
     // ---- コクピットと乗員 ----
     r(-0.6, -1.4, 3.6, 2.8, CARBON);                    // 開口部
     r(0.2, -0.9, 2.0, 1.8, shade(color, 0.36));         // ヘルメット
-    r(0.2, -0.9, 2.0, 0.7, '#f4f4f4');                  // ヘルメットの照り
+    r(0.2, -0.9, 2.0, 0.7, '#fff8e6');                  // ヘルメットの照り
     if (gen >= 5) {                                      // ハロ
-      r(3.1, -1.9, 0.8, 3.8, '#61646e');
-      r(-0.8, -2.0, 4.0, 0.7, '#61646e');
-      r(-0.8, 1.3, 4.0, 0.7, '#61646e');
+      r(3.1, -1.9, 0.8, 3.8, '#6b6178');
+      r(-0.8, -2.0, 4.0, 0.7, '#6b6178');
+      r(-0.8, 1.3, 4.0, 0.7, '#6b6178');
     }
-    if (gen >= 4) r(rwX + 3, -0.4, 6.5, 0.9, '#eeeeee');  // エンジンカバーのフィン
+    if (gen >= 4) r(rwX + 3, -0.4, 6.5, 0.9, '#e8dfd2');  // エンジンカバーのフィン
 
     // ---- リアウイング ----
-    r(rwX + 1.2, -1.8, 1.5, 3.6, '#2c2e34');            // ディフューザー
+    r(rwX + 1.2, -1.8, 1.5, 3.6, '#33313e');            // ディフューザー
     r(rwX, -rwH, 2.6, rwH * 2, CARBON);
     r(rwX, -rwH, 2.6, 0.9, CARBON2);
     if (gen >= 1) {                                      // 翼端板
@@ -19168,7 +19203,7 @@ GP.raceview = (function () {
       ctx.save();
       ctx.translate(Math.round(x), Math.round(y) - 16);
       const bob = Math.sin(vt * 6) * 1.5;
-      ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+      ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 8 + bob); ctx.lineTo(-5, 1 + bob); ctx.lineTo(5, 1 + bob); ctx.closePath();
       ctx.fill(); ctx.stroke();
@@ -19187,7 +19222,7 @@ GP.raceview = (function () {
   function drawPitCrew(px, py, ang, e, prog, t, tyre) {
     const col = e.color;
     const dark = shade(col, -0.18);
-    const SUIT = col, HELM = shade(col, 0.28), SKIN = '#e8b98e';
+    const SUIT = col, HELM = shade(col, 0.28), SKIN = '#edbb90';
     const jackUp = prog > 0.16 && prog < 0.86;          // 車が持ち上がっている区間
     const off = prog < 0.45 ? Math.min(1, (prog - 0.18) / 0.27)     // 旧タイヤを外す進み
               : 0;
@@ -19213,7 +19248,7 @@ GP.raceview = (function () {
       ctx.fillStyle = HELM;  ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 2.4);   // ヘルメット
       ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 0.8);
       if (face) {                                                            // ホイールガン
-        ctx.fillStyle = '#2b2e36';
+        ctx.fillStyle = '#33313e';
         ctx.fillRect(x + face * 2.2, y - 0.6 + bob, 2.6 * face, 1.6);
         if (prog > 0.18 && prog < 0.72) {                                    // 回転の火花
           ctx.fillStyle = 'rgba(255,210,120,' + (0.4 + Math.random() * 0.5).toFixed(2) + ')';
@@ -19230,11 +19265,11 @@ GP.raceview = (function () {
       // 外したタイヤを地面に置く／新品を運んでくる
       const tc = tyre ? (GP.data.TYRES[tyre] || {}).color : null;
       if (off > 0) {                                    // 外した古いタイヤ
-        ctx.fillStyle = '#17181c';
+        ctx.fillStyle = '#1e1b28';
         ctx.fillRect(cx - 2, cy + sy * (4 + off * 5), 4, 2.6);
       }
       if (on > 0 && on < 1) {                           // 運んでくる新品
-        ctx.fillStyle = '#17181c';
+        ctx.fillStyle = '#1e1b28';
         ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 2.6);
         if (tc) { ctx.fillStyle = tc; ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 0.9); }
       }
@@ -19243,7 +19278,7 @@ GP.raceview = (function () {
     });
 
     // 前後のジャッキ担当
-    ctx.fillStyle = '#3a3d46';
+    ctx.fillStyle = '#464351';
     if (jackUp) {
       ctx.fillRect(12.5, -1.6, 4.5, 3.2);      // 前ジャッキ
       ctx.fillRect(-13, -1.6, 4.5, 3.2);       // 後ジャッキ
@@ -19255,8 +19290,8 @@ GP.raceview = (function () {
     const goSign = prog >= 0.9;
     ctx.save();
     ctx.translate(0, -12 - (goSign ? 5 : 0));
-    ctx.fillStyle = '#6a6a72'; ctx.fillRect(-0.7, 0, 1.4, 9);
-    ctx.fillStyle = goSign ? '#3fd44a' : '#e8402c';
+    ctx.fillStyle = '#6b6178'; ctx.fillRect(-0.7, 0, 1.4, 9);
+    ctx.fillStyle = goSign ? '#78c96a' : '#e2664a';
     ctx.beginPath(); ctx.arc(0, -1.5, 3.4, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.5)';
     ctx.beginPath(); ctx.arc(-1, -2.6, 1.2, 0, Math.PI * 2); ctx.fill();
@@ -19264,7 +19299,7 @@ GP.raceview = (function () {
     if (goSign) {
       if (!standalone) GP.fx.addLight(function (lg) {
         lg.save(); camTransform(lg); lg.translate(px, py); lg.rotate(ang);
-        lg.fillStyle = '#3fd44a';
+        lg.fillStyle = '#78c96a';
         lg.beginPath(); lg.arc(0, -18.5, 3.4, 0, Math.PI * 2); lg.fill();
         lg.restore();
       });
@@ -20063,16 +20098,16 @@ GP.raceview = (function () {
     ctx.rotate(sway * Math.PI / 180);
     const sq = 11;
     for (let r = 0; r < 5; r++) for (let c2 = 0; c2 < 7; c2++) {
-      ctx.fillStyle = ((r + c2) % 2) ? '#2b1c0e' : '#fffdf3';
+      ctx.fillStyle = ((r + c2) % 2) ? '#2e1d10' : '#fff8e6';
       ctx.fillRect(-7 * sq / 2 + c2 * sq, -5 * sq / 2 + r * sq + Math.sin(p * 18 + c2) * 2, sq, sq);
     }
     ctx.restore();
-    ctx.fillStyle = '#7a6a52'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
+    ctx.fillStyle = '#8a5a3a'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
     if (p > 0.35) {
       ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 4;
       ctx.strokeText('FINISH!', cx, cy + 5 * sq / 2 + 40);
-      ctx.fillStyle = '#fff34d';
+      ctx.fillStyle = '#fff0b0';
       ctx.fillText('FINISH!', cx, cy + 5 * sq / 2 + 40);
     }
   }
@@ -20089,14 +20124,14 @@ GP.raceview = (function () {
     if (out && lightBeeps < 6) { lightBeeps = 6; GP.sound.play('go'); }
     ctx.fillStyle = 'rgba(20,12,6,.82)';
     ctx.fillRect(cxl - 72, cy - 20, 144, 40);
-    ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 3;
     ctx.strokeRect(cxl - 72, cy - 20, 144, 40);
     for (let i = 0; i < 5; i++) {
       const x = cxl - 56 + i * 28;
-      ctx.fillStyle = '#241a12';
+      ctx.fillStyle = '#2e1d10';
       ctx.fillRect(x - 10, cy - 12, 20, 24);
       const lit = !out && i < on;
-      ctx.fillStyle = lit ? '#ff2a1a' : '#3a2a22';
+      ctx.fillStyle = lit ? '#e2664a' : '#4a3018';
       ctx.beginPath(); ctx.arc(x, cy, 7, 0, Math.PI * 2); ctx.fill();
       if (lit) {
         ctx.fillStyle = 'rgba(255,80,50,.35)';
@@ -20104,9 +20139,9 @@ GP.raceview = (function () {
       }
     }
     if (out) {
-      ctx.fillStyle = '#fff34d';
+      ctx.fillStyle = '#fff0b0';
       ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
-      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 4;
       ctx.strokeText('GO!', cxl, cy + 46);
       ctx.fillText('GO!', cxl, cy + 46);
     }
@@ -20323,14 +20358,14 @@ GP.base = (function () {
     const dir = a.dir || 'down';
     const fr = a.moving ? (a.frame | 0) % 4 : 0;      // 0,1,2,3 → 立ち,右足,立ち,左足
     const step = fr === 1 ? 1 : (fr === 3 ? -1 : 0);
-    const col = a.color || '#e04a3f';
+    const col = a.color || '#e2664a';
     const mix = (hex, amt) => {
       const n = parseInt(hex.slice(1), 16);
       const c = v => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
       return 'rgb(' + c((n >> 16) & 255) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')';
     };
     const colD = mix(col, -0.16), colL = mix(col, 0.16);
-    const SKIN = '#f0c49a', SKIN_D = '#d8a479', HAIR = '#3a2718';
+    const SKIN = '#edbb90', SKIN_D = '#d49a70', HAIR = '#2e1d10';
     const r = (rx, ry, rw, rh, c) => { g.fillStyle = c; g.fillRect(x + rx, y + ry, rw, rh); };
 
     // 影（倍率をかける前の座標で描く）
@@ -20343,11 +20378,11 @@ GP.base = (function () {
     g.translate(-x, -y);
 
     // 脚（歩くと前後にずれる）
-    r(-4, -7, 3, 7, '#2c3140');
-    r(1, -7, 3, 7, '#2c3140');
-    if (step) { r(-4, -7 + step, 3, 7, '#2c3140'); r(1, -7 - step, 3, 7, '#343a4c'); }
-    r(-5, -1, 4, 2, '#1a1d26');            // 靴
-    r(1, -1, 4, 2, '#1a1d26');
+    r(-4, -7, 3, 7, '#33313e');
+    r(1, -7, 3, 7, '#33313e');
+    if (step) { r(-4, -7 + step, 3, 7, '#33313e'); r(1, -7 - step, 3, 7, '#3a3348'); }
+    r(-5, -1, 4, 2, '#1e1b28');            // 靴
+    r(1, -1, 4, 2, '#1e1b28');
 
     // 胴（チームカラーのジャケット）
     r(-5, -16, 10, 9, colD);
@@ -20369,17 +20404,17 @@ GP.base = (function () {
     } else if (dir === 'left') {
       r(-4, -25, 8, 4, HAIR);
       r(-5, -24, 1, 4, HAIR);              // 顔の向きに合わせて髪を寄せる
-      r(-3, -21, 2, 2, '#2a2028');         // 横顔の目
+      r(-3, -21, 2, 2, '#23222c');         // 横顔の目
     } else if (dir === 'right') {
       r(-4, -25, 8, 4, HAIR);
       r(4, -24, 1, 4, HAIR);
-      r(1, -21, 2, 2, '#2a2028');
+      r(1, -21, 2, 2, '#23222c');
     } else {
       r(-4, -25, 8, 4, HAIR);              // 前髪
       r(-4, -24, 1, 3, HAIR); r(3, -24, 1, 3, HAIR);
-      r(-3, -21, 2, 2, '#2a2028');         // 目
-      r(1, -21, 2, 2, '#2a2028');
-      r(-1, -18, 2, 1, '#a8564a');         // 口
+      r(-3, -21, 2, 2, '#23222c');         // 目
+      r(1, -21, 2, 2, '#23222c');
+      r(-1, -18, 2, 1, '#8a5a3a');         // 口
     }
     // 首元
     r(-2, -17, 4, 1, SKIN_D);
@@ -20402,7 +20437,7 @@ GP.base = (function () {
   /* 建物の箱。輪郭・壁の陰影・屋根・地面際の締まりまでを一度に描く。
      ここを厚くすると、どの施設もまとめて立体的になる。               */
   function box(g, x, y, w, h, fill, top) {
-    g.fillStyle = '#3a2413';                                  // 輪郭
+    g.fillStyle = '#2e1d10';                                  // 輪郭
     g.fillRect(x - 2, y - h - 2, w + 4, h + 4);
     g.fillStyle = fill;                                       // 壁
     g.fillRect(x, y - h, w, h);
@@ -20422,7 +20457,7 @@ GP.base = (function () {
     g.fillRect(x, y - h, w, 1.4);                             // 屋根の縁の照り
     g.fillStyle = 'rgba(40,24,10,.35)';
     g.fillRect(x, y - h + rh - 1.2, w, 1.2);                  // 帯の下の影
-    g.fillStyle = '#3a2413';
+    g.fillStyle = '#2e1d10';
     g.fillRect(x - 2.5, y - h - 2.5, w + 5, 2.5);             // 庇
     g.fillStyle = shadeHex(top, 0.22);
     g.fillRect(x - 2.5, y - h - 2.5, w + 5, 1.2);
@@ -20464,44 +20499,44 @@ GP.base = (function () {
     const h2 = fs * 1.25;
     // 端の施設でも文字が切れないよう、看板を画面内に収める
     x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, x));
-    g.fillStyle = '#3a2413'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, h2 + 2);
+    g.fillStyle = '#2e1d10'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, h2 + 2);
     g.fillStyle = color; g.fillRect(x - w / 2, y, w, h2);
-    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + h2 - fs * 0.28);
+    g.fillStyle = '#fff8e6'; g.fillText(text, x, y + h2 - fs * 0.28);
   }
 
   /* ---------- 各施設 ---------- */
   function drawFactory(g, p, lv, color) {
     const s = tierOf(lv);
-    box(g, p.x, p.y, s.w, s.h, '#cdb894', color);
+    box(g, p.x, p.y, s.w, s.h, '#c2ab7c', color);
     windows(g, p.x, p.y, s.w, s.h, Math.min(5, 2 + s.t), Math.min(3, 1 + Math.floor(s.t / 2)), false);
     // 煙突（レベルが上がるほど増える）
     const stacks = Math.min(4, Math.floor(lv / 2.2));
     for (let i = 0; i < stacks; i++) {
       const cx = p.x + 10 + i * 12;
-      g.fillStyle = '#8f7a5c'; g.fillRect(cx, p.y - s.h - 14, 6, 14);
-      g.fillStyle = '#e8e0cc';
+      g.fillStyle = '#9a8358'; g.fillRect(cx, p.y - s.h - 14, 6, 14);
+      g.fillStyle = '#e8dfd2';
       g.fillRect(cx + 1, p.y - s.h - 20, 4, 4);
       g.fillRect(cx + 2, p.y - s.h - 25, 5, 4);
     }
     // シャッター
-    g.fillStyle = '#6d7078'; g.fillRect(p.x + s.w * 0.32, p.y - 16, s.w * 0.36, 16);
-    for (let yy = p.y - 15; yy < p.y; yy += 3) { g.fillStyle = '#878b94'; g.fillRect(p.x + s.w * 0.32, yy, s.w * 0.36, 1); }
+    g.fillStyle = '#6b6178'; g.fillRect(p.x + s.w * 0.32, p.y - 16, s.w * 0.36, 16);
+    for (let yy = p.y - 15; yy < p.y; yy += 3) { g.fillStyle = '#8e8399'; g.fillRect(p.x + s.w * 0.32, yy, s.w * 0.36, 1); }
     return { x: p.x - 2, y: p.y - s.h - 2, w: s.w + 4, h: s.h + 4 };
   }
 
   function drawTunnel(g, p, lv, color) {
     const s = tierOf(lv);
-    box(g, p.x, p.y, s.w, s.h * 0.8, '#b8c4cc', color);
+    box(g, p.x, p.y, s.w, s.h * 0.8, '#a8c8f2', color);
     // 送風管
     const r = 9 + lv * 1.1;
-    g.fillStyle = '#3a2413';
+    g.fillStyle = '#2e1d10';
     g.beginPath(); g.arc(p.x + s.w + r - 4, p.y - s.h * 0.45, r + 2, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#9aa6b0';
+    g.fillStyle = '#b5aabb';
     g.beginPath(); g.arc(p.x + s.w + r - 4, p.y - s.h * 0.45, r, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#6b7680';
+    g.fillStyle = '#7d7a8c';
     g.beginPath(); g.arc(p.x + s.w + r - 4, p.y - s.h * 0.45, r * 0.5, 0, Math.PI * 2); g.fill();
     // ファンの羽根
-    g.strokeStyle = '#dfe6ec'; g.lineWidth = 2;
+    g.strokeStyle = '#e8dfd2'; g.lineWidth = 2;
     for (let a = 0; a < 4; a++) {
       const t = a * Math.PI / 2 + lv * 0.3;
       g.beginPath();
@@ -20515,11 +20550,11 @@ GP.base = (function () {
 
   function drawSim(g, p, lv, color) {
     const s = tierOf(lv);
-    box(g, p.x, p.y, s.w, s.h, '#c4c0d4', color);
+    box(g, p.x, p.y, s.w, s.h, '#a8c8f2', color);
     // ドーム屋根
-    g.fillStyle = '#3a2413';
+    g.fillStyle = '#2e1d10';
     g.beginPath(); g.ellipse(p.x + s.w / 2, p.y - s.h, s.w / 2 + 2, 12 + lv, 0, Math.PI, 0); g.fill();
-    g.fillStyle = '#8f88b8';
+    g.fillStyle = '#8e8399';
     g.beginPath(); g.ellipse(p.x + s.w / 2, p.y - s.h, s.w / 2, 10 + lv, 0, Math.PI, 0); g.fill();
     g.fillStyle = 'rgba(255,255,255,.35)';
     g.beginPath(); g.ellipse(p.x + s.w * 0.35, p.y - s.h - 3, s.w * 0.16, 4 + lv * 0.4, 0, Math.PI, 0); g.fill();
@@ -20531,15 +20566,15 @@ GP.base = (function () {
   function drawMarket(g, p, lv, color) {
     const s = tierOf(lv);
     const h = s.h * 1.15;
-    box(g, p.x, p.y, s.w * 0.8, h, '#d8cbb0', color);
+    box(g, p.x, p.y, s.w * 0.8, h, '#e6d6ae', color);
     windows(g, p.x, p.y, s.w * 0.8, h, 3, Math.min(4, 2 + s.t), true);
     // 看板（レベルで大きくなる）
     const bw = 20 + lv * 3.4, bh = 12 + lv * 1.6;
-    g.fillStyle = '#3a2413'; g.fillRect(p.x - 2, p.y - h - bh - 8, bw + 4, bh + 4);
+    g.fillStyle = '#2e1d10'; g.fillRect(p.x - 2, p.y - h - bh - 8, bw + 4, bh + 4);
     g.fillStyle = color; g.fillRect(p.x, p.y - h - bh - 6, bw, bh);
     g.fillStyle = 'rgba(255,255,255,.7)';
     for (let i = 0; i < 3; i++) g.fillRect(p.x + 4, p.y - h - bh - 2 + i * 4, bw - 8, 2);
-    g.fillStyle = '#8f7a5c';
+    g.fillStyle = '#9a8358';
     g.fillRect(p.x + 3, p.y - h - 8, 3, 8); g.fillRect(p.x + bw - 6, p.y - h - 8, 3, 8);
     return { x: p.x - 2, y: p.y - h - bh - 10, w: s.w * 0.8 + 4, h: h + bh + 12 };
   }
@@ -20548,11 +20583,11 @@ GP.base = (function () {
     const s = tierOf(lv);
     const bays = Math.min(3, 1 + Math.floor(lv / 4));
     const bw = 22, w = bays * bw + 8;
-    box(g, p.x, p.y, w, s.h * 0.72, '#c8c2b4', color);
+    box(g, p.x, p.y, w, s.h * 0.72, '#edbb90', color);
     for (let i = 0; i < bays; i++) {
       const bx = p.x + 4 + i * bw;
-      g.fillStyle = '#5f636b'; g.fillRect(bx + 2, p.y - s.h * 0.62, bw - 6, s.h * 0.62);
-      g.fillStyle = '#7c828c';
+      g.fillStyle = '#5d5a6b'; g.fillRect(bx + 2, p.y - s.h * 0.62, bw - 6, s.h * 0.62);
+      g.fillStyle = '#7d7a8c';
       for (let yy = 0; yy < s.h * 0.62; yy += 3) g.fillRect(bx + 2, p.y - s.h * 0.62 + yy, bw - 6, 1);
       g.fillStyle = color; g.fillRect(bx + 2, p.y - s.h * 0.62, bw - 6, 3);
     }
@@ -20562,26 +20597,26 @@ GP.base = (function () {
   function drawYouth(g, p, lv, color) {
     const s = tierOf(lv);
     const w = s.w * 0.82, h = s.h * 0.9;
-    box(g, p.x, p.y, w, h, '#e0d0a8', color);
+    box(g, p.x, p.y, w, h, '#e6d6ae', color);
     windows(g, p.x, p.y, w, h, 3, Math.min(3, 1 + Math.floor(lv / 4)), true);
     // 時計塔（レベルで伸びる）
     const th = 8 + lv * 1.8;
-    g.fillStyle = '#3a2413'; g.fillRect(p.x + w / 2 - 7, p.y - h - th - 2, 14, th + 2);
-    g.fillStyle = '#d8c8a0'; g.fillRect(p.x + w / 2 - 6, p.y - h - th, 12, th);
+    g.fillStyle = '#2e1d10'; g.fillRect(p.x + w / 2 - 7, p.y - h - th - 2, 14, th + 2);
+    g.fillStyle = '#edbb90'; g.fillRect(p.x + w / 2 - 6, p.y - h - th, 12, th);
     g.fillStyle = color; g.fillRect(p.x + w / 2 - 7, p.y - h - th - 4, 14, 4);
-    g.fillStyle = '#fff8e3';
+    g.fillStyle = '#fff8e6';
     g.beginPath(); g.arc(p.x + w / 2, p.y - h - th * 0.55, 4, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#3a2413'; g.lineWidth = 1;
+    g.strokeStyle = '#2e1d10'; g.lineWidth = 1;
     g.beginPath(); g.moveTo(p.x + w / 2, p.y - h - th * 0.55);
     g.lineTo(p.x + w / 2 + 2, p.y - h - th * 0.55 - 2); g.stroke();
     // 練習用カート（在籍する若手のぶん）
     const karts = Math.min(4, 1 + Math.floor(lv / 3));
     for (let i = 0; i < karts; i++) {
       const kx = p.x + 2 + i * 12, ky = p.y + 14;
-      g.fillStyle = '#3a2413'; g.fillRect(kx - 1, ky - 1, 10, 7);
-      g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020'][i % 4];
+      g.fillStyle = '#2e1d10'; g.fillRect(kx - 1, ky - 1, 10, 7);
+      g.fillStyle = ['#e2664a', '#3a67b8', '#47a046', '#e0ae3c'][i % 4];
       g.fillRect(kx, ky, 8, 5);
-      g.fillStyle = '#1a1a1a'; g.fillRect(kx, ky + 4, 2, 2); g.fillRect(kx + 6, ky + 4, 2, 2);
+      g.fillStyle = '#1e1b28'; g.fillRect(kx, ky + 4, 2, 2); g.fillRect(kx + 6, ky + 4, 2, 2);
     }
     return { x: p.x - 2, y: p.y - h - th - 6, w: w + 4, h: h + th + 8 };
   }
@@ -20590,17 +20625,17 @@ GP.base = (function () {
   function drawMission(g, p, lv, color) {
     const s = tierOf(lv);
     const w = s.w * 0.86, h = s.h * 0.78;
-    box(g, p.x, p.y, w, h, '#cfd4dc', color);
+    box(g, p.x, p.y, w, h, '#e8dfd2', color);
     // 正面の大画面（レベルで大きく、明るくなる）
     const sw = Math.min(w - 10, 16 + lv * 2.6), sh = Math.min(h - 8, 10 + lv * 1.5);
-    g.fillStyle = '#1b2430'; g.fillRect(p.x + (w - sw) / 2, p.y - h + 5, sw, sh);
+    g.fillStyle = '#23222c'; g.fillRect(p.x + (w - sw) / 2, p.y - h + 5, sw, sh);
     g.fillStyle = 'rgba(120,200,255,' + (0.25 + lv * 0.06).toFixed(2) + ')';
     for (let i = 0; i < 3; i++) {
       g.fillRect(p.x + (w - sw) / 2 + 2, p.y - h + 7 + i * (sh / 3), sw - 4, Math.max(1, sh / 5));
     }
     // 屋根のパラボラ
     const dr = 5 + lv * 0.9;
-    g.fillStyle = '#8f9aa6';
+    g.fillStyle = '#8e8399';
     g.fillRect(p.x + w - dr * 2 - 6, p.y - h - 4, 3, 6);
     g.beginPath();
     g.arc(p.x + w - dr - 5, p.y - h - dr - 3, dr, Math.PI * 0.15, Math.PI * 1.15);
@@ -20608,8 +20643,8 @@ GP.base = (function () {
     g.fillStyle = color; g.fillRect(p.x + w - dr - 6, p.y - h - dr - 4, 2, 2);
     // アンテナ塔
     const th = 6 + lv * 1.5;
-    g.fillStyle = '#7c828e'; g.fillRect(p.x + 5, p.y - h - th, 2, th);
-    g.fillStyle = '#e04a3f'; g.fillRect(p.x + 4, p.y - h - th - 3, 4, 3);
+    g.fillStyle = '#7d7a8c'; g.fillRect(p.x + 5, p.y - h - th, 2, th);
+    g.fillStyle = '#e2664a'; g.fillRect(p.x + 4, p.y - h - th - 3, 4, 3);
     return { x: p.x - 2, y: p.y - h - th - 6, w: w + 4, h: h + th + 8 };
   }
 
@@ -20617,14 +20652,14 @@ GP.base = (function () {
   function drawWarehouse(g, p, lv, color) {
     const s = tierOf(lv);
     const w = s.w * 1.02, h = s.h * 0.62;
-    box(g, p.x, p.y, w, h, '#c6bfae', color);
+    box(g, p.x, p.y, w, h, '#edbb90', color);
     // シャッター（レベルで増える）
     const doors = Math.min(4, 1 + Math.floor(lv / 3));
     const dw = Math.min(16, (w - 8) / doors - 3);
     for (let i = 0; i < doors; i++) {
       const dx = p.x + 4 + i * (dw + 3);
-      g.fillStyle = '#6b7078'; g.fillRect(dx, p.y - h * 0.72, dw, h * 0.72);
-      g.fillStyle = '#858c96';
+      g.fillStyle = '#6b6178'; g.fillRect(dx, p.y - h * 0.72, dw, h * 0.72);
+      g.fillStyle = '#8e8399';
       for (let yy = 0; yy < h * 0.72; yy += 3) g.fillRect(dx, p.y - h * 0.72 + yy, dw, 1);
       g.fillStyle = color; g.fillRect(dx, p.y - h * 0.72, dw, 2);
     }
@@ -20633,8 +20668,8 @@ GP.base = (function () {
     for (let i = 0; i < cn; i++) {
       const cx = p.x + w + 3, cy = p.y - 7 - Math.floor(i / 2) * 8;
       const off2 = (i % 2) * 9;
-      g.fillStyle = '#3a2413'; g.fillRect(cx + off2 - 1, cy - 1, 10, 8);
-      g.fillStyle = ['#c85040', '#4070c0', '#50a050', '#d0a030'][i % 4];
+      g.fillStyle = '#2e1d10'; g.fillRect(cx + off2 - 1, cy - 1, 10, 8);
+      g.fillStyle = ['#c23a2e', '#3a67b8', '#47a046', '#e0ae3c'][i % 4];
       g.fillRect(cx + off2, cy, 8, 6);
       g.fillStyle = 'rgba(0,0,0,.22)';
       g.fillRect(cx + off2 + 2, cy, 1, 6); g.fillRect(cx + off2 + 5, cy, 1, 6);
@@ -20648,13 +20683,13 @@ GP.base = (function () {
   function drawMeeting(g, p, lv, color) {
     const s = tierOf(lv);
     const w = s.w * 0.92, h = s.h * 0.56;
-    box(g, p.x, p.y, w, h, '#d8cfc0', color);
+    box(g, p.x, p.y, w, h, '#e6d6ae', color);
     // 横に長い窓。中で人が向かい合っているのが透けて見える
     const n = Math.min(5, 2 + Math.floor(lv / 2.4));
     const gw = Math.min(15, (w - 10) / n - 3);
     for (let i = 0; i < n; i++) {
       const x = p.x + 5 + i * (gw + 3);
-      g.fillStyle = '#3c4a58'; g.fillRect(x, p.y - h + 6, gw, h * 0.46);
+      g.fillStyle = '#464351'; g.fillRect(x, p.y - h + 6, gw, h * 0.46);
       g.fillStyle = 'rgba(255,226,160,' + (0.30 + lv * 0.05).toFixed(2) + ')';
       g.fillRect(x + 1, p.y - h + 7, gw - 2, h * 0.46 - 2);
       // 机に向かう人影
@@ -20670,7 +20705,7 @@ GP.base = (function () {
     // 屋根の上のガラス会議室（レベルが上がると現れる）
     if (lv >= 4) {
       const cw = 10 + lv, ch = 5 + lv * 0.6;
-      g.fillStyle = '#b9c6cf'; g.fillRect(p.x + w - cw - 6, p.y - h - ch, cw, ch);
+      g.fillStyle = '#a8c8f2'; g.fillRect(p.x + w - cw - 6, p.y - h - ch, cw, ch);
       g.fillStyle = 'rgba(150,215,255,0.55)';
       g.fillRect(p.x + w - cw - 5, p.y - h - ch + 1, cw - 2, ch - 2);
       g.fillStyle = color; g.fillRect(p.x + w - cw - 6, p.y - h - ch - 2, cw, 2);
@@ -20692,17 +20727,17 @@ GP.base = (function () {
       const back = rnd() < 0.34;
       const x = 20 + rnd() * (W - 40);
       const y = back ? 148 + rnd() * 84 : 296 + rnd() * 40;
-      g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0'][Math.floor(rnd() * 5)];
+      g.fillStyle = ['#e2664a', '#3a67b8', '#47a046', '#e0ae3c', '#9a7ad8'][Math.floor(rnd() * 5)];
       g.fillRect(x, y, 3, 4);
-      g.fillStyle = '#f2c9a0'; g.fillRect(x, y - 3, 3, 3);
+      g.fillStyle = '#e6d6ae'; g.fillRect(x, y - 3, 3, 3);
     }
     // トロフィー像。池のほとりに並べる
     for (let i = 0; i < Math.min(6, titles); i++) {
       const x = 352 + i * 22, y = 224;
-      g.fillStyle = '#8f7a5c'; g.fillRect(x, y, 12, 8);
-      g.fillStyle = '#f0c040'; g.fillRect(x + 3, y - 10, 6, 10);
+      g.fillStyle = '#9a8358'; g.fillRect(x, y, 12, 8);
+      g.fillStyle = '#edb44a'; g.fillRect(x + 3, y - 10, 6, 10);
       g.fillRect(x + 1, y - 13, 10, 3);
-      g.fillStyle = '#fff0a0'; g.fillRect(x + 4, y - 9, 2, 7);
+      g.fillStyle = '#fff0b0'; g.fillRect(x + 4, y - 9, 2, 7);
     }
   }
 
@@ -20769,20 +20804,23 @@ GP.base = (function () {
     const rnd = seeded(Math.floor(g2.fans) + g2.season * 7 + g2.titles.teams * 13);
 
     // 芝（夕景では日が落ちた色にする）
-    ctx.fillStyle = dusk ? '#2f4a2a' : '#8fbf62'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = dusk ? '#2a4325' : '#86b658';
+    ctx.fillStyle = dusk ? '#1d3d22' : '#78c96a'; ctx.fillRect(0, 0, W, H);
+    /* 芝の目は「もう一色」ではなく、薄い影として置く。
+       別の段の色を使うと、離れて見たとき市松模様になる      */
+    ctx.fillStyle = 'rgba(0,0,0,.07)';
     for (let y = 0; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
     // 奥の木立。幹・輪郭・本体・光の葉 の4層で、遠景でも立体に見せる
     for (let x = 4; x < W; x += 19) {
       const ty = 36 + Math.floor(rnd() * 10);
       const sc = 0.8 + rnd() * 0.55;
       const cw = Math.round(8 * sc), ch = Math.round(12 * sc);
-      ctx.fillStyle = '#3a2712'; ctx.fillRect(x + 6, ty - 6, 3, 7);          // 幹
-      ctx.fillStyle = '#5c421f'; ctx.fillRect(x + 6, ty - 6, 1.5, 7);
-      const c0 = dusk ? '#0d2412' : '#173a1a';
-      const c1 = dusk ? '#173a1e' : '#256026';
-      const c2 = dusk ? '#1f4d27' : '#347a33';
-      const c3 = dusk ? '#2a6033' : '#4e9b46';
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(x + 6, ty - 6, 3, 7);          // 幹
+      ctx.fillStyle = '#4a3018'; ctx.fillRect(x + 6, ty - 6, 1.5, 7);
+      /* 葉は 暗い→明るい の4段。段を飛ばさずに並べる      */
+      const c0 = dusk ? '#0e2614' : '#1b3a1c';
+      const c1 = dusk ? '#1b3a1c' : '#2f5c26';
+      const c2 = dusk ? '#1d3d22' : '#4d8433';
+      const c3 = dusk ? '#2f5c26' : '#79ad4a';
       ctx.fillStyle = c0;                                                    // 輪郭
       ctx.fillRect(x + 7 - cw, ty - 5 - ch, cw * 2, ch);
       ctx.fillRect(x + 7 - cw * 0.6, ty - 8 - ch, cw * 1.2, 4);
@@ -20805,26 +20843,26 @@ GP.base = (function () {
     };
 
     // 外周の生垣とフェンス
-    ctx.fillStyle = dusk ? '#1d3320' : '#4e7a34'; ctx.fillRect(0, 46, W, 9);
-    ctx.fillStyle = dusk ? '#26402a' : '#5e8f3e';
+    ctx.fillStyle = dusk ? '#1b3a1c' : '#4d8433'; ctx.fillRect(0, 46, W, 9);
+    ctx.fillStyle = dusk ? '#1d3d22' : '#79ad4a';
     for (let x = 0; x < W; x += 12) ctx.fillRect(x, 46, 7, 4);
-    ctx.fillStyle = dusk ? '#3a3442' : '#7a6a52';
+    ctx.fillStyle = dusk ? '#3a3348' : '#8a5a3a';
     for (let x = 5; x < W; x += 11) ctx.fillRect(x, 48, 2, 9);
 
     // 敷地の芝
-    ctx.fillStyle = dusk ? '#2a4527' : '#83b95a'; ctx.fillRect(0, 55, W, H - 55);
-    ctx.fillStyle = dusk ? '#264022' : '#7bb052';
+    ctx.fillStyle = dusk ? '#1d3d22' : '#a8cf72'; ctx.fillRect(0, 55, W, H - 55);
+    ctx.fillStyle = 'rgba(0,0,0,.07)';
     for (let y = 58; y < H; y += 8) for (let x = (y % 16 ? 0 : 4); x < W; x += 16) ctx.fillRect(x, y, 4, 4);
 
     // 建物が建つ帯（輪の外側の舗装）
-    ell(RING.cx, RING.cy, RING.rx * 1.38, RING.ry * 1.42, dusk ? '#463f4c' : '#b0a898');
-    ell(RING.cx, RING.cy, RING.rx * 1.30, RING.ry * 1.32, dusk ? '#4a4450' : '#b8b0a0');
+    ell(RING.cx, RING.cy, RING.rx * 1.38, RING.ry * 1.42, dusk ? '#464351' : '#c2ab7c');
+    ell(RING.cx, RING.cy, RING.rx * 1.30, RING.ry * 1.32, dusk ? '#5d5a6b' : '#e6d6ae');
 
     // 周回路
-    ctx.strokeStyle = dusk ? '#22242c' : '#5b5e66';
+    ctx.strokeStyle = dusk ? '#23222c' : '#7d7a8c';
     ctx.lineWidth = RING.w + 5;
     ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = dusk ? '#2f313a' : '#6d7078';
+    ctx.strokeStyle = dusk ? '#33313e' : '#6b6178';
     ctx.lineWidth = RING.w;
     ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,.50)';
@@ -20834,27 +20872,27 @@ GP.base = (function () {
 
     // 中庭（輪の内側）
     ell(RING.cx, RING.cy, RING.rx - RING.w * 0.7, RING.ry - RING.w * 0.7,
-        dusk ? '#264022' : '#7fb457');
+        dusk ? '#1d3d22' : '#79ad4a');
 
     /* ---- 正門と引き込み路 ----
        手前のまん中で輪とつながる。遠征のトラックはここから出ていく */
     const gate = ringAt(90, 0);
-    ctx.fillStyle = dusk ? '#2f313a' : '#6d7078';
+    ctx.fillStyle = dusk ? '#33313e' : '#6b6178';
     ctx.fillRect(gate.x - 22, gate.y - 4, 44, H - gate.y + 4);
     ctx.fillStyle = 'rgba(255,255,255,.50)';
     for (let y = gate.y + 12; y < H; y += 18) ctx.fillRect(gate.x - 2, y, 4, 9);
-    ctx.fillStyle = dusk ? '#4a4250' : '#8a8578';
+    ctx.fillStyle = dusk ? '#464351' : '#9a8358';
     ctx.fillRect(gate.x - 28, H - 46, 4, 18); ctx.fillRect(gate.x + 24, H - 46, 4, 18);
-    ctx.fillStyle = '#e8e2d4'; ctx.fillRect(gate.x - 24, H - 41, 48, 4);
-    ctx.fillStyle = '#c8503f';
+    ctx.fillStyle = '#e8dfd2'; ctx.fillRect(gate.x - 24, H - 41, 48, 4);
+    ctx.fillStyle = '#c23a2e';
     for (let x = gate.x - 22; x < gate.x + 20; x += 13) ctx.fillRect(x, H - 41, 6, 4);
 
     /* ---- 中庭の池 ---- */
     const pond = (cx2, cy2, rx2, ry2) => {
-      ell(cx2, cy2, rx2 + 9, ry2 + 7, dusk ? '#1d3320' : '#6da247');
-      ell(cx2, cy2, rx2 + 5, ry2 + 4, dusk ? '#3c3742' : '#a89e8c');
-      ell(cx2, cy2, rx2, ry2, dusk ? '#0e2a3c' : '#2f6a97');
-      ell(cx2, cy2 - ry2 * 0.16, rx2 * 0.9, ry2 * 0.6, dusk ? '#173d55' : '#3f86b8');
+      ell(cx2, cy2, rx2 + 9, ry2 + 7, dusk ? '#1b3a1c' : '#79ad4a');
+      ell(cx2, cy2, rx2 + 5, ry2 + 4, dusk ? '#3a3348' : '#c2ab7c');
+      ell(cx2, cy2, rx2, ry2, dusk ? '#17284e' : '#3a67b8');
+      ell(cx2, cy2 - ry2 * 0.16, rx2 * 0.9, ry2 * 0.6, dusk ? '#123a44' : '#6d7aa8');
       ctx.fillStyle = 'rgba(255,255,255,.28)';
       for (let i = 0; i < 4; i++) {
         const lw = rx2 * (0.46 - i * 0.07);
@@ -20864,10 +20902,10 @@ GP.base = (function () {
     pond(RING.cx + 78, RING.cy + 2, 52, 19);
 
     /* ---- 中庭の駐車場 ---- */
-    const CARC = ['#c8503f', '#3a6fb0', '#e0e0e0', '#4f5560', '#4e9b46', '#d8a832', '#7a5a9a'];
+    const CARC = ['#c23a2e', '#3a67b8', '#e8dfd2', '#5d5a6b', '#47a046', '#e0ae3c', '#6b47ab'];
     const parkRow = (px, py2, cols, fill) => {
       const pw = cols * 17 + 4;
-      ctx.fillStyle = dusk ? '#3f3947' : '#9d9687'; ctx.fillRect(px, py2 - 15, pw, 18);
+      ctx.fillStyle = dusk ? '#3a3348' : '#9a8358'; ctx.fillRect(px, py2 - 15, pw, 18);
       ctx.fillStyle = dusk ? 'rgba(230,224,200,.14)' : 'rgba(255,255,255,.34)';
       for (let i = 0; i <= cols; i++) ctx.fillRect(px + 2 + i * 17, py2 - 15, 1, 18);
       for (let i = 0; i < cols; i++) {
@@ -20880,7 +20918,7 @@ GP.base = (function () {
         ctx.fillStyle = dusk ? 'rgba(120,150,180,.75)' : 'rgba(190,220,240,.88)';
         ctx.fillRect(x + 2, py2 - 10, 10, 3);
         ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x, py2 - 12, 14, 1);
-        ctx.fillStyle = '#15161a';
+        ctx.fillStyle = '#12101a';
         ctx.fillRect(x + 1, py2 - 2, 3, 2); ctx.fillRect(x + 10, py2 - 2, 3, 2);
       }
     };
@@ -20891,7 +20929,7 @@ GP.base = (function () {
 
     // ヘリポート（中庭の左寄り）
     const heli = (hx, hy, r2) => {
-      ell(hx, hy, r2, r2 * 0.5, dusk ? '#3c3742' : '#a89e8c');
+      ell(hx, hy, r2, r2 * 0.5, dusk ? '#3a3348' : '#c2ab7c');
       ctx.strokeStyle = dusk ? 'rgba(230,224,200,.55)' : 'rgba(255,255,255,.85)';
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(hx, hy, r2 - 4, r2 * 0.5 - 2, 0, 0, Math.PI * 2); ctx.stroke();
@@ -20904,7 +20942,7 @@ GP.base = (function () {
     // 入口の旗ざお
     for (let i = 0; i < 3; i++) {
       const fx = RING.cx - 14 + i * 10;
-      ctx.fillStyle = dusk ? '#4a4250' : '#8a8578'; ctx.fillRect(fx, RING.cy + 28, 2, 28);
+      ctx.fillStyle = dusk ? '#464351' : '#9a8358'; ctx.fillRect(fx, RING.cy + 28, 2, 28);
       ctx.fillStyle = i === 1 ? g2.color : shadeHex(g2.color, i ? 0.18 : -0.14);
       ctx.fillRect(fx + 2, RING.cy + 28, 9, 7);
       ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(fx + 2, RING.cy + 29, 8, 1.5);
@@ -20915,8 +20953,8 @@ GP.base = (function () {
     const tyreStack = (tx, ty, n) => {
       for (let i = 0; i < n; i++) {
         const yy = ty - i * 5;
-        ctx.fillStyle = '#15161a'; ctx.fillRect(tx - 8, yy - 5, 16, 6);
-        ctx.fillStyle = i % 2 ? '#2a2c33' : '#22242a'; ctx.fillRect(tx - 8, yy - 5, 16, 2);
+        ctx.fillStyle = '#12101a'; ctx.fillRect(tx - 8, yy - 5, 16, 6);
+        ctx.fillStyle = i % 2 ? '#2b2637' : '#23222c'; ctx.fillRect(tx - 8, yy - 5, 16, 2);
       }
       ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(tx - 8, ty - n * 5 - 5, 16, 1);
     };
@@ -20926,45 +20964,45 @@ GP.base = (function () {
     tyreStack(620, GY - 2, 2);
 
     const crate = (cx2, cy2, cw, ch2, c) => {
-      ctx.fillStyle = '#2a2015'; ctx.fillRect(cx2 - 1, cy2 - ch2 - 1, cw + 2, ch2 + 2);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(cx2 - 1, cy2 - ch2 - 1, cw + 2, ch2 + 2);
       ctx.fillStyle = c; ctx.fillRect(cx2, cy2 - ch2, cw, ch2);
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx2, cy2 - ch2, cw, 2);
       ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(cx2, cy2 - 3, cw, 3);
     };
     const depLv = g2.facilities.depot || 1;
     crate(136, GY, 22, 13, g2.color);
-    crate(206, GY, 16, 10, '#6a7078');
-    crate(478, GY, 20, 12, '#6a7078');
+    crate(206, GY, 16, 10, '#6b6178');
+    crate(478, GY, 20, 12, '#6b6178');
     if (depLv >= 3) crate(502, GY, 14, 9, g2.color);
-    if (depLv >= 5) crate(546, GY, 12, 15, '#6a7078');
+    if (depLv >= 5) crate(546, GY, 12, 15, '#6b6178');
 
     const drum = (dx, dy, c) => {
-      ctx.fillStyle = '#2a2015'; ctx.fillRect(dx - 1, dy - 13, 10, 13);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(dx - 1, dy - 13, 10, 13);
       ctx.fillStyle = c; ctx.fillRect(dx, dy - 12, 8, 12);
       ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(dx, dy - 12, 8, 2);
       ctx.fillStyle = 'rgba(0,0,0,.20)';
       ctx.fillRect(dx, dy - 8, 8, 1); ctx.fillRect(dx, dy - 5, 8, 1);
     };
-    drum(276, GY, '#c05a30'); drum(287, GY, '#4a6f9a');
+    drum(276, GY, '#c23a2e'); drum(287, GY, '#3a67b8');
 
     /* ---- チームのトランスポーター ---- */
     const hauler = (hx, hy, c, len) => {
       const bh = 20, top = hy - 6 - bh;
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(hx - 2, hy - 1, len + 20, 3);
-      ctx.fillStyle = '#2a2015'; ctx.fillRect(hx - 1, top - 1, len + 2, bh + 2);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(hx - 1, top - 1, len + 2, bh + 2);
       ctx.fillStyle = c;         ctx.fillRect(hx, top, len, bh);
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(hx, top, len, 3);
       ctx.fillStyle = 'rgba(0,0,0,.20)';       ctx.fillRect(hx, top + bh - 5, len, 5);
       ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.fillRect(hx + 3, top + 7, len - 6, 4);
       const cx2 = hx + len + 1, ctop = hy - 21;
-      ctx.fillStyle = '#2a2015'; ctx.fillRect(cx2 - 1, ctop - 1, 16, 16);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(cx2 - 1, ctop - 1, 16, 16);
       ctx.fillStyle = shadeHex(c, -0.12); ctx.fillRect(cx2, ctop, 14, 15);
       ctx.fillStyle = dusk ? 'rgba(255,238,170,.90)' : 'rgba(150,200,230,.90)';
       ctx.fillRect(cx2 + 7, ctop + 2, 6, 6);
-      ctx.fillStyle = '#ffe9a8'; ctx.fillRect(cx2 + 13, ctop + 11, 2, 3);
+      ctx.fillStyle = '#fff0b0'; ctx.fillRect(cx2 + 13, ctop + 11, 2, 3);
       [hx + 7, hx + 17, hx + len - 18, hx + len - 8, cx2 + 8].forEach(wx => {
-        ctx.fillStyle = '#15161a'; ctx.fillRect(wx - 4, hy - 6, 8, 6);
-        ctx.fillStyle = '#4a4d55'; ctx.fillRect(wx - 2, hy - 4, 4, 2);
+        ctx.fillStyle = '#12101a'; ctx.fillRect(wx - 4, hy - 6, 8, 6);
+        ctx.fillStyle = '#4d455c'; ctx.fillRect(wx - 2, hy - 4, 4, 2);
       });
     };
     const hlen = 44 + Math.min(3, Math.floor(depLv / 2.5)) * 8;
@@ -20972,8 +21010,8 @@ GP.base = (function () {
 
     // 照明塔。輪のまわりに立てる
     const lamp = (lx, ly, h2) => {
-      ctx.fillStyle = dusk ? '#3a3442' : '#7d786c'; ctx.fillRect(lx, ly - h2, 3, h2);
-      ctx.fillStyle = dusk ? '#4a4250' : '#5a5448'; ctx.fillRect(lx - 5, ly - h2 - 5, 13, 5);
+      ctx.fillStyle = dusk ? '#3a3348' : '#7d7a8c'; ctx.fillRect(lx, ly - h2, 3, h2);
+      ctx.fillStyle = dusk ? '#464351' : '#6e5a3c'; ctx.fillRect(lx - 5, ly - h2 - 5, 13, 5);
       ctx.fillStyle = dusk ? 'rgba(255,238,170,.95)' : 'rgba(255,255,240,.85)';
       ctx.fillRect(lx - 4, ly - h2 - 4, 11, 3);
       if (dusk) {
@@ -21005,7 +21043,7 @@ GP.base = (function () {
       const lv = g2.facilities[p.key] || 1;
       // 足元の舗装。輪の外側に、建物ぶんだけ面を作る
       const s3 = tierOf(lv);
-      bg.fillStyle = dusk ? '#3c3742' : '#a89e8c';
+      bg.fillStyle = dusk ? '#3a3348' : '#c2ab7c';
       bg.beginPath();
       bg.ellipse(it.sp.x + s3.w * sc / 2, it.sp.y - 1, s3.w * sc * 0.72, 7 * sc, 0, 0, Math.PI * 2);
       bg.fill();
@@ -21017,7 +21055,7 @@ GP.base = (function () {
       const bb = { x: raw.x * sc, y: raw.y * sc, w: raw.w * sc, h: raw.h * sc };
       hitBoxes.push({ key: p.key, x: bb.x, y: bb.y, w: bb.w, h: bb.h });
       if (sel === p.key) {
-        bg.strokeStyle = '#fff34d'; bg.lineWidth = 3;
+        bg.strokeStyle = '#fff0b0'; bg.lineWidth = 3;
         bg.setLineDash([5, 4]);
         bg.strokeRect(bb.x - 3, bb.y - 3, bb.w + 6, bb.h + 6);
         bg.setLineDash([]);
@@ -21026,7 +21064,7 @@ GP.base = (function () {
       signs.push({ x: bb.x + bb.w / 2, y: Math.max(2, bb.y - 14 - (pi % 2) * 12),
                    text: p.label + ' Lv.' + lv, sel: sel === p.key });
     });
-    signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e04a3f' : '#4a2f1a'));
+    signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e2664a' : '#4a3018'));
 
     drawCrowd(bg, g2.fans, g2.titles.teams + g2.titles.drivers, g2.color, rnd);
 
@@ -21036,11 +21074,11 @@ GP.base = (function () {
       yard.forEach((q, i) => {
         const x = yardX[i] != null ? yardX[i] : YARD_X[i];
         if (q.prop === 'brief') { briefStand(bg, x, py, q.color, q.done); }
-        else person(bg, x, py, q.color, q.hair || '#2b1d12', q.face || '#eec49a', q.hat, q.done);
+        else person(bg, x, py, q.color, q.hair || '#2e1d10', q.face || '#edbb90', q.hat, q.done);
         hitBoxes.push({ key: q.key, x: x - 14, y: py - 34, w: 28, h: 36 });
         // 名札を全員ぶん出すと建物が隠れてしまう。
         // 名前は下のタイルに並んでいるので、ここでは選んだ人だけ出す
-        if (sel === q.key) sign(bg, x, py - 42, q.label, '#e04a3f');
+        if (sel === q.key) sign(bg, x, py - 42, q.label, '#e2664a');
       });
     }
 
@@ -21056,11 +21094,11 @@ GP.base = (function () {
         bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(x - 5, py - 21, 10, 21);
         bg.fillStyle = suit;                  bg.fillRect(x - 5, py - 21, 10, 8);
         bg.fillStyle = 'rgba(255,255,255,.24)'; bg.fillRect(x - 5, py - 21, 10, 2);
-        bg.fillStyle = '#2c3140'; bg.fillRect(x - 5, py - 9, 4, 9);
+        bg.fillStyle = '#33313e'; bg.fillRect(x - 5, py - 9, 4, 9);
         bg.fillRect(x + 1, py - 9, 4, 9);
         bg.fillStyle = faceC; bg.fillRect(x - 4, py - 29, 8, 8);
         bg.fillStyle = hair;  bg.fillRect(x - 4, py - 30, 8, 4);
-        bg.fillStyle = '#2a2028'; bg.fillRect(x - 3, py - 26, 2, 2);
+        bg.fillStyle = '#23222c'; bg.fillRect(x - 3, py - 26, 2, 2);
         bg.fillRect(x + 1, py - 26, 2, 2);
         if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
       };
@@ -21068,15 +21106,15 @@ GP.base = (function () {
       const box = (i) => hitBoxes.push({ key: OFF_SPOTS[i].key,
         x: OFF_SPOTS[i].x - 14, y: py - 34, w: 28, h: 36 });
       (g2.drivers || []).slice(0, 2).forEach((d, i) => {
-        stand(OFF_SPOTS[i].x, g2.color, '#3a2718', '#f0c49a', null);
+        stand(OFF_SPOTS[i].x, g2.color, '#2e1d10', '#edbb90', null);
         names.push([OFF_SPOTS[i].x, d.name]);
         box(i);
       });
-      stand(OFF_SPOTS[2].x, '#5a6270', '#2b1d12', '#e8bd94', null);           // スタッフ
+      stand(OFF_SPOTS[2].x, '#5d5a6b', '#4a3018', '#d49a70', null);           // スタッフ
       names.push([OFF_SPOTS[2].x, 'スタッフのみんな']); box(2);
-      stand(OFF_SPOTS[3].x, '#3f8a4a', '#4a3018', '#f2cba4', '#e8c24a');      // ユース
+      stand(OFF_SPOTS[3].x, '#4d8433', '#6b4724', '#e6d6ae', '#edb44a');      // ユース
       names.push([OFF_SPOTS[3].x, '下部組織の若手']); box(3);
-      stand(OFF_SPOTS[4].x, '#3a3f52', '#241c14', '#e2b48e', null);           // 首脳陣
+      stand(OFF_SPOTS[4].x, '#464351', '#2e1d10', '#edbb90', null);           // 首脳陣
       names.push([OFF_SPOTS[4].x, '首脳陣']); box(4);
 
       // ---- オフにしかできないこと ----
@@ -21087,24 +21125,24 @@ GP.base = (function () {
         bg.fillStyle = shadeHex(g2.color, -0.20); bg.fillRect(x - 15, y - 14, 30, 10);
         bg.fillStyle = g2.color; bg.fillRect(x - 13, y - 14, 26, 7);
         bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 13, y - 14, 26, 2);
-        bg.fillStyle = '#17181c';
+        bg.fillStyle = '#1e1b28';
         bg.fillRect(x - 14, y - 8, 7, 5); bg.fillRect(x + 7, y - 8, 7, 5);
-        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 18, y - 12, 4, 3);
+        bg.fillStyle = '#33313e'; bg.fillRect(x - 18, y - 12, 4, 3);
         bg.fillRect(x + 14, y - 13, 5, 4);
         // 計測用のパイロン
-        bg.fillStyle = '#e88a2a'; bg.fillRect(x - 24, y - 5, 4, 5);
+        bg.fillStyle = '#c98a22'; bg.fillRect(x - 24, y - 5, 4, 5);
         bg.fillRect(x + 20, y - 5, 4, 5);
         names.push([x, '合同テスト']); box(5);
       })();
       // 来季の方針：ホワイトボード
       (function () {
         const x = OFF_SPOTS[6].x, y = py;
-        bg.fillStyle = '#241a10'; bg.fillRect(x - 17, y - 40, 34, 32);
-        bg.fillStyle = dusk ? '#dcd6c4' : '#f6f2e4'; bg.fillRect(x - 15, y - 38, 30, 28);
-        bg.fillStyle = '#3a7ad9'; bg.fillRect(x - 12, y - 34, 20, 2);
-        bg.fillStyle = '#e04a3f'; bg.fillRect(x - 12, y - 29, 14, 2);
-        bg.fillStyle = '#4ea63f'; bg.fillRect(x - 12, y - 24, 22, 2);
-        bg.fillStyle = '#5c5548'; bg.fillRect(x - 3, y - 10, 6, 10);
+        bg.fillStyle = '#2e1d10'; bg.fillRect(x - 17, y - 40, 34, 32);
+        bg.fillStyle = dusk ? '#e6d6ae' : '#fff8e6'; bg.fillRect(x - 15, y - 38, 30, 28);
+        bg.fillStyle = '#3a67b8'; bg.fillRect(x - 12, y - 34, 20, 2);
+        bg.fillStyle = '#e2664a'; bg.fillRect(x - 12, y - 29, 14, 2);
+        bg.fillStyle = '#47a046'; bg.fillRect(x - 12, y - 24, 22, 2);
+        bg.fillStyle = '#6e5a3c'; bg.fillRect(x - 3, y - 10, 6, 10);
         bg.fillRect(x - 12, y - 2, 24, 2);
         names.push([x, '来季の方針']); box(6);
       })();
@@ -21112,34 +21150,34 @@ GP.base = (function () {
       (function () {
         const x = OFF_SPOTS[7].x, y = py;
         bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 14, y - 3, 28, 3);
-        bg.fillStyle = '#4a4034'; bg.fillRect(x - 14, y - 14, 28, 11);
-        bg.fillStyle = '#5e5344'; bg.fillRect(x - 14, y - 14, 28, 3);
+        bg.fillStyle = '#4a3c28'; bg.fillRect(x - 14, y - 14, 28, 11);
+        bg.fillStyle = '#6e5a3c'; bg.fillRect(x - 14, y - 14, 28, 3);
         // 書類とペン
-        bg.fillStyle = '#f6f2e4'; bg.fillRect(x - 9, y - 18, 10, 5);
-        bg.fillStyle = '#c8a53a'; bg.fillRect(x + 3, y - 17, 7, 3);
-        bg.fillStyle = '#2b2e36'; bg.fillRect(x + 4, y - 20, 2, 4);
+        bg.fillStyle = '#fff8e6'; bg.fillRect(x - 9, y - 18, 10, 5);
+        bg.fillStyle = '#e0ae3c'; bg.fillRect(x + 3, y - 17, 7, 3);
+        bg.fillStyle = '#33313e'; bg.fillRect(x + 4, y - 20, 2, 4);
         names.push([x, 'スポンサー交渉']); box(7);
       })();
       // 若手のスカウト：カートと看板
       (function () {
         const x = OFF_SPOTS[8].x, y = py;
         bg.fillStyle = 'rgba(0,0,0,.28)'; bg.fillRect(x - 12, y - 3, 24, 3);
-        bg.fillStyle = '#17181c';
+        bg.fillStyle = '#1e1b28';
         bg.fillRect(x - 12, y - 10, 6, 6); bg.fillRect(x + 6, y - 10, 6, 6);
-        bg.fillStyle = '#3f8a4a'; bg.fillRect(x - 9, y - 15, 18, 7);
+        bg.fillStyle = '#4d8433'; bg.fillRect(x - 9, y - 15, 18, 7);
         bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(x - 9, y - 15, 18, 2);
-        bg.fillStyle = '#2b2e36'; bg.fillRect(x - 3, y - 19, 6, 5);
+        bg.fillStyle = '#33313e'; bg.fillRect(x - 3, y - 19, 6, 5);
         names.push([x, '若手のスカウト']); box(8);
       })();
 
       // 来季への出発地点
       const nx = OFF_SPOTS[9].x;
-      bg.fillStyle = '#241a10'; bg.fillRect(nx - 24, py - 62, 48, 14);
-      bg.fillStyle = dusk ? '#5c4a24' : '#e8dcc0'; bg.fillRect(nx - 23, py - 61, 46, 12);
+      bg.fillStyle = '#2e1d10'; bg.fillRect(nx - 24, py - 62, 48, 14);
+      bg.fillStyle = dusk ? '#6b4724' : '#e8dfd2'; bg.fillRect(nx - 23, py - 61, 46, 12);
       bg.font = 'bold 9px sans-serif'; bg.textAlign = 'center';
-      bg.fillStyle = dusk ? '#ffe9b0' : '#3a2f1a';
+      bg.fillStyle = dusk ? '#fff0b0' : '#4a3018';
       bg.fillText('NEXT SEASON', nx, py - 52);
-      bg.fillStyle = '#8d8578'; bg.fillRect(nx - 22, py - 48, 3, 48);
+      bg.fillStyle = '#9a8358'; bg.fillRect(nx - 22, py - 48, 3, 48);
       bg.fillRect(nx + 19, py - 48, 3, 48);
       bg.fillStyle = 'rgba(255,255,255,.40)';
       for (let k = 0; k < 3; k++) bg.fillRect(nx - 8, py - 30 + k * 9, 16, 3);
@@ -21148,14 +21186,14 @@ GP.base = (function () {
 
       // 名札
       names.forEach((n, i) => sign(bg, n[0], py - 44 - (i % 2) * 12, n[1],
-        sel === OFF_SPOTS[i].key ? '#e04a3f' : '#3f3a30'));
+        sel === OFF_SPOTS[i].key ? '#e2664a' : '#4a3c28'));
 
       // 祝いの垂れ幕
-      bg.fillStyle = '#241a10'; bg.fillRect(140, 118, 320, 18);
+      bg.fillStyle = '#2e1d10'; bg.fillRect(140, 118, 320, 18);
       bg.fillStyle = g2.color;  bg.fillRect(142, 120, 316, 14);
       bg.fillStyle = 'rgba(255,255,255,.30)'; bg.fillRect(142, 120, 316, 3);
       bg.font = 'bold 11px sans-serif'; bg.textAlign = 'center';
-      bg.fillStyle = '#fff8e3';
+      bg.fillStyle = '#fff8e6';
       bg.fillText('シーズン ' + g2.season + ' おつかれさま！', 300, 131);
     }
 
@@ -21198,23 +21236,23 @@ GP.base = (function () {
     bg.fillStyle = 'rgba(0,0,0,.30)';
     bg.beginPath(); bg.ellipse(x, py, 16, 3.4, 0, 0, Math.PI * 2); bg.fill();
     // ホワイトボード
-    bg.fillStyle = '#6b5a44'; bg.fillRect(x - 2, py - 12, 3, 12);
-    bg.fillStyle = '#3a3428'; bg.fillRect(x - 14, py - 34, 28, 22);
-    bg.fillStyle = '#e8e2d0'; bg.fillRect(x - 12, py - 32, 24, 18);
-    bg.fillStyle = '#3a7ad9'; bg.fillRect(x - 9, py - 29, 14, 2);
+    bg.fillStyle = '#6e5a3c'; bg.fillRect(x - 2, py - 12, 3, 12);
+    bg.fillStyle = '#4a3018'; bg.fillRect(x - 14, py - 34, 28, 22);
+    bg.fillStyle = '#e8dfd2'; bg.fillRect(x - 12, py - 32, 24, 18);
+    bg.fillStyle = '#3a67b8'; bg.fillRect(x - 9, py - 29, 14, 2);
     bg.fillRect(x - 9, py - 25, 10, 2);
-    bg.fillStyle = '#e04a3f'; bg.fillRect(x - 9, py - 21, 17, 2);
+    bg.fillStyle = '#e2664a'; bg.fillRect(x - 9, py - 21, 17, 2);
     // 囲んでいる人（小さめに2人）
     const mini = (mx, suit) => {
       bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(mx - 4, py - 17, 8, 17);
       bg.fillStyle = suit;                  bg.fillRect(mx - 4, py - 17, 8, 6);
-      bg.fillStyle = '#2c3140'; bg.fillRect(mx - 4, py - 7, 3, 7);
+      bg.fillStyle = '#33313e'; bg.fillRect(mx - 4, py - 7, 3, 7);
       bg.fillRect(mx + 1, py - 7, 3, 7);
-      bg.fillStyle = '#eec49a'; bg.fillRect(mx - 3, py - 24, 6, 7);
-      bg.fillStyle = '#2b1d12'; bg.fillRect(mx - 3, py - 25, 6, 3);
+      bg.fillStyle = '#edbb90'; bg.fillRect(mx - 3, py - 24, 6, 7);
+      bg.fillStyle = '#2e1d10'; bg.fillRect(mx - 3, py - 25, 6, 3);
     };
     mini(x - 17, color);
-    mini(x + 17, '#5a6270');
+    mini(x + 17, '#5d5a6b');
     bg.globalAlpha = 1;
     if (done) doneMark(bg, x + 22, py - 24);
   }
@@ -21224,11 +21262,11 @@ GP.base = (function () {
      「誰にまだ声をかけていないか」が、ひと目で分かるようにする */
   function doneMark(bg, x, y) {
     bg.globalAlpha = 1;
-    bg.fillStyle = '#1c3a1c';
+    bg.fillStyle = '#1b3a1c';
     bg.beginPath(); bg.arc(x, y, 7, 0, Math.PI * 2); bg.fill();
-    bg.fillStyle = '#8ef08e';
+    bg.fillStyle = '#b2e79a';
     bg.beginPath(); bg.arc(x, y, 5.6, 0, Math.PI * 2); bg.fill();
-    bg.strokeStyle = '#12310f'; bg.lineWidth = 2; bg.lineJoin = 'round';
+    bg.strokeStyle = '#2f5c26'; bg.lineWidth = 2; bg.lineJoin = 'round';
     bg.beginPath();
     bg.moveTo(x - 3, y); bg.lineTo(x - 1, y + 2.6); bg.lineTo(x + 3.2, y - 2.6);
     bg.stroke();
@@ -21241,11 +21279,11 @@ GP.base = (function () {
     bg.fillStyle = shadeHex(suit, -0.20); bg.fillRect(x - 5, py - 21, 10, 21);
     bg.fillStyle = suit;                  bg.fillRect(x - 5, py - 21, 10, 8);
     bg.fillStyle = 'rgba(255,255,255,.24)'; bg.fillRect(x - 5, py - 21, 10, 2);
-    bg.fillStyle = '#2c3140'; bg.fillRect(x - 5, py - 9, 4, 9);
+    bg.fillStyle = '#33313e'; bg.fillRect(x - 5, py - 9, 4, 9);
     bg.fillRect(x + 1, py - 9, 4, 9);
     bg.fillStyle = faceC; bg.fillRect(x - 4, py - 29, 8, 8);
     bg.fillStyle = hair;  bg.fillRect(x - 4, py - 30, 8, 4);
-    bg.fillStyle = '#2a2028'; bg.fillRect(x - 3, py - 26, 2, 2);
+    bg.fillStyle = '#23222c'; bg.fillRect(x - 3, py - 26, 2, 2);
     bg.fillRect(x + 1, py - 26, 2, 2);
     if (hat) { bg.fillStyle = hat; bg.fillRect(x - 5, py - 31, 10, 3); }
     bg.globalAlpha = 1;
@@ -21630,7 +21668,7 @@ GP.kart = (function () {
     g.imageSmoothingEnabled = false;
 
     // 地面
-    g.fillStyle = opts && opts.dusk ? '#20301e' : '#3f6b35';
+    g.fillStyle = opts && opts.dusk ? '#1b3a1c' : '#2e6b33';
     g.fillRect(0, 0, W, H);
     // 芝の斑
     g.fillStyle = 'rgba(255,255,255,0.03)';
@@ -21651,9 +21689,9 @@ GP.kart = (function () {
       g.strokeStyle = style; g.stroke();
     };
     g.lineWidth = HALF * 2 + 6; g.lineJoin = 'round'; g.lineCap = 'round';
-    edge(0, '#b9a98d');                       // 縁石まわりの砂
+    edge(0, '#c2ab7c');                       // 縁石まわりの砂
     g.lineWidth = HALF * 2;
-    edge(0, opts && opts.dusk ? '#2e2e33' : '#4a4a50');   // 路面
+    edge(0, opts && opts.dusk ? '#33313e' : '#464351');   // 路面
     // 縁石（赤白）
     g.lineWidth = 3;
     for (let side = -1; side <= 1; side += 2) {
@@ -21665,7 +21703,7 @@ GP.kart = (function () {
         g.moveTo(a.x + a.nx * w, a.y + a.ny * w);
         const b = atS(p.cum[i] + 8);
         g.lineTo(b.x + b.nx * w, b.y + b.ny * w);
-        g.strokeStyle = ((i / 6) | 0) % 2 ? '#e05a4a' : '#f2ece2';
+        g.strokeStyle = ((i / 6) | 0) % 2 ? '#e2664a' : '#fff8e6';
         g.stroke();
       }
     }
@@ -21680,7 +21718,7 @@ GP.kart = (function () {
       g.translate(a.x, a.y);
       g.rotate(Math.atan2(a.dy, a.dx));
       for (let i = -HALF; i < HALF; i += 6) {
-        g.fillStyle = ((i / 6) | 0) % 2 ? '#f2ece2' : '#2a2a2e';
+        g.fillStyle = ((i / 6) | 0) % 2 ? '#fff8e6' : '#2b2637';
         g.fillRect(-2, i, 4, 6);
       }
       g.restore();
@@ -21699,11 +21737,11 @@ GP.kart = (function () {
       g.fillStyle = k.color; g.fillRect(-6, -4, 12, 8);
       g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(-6, -4, 3, 8);
       // タイヤ
-      g.fillStyle = '#22201e';
+      g.fillStyle = '#23222c';
       g.fillRect(-5, -6, 3, 2); g.fillRect(-5, 4, 3, 2);
       g.fillRect(2, -6, 3, 2);  g.fillRect(2, 4, 3, 2);
       if (k.you) {                                   // 自分の車には矢印
-        g.fillStyle = '#ffe066';
+        g.fillStyle = '#ffd98a';
         g.fillRect(-1, -10, 2, 3);
         g.fillRect(-3, -8, 6, 2);
       }
@@ -21714,7 +21752,7 @@ GP.kart = (function () {
         g.textAlign = 'center';
         g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.65)';
         g.strokeText(k.name, x, y - 11);
-        g.fillStyle = k.you ? '#ffe066' : '#d8ffd0';
+        g.fillStyle = k.you ? '#ffd98a' : '#fff0b0';
         g.fillText(k.name, x, y - 11);
       }
     });
@@ -34233,9 +34271,9 @@ GP.paddock = (function () {
     g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
     const w = g.measureText(text).width + 10;
     x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, x));
-    g.fillStyle = '#241a10'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, 13);
+    g.fillStyle = '#2e1d10'; g.fillRect(x - w / 2 - 1, y - 1, w + 2, 13);
     g.fillStyle = color; g.fillRect(x - w / 2, y, w, 11);
-    g.fillStyle = '#fff8e3'; g.fillText(text, x, y + 8);
+    g.fillStyle = '#fff8e6'; g.fillText(text, x, y + 8);
   }
 
   /* ---------- 全体 ---------- */
@@ -34258,12 +34296,12 @@ GP.paddock = (function () {
     const teams = [];
     for (let i = 0, k = 0; i < 11; i++) {
       if (i === MINE_AT) teams.push({ name: g2.team, color: g2.color, mine: true });
-      else teams.push(rivals[k++] || { name: '', color: '#8a8578' });
+      else teams.push(rivals[k++] || { name: '', color: '#9a8358' });
     }
 
     /* ---- 奥：コース ---- */
-    ctx.fillStyle = dusk ? '#242830' : '#4c5057'; ctx.fillRect(0, 0, W, 62);
-    ctx.fillStyle = dusk ? '#2b303a' : '#585d66'; ctx.fillRect(0, 0, W, 4);
+    ctx.fillStyle = dusk ? '#23222c' : '#4d455c'; ctx.fillRect(0, 0, W, 62);
+    ctx.fillStyle = dusk ? '#33313e' : '#5d5a6b'; ctx.fillRect(0, 0, W, 4);
     ctx.fillStyle = 'rgba(255,255,255,.30)';                       // コース脇の白線
     ctx.fillRect(0, 52, W, 2);
     ctx.fillStyle = 'rgba(255,255,255,.22)';                       // 中央の破線
@@ -34276,18 +34314,18 @@ GP.paddock = (function () {
     }
 
     /* ---- ピットウォール ---- */
-    ctx.fillStyle = dusk ? '#3a3540' : '#8d8578'; ctx.fillRect(0, 62, W, 14);
-    ctx.fillStyle = dusk ? '#4a4450' : '#a8a094'; ctx.fillRect(0, 62, W, 4);
+    ctx.fillStyle = dusk ? '#3a3348' : '#9a8358'; ctx.fillRect(0, 62, W, 14);
+    ctx.fillStyle = dusk ? '#464351' : '#b5aabb'; ctx.fillRect(0, 62, W, 4);
     // 壁のスポンサーボード（チームカラーで賑やかす）
     for (let x = 6, i = 0; x < W - 20; x += 44, i++) {
       const t = teams[i % Math.max(1, teams.length)];
-      ctx.fillStyle = t ? t.color : '#c0c0c8';
+      ctx.fillStyle = t ? t.color : '#e8dfd2';
       ctx.fillRect(x, 65, 36, 8);
       ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x, 65, 36, 2);
     }
 
     /* ---- ピットレーン ---- */
-    ctx.fillStyle = dusk ? '#2f333c' : '#6d7078'; ctx.fillRect(0, 76, W, 52);
+    ctx.fillStyle = dusk ? '#33313e' : '#6b6178'; ctx.fillRect(0, 76, W, 52);
     ctx.fillStyle = 'rgba(255,255,255,.34)'; ctx.fillRect(0, 78, W, 2);      // 外側の白線
     ctx.fillRect(0, 124, W, 2);                                              // 内側の白線
     ctx.fillStyle = 'rgba(255,255,255,.20)';
@@ -34303,7 +34341,7 @@ GP.paddock = (function () {
     if (GP.grid && GP.grid.sideCar) {
       [[128, 0.44], [352, 0.44], [520, 0.40]].forEach((v, k) => {
         const t2 = teams[(k * 4 + 2) % teams.length];
-        GP.grid.sideCar(ctx, v[0], 118, v[1], (t2 && t2.color) || '#8a8578', 1, false);
+        GP.grid.sideCar(ctx, v[0], 118, v[1], (t2 && t2.color) || '#9a8358', 1, false);
       });
       // 奥はうっすら空気の層をかけて距離を出す（かけすぎると車が消える）
       ctx.fillStyle = dusk ? 'rgba(46,50,68,.16)' : 'rgba(186,200,216,.14)';
@@ -34316,20 +34354,20 @@ GP.paddock = (function () {
       const gx = 4 + i * GSTEP;
       const t = teams[i];
       const mine = !!(t && t.mine);
-      const wall = dusk ? '#2f2b38' : '#b8b2a4';
+      const wall = dusk ? '#2b2637' : '#b5aabb';
       // 本体
-      ctx.fillStyle = '#241a10'; ctx.fillRect(gx - 1, 128 - 1, gw + 2, gy - 128 + 2);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(gx - 1, 128 - 1, gw + 2, gy - 128 + 2);
       ctx.fillStyle = wall; ctx.fillRect(gx, 128, gw, gy - 128);
       ctx.fillStyle = 'rgba(255,246,220,.14)'; ctx.fillRect(gx, 128, gw * 0.3, gy - 128);
       ctx.fillStyle = 'rgba(40,24,10,.20)'; ctx.fillRect(gx + gw * 0.76, 128, gw * 0.24, gy - 128);
       // 屋根の帯（チームカラー）
-      ctx.fillStyle = t ? t.color : '#8a8578'; ctx.fillRect(gx, 128, gw, 12);
+      ctx.fillStyle = t ? t.color : '#9a8358'; ctx.fillRect(gx, 128, gw, 12);
       ctx.fillStyle = 'rgba(255,255,255,.30)'; ctx.fillRect(gx, 128, gw, 3);
       // シャッター（自チームだけ開いていて、中が見える）
       const sx = gx + 7, sw = gw - 14;
-      ctx.fillStyle = '#2a2d34'; ctx.fillRect(sx - 1, 152, sw + 2, gy - 156);
+      ctx.fillStyle = '#2b2637'; ctx.fillRect(sx - 1, 152, sw + 2, gy - 156);
       if (mine) {
-        ctx.fillStyle = dusk ? '#514634' : '#7c7462';                        // ガレージの中
+        ctx.fillStyle = dusk ? '#4a3c28' : '#96683a';                        // ガレージの中
         ctx.fillRect(sx, 156, sw, gy - 162);
         ctx.fillStyle = 'rgba(255,236,180,.42)';                             // 天井の照明
         ctx.fillRect(sx, 156, sw, 8);
@@ -34338,15 +34376,15 @@ GP.paddock = (function () {
         // 整備中のマシン（上から見た形を簡略化）
         ctx.fillStyle = mix(t.color, -0.18); ctx.fillRect(sx + 7, 196, sw - 14, 26);
         ctx.fillStyle = t.color; ctx.fillRect(sx + 9, 196, sw - 18, 26);
-        ctx.fillStyle = '#17181c';
+        ctx.fillStyle = '#1e1b28';
         ctx.fillRect(sx + 3, 200, 5, 8); ctx.fillRect(sx + sw - 8, 200, 5, 8);
         ctx.fillRect(sx + 3, 214, 5, 8); ctx.fillRect(sx + sw - 8, 214, 5, 8);
-        ctx.fillStyle = '#2b2e36'; ctx.fillRect(sx + 5, 192, sw - 10, 3);    // フロントウイング
+        ctx.fillStyle = '#33313e'; ctx.fillRect(sx + 5, 192, sw - 10, 3);    // フロントウイング
         ctx.fillRect(sx + 6, 224, sw - 12, 3);                               // リアウイング
       } else if ((i * 7 + 3) % 11 < 6) {
         // 半分ほどのガレージは開いていて、中で仕上げているマシンが見える。
         // 「他所の車の間を歩いている」という感じは、ここで作られる
-        ctx.fillStyle = dusk ? '#3b3346' : '#5f5a52';
+        ctx.fillStyle = dusk ? '#3a3348' : '#6e5a3c';
         ctx.fillRect(sx, 156, sw, gy - 162);
         ctx.fillStyle = 'rgba(255,236,180,.30)';                             // 天井の照明
         ctx.fillRect(sx, 156, sw, 6);
@@ -34357,14 +34395,14 @@ GP.paddock = (function () {
           ctx.save();
           ctx.beginPath(); ctx.rect(sx, 156, sw, gy - 162); ctx.clip();
           GP.grid.sideCar(ctx, gx + gw / 2, gy - 16, 0.62,
-                          t ? t.color : '#8a8578', 1, true);
+                          t ? t.color : '#9a8358', 1, true);
           ctx.restore();
         }
         // シャッターは上まで上がっている
-        ctx.fillStyle = dusk ? '#2a2530' : '#8a9098';
+        ctx.fillStyle = dusk ? '#2b2637' : '#8e8399';
         ctx.fillRect(sx, 152, sw, 6);
       } else {
-        ctx.fillStyle = dusk ? '#3a3f4a' : '#9aa0a8';                        // 閉じたシャッター
+        ctx.fillStyle = dusk ? '#464351' : '#b5aabb';                        // 閉じたシャッター
         ctx.fillRect(sx, 156, sw, gy - 162);
         ctx.fillStyle = 'rgba(0,0,0,.16)';
         for (let yy = 158; yy < gy - 8; yy += 4) ctx.fillRect(sx, yy, sw, 1.5);
@@ -34374,7 +34412,7 @@ GP.paddock = (function () {
         ctx.fillStyle = 'rgba(20,14,8,.62)';
         ctx.fillRect(gx + 3, 141, gw - 6, 11);
         ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillStyle = mine ? '#ffe9b0' : '#e2dccc';
+        ctx.fillStyle = mine ? '#fff0b0' : '#e8dfd2';
         ctx.fillText(t.name.slice(0, 5), gx + gw / 2, 149.5);
       }
 
@@ -34383,24 +34421,24 @@ GP.paddock = (function () {
       if (r2() < 0.75) {                                   // 積んだタイヤ
         const tx = gx + 8 + r2() * (gw - 20);
         for (let k = 0; k < 2 + Math.floor(r2() * 2); k++) {
-          ctx.fillStyle = '#15161a'; ctx.fillRect(tx, gy - 8 - k * 4, 13, 5);
-          ctx.fillStyle = k % 2 ? '#2a2c33' : '#22242a'; ctx.fillRect(tx, gy - 8 - k * 4, 13, 1.6);
+          ctx.fillStyle = '#12101a'; ctx.fillRect(tx, gy - 8 - k * 4, 13, 5);
+          ctx.fillStyle = k % 2 ? '#2b2637' : '#23222c'; ctx.fillRect(tx, gy - 8 - k * 4, 13, 1.6);
         }
       }
       if (r2() < 0.6) {                                    // 工具箱
         const bx2 = gx + 6 + r2() * (gw - 22);
-        ctx.fillStyle = '#241a10'; ctx.fillRect(bx2 - 1, gy - 12, 13, 10);
-        ctx.fillStyle = t ? t.color : '#7a8088'; ctx.fillRect(bx2, gy - 11, 11, 8);
+        ctx.fillStyle = '#2e1d10'; ctx.fillRect(bx2 - 1, gy - 12, 13, 10);
+        ctx.fillStyle = t ? t.color : '#7d7a8c'; ctx.fillRect(bx2, gy - 11, 11, 8);
         ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(bx2, gy - 11, 11, 2);
       }
       if (r2() < 0.7) {                                    // 立っているクルー
         const cx2 = gx + 10 + r2() * (gw - 24), cy2 = gy - 4;
-        const cc = t ? t.color : '#7a8088';
+        const cc = t ? t.color : '#7d7a8c';
         ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.fillRect(cx2 - 3, cy2 + 1, 6, 2);
         ctx.fillStyle = mixDark(cc); ctx.fillRect(cx2 - 3, cy2 - 8, 6, 8);
         ctx.fillStyle = cc; ctx.fillRect(cx2 - 3, cy2 - 8, 6, 3.5);
-        ctx.fillStyle = '#e8b98e'; ctx.fillRect(cx2 - 2.4, cy2 - 12, 5, 4);   // 顔
-        ctx.fillStyle = '#3a2718'; ctx.fillRect(cx2 - 2.4, cy2 - 12.6, 5, 2); // 髪
+        ctx.fillStyle = '#edbb90'; ctx.fillRect(cx2 - 2.4, cy2 - 12, 5, 4);   // 顔
+        ctx.fillStyle = '#2e1d10'; ctx.fillRect(cx2 - 2.4, cy2 - 12.6, 5, 2); // 髪
       }
       if (mine) {
         hitBoxes.push({ key: 'garage', x: gx - 2, y: 126, w: gw + 4, h: gy - 124 });
@@ -34411,23 +34449,23 @@ GP.paddock = (function () {
           ctx.fillStyle = 'rgba(20,14,8,.55)';
           ctx.fillRect(gx + gw / 2 - 11, 156, 22, 16);
           ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-          ctx.fillStyle = '#8fe08a';
+          ctx.fillStyle = '#a8cf72';
           ctx.fillText('✓', gx + gw / 2, 168);
         }
       }
     }
 
     /* ---- 手前：パドックの通路 ---- */
-    ctx.fillStyle = dusk ? '#3e3948' : '#a8a294'; ctx.fillRect(0, gy, W, H - gy);
-    ctx.fillStyle = dusk ? '#443f50' : '#b2ac9e';
+    ctx.fillStyle = dusk ? '#3a3348' : '#b5aabb'; ctx.fillRect(0, gy, W, H - gy);
+    ctx.fillStyle = dusk ? '#464351' : '#e8dfd2';
     for (let x = 0; x < W; x += 26) ctx.fillRect(x, gy, 24, H - gy);
     ctx.fillStyle = 'rgba(40,24,10,.28)'; ctx.fillRect(0, gy, W, 3);
 
     /* ---- ドライバーの控え（モーターホーム）---- */
     (function () {
       const x = 58, y = 262, w = 70, h = 42;
-      ctx.fillStyle = '#241a10'; ctx.fillRect(x - 1, y - h - 1, w + 2, h + 2);
-      ctx.fillStyle = dusk ? '#3a3646' : '#e4dccc'; ctx.fillRect(x, y - h, w, h);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(x - 1, y - h - 1, w + 2, h + 2);
+      ctx.fillStyle = dusk ? '#3a3348' : '#e8dfd2'; ctx.fillRect(x, y - h, w, h);
       ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(x, y - h, w * 0.3, h);
       ctx.fillStyle = g2.color; ctx.fillRect(x, y - h, w, 9);
       ctx.fillStyle = 'rgba(255,255,255,.30)'; ctx.fillRect(x, y - h, w, 2.5);
@@ -34437,22 +34475,22 @@ GP.paddock = (function () {
         ctx.fillRect(x + a, y - h + 14, 9, 9);
         ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + a, y - h + 14, 9, 3);
       }
-      ctx.fillStyle = '#5c5548'; ctx.fillRect(x + w - 18, y - 16, 12, 16);   // 入口
-      ctx.fillStyle = '#7a7264'; ctx.fillRect(x + w - 18, y - 16, 12, 2);
+      ctx.fillStyle = '#6e5a3c'; ctx.fillRect(x + w - 18, y - 16, 12, 16);   // 入口
+      ctx.fillStyle = '#7d7a8c'; ctx.fillRect(x + w - 18, y - 16, 12, 2);
       hitBoxes.push({ key: 'drivers', x: x - 2, y: y - h - 2, w: w + 4, h: h + 4 });
     })();
 
     /* ---- タイミングブース ---- */
     (function () {
       const x = 376, y = 258, w = 48, h = 34;
-      ctx.fillStyle = '#241a10'; ctx.fillRect(x - 1, y - h - 1, w + 2, h + 2);
-      ctx.fillStyle = dusk ? '#2e3a44' : '#9ab0bc'; ctx.fillRect(x, y - h, w, h);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(x - 1, y - h - 1, w + 2, h + 2);
+      ctx.fillStyle = dusk ? '#33313e' : '#a3aed0'; ctx.fillRect(x, y - h, w, h);
       ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(x, y - h, w * 0.3, h);
-      ctx.fillStyle = '#3a4650'; ctx.fillRect(x, y - h, w, 8);
+      ctx.fillStyle = '#464351'; ctx.fillRect(x, y - h, w, 8);
       // モニター（順位表が流れている）
-      ctx.fillStyle = '#12161c'; ctx.fillRect(x + 5, y - h + 12, w - 10, 16);
+      ctx.fillStyle = '#12101a'; ctx.fillRect(x + 5, y - h + 12, w - 10, 16);
       for (let r = 0; r < 4; r++) {
-        ctx.fillStyle = r === 0 ? '#ffd24a' : 'rgba(120,220,255,.75)';
+        ctx.fillStyle = r === 0 ? '#f5cf70' : 'rgba(120,220,255,.75)';
         ctx.fillRect(x + 7, y - h + 14 + r * 4, 6 + (r * 7) % 18, 2);
       }
       hitBoxes.push({ key: 'timing', x: x - 2, y: y - h - 2, w: w + 4, h: h + 4 });
@@ -34461,13 +34499,13 @@ GP.paddock = (function () {
     /* ---- コースへの出口 ---- */
     (function () {
       const x = 512, y = 254;
-      ctx.fillStyle = '#241a10'; ctx.fillRect(x - 1, y - 44 - 1, 5, 46);
-      ctx.fillStyle = '#8d8578'; ctx.fillRect(x, y - 44, 3, 44);            // 支柱
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(x - 1, y - 44 - 1, 5, 46);
+      ctx.fillStyle = '#9a8358'; ctx.fillRect(x, y - 44, 3, 44);            // 支柱
       ctx.fillRect(x + 34, y - 44, 3, 44);
-      ctx.fillStyle = '#241a10'; ctx.fillRect(x - 2, y - 48, 41, 12);
-      ctx.fillStyle = dusk ? '#4a3f2a' : '#d8d2c0'; ctx.fillRect(x - 1, y - 47, 39, 10);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(x - 2, y - 48, 41, 12);
+      ctx.fillStyle = dusk ? '#4a3c28' : '#e6d6ae'; ctx.fillRect(x - 1, y - 47, 39, 10);
       ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = dusk ? '#ffe9b0' : '#3a2f1a';
+      ctx.fillStyle = dusk ? '#fff0b0' : '#4a3018';
       ctx.fillText('PIT OUT', x + 18, y - 39);
       // 路面の矢印
       ctx.fillStyle = 'rgba(255,255,255,.45)';
@@ -34479,20 +34517,20 @@ GP.paddock = (function () {
     const tyreStack = (tx, ty, n) => {
       for (let i = 0; i < n; i++) {
         const yy = ty - i * 5;
-        ctx.fillStyle = '#15161a'; ctx.fillRect(tx - 8, yy - 5, 16, 6);
-        ctx.fillStyle = i % 2 ? '#2a2c33' : '#22242a'; ctx.fillRect(tx - 8, yy - 5, 16, 2);
+        ctx.fillStyle = '#12101a'; ctx.fillRect(tx - 8, yy - 5, 16, 6);
+        ctx.fillStyle = i % 2 ? '#2b2637' : '#23222c'; ctx.fillRect(tx - 8, yy - 5, 16, 2);
       }
     };
     tyreStack(160, 318, 4); tyreStack(182, 318, 3);
     tyreStack(330, 316, 3); tyreStack(468, 318, 4);
     const crate = (cx, cy, cw, ch, c) => {
-      ctx.fillStyle = '#241a10'; ctx.fillRect(cx - 1, cy - ch - 1, cw + 2, ch + 2);
+      ctx.fillStyle = '#2e1d10'; ctx.fillRect(cx - 1, cy - ch - 1, cw + 2, ch + 2);
       ctx.fillStyle = c; ctx.fillRect(cx, cy - ch, cw, ch);
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(cx, cy - ch, cw, 2);
     };
     crate(276, 320, 22, 13, g2.color);
-    crate(302, 320, 16, 10, '#6a7078');
-    crate(432, 320, 18, 11, '#6a7078');
+    crate(302, 320, 16, 10, '#6b6178');
+    crate(432, 320, 18, 11, '#6b6178');
 
     /* ---- パドックにいる人 ----
        自チームのドライバーは通路にいて、話しかけると気持ちが聞ける。
@@ -34503,18 +34541,18 @@ GP.paddock = (function () {
       ctx.fillStyle = mix(suit, -0.20); ctx.fillRect(x - 5, y - 21, 10, 21);
       ctx.fillStyle = suit;             ctx.fillRect(x - 5, y - 21, 10, 8);
       ctx.fillStyle = 'rgba(255,255,255,.24)'; ctx.fillRect(x - 5, y - 21, 10, 2);
-      ctx.fillStyle = '#2c3140'; ctx.fillRect(x - 5, y - 9, 4, 9);    // 脚
+      ctx.fillStyle = '#33313e'; ctx.fillRect(x - 5, y - 9, 4, 9);    // 脚
       ctx.fillRect(x + 1, y - 9, 4, 9);
       ctx.fillStyle = face;  ctx.fillRect(x - 4, y - 29, 8, 8);       // 顔
       ctx.fillStyle = hair;  ctx.fillRect(x - 4, y - 30, 8, 4);       // 髪
-      ctx.fillStyle = '#2a2028'; ctx.fillRect(x - 3, y - 26, 2, 2);
-      ctx.fillStyle = '#2a2028'; ctx.fillRect(x + 1, y - 26, 2, 2);
+      ctx.fillStyle = '#23222c'; ctx.fillRect(x - 3, y - 26, 2, 2);
+      ctx.fillStyle = '#23222c'; ctx.fillRect(x + 1, y - 26, 2, 2);
     };
     const py = WALK.y1 - 4;
     const spoke = k => (g2.talked || []).indexOf(k) >= 0;
     const mark = (x, y) => { if (GP.base && GP.base.doneMark) GP.base.doneMark(ctx, x, y); };
     (g2.drivers || []).slice(0, 2).forEach((d, i) => {
-      person(PEOPLE[i].x, py, g2.color, '#3a2718', '#f0c49a');
+      person(PEOPLE[i].x, py, g2.color, '#2e1d10', '#edbb90');
       if (spoke('talk:' + d.id)) mark(PEOPLE[i].x + 12, py - 24);
       hitBoxes.push({ key: PEOPLE[i].key, x: PEOPLE[i].x - 12, y: py - 32, w: 24, h: 34 });
       // ヘルメットを小脇に抱えている
@@ -34524,7 +34562,7 @@ GP.paddock = (function () {
     });
     // ライバルのドライバー。自チームの色ではなく、その人のチームの色を着ている
     visitors(g2).forEach(v => {
-      person(v.spot.x, py, v.team.color, '#2b1d12', '#ecc196');
+      person(v.spot.x, py, v.team.color, '#2e1d10', '#edbb90');
       if (spoke('poach:' + v.team.name + ':' + v.driver.name)) mark(v.spot.x + 12, py - 24);
       // 胸元にチームカラーの識別帯
       ctx.fillStyle = mix(v.team.color, 0.28);
@@ -34532,7 +34570,7 @@ GP.paddock = (function () {
       hitBoxes.push({ key: v.spot.key, x: v.spot.x - 12, y: py - 32, w: 24, h: 34 });
       // 誰なのか分かるように名札を出す
       sign(ctx, v.spot.x, py - 46, v.driver.name,
-           sel === v.spot.key ? '#e04a3f' : '#3f3a30');
+           sel === v.spot.key ? '#e2664a' : '#4a3c28');
     });
 
     // 記者たち（カメラを持っている）
@@ -34540,32 +34578,32 @@ GP.paddock = (function () {
     hitBoxes.push({ key: 'press', x: PEOPLE[2].x - 24, y: py - 34, w: 48, h: 36 });
     [0, 1, 2].forEach(k => {
       const x = PEOPLE[2].x - 14 + k * 14;
-      person(x, py + (k === 1 ? 0 : 2), ['#4a5060', '#3f4652', '#55505e'][k], '#241c14', '#e8bd94');
+      person(x, py + (k === 1 ? 0 : 2), ['#4d455c', '#464351', '#5d5a6b'][k], '#2e1d10', '#edbb90');
       if (k === 1) {
-        ctx.fillStyle = '#1b1e26'; ctx.fillRect(x - 6, py - 26, 12, 7);
-        ctx.fillStyle = '#3a4048'; ctx.fillRect(x + 4, py - 25, 4, 5);
+        ctx.fillStyle = '#1e1b28'; ctx.fillRect(x - 6, py - 26, 12, 7);
+        ctx.fillStyle = '#33313e'; ctx.fillRect(x + 4, py - 25, 4, 5);
         ctx.fillStyle = 'rgba(200,230,255,.7)'; ctx.fillRect(x + 6, py - 24, 2, 3);
       }
     });
 
     /* ---- 看板 ---- */
     sign(ctx, garageX(MINE_AT), 110, '自チームのガレージ',
-         sel === 'garage' ? '#e04a3f' : '#4a2f1a');
+         sel === 'garage' ? '#e2664a' : '#4a3018');
     SPOTS.forEach((sp, i) => {
-      sign(ctx, sp.x, [198, 202, 184][i], sp.label, sel === sp.key ? '#e04a3f' : '#4a2f1a');
+      sign(ctx, sp.x, [198, 202, 184][i], sp.label, sel === sp.key ? '#e2664a' : '#4a3018');
     });
-    sign(ctx, PEOPLE[2].x, WALK.y1 - 40, '記者たち', sel === 'press' ? '#e04a3f' : '#4a2f1a');
+    sign(ctx, PEOPLE[2].x, WALK.y1 - 40, '記者たち', sel === 'press' ? '#e2664a' : '#4a3018');
     if (sel && /^scout(\d+)$/.test(sel)) {
       const i = parseInt(RegExp.$1, 10);
       const t = teams[i];
-      sign(ctx, garageX(i), 110, (t && t.name ? t.name : 'ライバル') + ' を覗く', '#e04a3f');
+      sign(ctx, garageX(i), 110, (t && t.name ? t.name : 'ライバル') + ' を覗く', '#e2664a');
     }
 
     /* ---- 選択中の場所を囲む ---- */
     if (sel) {
       const b = hitBoxes.find(h2 => h2.key === sel);
       if (b) {
-        ctx.strokeStyle = '#fff34d'; ctx.lineWidth = 3;
+        ctx.strokeStyle = '#fff0b0'; ctx.lineWidth = 3;
         ctx.setLineDash([5, 4]);
         ctx.strokeRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6);
         ctx.setLineDash([]);
@@ -34728,7 +34766,7 @@ GP.grid = (function () {
   function tyreStack(c, x, y, col) {
     for (let k = 0; k < 3; k++) {
       const yy = y - k * 5;
-      c.fillStyle = '#1c1c20'; c.fillRect(x - 7, yy - 4, 14, 5);
+      c.fillStyle = '#1e1b28'; c.fillRect(x - 7, yy - 4, 14, 5);
       c.fillStyle = col;       c.fillRect(x - 7, yy - 4, 14, 2);
       c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(x - 6, yy - 4, 12, 1);
     }
@@ -34740,13 +34778,13 @@ GP.grid = (function () {
     c.beginPath(); c.ellipse(x, y, 6, 2.4, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = shade(suit, -0.20); c.fillRect(x - 4, y - 18, 8, 18);
     c.fillStyle = suit;               c.fillRect(x - 4, y - 18, 8, 6);
-    c.fillStyle = '#2c3140'; c.fillRect(x - 4, y - 7, 3, 7); c.fillRect(x + 1, y - 7, 3, 7);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 25, 6, 7);
-    c.fillStyle = '#2b1d12'; c.fillRect(x - 3, y - 26, 6, 3);
+    c.fillStyle = '#33313e'; c.fillRect(x - 4, y - 7, 3, 7); c.fillRect(x + 1, y - 7, 3, 7);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 25, 6, 7);
+    c.fillStyle = '#2e1d10'; c.fillRect(x - 3, y - 26, 6, 3);
     // 手に持つボード
-    c.fillStyle = '#241a10'; c.fillRect(x + 5, y - 22, 13, 11);
-    c.fillStyle = '#f0e6c8'; c.fillRect(x + 6, y - 21, 11, 9);
-    c.fillStyle = '#3a2413'; c.font = 'bold 7px monospace';
+    c.fillStyle = '#4a3018'; c.fillRect(x + 5, y - 22, 13, 11);
+    c.fillStyle = '#e8dfd2'; c.fillRect(x + 6, y - 21, 11, 9);
+    c.fillStyle = '#6b4724'; c.font = 'bold 7px monospace';
     c.fillText(txt || 'P1', x + 7, y - 13);
   }
 
@@ -34756,14 +34794,14 @@ GP.grid = (function () {
     c.beginPath(); c.ellipse(x, y, 7, 2.4, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = shade(suit, -0.22); c.fillRect(x - 5, y - 11, 10, 11);
     c.fillStyle = suit;               c.fillRect(x - 5, y - 11, 10, 4);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 17, 6, 6);
-    c.fillStyle = '#e8c24a'; c.fillRect(x - 4, y - 18, 8, 3);   // キャップ
-    c.fillStyle = '#2c3140'; c.fillRect(x + 4, y - 6, 4, 3);    // 伸ばした腕
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 17, 6, 6);
+    c.fillStyle = '#edb44a'; c.fillRect(x - 4, y - 18, 8, 3);   // キャップ
+    c.fillStyle = '#33313e'; c.fillRect(x + 4, y - 6, 4, 3);    // 伸ばした腕
   }
 
   /* 傘（グリッドの日除け） */
   function parasol(c, x, y, col) {
-    c.fillStyle = '#7a6a52'; c.fillRect(x - 1, y - 28, 2, 28);
+    c.fillStyle = '#8a5a3a'; c.fillRect(x - 1, y - 28, 2, 28);
     c.fillStyle = col; c.beginPath();
     c.moveTo(x - 14, y - 28); c.lineTo(x + 14, y - 28); c.lineTo(x, y - 38); c.closePath(); c.fill();
     c.fillStyle = 'rgba(255,255,255,.30)'; c.fillRect(x - 13, y - 29, 26, 2);
@@ -34773,11 +34811,11 @@ GP.grid = (function () {
   function tvCrew(c, x, y) {
     c.fillStyle = 'rgba(0,0,0,.28)';
     c.beginPath(); c.ellipse(x, y, 6, 2.4, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#2b3a4a'; c.fillRect(x - 4, y - 18, 8, 18);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 25, 6, 7);
-    c.fillStyle = '#1a1a20'; c.fillRect(x - 2, y - 32, 14, 9);   // カメラ本体
-    c.fillStyle = '#3a3a44'; c.fillRect(x + 12, y - 30, 4, 5);   // レンズ
-    c.fillStyle = '#e04a3f'; c.fillRect(x + 10, y - 32, 2, 2);   // 録画ランプ
+    c.fillStyle = '#3a3348'; c.fillRect(x - 4, y - 18, 8, 18);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 25, 6, 7);
+    c.fillStyle = '#1e1b28'; c.fillRect(x - 2, y - 32, 14, 9);   // カメラ本体
+    c.fillStyle = '#4d455c'; c.fillRect(x + 12, y - 30, 4, 5);   // レンズ
+    c.fillStyle = '#e2664a'; c.fillRect(x + 10, y - 32, 2, 2);   // 録画ランプ
   }
 
   /* =========================================================
@@ -34789,7 +34827,7 @@ GP.grid = (function () {
     const L = 78 * s, hub = 9 * s;            // 全長とタイヤ半径
     const x0 = x - L / 2, x1 = x + L / 2;     // 後端・前端
     const dark = shade(color, -0.24), lite = shade(color, 0.18);
-    const ink = dim ? 'rgba(24,22,30,.55)' : '#15151a';
+    const ink = dim ? 'rgba(24,22,30,.55)' : '#12101a';
     c.save();
     // 影。近いものほど長く、濃く落ちる
     c.fillStyle = 'rgba(0,0,0,' + (0.16 + 0.16 * s).toFixed(2) + ')';
@@ -34821,7 +34859,7 @@ GP.grid = (function () {
     R(20, 22, 8, 1.6, lite);
     // コクピットとヘルメット
     R(28, 18, 10, 3, ink);
-    c.fillStyle = dim ? '#6a6070' : '#f0e6c8';
+    c.fillStyle = dim ? '#6b6178' : '#e8dfd2';
     c.fillRect(x0 + 30 * s, y - 22 * s, 7 * s, 5 * s);
     c.fillStyle = ink;
     c.fillRect(x0 + 31 * s, y - 20.5 * s, 5 * s, 2 * s);
@@ -34839,9 +34877,9 @@ GP.grid = (function () {
     const tyre = (tx) => {
       c.fillStyle = ink;
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub, 0, Math.PI * 2); c.fill();
-      c.fillStyle = dim ? '#4a4550' : '#2e2e36';
+      c.fillStyle = dim ? '#464351' : '#33313e';
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.62, 0, Math.PI * 2); c.fill();
-      c.fillStyle = dim ? '#6a6070' : '#b8b8c0';
+      c.fillStyle = dim ? '#6b6178' : '#b5aabb';
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.26, 0, Math.PI * 2); c.fill();
     };
     tyre(11); tyre(60);
@@ -34858,9 +34896,9 @@ GP.grid = (function () {
   function grandstand(c) {
     // 空
     const sky = c.createLinearGradient(0, 0, 0, HORIZON);
-    sky.addColorStop(0, '#7fb0da');
-    sky.addColorStop(0.62, '#b9d2e4');
-    sky.addColorStop(1, '#dfe6ea');
+    sky.addColorStop(0, '#a3aed0');
+    sky.addColorStop(0.62, '#a8c8f2');
+    sky.addColorStop(1, '#e8dfd2');
     c.fillStyle = sky; c.fillRect(0, 0, W, HORIZON);
     // 遠くのビルと木立
     c.fillStyle = 'rgba(126,146,166,.40)';
@@ -34869,23 +34907,23 @@ GP.grid = (function () {
       c.fillRect(x, HORIZON - 42 - h, 26, h + 12);
     }
     // スタンドの屋根
-    c.fillStyle = '#4a4f5c'; c.fillRect(0, HORIZON - 44, W, 7);
-    c.fillStyle = '#5c6270'; c.fillRect(0, HORIZON - 44, W, 2);
+    c.fillStyle = '#4d455c'; c.fillRect(0, HORIZON - 44, W, 7);
+    c.fillStyle = '#5d5a6b'; c.fillRect(0, HORIZON - 44, W, 2);
     // 観客席。段ごとに人の点を打つ
     for (let r = 0; r < 4; r++) {
       const y = HORIZON - 36 + r * 8;
-      c.fillStyle = r % 2 ? '#3c4250' : '#454b59';
+      c.fillStyle = r % 2 ? '#464351' : '#3a3348';
       c.fillRect(0, y, W, 8);
       for (let x = 3 + (r % 2) * 4; x < W; x += 8) {
         const n = (x * 31 + r * 977) % 7;
-        c.fillStyle = ['#e0b48a', '#d8d2c4', '#c86a5a', '#6a86b0', '#d8c05a', '#8ab07a', '#b090c8'][n];
+        c.fillStyle = ['#edbb90', '#e6d6ae', '#e2664a', '#6d7aa8', '#edb44a', '#79ad4a', '#a3aed0'][n];
         c.fillRect(x, y + 1, 3, 4);
       }
     }
     // ピットウォールの広告帯
-    c.fillStyle = '#20242c'; c.fillRect(0, HORIZON - 6, W, 8);
+    c.fillStyle = '#23222c'; c.fillRect(0, HORIZON - 6, W, 8);
     for (let x = 0; x < W; x += 60) {
-      c.fillStyle = ['#b8443c', '#3a6ab0', '#4a8a44', '#c8a340'][(x / 60) % 4];
+      c.fillStyle = ['#c23a2e', '#3a67b8', '#4d8433', '#e0ae3c'][(x / 60) % 4];
       c.fillRect(x + 4, HORIZON - 5, 52, 6);
     }
   }
@@ -34911,7 +34949,7 @@ GP.grid = (function () {
     // 「並んだマシンの間に立っている」という距離感が出る
     c.save();
     c.globalAlpha = 0.94;
-    sideCar(c, 118, H + 6, 1.55, '#1b1b24', 3, true);
+    sideCar(c, 118, H + 6, 1.55, '#1e1b28', 3, true);
     c.restore();
     // 縁にだけ光を乗せて、黒い塊が「マシン」だと分かるようにする
     c.fillStyle = 'rgba(255,226,168,.22)';
@@ -34948,9 +34986,9 @@ GP.grid = (function () {
 
     // ---- 路面。奥ほど暗く、手前ほど明るい ----
     const road = out.createLinearGradient(0, HORIZON, 0, H);
-    road.addColorStop(0, '#3a3a44');
-    road.addColorStop(0.5, '#4e4e5a');
-    road.addColorStop(1, '#57575f');
+    road.addColorStop(0, '#3a3348');
+    road.addColorStop(0.5, '#4d455c');
+    road.addColorStop(1, '#5d5a6b');
     out.fillStyle = road; out.fillRect(0, HORIZON, W, H - HORIZON);
     // 路面のムラ
     for (let y = HORIZON; y < H; y += 5) {
@@ -34964,7 +35002,7 @@ GP.grid = (function () {
       out.fillStyle = mine ? 'rgba(255,210,58,.85)' : 'rgba(255,255,255,.55)';
       out.fillRect(x - w / 2, gy + 2, w, Math.max(1, h * 0.22));
       out.fillRect(x - w / 2, gy + 2, Math.max(1, h * 0.22), h);
-      out.fillStyle = mine ? '#ffd23a' : 'rgba(255,255,255,.72)';
+      out.fillStyle = mine ? '#f5cf70' : 'rgba(255,255,255,.72)';
       out.font = 'bold ' + Math.round(11 * sc) + 'px monospace';
       out.fillText(String(num), x - w / 2 + 3, gy + 2 + h + 9 * sc);
     };
@@ -34996,7 +35034,7 @@ GP.grid = (function () {
       const far2 = [70, 200, 330, 460, 560];
       far2.forEach((x, k) => {
         const e = order[from + 6 + k];
-        sideCar(out, x, dy, ds, e ? e.color : '#6a6a76', e ? (e.gen || 0) : 0, true);
+        sideCar(out, x, dy, ds, e ? e.color : '#6b6178', e ? (e.gen || 0) : 0, true);
       });
       // スタートライン
       for (let x = 40; x < W - 40; x += 10) {
@@ -35045,8 +35083,8 @@ GP.grid = (function () {
     // ---- 歩ける通路 ----
     out.fillStyle = 'rgba(255,255,255,.30)'; out.fillRect(0, WALK.y0 - 10, W, 2);
     const lane = out.createLinearGradient(0, WALK.y0 - 8, 0, H);
-    lane.addColorStop(0, '#5c5a62');
-    lane.addColorStop(1, '#454250');
+    lane.addColorStop(0, '#5d5a6b');
+    lane.addColorStop(1, '#464351');
     out.fillStyle = lane; out.fillRect(0, WALK.y0 - 8, W, H - WALK.y0 + 8);
     for (let x = 0; x < W; x += 24) {
       out.fillStyle = 'rgba(255,255,255,.045)';
@@ -35059,16 +35097,16 @@ GP.grid = (function () {
       const s2 = SPOTS[i];
       if (!s2) return;
       if (q.kind === 'gate') {
-        out.fillStyle = '#241a10'; out.fillRect(s2.x - 22, py - 48, 44, 28);
-        out.fillStyle = '#f0e6c8'; out.fillRect(s2.x - 20, py - 46, 40, 24);
-        out.fillStyle = '#3a2413'; out.font = 'bold 10px monospace';
+        out.fillStyle = '#2e1d10'; out.fillRect(s2.x - 22, py - 48, 44, 28);
+        out.fillStyle = '#e8dfd2'; out.fillRect(s2.x - 20, py - 46, 40, 24);
+        out.fillStyle = '#4a3018'; out.font = 'bold 10px monospace';
         out.fillText('START', s2.x - 17, py - 30);
       } else if (q.kind === 'look') {
-        parasol(out, s2.x, py, '#6a7a8a');
+        parasol(out, s2.x, py, '#7d7a8c');
       }
-      person(out, s2.x, py, q.color || '#8a5a2a', q.done);
+      person(out, s2.x, py, q.color || '#8a5a3a', q.done);
       hitBoxes.push({ key: s2.key, x: s2.x - 17, y: py - 42, w: 34, h: 44 });
-      sign(out, s2.x, py - 40 - (i % 2) * 12, q.label, sel === s2.key ? '#e04a3f' : '#3f3a30');
+      sign(out, s2.x, py - 40 - (i % 2) * 12, q.label, sel === s2.key ? '#e2664a' : '#4a3c28');
     });
 
     lighting(out);
@@ -35082,10 +35120,10 @@ GP.grid = (function () {
     c.fillStyle = shade(suit, -0.20); c.fillRect(x - 5, py - 21, 10, 21);
     c.fillStyle = suit;               c.fillRect(x - 5, py - 21, 10, 8);
     c.fillStyle = 'rgba(255,255,255,.24)'; c.fillRect(x - 5, py - 21, 10, 2);
-    c.fillStyle = '#2c3140'; c.fillRect(x - 5, py - 9, 4, 9); c.fillRect(x + 1, py - 9, 4, 9);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 4, py - 29, 8, 8);
-    c.fillStyle = '#2b1d12'; c.fillRect(x - 4, py - 30, 8, 4);
-    c.fillStyle = '#2a2028'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
+    c.fillStyle = '#33313e'; c.fillRect(x - 5, py - 9, 4, 9); c.fillRect(x + 1, py - 9, 4, 9);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 4, py - 29, 8, 8);
+    c.fillStyle = '#2e1d10'; c.fillRect(x - 4, py - 30, 8, 4);
+    c.fillStyle = '#23222c'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
     c.globalAlpha = 1;
     if (done && GP.base && GP.base.doneMark) GP.base.doneMark(c, x + 12, py - 24);
   }
@@ -35097,7 +35135,7 @@ GP.grid = (function () {
     const w = c.measureText(text).width + 10;
     c.fillStyle = 'rgba(20,16,12,.82)';
     c.fillRect(x - w / 2, y - 9, w, 13);
-    c.fillStyle = color === '#e04a3f' ? '#ffd23a' : '#efe4cf';
+    c.fillStyle = color === '#e2664a' ? '#f5cf70' : '#e8dfd2';
     c.fillText(text, x - w / 2 + 5, y + 1);
   }
 
@@ -35167,8 +35205,8 @@ GP.interior = (function () {
     const walk = opt.walk ? Math.sin(phase * 0.7 + T * 0.9) * opt.walk : 0;
     x += walk;
     const arm = Math.sin(ph * 1.7) * 2.2;
-    const skin = opt.skin || '#e8b98e';
-    const hair = opt.hair || '#3a2718';
+    const skin = opt.skin || '#edbb90';
+    const hair = opt.hair || '#2e1d10';
     GP.gfx.shadow(g, x, y + 2, 11, 0.30);
     // 体。輪郭で締めてから、上に光、下に影
     g.fillStyle = mix(col, -0.42); g.fillRect(x - 5, y - 14 + bob, 10, 15);
@@ -35195,7 +35233,7 @@ GP.interior = (function () {
       g.fillStyle = 'rgba(16,10,6,.55)';
       const w = g.measureText(opt.name).width + 6;
       g.fillRect(x - w / 2, y - 31 + bob, w, 9);
-      g.fillStyle = '#ffeec4'; g.fillText(opt.name, x, y - 24 + bob);
+      g.fillStyle = '#fff0b0'; g.fillText(opt.name, x, y - 24 + bob);
       g.textAlign = 'left';
     }
   }
@@ -35213,11 +35251,11 @@ GP.interior = (function () {
     // 後ろの翼。胴より先に置いて、後ろにあることを見せる
     g.fillStyle = GP.gfx.shade(col, -0.34);
     g.fillRect(x + w * 0.845, fy - wr * 2.60, w * 0.045, wr * 1.50);       // 支柱
-    g.fillStyle = '#23262e';
+    g.fillStyle = '#23222c';
     g.fillRect(x + w * 0.775, fy - wr * 2.78, w * 0.175, wr * 0.30);       // 翼板
     g.fillStyle = col;
     g.fillRect(x + w * 0.785, fy - wr * 2.74, w * 0.155, wr * 0.12);
-    g.fillStyle = '#2b2e36';
+    g.fillStyle = '#33313e';
     g.fillRect(x + w * 0.935, fy - wr * 2.86, w * 0.024, wr * 1.05);       // 翼端板
 
     // 胴。鼻先は低く細く、コクピットで高く、後ろへなだらかに落ちる
@@ -35248,14 +35286,14 @@ GP.interior = (function () {
     g.fillStyle = 'rgba(0,0,0,.30)';
     g.fillRect(x + w * 0.47, fy - wr * 1.42, w * 0.05, wr * 0.55);         // 空気取り入れ口
     // コクピットと、その後ろのロールフープ
-    g.fillStyle = '#15161b';
+    g.fillStyle = '#12101a';
     g.fillRect(x + w * 0.42, fy - wr * 1.98, w * 0.13, wr * 0.62);
     g.fillStyle = line;
     g.fillRect(x + w * 0.555, fy - wr * 2.62, w * 0.055, wr * 0.64);
     g.fillStyle = col;
     g.fillRect(x + w * 0.565, fy - wr * 2.58, w * 0.035, wr * 0.55);
     // 前の翼
-    g.fillStyle = '#23262e';
+    g.fillStyle = '#23222c';
     g.fillRect(x - w * 0.03, fy - wr * 0.44, w * 0.17, wr * 0.30);
     g.fillRect(x - w * 0.045, fy - wr * 0.72, w * 0.022, wr * 0.86);       // 翼端板
     g.fillStyle = col;
@@ -35263,13 +35301,13 @@ GP.interior = (function () {
 
     // 車輪。胴より手前に置く。F1は車輪が胴より高く出ている
     const wheel = (wx) => {
-      g.fillStyle = '#0d0e12';
+      g.fillStyle = '#12101a';
       g.beginPath(); g.arc(wx, fy - wr, wr, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#23262d';
+      g.fillStyle = '#23222c';
       g.beginPath(); g.arc(wx, fy - wr, wr * 0.86, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#9aa3ad';
+      g.fillStyle = '#b5aabb';
       g.beginPath(); g.arc(wx, fy - wr, wr * 0.40, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#5c646e';
+      g.fillStyle = '#5d5a6b';
       g.beginPath(); g.arc(wx, fy - wr, wr * 0.18, 0, Math.PI * 2); g.fill();
       g.fillStyle = 'rgba(255,255,255,.16)';                                // 上から当たる光
       g.beginPath(); g.arc(wx - wr * 0.18, fy - wr * 1.42, wr * 0.30, 0, Math.PI * 2); g.fill();
@@ -35282,9 +35320,9 @@ GP.interior = (function () {
     const grow = Math.min(1, (lv - 1) / 9);
     const floorY = H - 22;
     // 奥の壁
-    g.fillStyle = dusk ? '#3a3350' : '#cfc6b2';
+    g.fillStyle = dusk ? '#3a3348' : '#edbb90';
     g.fillRect(0, 0, W, floorY);
-    g.fillStyle = dusk ? '#443c5c' : '#d8cfbb';
+    g.fillStyle = dusk ? '#4d455c' : '#e6d6ae';
     g.fillRect(0, 0, W, 16 + grow * 10);                       // 天井
     // 壁の帯（チームカラー）
     g.fillStyle = tint;
@@ -35295,8 +35333,8 @@ GP.interior = (function () {
     const lamps = 2 + Math.round(grow * 4);
     for (let i = 0; i < lamps; i++) {
       const x = (i + 0.5) * (W / lamps);
-      g.fillStyle = '#5c5648'; g.fillRect(x - 1, 0, 2, 6);
-      g.fillStyle = '#fff6d8'; g.fillRect(x - 9, 6, 18, 4);
+      g.fillStyle = '#6e5a3c'; g.fillRect(x - 1, 0, 2, 6);
+      g.fillStyle = '#fff8e6'; g.fillRect(x - 9, 6, 18, 4);
       const gl = g.createRadialGradient(x, 10, 2, x, 10, 46);
       gl.addColorStop(0, 'rgba(255,240,190,.28)');
       gl.addColorStop(1, 'rgba(255,240,190,0)');
@@ -35306,8 +35344,8 @@ GP.interior = (function () {
        近くまで寄って見せるようになったので、
        壁が一色のままだと、カメラが流れた先が空になる。
        柱・配管・窓・掲示を並べて、どこを切り取っても何かある状態にする */
-    const wall = dusk ? '#4a4260' : '#c2b9a4';
-    const wall2 = dusk ? '#564c70' : '#cec5ae';
+    const wall = dusk ? '#4d455c' : '#c2ab7c';
+    const wall2 = dusk ? '#445078' : '#edbb90';
     // 柱
     for (let x = 26; x < W; x += 92) {
       g.fillStyle = wall; g.fillRect(x, 14, 13, floorY - 14);
@@ -35317,19 +35355,19 @@ GP.interior = (function () {
     /* 配管・窓・掲示は、切り取る帯（床から112px）の中に入る高さに置く。
        天井際に置いていたころは、寄って見ると壁が一色のままだった   */
     const pipeY = floorY - 100;
-    g.fillStyle = dusk ? '#6b5a3a' : '#8d8470';
+    g.fillStyle = dusk ? '#6e5a3c' : '#9a8358';
     g.fillRect(0, pipeY, W, 6);
     g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, pipeY, W, 2);
     for (let x = 12; x < W; x += 74) {
-      g.fillStyle = dusk ? '#7e6a44' : '#9a9080'; g.fillRect(x, pipeY - 2, 7, 10);
+      g.fillStyle = dusk ? '#96683a' : '#c2ab7c'; g.fillRect(x, pipeY - 2, 7, 10);
     }
     // 高い窓。夜は中の灯りが映るだけ
     for (let x = 52; x < W; x += 92) {
-      g.fillStyle = dusk ? '#20304a' : '#9fb6c9';
+      g.fillStyle = dusk ? '#2b2c50' : '#a3aed0';
       g.fillRect(x, floorY - 84, 42, 22);
       g.fillStyle = dusk ? 'rgba(150,190,255,.16)' : 'rgba(255,255,255,.34)';
       g.fillRect(x + 2, floorY - 82, 38, 8);
-      g.fillStyle = dusk ? '#2a2030' : '#7d7364';
+      g.fillStyle = dusk ? '#23222c' : '#7d7a8c';
       g.fillRect(x + 20, floorY - 84, 2, 22);
     }
     // 掲示物。チームカラーの札を等間隔で
@@ -35340,9 +35378,9 @@ GP.interior = (function () {
       g.fillRect(x + 4, floorY - 48, 11, 2);
     }
     // 床
-    g.fillStyle = dusk ? '#4a4258' : '#9a9384';
+    g.fillStyle = dusk ? '#4d455c' : '#9a8358';
     g.fillRect(0, floorY, W, H - floorY);
-    g.fillStyle = dusk ? '#544b64' : '#a49d8c';
+    g.fillStyle = dusk ? '#6b6178' : '#c08f5c';
     for (let x = 0; x < W; x += 30) g.fillRect(x, floorY, 28, H - floorY);
     g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(0, floorY, W, 2);
     // 床の区画線。奥行きが出る
@@ -35363,26 +35401,26 @@ GP.interior = (function () {
       for (let i = 0; i < n; i++) {                     // 部品棚
         const x = 14 + i * 42;
         GP.gfx.shadow(g, x + 17, fy + 1, 38, 0.24);
-        GP.gfx.prop(g, x, fy - 46, 34, 46, '#5e5344');
+        GP.gfx.prop(g, x, fy - 46, 34, 46, '#6e5a3c');
         for (let r = 0; r < 3; r++) {
-          g.fillStyle = '#3a3229'; g.fillRect(x + 2, fy - 42 + r * 14, 30, 2);
+          g.fillStyle = '#4a3018'; g.fillRect(x + 2, fy - 42 + r * 14, 30, 2);
           for (let c = 0; c < 3; c++) {
             if (((i + r + c) % 4) === 0) continue;
-            g.fillStyle = ['#8d94a0', col, '#a08860'][(i + c) % 3];
+            g.fillStyle = ['#8e8399', col, '#9a8358'][(i + c) % 3];
             g.fillRect(x + 4 + c * 10, fy - 40 + r * 14, 7, 8);
           }
         }
       }
       // 組み立て中のマシン
       const cx = W - 150, cy = fy - 8;
-      GP.gfx.prop(g, cx - 4, cy - 4, 118, 6, '#3a3d46');                   // 作業台
-      g.fillStyle = '#2b2e36';
+      GP.gfx.prop(g, cx - 4, cy - 4, 118, 6, '#464351');                   // 作業台
+      g.fillStyle = '#33313e';
       g.fillRect(cx + 4, cy + 2, 6, 6); g.fillRect(cx + 96, cy + 2, 6, 6);
       carSide(g, cx + 6, cy - 4, 100, col);
       if (lv >= 5) {                                                        // ロボットアーム
-        g.fillStyle = '#f0a020'; g.fillRect(cx + 44, fy - 74, 6, 30);
+        g.fillStyle = '#e0ae3c'; g.fillRect(cx + 44, fy - 74, 6, 30);
         g.fillRect(cx + 44, fy - 76, 26, 6);
-        g.fillStyle = '#8d94a0'; g.fillRect(cx + 66, fy - 74, 5, 14);
+        g.fillStyle = '#8e8399'; g.fillRect(cx + 66, fy - 74, 5, 14);
       }
       return [30, 100, W - 60].slice(0, 1 + Math.floor(lv / 3));
     },
@@ -35391,13 +35429,13 @@ GP.interior = (function () {
     tunnel: function (g, lv, col, fy, rnd) {
       const r = 30 + lv * 2.2;
       const cx = 96, cy = fy - r - 6;
-      g.fillStyle = '#3a3f48';
+      g.fillStyle = '#464351';
       g.beginPath(); g.arc(cx, cy, r + 5, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#8d959e';
+      g.fillStyle = '#8e8399';
       g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#5f6870';
+      g.fillStyle = '#6b6178';
       g.beginPath(); g.arc(cx, cy, r * 0.42, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#dfe6ec'; g.lineWidth = 3;                           // 羽根
+      g.strokeStyle = '#e8dfd2'; g.lineWidth = 3;                           // 羽根
       for (let a = 0; a < 5; a++) {
         const t = a * Math.PI * 2 / 5 + lv * 0.4 + T * 2.4;
         g.beginPath(); g.moveTo(cx, cy);
@@ -35413,14 +35451,14 @@ GP.interior = (function () {
       }
       // 模型を載せた台
       const mx = W - 150;
-      g.fillStyle = '#3a3d46'; g.fillRect(mx, fy - 10, 110, 10);
+      g.fillStyle = '#464351'; g.fillRect(mx, fy - 10, 110, 10);
       g.fillStyle = mix(col, -0.16); g.fillRect(mx + 18, fy - 24, 70, 12);
       g.fillStyle = col; g.fillRect(mx + 22, fy - 24, 62, 9);
-      g.fillStyle = '#17181c';
+      g.fillStyle = '#1e1b28';
       g.fillRect(mx + 24, fy - 16, 11, 6); g.fillRect(mx + 72, fy - 16, 11, 6);
       if (lv >= 4) {                                                        // 計測モニター
-        g.fillStyle = '#241a10'; g.fillRect(W - 62, fy - 74, 52, 36);
-        g.fillStyle = '#12202c'; g.fillRect(W - 60, fy - 72, 48, 32);
+        g.fillStyle = '#2e1d10'; g.fillRect(W - 62, fy - 74, 52, 36);
+        g.fillStyle = '#2b2637'; g.fillRect(W - 60, fy - 72, 48, 32);
         for (let i = 0; i < 4; i++) {
           g.fillStyle = 'rgba(120,220,255,.7)';
           g.fillRect(W - 56, fy - 66 + i * 7, 10 + (i * 11) % 30, 3);
@@ -35434,8 +35472,8 @@ GP.interior = (function () {
       const n = lv >= 7 ? 2 : 1;
       for (let i = 0; i < n; i++) {
         const x = 70 + i * 170;
-        g.fillStyle = '#3a3d46'; g.fillRect(x - 44, fy - 12, 88, 12);       // 土台
-        g.fillStyle = '#4e535e';
+        g.fillStyle = '#464351'; g.fillRect(x - 44, fy - 12, 88, 12);       // 土台
+        g.fillStyle = '#5d5a6b';
         for (let k = 0; k < 3; k++) g.fillRect(x - 34 + k * 30, fy - 30, 8, 20);  // 脚
         g.fillStyle = mix(col, -0.22);
         g.beginPath(); g.ellipse(x, fy - 34, 42, 26, 0, Math.PI, 0); g.fill();
@@ -35443,17 +35481,17 @@ GP.interior = (function () {
         g.beginPath(); g.ellipse(x, fy - 34, 38, 22, 0, Math.PI, 0); g.fill();
         g.fillStyle = 'rgba(255,255,255,.28)';
         g.beginPath(); g.ellipse(x - 10, fy - 42, 16, 8, 0, Math.PI, 0); g.fill();
-        g.fillStyle = '#12202c'; g.fillRect(x - 26, fy - 36, 52, 14);        // 画面
+        g.fillStyle = '#1e1b28'; g.fillRect(x - 26, fy - 36, 52, 14);        // 画面
         g.fillStyle = 'rgba(120,220,255,.55)';
         g.fillRect(x - 22, fy - 32, 44, 2); g.fillRect(x - 18, fy - 28, 30, 2);
       }
       if (lv >= 3) {                                                         // 解析席
         const dx = W - 130;
-        g.fillStyle = '#4a4034'; g.fillRect(dx, fy - 22, 96, 22);
-        g.fillStyle = '#241a10'; g.fillRect(dx + 8, fy - 52, 36, 30);
-        g.fillStyle = '#12202c'; g.fillRect(dx + 10, fy - 50, 32, 26);
-        g.fillStyle = '#241a10'; g.fillRect(dx + 52, fy - 46, 36, 24);
-        g.fillStyle = '#12202c'; g.fillRect(dx + 54, fy - 44, 32, 20);
+        g.fillStyle = '#4a3c28'; g.fillRect(dx, fy - 22, 96, 22);
+        g.fillStyle = '#2e1d10'; g.fillRect(dx + 8, fy - 52, 36, 30);
+        g.fillStyle = '#1e1b28'; g.fillRect(dx + 10, fy - 50, 32, 26);
+        g.fillStyle = '#2e1d10'; g.fillRect(dx + 52, fy - 46, 36, 24);
+        g.fillStyle = '#1e1b28'; g.fillRect(dx + 54, fy - 44, 32, 20);
         for (let i = 0; i < 3; i++) {
           g.fillStyle = 'rgba(120,220,255,.6)';
           g.fillRect(dx + 13, fy - 46 + i * 7, 8 + (i * 9) % 20, 2);
@@ -35467,10 +35505,10 @@ GP.interior = (function () {
       const desks = Math.min(4, 1 + Math.floor(lv / 2.6));
       for (let i = 0; i < desks; i++) {
         const x = 24 + i * 74;
-        g.fillStyle = '#4a4034'; g.fillRect(x, fy - 20, 58, 20);
-        g.fillStyle = '#5e5344'; g.fillRect(x + 1, fy - 19, 56, 6);
-        g.fillStyle = '#241a10'; g.fillRect(x + 12, fy - 40, 26, 20);        // 画面
-        g.fillStyle = '#12202c'; g.fillRect(x + 14, fy - 38, 22, 16);
+        g.fillStyle = '#4a3c28'; g.fillRect(x, fy - 20, 58, 20);
+        g.fillStyle = '#6e5a3c'; g.fillRect(x + 1, fy - 19, 56, 6);
+        g.fillStyle = '#2e1d10'; g.fillRect(x + 12, fy - 40, 26, 20);        // 画面
+        g.fillStyle = '#1e1b28'; g.fillRect(x + 14, fy - 38, 22, 16);
         g.fillStyle = 'rgba(120,220,255,.55)'; g.fillRect(x + 16, fy - 34, 14, 2);
       }
       // スポンサーの壁
@@ -35478,17 +35516,17 @@ GP.interior = (function () {
       for (let i = 0; i < cols; i++) {
         const x = W - 180 + (i % 4) * 44, y = 40 + Math.floor(i / 4) * 22;
         if (x > W - 12) continue;
-        g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#ffc93c', '#b06fd0'][i % 5];
+        g.fillStyle = ['#e2664a', '#3a67b8', '#47a046', '#f5cf70', '#9a7ad8'][i % 5];
         g.fillRect(x, y, 38, 16);
         g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x, y, 38, 4);
       }
       if (lv >= 4) {                                                         // トロフィー棚
         const tx = W - 96;
-        g.fillStyle = '#4a4034'; g.fillRect(tx, fy - 46, 84, 46);
-        g.fillStyle = '#3a3229'; g.fillRect(tx + 2, fy - 30, 80, 2);
+        g.fillStyle = '#4a3c28'; g.fillRect(tx, fy - 46, 84, 46);
+        g.fillStyle = '#4a3018'; g.fillRect(tx + 2, fy - 30, 80, 2);
         for (let i = 0; i < Math.min(6, lv - 2); i++) {
           const x = tx + 8 + (i % 3) * 26, y = fy - (i < 3 ? 32 : 4);
-          g.fillStyle = '#e8c24a'; g.fillRect(x, y - 12, 10, 8);
+          g.fillStyle = '#edb44a'; g.fillRect(x, y - 12, 10, 8);
           g.fillRect(x + 3, y - 5, 4, 4); g.fillRect(x, y - 2, 10, 2);
           g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(x + 1, y - 11, 3, 6);
         }
@@ -35498,8 +35536,8 @@ GP.interior = (function () {
 
     /* ユース：カートと黒板 */
     youth: function (g, lv, col, fy, rnd) {
-      g.fillStyle = '#241a10'; g.fillRect(20, 40, 130, 62);                  // 黒板
-      g.fillStyle = '#26463a'; g.fillRect(23, 43, 124, 56);
+      g.fillStyle = '#2e1d10'; g.fillRect(20, 40, 130, 62);                  // 黒板
+      g.fillStyle = '#1d3d22'; g.fillRect(23, 43, 124, 56);
       g.fillStyle = 'rgba(255,255,255,.55)';
       g.fillRect(32, 54, 60, 2); g.fillRect(32, 62, 88, 2); g.fillRect(32, 70, 44, 2);
       // コースの見取り図らしきもの
@@ -35509,12 +35547,12 @@ GP.interior = (function () {
       const karts = Math.min(4, 1 + Math.floor(lv / 2.6));
       for (let i = 0; i < karts; i++) {
         const x = 190 + i * 78, y = fy - 4;
-        g.fillStyle = '#17181c';
+        g.fillStyle = '#1e1b28';
         g.fillRect(x - 18, y - 8, 8, 8); g.fillRect(x + 10, y - 8, 8, 8);
         g.fillStyle = mix(col, -0.18); g.fillRect(x - 14, y - 16, 30, 9);
-        g.fillStyle = ['#e04a3f', '#3a7ad9', '#4ea63f', '#ffc93c'][i % 4];
+        g.fillStyle = ['#e2664a', '#3a67b8', '#47a046', '#f5cf70'][i % 4];
         g.fillRect(x - 12, y - 16, 26, 6);
-        g.fillStyle = '#2b2e36'; g.fillRect(x - 4, y - 22, 8, 6);            // シート
+        g.fillStyle = '#33313e'; g.fillRect(x - 4, y - 22, 8, 6);            // シート
         g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(x - 12, y - 16, 26, 2);
       }
       return [170, 260, 350].slice(0, 1 + Math.floor(lv / 3));
@@ -35523,15 +35561,15 @@ GP.interior = (function () {
     /* ピット設備：ジャッキに載ったマシンと工具棚 */
     pit: function (g, lv, col, fy, rnd) {
       const cx = 150, cy = fy - 16;
-      GP.gfx.prop(g, cx - 66, cy + 8, 132, 8, '#3a3d46');                   // ジャッキ
-      g.fillStyle = '#2b2e36';
+      GP.gfx.prop(g, cx - 66, cy + 8, 132, 8, '#464351');                   // ジャッキ
+      g.fillStyle = '#33313e';
       g.fillRect(cx - 58, cy + 2, 10, 8); g.fillRect(cx + 48, cy + 2, 10, 8);
       carSide(g, cx - 60, cy + 8, 120, col);
       // 外したタイヤ
       for (let i = 0; i < 4; i++) {
         const x = cx - 40 + i * 26;
-        g.fillStyle = '#17181c'; g.fillRect(x, fy - 8, 18, 8);
-        g.fillStyle = '#2a2c33'; g.fillRect(x, fy - 8, 18, 2);
+        g.fillStyle = '#1e1b28'; g.fillRect(x, fy - 8, 18, 8);
+        g.fillStyle = '#2b2637'; g.fillRect(x, fy - 8, 18, 2);
       }
       // 工具棚。レベルで増える
       const cab = Math.min(4, 1 + Math.floor(lv / 2.6));
@@ -35562,8 +35600,8 @@ GP.interior = (function () {
     pit:     ['mechanic', 'strategist'],
     meeting: ['engineer', 'strategist', 'analyst']
   };
-  const SKINS = ['#e8b98e', '#d8a074', '#c08a5e', '#f0c9a4'];
-  const HAIRS = ['#3a2718', '#1c1410', '#6b4a2a', '#8a6a3a', '#2a2a2e'];
+  const SKINS = ['#edbb90', '#d49a70', '#c08f5c', '#e6d6ae'];
+  const HAIRS = ['#2e1d10', '#12101a', '#6b4724', '#96683a', '#2b2637'];
   function peopleOf(g2, key) {
     const want = WHO[key] || [];
     if (!want.length) return [];
@@ -35603,7 +35641,7 @@ GP.interior = (function () {
     const g = dusk ? GP.fx.begin() : base;
     GP.gfx.begin(g, PX);
     const rnd = seeded(lv * 31 + key.length * 7);
-    const col = g2.color || '#e04a3f';
+    const col = g2.color || '#e2664a';
 
     const fy = room(g, lv, col, dusk);
     const spots = (ROOMS[key] || ROOMS.factory)(g, lv, col, fy, rnd);
@@ -35640,7 +35678,7 @@ GP.interior = (function () {
     const tag = 'Lv.' + lv + ' / 10' + (crew.length ? '　👥' + crew.length : '');
     const tw = g.measureText(tag).width + 10;
     g.fillStyle = 'rgba(20,14,8,.62)'; g.fillRect(6, 6, tw, 14);
-    g.fillStyle = '#ffe9b0'; g.fillText(tag, 11, 16);
+    g.fillStyle = '#fff0b0'; g.fillText(tag, 11, 16);
 
     /* 帯として小さく出すようになったので、前の沈んだ調子だと
        人も機材も見えない。にじみを強めて、四隅の落としを弱める */

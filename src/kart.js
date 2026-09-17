@@ -354,7 +354,7 @@ GP.kart = (function () {
     g.imageSmoothingEnabled = false;
 
     // 地面
-    g.fillStyle = opts && opts.dusk ? '#20301e' : '#3f6b35';
+    g.fillStyle = opts && opts.dusk ? '#1b3a1c' : '#2e6b33';
     g.fillRect(0, 0, W, H);
     // 芝の斑
     g.fillStyle = 'rgba(255,255,255,0.03)';
@@ -375,9 +375,9 @@ GP.kart = (function () {
       g.strokeStyle = style; g.stroke();
     };
     g.lineWidth = HALF * 2 + 6; g.lineJoin = 'round'; g.lineCap = 'round';
-    edge(0, '#b9a98d');                       // 縁石まわりの砂
+    edge(0, '#c2ab7c');                       // 縁石まわりの砂
     g.lineWidth = HALF * 2;
-    edge(0, opts && opts.dusk ? '#2e2e33' : '#4a4a50');   // 路面
+    edge(0, opts && opts.dusk ? '#33313e' : '#464351');   // 路面
     // 縁石（赤白）
     g.lineWidth = 3;
     for (let side = -1; side <= 1; side += 2) {
@@ -389,7 +389,7 @@ GP.kart = (function () {
         g.moveTo(a.x + a.nx * w, a.y + a.ny * w);
         const b = atS(p.cum[i] + 8);
         g.lineTo(b.x + b.nx * w, b.y + b.ny * w);
-        g.strokeStyle = ((i / 6) | 0) % 2 ? '#e05a4a' : '#f2ece2';
+        g.strokeStyle = ((i / 6) | 0) % 2 ? '#e2664a' : '#fff8e6';
         g.stroke();
       }
     }
@@ -404,7 +404,7 @@ GP.kart = (function () {
       g.translate(a.x, a.y);
       g.rotate(Math.atan2(a.dy, a.dx));
       for (let i = -HALF; i < HALF; i += 6) {
-        g.fillStyle = ((i / 6) | 0) % 2 ? '#f2ece2' : '#2a2a2e';
+        g.fillStyle = ((i / 6) | 0) % 2 ? '#fff8e6' : '#2b2637';
         g.fillRect(-2, i, 4, 6);
       }
       g.restore();
@@ -423,11 +423,11 @@ GP.kart = (function () {
       g.fillStyle = k.color; g.fillRect(-6, -4, 12, 8);
       g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(-6, -4, 3, 8);
       // タイヤ
-      g.fillStyle = '#22201e';
+      g.fillStyle = '#23222c';
       g.fillRect(-5, -6, 3, 2); g.fillRect(-5, 4, 3, 2);
       g.fillRect(2, -6, 3, 2);  g.fillRect(2, 4, 3, 2);
       if (k.you) {                                   // 自分の車には矢印
-        g.fillStyle = '#ffe066';
+        g.fillStyle = '#ffd98a';
         g.fillRect(-1, -10, 2, 3);
         g.fillRect(-3, -8, 6, 2);
       }
@@ -438,7 +438,7 @@ GP.kart = (function () {
         g.textAlign = 'center';
         g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.65)';
         g.strokeText(k.name, x, y - 11);
-        g.fillStyle = k.you ? '#ffe066' : '#d8ffd0';
+        g.fillStyle = k.you ? '#ffd98a' : '#fff0b0';
         g.fillText(k.name, x, y - 11);
       }
     });

@@ -79,7 +79,7 @@ GP.grid = (function () {
   function tyreStack(c, x, y, col) {
     for (let k = 0; k < 3; k++) {
       const yy = y - k * 5;
-      c.fillStyle = '#1c1c20'; c.fillRect(x - 7, yy - 4, 14, 5);
+      c.fillStyle = '#1e1b28'; c.fillRect(x - 7, yy - 4, 14, 5);
       c.fillStyle = col;       c.fillRect(x - 7, yy - 4, 14, 2);
       c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(x - 6, yy - 4, 12, 1);
     }
@@ -91,13 +91,13 @@ GP.grid = (function () {
     c.beginPath(); c.ellipse(x, y, 6, 2.4, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = shade(suit, -0.20); c.fillRect(x - 4, y - 18, 8, 18);
     c.fillStyle = suit;               c.fillRect(x - 4, y - 18, 8, 6);
-    c.fillStyle = '#2c3140'; c.fillRect(x - 4, y - 7, 3, 7); c.fillRect(x + 1, y - 7, 3, 7);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 25, 6, 7);
-    c.fillStyle = '#2b1d12'; c.fillRect(x - 3, y - 26, 6, 3);
+    c.fillStyle = '#33313e'; c.fillRect(x - 4, y - 7, 3, 7); c.fillRect(x + 1, y - 7, 3, 7);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 25, 6, 7);
+    c.fillStyle = '#2e1d10'; c.fillRect(x - 3, y - 26, 6, 3);
     // 手に持つボード
-    c.fillStyle = '#241a10'; c.fillRect(x + 5, y - 22, 13, 11);
-    c.fillStyle = '#f0e6c8'; c.fillRect(x + 6, y - 21, 11, 9);
-    c.fillStyle = '#3a2413'; c.font = 'bold 7px monospace';
+    c.fillStyle = '#4a3018'; c.fillRect(x + 5, y - 22, 13, 11);
+    c.fillStyle = '#e8dfd2'; c.fillRect(x + 6, y - 21, 11, 9);
+    c.fillStyle = '#6b4724'; c.font = 'bold 7px monospace';
     c.fillText(txt || 'P1', x + 7, y - 13);
   }
 
@@ -107,14 +107,14 @@ GP.grid = (function () {
     c.beginPath(); c.ellipse(x, y, 7, 2.4, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = shade(suit, -0.22); c.fillRect(x - 5, y - 11, 10, 11);
     c.fillStyle = suit;               c.fillRect(x - 5, y - 11, 10, 4);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 17, 6, 6);
-    c.fillStyle = '#e8c24a'; c.fillRect(x - 4, y - 18, 8, 3);   // キャップ
-    c.fillStyle = '#2c3140'; c.fillRect(x + 4, y - 6, 4, 3);    // 伸ばした腕
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 17, 6, 6);
+    c.fillStyle = '#edb44a'; c.fillRect(x - 4, y - 18, 8, 3);   // キャップ
+    c.fillStyle = '#33313e'; c.fillRect(x + 4, y - 6, 4, 3);    // 伸ばした腕
   }
 
   /* 傘（グリッドの日除け） */
   function parasol(c, x, y, col) {
-    c.fillStyle = '#7a6a52'; c.fillRect(x - 1, y - 28, 2, 28);
+    c.fillStyle = '#8a5a3a'; c.fillRect(x - 1, y - 28, 2, 28);
     c.fillStyle = col; c.beginPath();
     c.moveTo(x - 14, y - 28); c.lineTo(x + 14, y - 28); c.lineTo(x, y - 38); c.closePath(); c.fill();
     c.fillStyle = 'rgba(255,255,255,.30)'; c.fillRect(x - 13, y - 29, 26, 2);
@@ -124,11 +124,11 @@ GP.grid = (function () {
   function tvCrew(c, x, y) {
     c.fillStyle = 'rgba(0,0,0,.28)';
     c.beginPath(); c.ellipse(x, y, 6, 2.4, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#2b3a4a'; c.fillRect(x - 4, y - 18, 8, 18);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 3, y - 25, 6, 7);
-    c.fillStyle = '#1a1a20'; c.fillRect(x - 2, y - 32, 14, 9);   // カメラ本体
-    c.fillStyle = '#3a3a44'; c.fillRect(x + 12, y - 30, 4, 5);   // レンズ
-    c.fillStyle = '#e04a3f'; c.fillRect(x + 10, y - 32, 2, 2);   // 録画ランプ
+    c.fillStyle = '#3a3348'; c.fillRect(x - 4, y - 18, 8, 18);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 3, y - 25, 6, 7);
+    c.fillStyle = '#1e1b28'; c.fillRect(x - 2, y - 32, 14, 9);   // カメラ本体
+    c.fillStyle = '#4d455c'; c.fillRect(x + 12, y - 30, 4, 5);   // レンズ
+    c.fillStyle = '#e2664a'; c.fillRect(x + 10, y - 32, 2, 2);   // 録画ランプ
   }
 
   /* =========================================================
@@ -140,7 +140,7 @@ GP.grid = (function () {
     const L = 78 * s, hub = 9 * s;            // 全長とタイヤ半径
     const x0 = x - L / 2, x1 = x + L / 2;     // 後端・前端
     const dark = shade(color, -0.24), lite = shade(color, 0.18);
-    const ink = dim ? 'rgba(24,22,30,.55)' : '#15151a';
+    const ink = dim ? 'rgba(24,22,30,.55)' : '#12101a';
     c.save();
     // 影。近いものほど長く、濃く落ちる
     c.fillStyle = 'rgba(0,0,0,' + (0.16 + 0.16 * s).toFixed(2) + ')';
@@ -172,7 +172,7 @@ GP.grid = (function () {
     R(20, 22, 8, 1.6, lite);
     // コクピットとヘルメット
     R(28, 18, 10, 3, ink);
-    c.fillStyle = dim ? '#6a6070' : '#f0e6c8';
+    c.fillStyle = dim ? '#6b6178' : '#e8dfd2';
     c.fillRect(x0 + 30 * s, y - 22 * s, 7 * s, 5 * s);
     c.fillStyle = ink;
     c.fillRect(x0 + 31 * s, y - 20.5 * s, 5 * s, 2 * s);
@@ -190,9 +190,9 @@ GP.grid = (function () {
     const tyre = (tx) => {
       c.fillStyle = ink;
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub, 0, Math.PI * 2); c.fill();
-      c.fillStyle = dim ? '#4a4550' : '#2e2e36';
+      c.fillStyle = dim ? '#464351' : '#33313e';
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.62, 0, Math.PI * 2); c.fill();
-      c.fillStyle = dim ? '#6a6070' : '#b8b8c0';
+      c.fillStyle = dim ? '#6b6178' : '#b5aabb';
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.26, 0, Math.PI * 2); c.fill();
     };
     tyre(11); tyre(60);
@@ -209,9 +209,9 @@ GP.grid = (function () {
   function grandstand(c) {
     // 空
     const sky = c.createLinearGradient(0, 0, 0, HORIZON);
-    sky.addColorStop(0, '#7fb0da');
-    sky.addColorStop(0.62, '#b9d2e4');
-    sky.addColorStop(1, '#dfe6ea');
+    sky.addColorStop(0, '#a3aed0');
+    sky.addColorStop(0.62, '#a8c8f2');
+    sky.addColorStop(1, '#e8dfd2');
     c.fillStyle = sky; c.fillRect(0, 0, W, HORIZON);
     // 遠くのビルと木立
     c.fillStyle = 'rgba(126,146,166,.40)';
@@ -220,23 +220,23 @@ GP.grid = (function () {
       c.fillRect(x, HORIZON - 42 - h, 26, h + 12);
     }
     // スタンドの屋根
-    c.fillStyle = '#4a4f5c'; c.fillRect(0, HORIZON - 44, W, 7);
-    c.fillStyle = '#5c6270'; c.fillRect(0, HORIZON - 44, W, 2);
+    c.fillStyle = '#4d455c'; c.fillRect(0, HORIZON - 44, W, 7);
+    c.fillStyle = '#5d5a6b'; c.fillRect(0, HORIZON - 44, W, 2);
     // 観客席。段ごとに人の点を打つ
     for (let r = 0; r < 4; r++) {
       const y = HORIZON - 36 + r * 8;
-      c.fillStyle = r % 2 ? '#3c4250' : '#454b59';
+      c.fillStyle = r % 2 ? '#464351' : '#3a3348';
       c.fillRect(0, y, W, 8);
       for (let x = 3 + (r % 2) * 4; x < W; x += 8) {
         const n = (x * 31 + r * 977) % 7;
-        c.fillStyle = ['#e0b48a', '#d8d2c4', '#c86a5a', '#6a86b0', '#d8c05a', '#8ab07a', '#b090c8'][n];
+        c.fillStyle = ['#edbb90', '#e6d6ae', '#e2664a', '#6d7aa8', '#edb44a', '#79ad4a', '#a3aed0'][n];
         c.fillRect(x, y + 1, 3, 4);
       }
     }
     // ピットウォールの広告帯
-    c.fillStyle = '#20242c'; c.fillRect(0, HORIZON - 6, W, 8);
+    c.fillStyle = '#23222c'; c.fillRect(0, HORIZON - 6, W, 8);
     for (let x = 0; x < W; x += 60) {
-      c.fillStyle = ['#b8443c', '#3a6ab0', '#4a8a44', '#c8a340'][(x / 60) % 4];
+      c.fillStyle = ['#c23a2e', '#3a67b8', '#4d8433', '#e0ae3c'][(x / 60) % 4];
       c.fillRect(x + 4, HORIZON - 5, 52, 6);
     }
   }
@@ -262,7 +262,7 @@ GP.grid = (function () {
     // 「並んだマシンの間に立っている」という距離感が出る
     c.save();
     c.globalAlpha = 0.94;
-    sideCar(c, 118, H + 6, 1.55, '#1b1b24', 3, true);
+    sideCar(c, 118, H + 6, 1.55, '#1e1b28', 3, true);
     c.restore();
     // 縁にだけ光を乗せて、黒い塊が「マシン」だと分かるようにする
     c.fillStyle = 'rgba(255,226,168,.22)';
@@ -299,9 +299,9 @@ GP.grid = (function () {
 
     // ---- 路面。奥ほど暗く、手前ほど明るい ----
     const road = out.createLinearGradient(0, HORIZON, 0, H);
-    road.addColorStop(0, '#3a3a44');
-    road.addColorStop(0.5, '#4e4e5a');
-    road.addColorStop(1, '#57575f');
+    road.addColorStop(0, '#3a3348');
+    road.addColorStop(0.5, '#4d455c');
+    road.addColorStop(1, '#5d5a6b');
     out.fillStyle = road; out.fillRect(0, HORIZON, W, H - HORIZON);
     // 路面のムラ
     for (let y = HORIZON; y < H; y += 5) {
@@ -315,7 +315,7 @@ GP.grid = (function () {
       out.fillStyle = mine ? 'rgba(255,210,58,.85)' : 'rgba(255,255,255,.55)';
       out.fillRect(x - w / 2, gy + 2, w, Math.max(1, h * 0.22));
       out.fillRect(x - w / 2, gy + 2, Math.max(1, h * 0.22), h);
-      out.fillStyle = mine ? '#ffd23a' : 'rgba(255,255,255,.72)';
+      out.fillStyle = mine ? '#f5cf70' : 'rgba(255,255,255,.72)';
       out.font = 'bold ' + Math.round(11 * sc) + 'px monospace';
       out.fillText(String(num), x - w / 2 + 3, gy + 2 + h + 9 * sc);
     };
@@ -347,7 +347,7 @@ GP.grid = (function () {
       const far2 = [70, 200, 330, 460, 560];
       far2.forEach((x, k) => {
         const e = order[from + 6 + k];
-        sideCar(out, x, dy, ds, e ? e.color : '#6a6a76', e ? (e.gen || 0) : 0, true);
+        sideCar(out, x, dy, ds, e ? e.color : '#6b6178', e ? (e.gen || 0) : 0, true);
       });
       // スタートライン
       for (let x = 40; x < W - 40; x += 10) {
@@ -396,8 +396,8 @@ GP.grid = (function () {
     // ---- 歩ける通路 ----
     out.fillStyle = 'rgba(255,255,255,.30)'; out.fillRect(0, WALK.y0 - 10, W, 2);
     const lane = out.createLinearGradient(0, WALK.y0 - 8, 0, H);
-    lane.addColorStop(0, '#5c5a62');
-    lane.addColorStop(1, '#454250');
+    lane.addColorStop(0, '#5d5a6b');
+    lane.addColorStop(1, '#464351');
     out.fillStyle = lane; out.fillRect(0, WALK.y0 - 8, W, H - WALK.y0 + 8);
     for (let x = 0; x < W; x += 24) {
       out.fillStyle = 'rgba(255,255,255,.045)';
@@ -410,16 +410,16 @@ GP.grid = (function () {
       const s2 = SPOTS[i];
       if (!s2) return;
       if (q.kind === 'gate') {
-        out.fillStyle = '#241a10'; out.fillRect(s2.x - 22, py - 48, 44, 28);
-        out.fillStyle = '#f0e6c8'; out.fillRect(s2.x - 20, py - 46, 40, 24);
-        out.fillStyle = '#3a2413'; out.font = 'bold 10px monospace';
+        out.fillStyle = '#2e1d10'; out.fillRect(s2.x - 22, py - 48, 44, 28);
+        out.fillStyle = '#e8dfd2'; out.fillRect(s2.x - 20, py - 46, 40, 24);
+        out.fillStyle = '#4a3018'; out.font = 'bold 10px monospace';
         out.fillText('START', s2.x - 17, py - 30);
       } else if (q.kind === 'look') {
-        parasol(out, s2.x, py, '#6a7a8a');
+        parasol(out, s2.x, py, '#7d7a8c');
       }
-      person(out, s2.x, py, q.color || '#8a5a2a', q.done);
+      person(out, s2.x, py, q.color || '#8a5a3a', q.done);
       hitBoxes.push({ key: s2.key, x: s2.x - 17, y: py - 42, w: 34, h: 44 });
-      sign(out, s2.x, py - 40 - (i % 2) * 12, q.label, sel === s2.key ? '#e04a3f' : '#3f3a30');
+      sign(out, s2.x, py - 40 - (i % 2) * 12, q.label, sel === s2.key ? '#e2664a' : '#4a3c28');
     });
 
     lighting(out);
@@ -433,10 +433,10 @@ GP.grid = (function () {
     c.fillStyle = shade(suit, -0.20); c.fillRect(x - 5, py - 21, 10, 21);
     c.fillStyle = suit;               c.fillRect(x - 5, py - 21, 10, 8);
     c.fillStyle = 'rgba(255,255,255,.24)'; c.fillRect(x - 5, py - 21, 10, 2);
-    c.fillStyle = '#2c3140'; c.fillRect(x - 5, py - 9, 4, 9); c.fillRect(x + 1, py - 9, 4, 9);
-    c.fillStyle = '#eec49a'; c.fillRect(x - 4, py - 29, 8, 8);
-    c.fillStyle = '#2b1d12'; c.fillRect(x - 4, py - 30, 8, 4);
-    c.fillStyle = '#2a2028'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
+    c.fillStyle = '#33313e'; c.fillRect(x - 5, py - 9, 4, 9); c.fillRect(x + 1, py - 9, 4, 9);
+    c.fillStyle = '#edbb90'; c.fillRect(x - 4, py - 29, 8, 8);
+    c.fillStyle = '#2e1d10'; c.fillRect(x - 4, py - 30, 8, 4);
+    c.fillStyle = '#23222c'; c.fillRect(x - 3, py - 26, 2, 2); c.fillRect(x + 1, py - 26, 2, 2);
     c.globalAlpha = 1;
     if (done && GP.base && GP.base.doneMark) GP.base.doneMark(c, x + 12, py - 24);
   }
@@ -448,7 +448,7 @@ GP.grid = (function () {
     const w = c.measureText(text).width + 10;
     c.fillStyle = 'rgba(20,16,12,.82)';
     c.fillRect(x - w / 2, y - 9, w, 13);
-    c.fillStyle = color === '#e04a3f' ? '#ffd23a' : '#efe4cf';
+    c.fillStyle = color === '#e2664a' ? '#f5cf70' : '#e8dfd2';
     c.fillText(text, x - w / 2 + 5, y + 1);
   }
 

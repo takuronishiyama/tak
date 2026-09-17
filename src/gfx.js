@@ -112,5 +112,37 @@ GP.gfx = (function () {
     g.restore();
   }
 
-  return { fit, sheet, begin, dpr, fontAt, prop, shadow, shade };
+  /* ---------- 色見本 ----------
+     絵のなかの色は、以前は 442 種類あった。その場その場で
+     16進数を決めていたので、同じ「暗い茶色」が何通りもあり、
+     部屋ごと・画面ごとに色の調子がばらついていた。
+
+     ここに並べたのが、絵で使ってよい色のすべて。
+     組ごとに 暗い→明るい の5段で、段の番号がそのまま奥行きになる
+     （0 が影、2 が地の色、4 が光）。迷ったら 2 を使う。         */
+  const pal = {
+    n:      ['#12101a', '#1e1b28', '#2b2637', '#3a3348', '#4d455c',
+             '#6b6178', '#8e8399', '#b5aabb', '#e8dfd2', '#fff8e6'],
+    red:    ['#5c1a1c', '#8f2a24', '#c23a2e', '#e2664a', '#ff9c78'],
+    amber:  ['#5e3a12', '#92601c', '#c98a22', '#edb44a', '#ffd98a'],
+    green:  ['#0f2a18', '#1d3d22', '#2e6b33', '#47a046', '#78c96a', '#b2e79a'],
+    cyan:   ['#123a44', '#1d6272', '#2e96ab', '#5cc4d6', '#9ee8f2'],
+    blue:   ['#17284e', '#26417d', '#3a67b8', '#6b9ae0', '#a8c8f2'],
+    violet: ['#2a1c46', '#452c72', '#6b47ab', '#9a7ad8', '#c8aef0'],
+    pink:   ['#4a1838', '#7a2a5c', '#b03f86', '#d873b0', '#f2aed6'],
+    gold:   ['#7a5a18', '#b08424', '#e0ae3c', '#f5cf70', '#fff0b0'],
+    grass:  ['#0e2614', '#1b3a1c', '#2f5c26', '#4d8433', '#79ad4a', '#a8cf72'],
+    road:   ['#23222c', '#33313e', '#464351', '#5d5a6b', '#7d7a8c'],
+    skin:   ['#8a5a3a', '#b07a52', '#d49a70', '#edbb90', '#ffd9b8'],
+    sky:    ['#1a1b33', '#2b2c50', '#445078', '#6d7aa8', '#a3aed0'],
+    sand:   ['#4a3c28', '#6e5a3c', '#9a8358', '#c2ab7c', '#e6d6ae'],
+    brown:  ['#2e1d10', '#4a3018', '#6b4724', '#96683a', '#c08f5c']
+  };
+  /* 組と段で引く。pal('brown', 2) のように使う */
+  function col(name, step) {
+    const v = pal[name] || pal.n;
+    return v[Math.max(0, Math.min(v.length - 1, step | 0))];
+  }
+
+  return { fit, sheet, begin, dpr, fontAt, prop, shadow, shade, pal, col };
 })();

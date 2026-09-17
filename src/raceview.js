@@ -403,9 +403,9 @@ GP.raceview = (function () {
           g.rotate(Math.atan2(nm.dy, nm.dx));
           g.fillStyle = 'rgba(0,0,0,.34)';                     // 落ち影
           g.fillRect(-1.5, -2.8 + sgn * 0.8, 4.4, 6);
-          g.fillStyle = red ? '#b32b1c' : '#c9c2ad';           // 側面（段差）
+          g.fillStyle = red ? '#c23a2e' : '#edbb90';           // 側面（段差）
           g.fillRect(-1.5, -2.8, 4.2, 6);
-          g.fillStyle = red ? '#e8402c' : '#f6f2e4';           // 上面
+          g.fillStyle = red ? '#e2664a' : '#fff8e6';           // 上面
           g.fillRect(-1.5, -2.8, 4.2, 4.4);
           g.fillStyle = red ? 'rgba(255,150,120,.55)'          // 上面の照り
                             : 'rgba(255,255,255,.65)';
@@ -431,11 +431,11 @@ GP.raceview = (function () {
         i = (i + 1) % poly.n; steps++;
       }
       const s0 = normalAt(L.from);
-      g.fillStyle = '#5abeff'; g.strokeStyle = '#1a3a5a'; g.lineWidth = 1;
+      g.fillStyle = '#5cc4d6'; g.strokeStyle = '#123a44'; g.lineWidth = 1;
       g.save();
       g.translate(s0.x + s0.nx * 20, s0.y + s0.ny * 20);
       g.fillRect(-7, -4, 14, 8); g.strokeRect(-7, -4, 14, 8);
-      g.fillStyle = '#0a2036'; g.font = 'bold 6px sans-serif'; g.textAlign = 'center';
+      g.fillStyle = '#1a1b33'; g.font = 'bold 6px sans-serif'; g.textAlign = 'center';
       g.fillText('DRS', 0, 2);
       g.restore();
     }
@@ -458,10 +458,10 @@ GP.raceview = (function () {
         g.setLineDash([]);
       };
 
-      lane(20, 13, '#4c4f56');                       // 縁の締まり
-      lane(20, 11, '#6d7078');                       // 路面
+      lane(20, 13, '#4d455c');                       // 縁の締まり
+      lane(20, 11, '#6b6178');                       // 路面
       lane(20, 11.5, 'rgba(255,255,255,.42)');       // いったん白で塗り
-      lane(20, 10, '#6d7078');                       //   中を戻して両端に白線を残す
+      lane(20, 10, '#6b6178');                       //   中を戻して両端に白線を残す
       lane(20, 1.2, 'rgba(255,255,255,.30)', [4, 5]);// 中央の破線
 
       // ピットボックス（各チームの作業区画）
@@ -478,8 +478,8 @@ GP.raceview = (function () {
       }
 
       // ピットウォール（コース側の壁）。上面に照りを入れて立たせる
-      lane(14, 2.6, '#8d8578');
-      lane(13.4, 1.2, '#d8d2c0');
+      lane(14, 2.6, '#9a8358');
+      lane(13.4, 1.2, '#e6d6ae');
 
       // 入口と出口の白線
       [0, pit.len].forEach(k => {
@@ -496,8 +496,8 @@ GP.raceview = (function () {
         g.save();
         g.translate(nm.x + nm.nx * pit.side * 28, nm.y + nm.ny * pit.side * 28);
         g.rotate(Math.atan2(nm.dy, nm.dx));
-        g.fillStyle = '#efe6cc'; g.fillRect(-3, -4, 6, 8);
-        g.fillStyle = '#4a2f1a'; g.fillRect(-3, -4, 6, 1);
+        g.fillStyle = '#e8dfd2'; g.fillRect(-3, -4, 6, 8);
+        g.fillStyle = '#4a3018'; g.fillRect(-3, -4, 6, 1);
         g.restore();
       }
     }
@@ -519,11 +519,11 @@ GP.raceview = (function () {
     // セクター標識
     (res.geo.sectors || []).forEach((sc, si) => {
       const nm = normalAt(sc.from % poly.n);
-      const col = ['#f0a020', '#4ea63f', '#3a7ad9'][si];
+      const col = ['#e0ae3c', '#47a046', '#3a67b8'][si];
       g.save();
       g.translate(nm.x, nm.y); g.rotate(Math.atan2(nm.dy, nm.dx));
       g.fillStyle = col; g.fillRect(-1.5, -13, 3, 26);
-      g.fillStyle = '#fffdf3'; g.strokeStyle = '#4a2f1a'; g.lineWidth = 1;
+      g.fillStyle = '#fff8e6'; g.strokeStyle = '#4a3018'; g.lineWidth = 1;
       g.fillRect(-6, -21, 12, 8); g.strokeRect(-6, -21, 12, 8);
       g.fillStyle = col; g.font = 'bold 7px sans-serif'; g.textAlign = 'center';
       g.fillText('S' + (si + 1), 0, -15);
@@ -542,7 +542,7 @@ GP.raceview = (function () {
       const w2 = g.measureText(label).width + 8;
       g.fillStyle = 'rgba(74,47,26,.82)';
       g.fillRect(cxm - w2 / 2, cym - 6, w2, 11);
-      g.fillStyle = '#ffeec4';
+      g.fillStyle = '#fff0b0';
       g.fillText(label, cxm, cym + 2);
     });
 
@@ -551,7 +551,7 @@ GP.raceview = (function () {
     g.save();
     g.translate(sf.x, sf.y); g.rotate(Math.atan2(sf.dy, sf.dx));
     for (let i = -12; i < 12; i += 4) {
-      g.fillStyle = ((i / 4) % 2 === 0) ? '#fff' : '#333';
+      g.fillStyle = ((i / 4) % 2 === 0) ? '#fff8e6' : '#33313e';
       g.fillRect(-3, i, 6, 4);
     }
     g.restore();
@@ -590,12 +590,12 @@ GP.raceview = (function () {
         g.translate(sx, sy);
         g.rotate(Math.atan2(nm.dy, nm.dx));
         g.scale(1, -pit.side);            // コース側がつねに手前になるように向きを揃える
-        const CROWD = ['#e8564a', '#4a86e0', '#f5aa2a', '#58b84a', '#d0d0d8', '#c060c8'];
-        g.fillStyle = '#3a352c'; g.fillRect(-6, -10, 12, 20);      // 土台の影
+        const CROWD = ['#e2664a', '#6b9ae0', '#edb44a', '#79ad4a', '#e8dfd2', '#d873b0'];
+        g.fillStyle = '#4a3018'; g.fillRect(-6, -10, 12, 20);      // 土台の影
         // 段。奥へ行くほど明るくして、せり上がって見せる
         for (let t = 0; t < 4; t++) {
           const yy = -9 + t * 4.6;
-          g.fillStyle = ['#6e6a5e', '#7c786a', '#8a8576', '#989282'][t];
+          g.fillStyle = ['#6e5a3c', '#7d7a8c', '#9a8358', '#c2ab7c'][t];
           g.fillRect(-5, yy, 10, 4.4);
           g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(-5, yy, 10, 0.9);  // 段の影
           for (let c2 = 0; c2 < 4; c2++) {                                // 観客
@@ -605,9 +605,9 @@ GP.raceview = (function () {
           }
         }
         // 屋根と、それを支える柱
-        g.fillStyle = '#4a4a52'; g.fillRect(-6.5, 6.4, 1.3, 3.4); g.fillRect(5.2, 6.4, 1.3, 3.4);
-        g.fillStyle = '#5e5f68'; g.fillRect(-7, 8.6, 14, 3.2);
-        g.fillStyle = '#767781'; g.fillRect(-7, 8.6, 14, 1.1);
+        g.fillStyle = '#464351'; g.fillRect(-6.5, 6.4, 1.3, 3.4); g.fillRect(5.2, 6.4, 1.3, 3.4);
+        g.fillStyle = '#5d5a6b'; g.fillRect(-7, 8.6, 14, 3.2);
+        g.fillStyle = '#7d7a8c'; g.fillRect(-7, 8.6, 14, 1.1);
         g.restore();
       }
     }
@@ -621,9 +621,9 @@ GP.raceview = (function () {
         pool.addColorStop(0, 'rgba(255,236,190,.30)');
         pool.addColorStop(1, 'rgba(255,236,190,0)');
         g.fillStyle = pool; g.beginPath(); g.arc(lx, ly, 34, 0, Math.PI * 2); g.fill();
-        g.fillStyle = '#3a3f52'; g.fillRect(lx - 1, ly - 9, 2, 9);
-        g.fillStyle = '#fff2c8'; g.fillRect(lx - 2, ly - 12, 5, 3);
-        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff2c8' });
+        g.fillStyle = '#464351'; g.fillRect(lx - 1, ly - 9, 2, 9);
+        g.fillStyle = '#fff0b0'; g.fillRect(lx - 2, ly - 12, 5, 3);
+        emissive.push({ x: lx - 2, y: ly - 12, w: 5, h: 3, c: '#fff0b0' });
       }
     }
 
@@ -652,8 +652,8 @@ GP.raceview = (function () {
     if (theme === 'street') {
       // ---- 街の建物：屋上のパラペットと設備、階ごとの窓 ----
       const w = 15 + Math.round(rnd() * 13), h = 18 + Math.round(rnd() * 20);
-      const wall = ['#8e94a0', '#7c828e', '#9aa0ac', '#87909e'][Math.floor(rnd() * 4)];
-      box(x - w / 2, y - h, w, h, wall, '#3f444c');
+      const wall = ['#8e8399', '#7d7a8c', '#b5aabb', '#6b6178'][Math.floor(rnd() * 4)];
+      box(x - w / 2, y - h, w, h, wall, '#464351');
       g.fillStyle = 'rgba(255,255,255,.10)';                    // 左側に光を当てる
       g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.28), h);
       for (let a = 2; a < w - 3; a += 5) {                      // 窓
@@ -664,20 +664,20 @@ GP.raceview = (function () {
           g.fillRect(x - w / 2 + a, y - h + b + 3, 3, 1);       // 窓の下の影
         }
       }
-      g.fillStyle = '#5c626c'; g.fillRect(x - w / 2, y - h, w, 2.5);          // 屋上
-      g.fillStyle = '#6e7580'; g.fillRect(x - w / 2 - 1, y - h - 1.5, w + 2, 1.8);  // パラペット
+      g.fillStyle = '#5d5a6b'; g.fillRect(x - w / 2, y - h, w, 2.5);          // 屋上
+      g.fillStyle = '#7d7a8c'; g.fillRect(x - w / 2 - 1, y - h - 1.5, w + 2, 1.8);  // パラペット
       if (rnd() < 0.6) {                                                     // 屋上の設備
-        g.fillStyle = '#4e545e'; g.fillRect(x - 2, y - h - 3.5, 5, 3);
-        g.fillStyle = '#666d78'; g.fillRect(x - 2, y - h - 3.5, 5, 1);
+        g.fillStyle = '#464351'; g.fillRect(x - 2, y - h - 3.5, 5, 3);
+        g.fillStyle = '#6b6178'; g.fillRect(x - 2, y - h - 3.5, 5, 1);
       }
 
     } else if (theme === 'neon') {
       // ---- 夜の街：高い塔と、光る看板 ----
       const w = 12 + Math.round(rnd() * 12), h = 22 + Math.round(rnd() * 26);
-      box(x - w / 2, y - h, w, h, '#2a3050', '#141931');
+      box(x - w / 2, y - h, w, h, '#2b2c50', '#1a1b33');
       g.fillStyle = 'rgba(120,150,220,.12)';
       g.fillRect(x - w / 2, y - h, Math.max(2, w * 0.3), h);
-      const nc = ['#ff4fa0', '#4fd8ff', '#ffe14f', '#8cff6a', '#c66aff'][Math.floor(rnd() * 5)];
+      const nc = ['#d873b0', '#5cc4d6', '#f5cf70', '#b2e79a', '#9a7ad8'][Math.floor(rnd() * 5)];
       // 縦看板と横看板
       g.fillStyle = nc;
       g.fillRect(x - w / 2 + 2, y - h + 3, w - 4, 3);
@@ -696,10 +696,10 @@ GP.raceview = (function () {
           g.fillRect(x - w / 2 + a, y - h + b, 2, 2);
         }
       }
-      g.fillStyle = '#3b4266'; g.fillRect(x - w / 2, y - h, w, 2);
+      g.fillStyle = '#4d455c'; g.fillRect(x - w / 2, y - h, w, 2);
       if (rnd() < 0.45) {                                       // 塔の頂の航空障害灯
-        g.fillStyle = '#ff5a4a'; g.fillRect(x - 0.8, y - h - 3, 1.6, 3);
-        emissive.push({ x: x - 0.8, y: y - h - 3, w: 1.6, h: 3, c: '#ff5a4a' });
+        g.fillStyle = '#e2664a'; g.fillRect(x - 0.8, y - h - 3, 1.6, 3);
+        emissive.push({ x: x - 0.8, y: y - h - 3, w: 1.6, h: 3, c: '#e2664a' });
       }
 
     } else if (theme === 'desert') {
@@ -707,29 +707,29 @@ GP.raceview = (function () {
       if (k < 0.42) {
         // ヤシの木：幹に節を入れ、葉を左右に垂らす
         const th2 = 16 + Math.round(rnd() * 8);
-        g.fillStyle = '#4a3620'; g.fillRect(x - 2, y - th2, 4, th2);
-        g.fillStyle = '#7a5c32'; g.fillRect(x - 1, y - th2, 2, th2);
-        g.fillStyle = '#5c4526';
+        g.fillStyle = '#4a3018'; g.fillRect(x - 2, y - th2, 4, th2);
+        g.fillStyle = '#7a5a18'; g.fillRect(x - 1, y - th2, 2, th2);
+        g.fillStyle = '#6b4724';
         for (let b = 3; b < th2; b += 4) g.fillRect(x - 2, y - th2 + b, 4, 1);
         const leaf = (dx, dy, lw, lh, c) => { g.fillStyle = c; g.fillRect(x + dx, y - th2 + dy, lw, lh); };
-        leaf(-12, -1, 10, 3, '#255c2e'); leaf(2, -1, 10, 3, '#255c2e');
-        leaf(-9, -4, 8, 3, '#2f6b38');   leaf(1, -4, 8, 3, '#2f6b38');
-        leaf(-6, -7, 5, 3, '#3f8a4a');   leaf(1, -7, 5, 3, '#3f8a4a');
-        leaf(-2, -9, 4, 3, '#4a9a55');
-        g.fillStyle = '#8a6a3a'; g.fillRect(x - 2, y - th2 - 1, 4, 2);   // 実
+        leaf(-12, -1, 10, 3, '#2f5c26'); leaf(2, -1, 10, 3, '#2f5c26');
+        leaf(-9, -4, 8, 3, '#2e6b33');   leaf(1, -4, 8, 3, '#2e6b33');
+        leaf(-6, -7, 5, 3, '#4d8433');   leaf(1, -7, 5, 3, '#4d8433');
+        leaf(-2, -9, 4, 3, '#47a046');
+        g.fillStyle = '#96683a'; g.fillRect(x - 2, y - th2 - 1, 4, 2);   // 実
       } else if (k < 0.72) {
         // 岩：面ごとに明るさを変えて塊に見せる
         const w = 13 + Math.round(rnd() * 8), h = 8 + Math.round(rnd() * 5);
-        box(x - w / 2, y - h, w, h, '#9a8358', '#635033');
-        g.fillStyle = '#b9a077'; g.fillRect(x - w / 2 + 1, y - h + 1, w * 0.55, h * 0.45);
-        g.fillStyle = '#c8b189'; g.fillRect(x - w / 2 + 2, y - h + 1, w * 0.3, 2);
-        g.fillStyle = '#7a6544'; g.fillRect(x - w / 2, y - 2, w, 2);
+        box(x - w / 2, y - h, w, h, '#9a8358', '#6b4724');
+        g.fillStyle = '#c2ab7c'; g.fillRect(x - w / 2 + 1, y - h + 1, w * 0.55, h * 0.45);
+        g.fillStyle = '#e6d6ae'; g.fillRect(x - w / 2 + 2, y - h + 1, w * 0.3, 2);
+        g.fillStyle = '#8a5a3a'; g.fillRect(x - w / 2, y - 2, w, 2);
       } else {
         // サボテン
         const h = 12 + Math.round(rnd() * 8);
-        g.fillStyle = '#2f6b38'; g.fillRect(x - 2.5, y - h, 5, h);
-        g.fillStyle = '#3f8a4a'; g.fillRect(x - 1.5, y - h, 2, h);
-        g.fillStyle = '#2f6b38';
+        g.fillStyle = '#2e6b33'; g.fillRect(x - 2.5, y - h, 5, h);
+        g.fillStyle = '#4d8433'; g.fillRect(x - 1.5, y - h, 2, h);
+        g.fillStyle = '#2e6b33';
         g.fillRect(x - 7, y - h * 0.7, 4.5, 3); g.fillRect(x - 7, y - h * 0.7, 3, 7);
         g.fillRect(x + 2.5, y - h * 0.55, 4.5, 3); g.fillRect(x + 4, y - h * 0.55, 3, 6);
       }
@@ -737,11 +737,11 @@ GP.raceview = (function () {
     } else if (theme === 'alpine') {
       // ---- 針葉樹：三角を重ねて円錐にする ----
       const h = 20 + Math.round(rnd() * 10);
-      g.fillStyle = '#43301a'; g.fillRect(x - 1.5, y - 5, 3, 5);
+      g.fillStyle = '#4a3018'; g.fillRect(x - 1.5, y - 5, 3, 5);
       for (let t = 0; t < 4; t++) {
         const yy = y - 5 - t * (h / 5.2), hw = 8 - t * 1.7;
-        g.fillStyle = '#123a1c'; g.fillRect(x - hw - 1, yy - h / 4.4, hw * 2 + 2, h / 4.4 + 1);
-        g.fillStyle = ['#1d5228', '#236030', '#2a6d37', '#31793d'][t];
+        g.fillStyle = '#1b3a1c'; g.fillRect(x - hw - 1, yy - h / 4.4, hw * 2 + 2, h / 4.4 + 1);
+        g.fillStyle = ['#2f5c26', '#4d8433', '#2e6b33', '#47a046'][t];
         g.fillRect(x - hw, yy - h / 4.4, hw * 2, h / 4.4);
         g.fillStyle = 'rgba(210,235,255,.30)';                   // 左肩の雪
         g.fillRect(x - hw, yy - h / 4.4, hw * 0.7, 1.6);
@@ -752,12 +752,12 @@ GP.raceview = (function () {
       const dark = theme === 'forest';
       const sc = 0.85 + rnd() * 0.5;
       const cw = Math.round(9 * sc), ch = Math.round(11 * sc);
-      g.fillStyle = '#3a2712'; g.fillRect(x - 2, y - 8, 4, 8);          // 幹
-      g.fillStyle = '#6a4a2a'; g.fillRect(x - 1, y - 8, 2, 8);
-      const c0 = dark ? '#0f2d14' : '#173a1a';
-      const c1 = dark ? '#1f5024' : '#2a6b2b';
-      const c2 = dark ? '#2e6e33' : '#3f8c3c';
-      const c3 = dark ? '#3f8543' : '#59a94f';
+      g.fillStyle = '#2e1d10'; g.fillRect(x - 2, y - 8, 4, 8);          // 幹
+      g.fillStyle = '#6b4724'; g.fillRect(x - 1, y - 8, 2, 8);
+      const c0 = dark ? '#1b3a1c' : '#2f5c26';
+      const c1 = dark ? '#4d8433' : '#2e6b33';
+      const c2 = dark ? '#47a046' : '#79ad4a';
+      const c3 = dark ? '#4d8433' : '#78c96a';
       g.fillStyle = c0;                                                 // 輪郭
       g.fillRect(x - cw - 1, y - 7 - ch, cw * 2 + 2, ch + 1);
       g.fillRect(x - cw * 0.6, y - 10 - ch, cw * 1.2, 4);
@@ -770,7 +770,7 @@ GP.raceview = (function () {
       g.fillRect(x - cw + 1.5, y - 5.5 - ch, cw * 0.7, ch * 0.3);
       g.fillRect(x - cw * 0.4, y - 9 - ch, cw * 0.5, 2.5);
       if (!dark && rnd() < 0.25) {                                      // たまに花や実
-        g.fillStyle = '#f0d84a';
+        g.fillStyle = '#f5cf70';
         g.fillRect(x - cw * 0.2, y - 4 - ch, 1.6, 1.6);
         g.fillRect(x + cw * 0.4, y - 6 - ch, 1.6, 1.6);
       }
@@ -897,7 +897,7 @@ GP.raceview = (function () {
     ctx.scale(cam.z, cam.z);
     ctx.translate(-cam.x, -cam.y);
 
-    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#7fbf5a'; ctx.fillRect(0, 0, w, h); }
+    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#78c96a'; ctx.fillRect(0, 0, w, h); }
 
     // 雨演出
     if (wet) {
@@ -929,9 +929,9 @@ GP.raceview = (function () {
         drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
         ctx.save();
         ctx.translate(px, py - 13);
-        ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+        ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 2;
         ctx.fillRect(-13, -7, 26, 12); ctx.strokeRect(-13, -7, 26, 12);
-        ctx.fillStyle = '#4a2f1a'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#4a3018'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('PIT ' + left.toFixed(1), 0, 2);
         ctx.restore();
         continue;
@@ -1017,7 +1017,7 @@ GP.raceview = (function () {
       const tw = ctx.measureText(cam.label).width + 14;
       ctx.fillStyle = 'rgba(40,24,10,.78)';
       ctx.fillRect(8, 8, tw, 20);
-      ctx.fillStyle = '#ffeec4';
+      ctx.fillStyle = '#fff0b0';
       ctx.fillText(cam.label, 15, 22);
     }
     // 最終ラップ
@@ -1048,31 +1048,31 @@ GP.raceview = (function () {
     ctx.fillStyle = 'rgba(0,0,0,.32)';
     ctx.fillRect(-13, -6, 27, 14);
     // タイヤ
-    ctx.fillStyle = '#15151a';
+    ctx.fillStyle = '#12101a';
     ctx.fillRect(-10, -9, 6, 3); ctx.fillRect(-10, 6, 6, 3);
     ctx.fillRect(5, -9, 6, 3);   ctx.fillRect(5, 6, 6, 3);
     // 車体（黒い縁取りをつけて、路面から浮かせる）
-    ctx.fillStyle = '#15151a'; ctx.fillRect(-14, -8, 28, 16);
-    ctx.fillStyle = '#e8e8ec'; ctx.fillRect(-13, -7, 26, 14);
-    ctx.fillStyle = '#fbfbfd'; ctx.fillRect(-13, -7, 26, 4);
-    ctx.fillStyle = '#c2c2ca'; ctx.fillRect(-13, 4, 26, 3);
+    ctx.fillStyle = '#12101a'; ctx.fillRect(-14, -8, 28, 16);
+    ctx.fillStyle = '#e8dfd2'; ctx.fillRect(-13, -7, 26, 14);
+    ctx.fillStyle = '#fff8e6'; ctx.fillRect(-13, -7, 26, 4);
+    ctx.fillStyle = '#a8c8f2'; ctx.fillRect(-13, 4, 26, 3);
     // 側面の帯（赤／黄のツートン）
-    ctx.fillStyle = '#e04a3f'; ctx.fillRect(-13, -1, 26, 2);
-    ctx.fillStyle = '#ffc93c'; ctx.fillRect(-13, 1, 26, 1);
+    ctx.fillStyle = '#e2664a'; ctx.fillRect(-13, -1, 26, 2);
+    ctx.fillStyle = '#f5cf70'; ctx.fillRect(-13, 1, 26, 1);
     // 窓（前後）と屋根
-    ctx.fillStyle = '#243040'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
-    ctx.fillStyle = '#3d5068'; ctx.fillRect(3, -5, 6, 3);
-    ctx.fillStyle = '#c6c6ce'; ctx.fillRect(-13, -6, 4, 12);    // トランク
-    ctx.fillStyle = '#d2d2da'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
+    ctx.fillStyle = '#33313e'; ctx.fillRect(3, -5, 6, 10);      // フロントガラス
+    ctx.fillStyle = '#445078'; ctx.fillRect(3, -5, 6, 3);
+    ctx.fillStyle = '#a8c8f2'; ctx.fillRect(-13, -6, 4, 12);    // トランク
+    ctx.fillStyle = '#e8dfd2'; ctx.fillRect(-5, -6, 8, 12);     // ルーフ
     // ルーフの回転灯。小さく映っても分かるように、屋根の幅いっぱいに置く
-    ctx.fillStyle = '#2a2410'; ctx.fillRect(-3, -6, 5, 12);
-    ctx.fillStyle = on ? '#ffe14a' : '#6e6018'; ctx.fillRect(-3, -6, 5, 6);
-    ctx.fillStyle = on ? '#6e6018' : '#ffe14a'; ctx.fillRect(-3, 0, 5, 6);
+    ctx.fillStyle = '#2e1d10'; ctx.fillRect(-3, -6, 5, 12);
+    ctx.fillStyle = on ? '#f5cf70' : '#7a5a18'; ctx.fillRect(-3, -6, 5, 6);
+    ctx.fillStyle = on ? '#7a5a18' : '#f5cf70'; ctx.fillRect(-3, 0, 5, 6);
     // 前後の識別灯
-    ctx.fillStyle = on ? '#fff6c8' : '#8a7a20';
+    ctx.fillStyle = on ? '#fff0b0' : '#9a8358';
     ctx.fillRect(12, -6, 2, 3); ctx.fillRect(12, 3, 2, 3);
     // ボンネットの SC
-    ctx.fillStyle = '#15151a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#12101a'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
     ctx.fillText('SC', -9, 2);
     ctx.textAlign = 'left';
     ctx.restore();
@@ -1088,7 +1088,7 @@ GP.raceview = (function () {
 
     const dark = shade(color, -0.16);      // 影になる面
     const lite = shade(color, 0.18);       // 光が当たる面
-    const CARBON = '#22232a', CARBON2 = '#3a3c45', TYRE = '#15161a';
+    const CARBON = '#23222c', CARBON2 = '#3a3348', TYRE = '#12101a';
 
     // 世代ごとの寸法。新しいほど長く低く、ウイングが大きくなる
     const nose  = 15.0 + gen * 0.45;                // ノーズの先端
@@ -1130,10 +1130,10 @@ GP.raceview = (function () {
       ctx.translate(tx, ty);
       if (rot) ctx.rotate(rot);
       r(-tyL / 2, -tyH, tyL, tyH * 2, TYRE);
-      r(-tyL / 2, -tyH, tyL, 0.9, '#4e515c');                        // 上面の照り
-      r(-tyL / 2, tyH - 0.6, tyL, 0.6, '#0c0d10');                   // 下側の締まり
-      if (gen >= 2) r(-1.1, -tyH + 0.5, 2.2, tyH * 2 - 1.0, '#5c606c');  // ホイール
-      else r(-0.9, -tyH + 0.6, 1.8, tyH * 2 - 1.2, '#3d404a');
+      r(-tyL / 2, -tyH, tyL, 0.9, '#4d455c');                        // 上面の照り
+      r(-tyL / 2, tyH - 0.6, tyL, 0.6, '#12101a');                   // 下側の締まり
+      if (gen >= 2) r(-1.1, -tyH + 0.5, 2.2, tyH * 2 - 1.0, '#5d5a6b');  // ホイール
+      else r(-0.9, -tyH + 0.6, 1.8, tyH * 2 - 1.2, '#464351');
       ctx.restore();
     };
     tyre(rearAx, -trk, 0);  tyre(rearAx, trk, 0);
@@ -1178,16 +1178,16 @@ GP.raceview = (function () {
     // ---- コクピットと乗員 ----
     r(-0.6, -1.4, 3.6, 2.8, CARBON);                    // 開口部
     r(0.2, -0.9, 2.0, 1.8, shade(color, 0.36));         // ヘルメット
-    r(0.2, -0.9, 2.0, 0.7, '#f4f4f4');                  // ヘルメットの照り
+    r(0.2, -0.9, 2.0, 0.7, '#fff8e6');                  // ヘルメットの照り
     if (gen >= 5) {                                      // ハロ
-      r(3.1, -1.9, 0.8, 3.8, '#61646e');
-      r(-0.8, -2.0, 4.0, 0.7, '#61646e');
-      r(-0.8, 1.3, 4.0, 0.7, '#61646e');
+      r(3.1, -1.9, 0.8, 3.8, '#6b6178');
+      r(-0.8, -2.0, 4.0, 0.7, '#6b6178');
+      r(-0.8, 1.3, 4.0, 0.7, '#6b6178');
     }
-    if (gen >= 4) r(rwX + 3, -0.4, 6.5, 0.9, '#eeeeee');  // エンジンカバーのフィン
+    if (gen >= 4) r(rwX + 3, -0.4, 6.5, 0.9, '#e8dfd2');  // エンジンカバーのフィン
 
     // ---- リアウイング ----
-    r(rwX + 1.2, -1.8, 1.5, 3.6, '#2c2e34');            // ディフューザー
+    r(rwX + 1.2, -1.8, 1.5, 3.6, '#33313e');            // ディフューザー
     r(rwX, -rwH, 2.6, rwH * 2, CARBON);
     r(rwX, -rwH, 2.6, 0.9, CARBON2);
     if (gen >= 1) {                                      // 翼端板
@@ -1223,7 +1223,7 @@ GP.raceview = (function () {
       ctx.save();
       ctx.translate(Math.round(x), Math.round(y) - 16);
       const bob = Math.sin(vt * 6) * 1.5;
-      ctx.fillStyle = '#fff34d'; ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 2;
+      ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 8 + bob); ctx.lineTo(-5, 1 + bob); ctx.lineTo(5, 1 + bob); ctx.closePath();
       ctx.fill(); ctx.stroke();
@@ -1242,7 +1242,7 @@ GP.raceview = (function () {
   function drawPitCrew(px, py, ang, e, prog, t, tyre) {
     const col = e.color;
     const dark = shade(col, -0.18);
-    const SUIT = col, HELM = shade(col, 0.28), SKIN = '#e8b98e';
+    const SUIT = col, HELM = shade(col, 0.28), SKIN = '#edbb90';
     const jackUp = prog > 0.16 && prog < 0.86;          // 車が持ち上がっている区間
     const off = prog < 0.45 ? Math.min(1, (prog - 0.18) / 0.27)     // 旧タイヤを外す進み
               : 0;
@@ -1268,7 +1268,7 @@ GP.raceview = (function () {
       ctx.fillStyle = HELM;  ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 2.4);   // ヘルメット
       ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(x - 2, y - 4.6 + bob, 4.2, 0.8);
       if (face) {                                                            // ホイールガン
-        ctx.fillStyle = '#2b2e36';
+        ctx.fillStyle = '#33313e';
         ctx.fillRect(x + face * 2.2, y - 0.6 + bob, 2.6 * face, 1.6);
         if (prog > 0.18 && prog < 0.72) {                                    // 回転の火花
           ctx.fillStyle = 'rgba(255,210,120,' + (0.4 + Math.random() * 0.5).toFixed(2) + ')';
@@ -1285,11 +1285,11 @@ GP.raceview = (function () {
       // 外したタイヤを地面に置く／新品を運んでくる
       const tc = tyre ? (GP.data.TYRES[tyre] || {}).color : null;
       if (off > 0) {                                    // 外した古いタイヤ
-        ctx.fillStyle = '#17181c';
+        ctx.fillStyle = '#1e1b28';
         ctx.fillRect(cx - 2, cy + sy * (4 + off * 5), 4, 2.6);
       }
       if (on > 0 && on < 1) {                           // 運んでくる新品
-        ctx.fillStyle = '#17181c';
+        ctx.fillStyle = '#1e1b28';
         ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 2.6);
         if (tc) { ctx.fillStyle = tc; ctx.fillRect(cx - 2, cy + sy * (9 - on * 5), 4, 0.9); }
       }
@@ -1298,7 +1298,7 @@ GP.raceview = (function () {
     });
 
     // 前後のジャッキ担当
-    ctx.fillStyle = '#3a3d46';
+    ctx.fillStyle = '#464351';
     if (jackUp) {
       ctx.fillRect(12.5, -1.6, 4.5, 3.2);      // 前ジャッキ
       ctx.fillRect(-13, -1.6, 4.5, 3.2);       // 後ジャッキ
@@ -1310,8 +1310,8 @@ GP.raceview = (function () {
     const goSign = prog >= 0.9;
     ctx.save();
     ctx.translate(0, -12 - (goSign ? 5 : 0));
-    ctx.fillStyle = '#6a6a72'; ctx.fillRect(-0.7, 0, 1.4, 9);
-    ctx.fillStyle = goSign ? '#3fd44a' : '#e8402c';
+    ctx.fillStyle = '#6b6178'; ctx.fillRect(-0.7, 0, 1.4, 9);
+    ctx.fillStyle = goSign ? '#78c96a' : '#e2664a';
     ctx.beginPath(); ctx.arc(0, -1.5, 3.4, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.5)';
     ctx.beginPath(); ctx.arc(-1, -2.6, 1.2, 0, Math.PI * 2); ctx.fill();
@@ -1319,7 +1319,7 @@ GP.raceview = (function () {
     if (goSign) {
       if (!standalone) GP.fx.addLight(function (lg) {
         lg.save(); camTransform(lg); lg.translate(px, py); lg.rotate(ang);
-        lg.fillStyle = '#3fd44a';
+        lg.fillStyle = '#78c96a';
         lg.beginPath(); lg.arc(0, -18.5, 3.4, 0, Math.PI * 2); lg.fill();
         lg.restore();
       });
@@ -2118,16 +2118,16 @@ GP.raceview = (function () {
     ctx.rotate(sway * Math.PI / 180);
     const sq = 11;
     for (let r = 0; r < 5; r++) for (let c2 = 0; c2 < 7; c2++) {
-      ctx.fillStyle = ((r + c2) % 2) ? '#2b1c0e' : '#fffdf3';
+      ctx.fillStyle = ((r + c2) % 2) ? '#2e1d10' : '#fff8e6';
       ctx.fillRect(-7 * sq / 2 + c2 * sq, -5 * sq / 2 + r * sq + Math.sin(p * 18 + c2) * 2, sq, sq);
     }
     ctx.restore();
-    ctx.fillStyle = '#7a6a52'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
+    ctx.fillStyle = '#8a5a3a'; ctx.fillRect(cx - 7 * sq / 2 - 4, cy - 5 * sq / 2, 4, 5 * sq + 22);
     if (p > 0.35) {
       ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 4;
       ctx.strokeText('FINISH!', cx, cy + 5 * sq / 2 + 40);
-      ctx.fillStyle = '#fff34d';
+      ctx.fillStyle = '#fff0b0';
       ctx.fillText('FINISH!', cx, cy + 5 * sq / 2 + 40);
     }
   }
@@ -2144,14 +2144,14 @@ GP.raceview = (function () {
     if (out && lightBeeps < 6) { lightBeeps = 6; GP.sound.play('go'); }
     ctx.fillStyle = 'rgba(20,12,6,.82)';
     ctx.fillRect(cxl - 72, cy - 20, 144, 40);
-    ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 3;
     ctx.strokeRect(cxl - 72, cy - 20, 144, 40);
     for (let i = 0; i < 5; i++) {
       const x = cxl - 56 + i * 28;
-      ctx.fillStyle = '#241a12';
+      ctx.fillStyle = '#2e1d10';
       ctx.fillRect(x - 10, cy - 12, 20, 24);
       const lit = !out && i < on;
-      ctx.fillStyle = lit ? '#ff2a1a' : '#3a2a22';
+      ctx.fillStyle = lit ? '#e2664a' : '#4a3018';
       ctx.beginPath(); ctx.arc(x, cy, 7, 0, Math.PI * 2); ctx.fill();
       if (lit) {
         ctx.fillStyle = 'rgba(255,80,50,.35)';
@@ -2159,9 +2159,9 @@ GP.raceview = (function () {
       }
     }
     if (out) {
-      ctx.fillStyle = '#fff34d';
+      ctx.fillStyle = '#fff0b0';
       ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
-      ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = 4;
+      ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 4;
       ctx.strokeText('GO!', cxl, cy + 46);
       ctx.fillText('GO!', cxl, cy + 46);
     }

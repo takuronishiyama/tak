@@ -403,7 +403,10 @@ table.rank.grid td.dim{opacity:.35}
    札がフルネームと用事つきで6枚も並ぶと、建物がぜんぶ隠れていた。
    絵が主役なので、出すのは絵文字と短い呼び名だけ。
    指したとき（押す直前）だけ、名前と用事がひらく          */
-.mt-short{text-decoration:none;font-size:10px;font-weight:bold;letter-spacing:-.2px}
+/* 呼び名は札の字の色をそのまま継ぐ。u の既定（緑）のままだと、
+   暗い皮の札の上で沈む                                        */
+.mt-pill u.mt-short{text-decoration:none;font-size:10px;font-weight:bold;
+  letter-spacing:-.2px;color:inherit}
 .mtag.pin .mt-pill b,.mtag.pin .mt-pill em{display:none}
 .mtag.pin .mt-pill{padding:1px 6px 1px 4px;gap:3px;opacity:.94}
 .mtag.pin .mt-pill i{font-size:13px}

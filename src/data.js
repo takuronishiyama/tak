@@ -176,7 +176,7 @@ GP.data = (function () {
   /* names は世代ごとの型式名、notes はその世代で「何が変わったのか」。
      前の世代との差だけを、現場の言葉で書いてある                    */
   const PART_CATS = [
-    { key: 'pu',    name: 'パワーユニット', short: 'パワー', icon: '⚙️', color: '#e04a3f',
+    { key: 'pu',    name: 'パワーユニット', short: 'パワー', icon: '⚙️', color: '#dd5043',
       gain: { speed: 0.70, corner: 0.00, accel: 0.30 }, cost: 320, rp: 6,
       names: ['ベーシックV6', 'ターボV6', 'ハイブリッドV8', 'スーパーチャージV8', 'ゼロエミッションV10', 'ネオドライブV12'],
       notes: [
@@ -187,7 +187,7 @@ GP.data = (function () {
         '合成燃料へ全面移行。燃焼温度が上がったぶん、冷却レイアウトが性能そのものを決めるようになった',
         '電動過給と可変圧縮比。回転域ごとに別のエンジンのように振る舞い、どこを踏んでも谷がない'
       ] },
-    { key: 'aero',  name: 'エアロダイナミクス', short: 'エアロ', icon: '🪽', color: '#3a7ad9',
+    { key: 'aero',  name: 'エアロダイナミクス', short: 'エアロ', icon: '🪽', color: '#3f79d9',
       gain: { speed: 0.15, corner: 0.75, accel: 0.10 }, cost: 300, rp: 6,
       names: ['プレーンウイング', 'ダブルデッキ', 'ブロウンディフューザー', 'グラウンドエフェクト', 'アクティブエアロ', 'ゼロドラッグ'],
       notes: [
@@ -198,7 +198,7 @@ GP.data = (function () {
         '前後の翼を走行中に動かす。直線では寝かせて抵抗を捨て、コーナーで起こして押しつける',
         '境界層を能動的に制御。剥離が起きないので、抵抗を増やさずに押しつけ量だけを積める'
       ] },
-    { key: 'brake', name: 'ブレーキ', short: 'ブレーキ', icon: '🛑', color: '#c0392b',
+    { key: 'brake', name: 'ブレーキ', short: 'ブレーキ', icon: '🛑', color: '#c13a2d',
       gain: { speed: 0.05, corner: 0.55, accel: 0.40 }, cost: 250, rp: 5, wear: 1.30,
       names: ['ドラムブレーキ', 'ソリッドディスク', 'ベンチレーテッドディスク',
               'カーボンディスク', 'ブレーキ・バイ・ワイヤ', 'アクティブ熱制御ブレーキ'],
@@ -210,7 +210,7 @@ GP.data = (function () {
         '踏力を電気信号で送り、回生と摩擦を自動で配分する。ペダルの感触が常に一定になった',
         'ダクトと圧を走行中に制御。1コーナーも最終ラップも、まったく同じところで止まれる'
       ] },
-    { key: 'chas',  name: 'シャシー', short: 'シャシー', icon: '🧱', color: '#4ea63f',
+    { key: 'chas',  name: 'シャシー', short: 'シャシー', icon: '🧱', color: '#4aa743',
       gain: { speed: 0.30, corner: 0.40, accel: 0.30 }, cost: 280, rp: 5,
       names: ['スチールフレーム', 'アルミモノコック', 'カーボンモノコック', 'ハニカムシェル', 'ナノカーボン', 'グラフェンコア'],
       notes: [
@@ -221,7 +221,7 @@ GP.data = (function () {
         '繊維をナノ単位で配向。荷重のかかる向きにだけ硬く、それ以外はしなやかに作り分けられる',
         'グラフェン積層の一体成型。もはや部品ではなく、車体そのものが一枚の構造材になった'
       ] },
-    { key: 'susp',  name: 'サスペンション', short: 'サス', icon: '🌀', color: '#b06fd0',
+    { key: 'susp',  name: 'サスペンション', short: 'サス', icon: '🌀', color: '#a474da',
       gain: { speed: 0.05, corner: 0.65, accel: 0.30 }, cost: 260, rp: 5,
       names: ['ダブルウィッシュボーン', 'プッシュロッド', 'プルロッド', 'アクティブサス', 'マグネライド', 'リニアサス'],
       notes: [
@@ -232,7 +232,7 @@ GP.data = (function () {
         '磁性流体で減衰力を可変に。路面の入力ごとに、1ミリ秒単位で硬さを切り替える',
         'リニアアクチュエータで4輪を独立制御。もはや「ばね」ではなく、姿勢そのものを作りにいく'
       ] },
-    { key: 'gear',  name: 'ギアボックス', short: 'ギア', icon: '🔀', color: '#2ea6a0',
+    { key: 'gear',  name: 'ギアボックス', short: 'ギア', icon: '🔀', color: '#2aa4ae',
       gain: { speed: 0.20, corner: 0.05, accel: 0.75 }, cost: 270, rp: 5, wear: 1.45,
       names: ['5速マニュアル', '6速ドグミッション', 'セミオートマ', 'シームレスシフト', '電動シームレスAT', '無段変速ドライブ'],
       notes: [
@@ -243,7 +243,7 @@ GP.data = (function () {
         'モーターで段間のトルクを埋める。変速中も後輪は押し続け、加速の線が折れない',
         '段という概念を捨てた。エンジンは最良の回転を保ったまま、車速だけが伸びていく'
       ] },
-    { key: 'elec',  name: 'エレクトロニクス', short: '電装', icon: '💡', color: '#f0a020',
+    { key: 'elec',  name: 'エレクトロニクス', short: '電装', icon: '💡', color: '#efa11d',
       gain: { speed: 0.20, corner: 0.20, accel: 0.60 }, cost: 240, rp: 5,
       names: ['ベーシックECU', 'デジタルECU', 'トラクションCPU', 'AIコントロール', 'ニューラルECU', 'クオンタムECU'],
       notes: [
@@ -296,27 +296,27 @@ GP.data = (function () {
 
   /* スキルの系統。各段はランクで解放され、スキルポイントで伸ばす */
   const OWNER_SKILLS = [
-    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#e04a3f',
+    { key: 'nego',  name: '交渉術', icon: '🤝', color: '#dd5043',
       desc: '引き抜きの心証が上がりやすくなり、移籍金と契約更改の要求が下がる',
       eff: ['心証の伸び +12%/Lv', '移籍金 -6%/Lv', '契約更改の要求 -4%/Lv'],
       now: lv => ['心証の伸び +' + lv * 12 + '%', '移籍金 -' + lv * 6 + '%',
                   '契約更改の要求 -' + lv * 4 + '%'] },
-    { key: 'money', name: '商才',   icon: '💰', color: '#ffc93c',
+    { key: 'money', name: '商才',   icon: '💰', color: '#ffca45',
       desc: 'スポンサー収入と賞金が増え、週の運営費が下がる',
       eff: ['スポンサー収入 +6%/Lv', '賞金 +5%/Lv', '運営費 -3%/Lv'],
       now: lv => ['スポンサー収入 +' + lv * 6 + '%', '賞金 +' + lv * 5 + '%',
                   '運営費 -' + lv * 3 + '%'] },
-    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3a7ad9',
+    { key: 'eye',   name: '技術眼', icon: '🔬', color: '#3f79d9',
       desc: '開発の伸びと、他チームを偵察したときの研究ポイントが増える',
       eff: ['開発の伸び +7%/Lv', '偵察の研究P +25%/Lv', '週の研究P +1/Lv'],
       now: lv => ['開発の伸び +' + lv * 7 + '%', '偵察の研究P +' + lv * 25 + '%',
                   '週の研究P +' + lv] },
-    { key: 'call',  name: '采配',   icon: '🎯', color: '#4ea63f',
+    { key: 'call',  name: '采配',   icon: '🎯', color: '#4aa743',
       desc: 'ピット作業が速くなり、アンダーカットが決まりやすく、調子も上がる',
       eff: ['ピット作業がわずかに速くなる', '仕掛ける成功率 +8%/Lv', 'レース週の調子 +2/Lv'],
       now: lv => ['ピット作業 -' + (lv * 0.12).toFixed(2) + '秒', '仕掛ける成功率 +' + lv * 8 + '%',
                   'レース週の調子 +' + lv * 2] },
-    { key: 'fame',  name: '知名度', icon: '📣', color: '#b06fd0',
+    { key: 'fame',  name: '知名度', icon: '📣', color: '#a474da',
       desc: '注目度が上がりやすく、取材が強く効き、ファンが増えやすい',
       eff: ['注目度の増え +20%/Lv', '取材の効果 +25%/Lv', 'ファンの増え +8%/Lv'],
       now: lv => ['注目度の増え +' + lv * 20 + '%', '取材の効果 +' + lv * 25 + '%',
@@ -359,12 +359,12 @@ GP.data = (function () {
 
   /* ---------- コースの景観テーマ ---------- */
   const THEMES = {
-    grass:  { sky: '#7fbf5a', dot: '#76b552', edge: '#e8e0c8', road: '#55585f', night: false },
-    forest: { sky: '#4f8f42', dot: '#468239', edge: '#e2dcc4', road: '#4e5158', night: false },
-    alpine: { sky: '#8fc96a', dot: '#84bd5f', edge: '#eee7d2', road: '#5b5e66', night: false },
-    street: { sky: '#9aa0a8', dot: '#8f959d', edge: '#d8d2c0', road: '#4c4f56', night: false },
-    desert: { sky: '#d8b878', dot: '#cfae6c', edge: '#f0e6cc', road: '#5a5a5e', night: true },
-    neon:   { sky: '#1b2038', dot: '#232a4a', edge: '#4a4f6a', road: '#3a3d48', night: true }
+    grass:  { sky: '#7cbe5a', dot: '#70b14f', edge: '#eadfc8', road: '#55585f', night: false },
+    forest: { sky: '#4b8f45', dot: '#42823c', edge: '#e3dac2', road: '#4e5057', night: false },
+    alpine: { sky: '#8dca6d', dot: '#80bc60', edge: '#ebe2ce', road: '#5b5e66', night: false },
+    street: { sky: '#979da5', dot: '#8d939b', edge: '#dad3c1', road: '#4d4f56', night: false },
+    desert: { sky: '#d8b878', dot: '#cfae6c', edge: '#ede2c8', road: '#5a5a5e', night: true },
+    neon:   { sky: '#1a2038', dot: '#232b4b', edge: '#484f6a', road: '#3a3d48', night: true }
   };
   const TRACK_THEME = {
     'ベイサイド・ストリート': 'street', 'シルバーウッド・パーク': 'grass',
@@ -392,13 +392,13 @@ GP.data = (function () {
   const QUALITY = [
     { at: 0.00, name: '並',     short: '並', color: '#a89878',
       note: '図面どおり。悪くはないが、それだけ' },
-    { at: 1.03, name: '良品',   short: '良', color: '#4ea63f',
+    { at: 1.03, name: '良品',   short: '良', color: '#4aa743',
       note: '手が入っている。数字にも出る' },
-    { at: 1.15, name: '上物',   short: '上', color: '#3a7ad9',
+    { at: 1.15, name: '上物',   short: '上', color: '#3f79d9',
       note: '狙って作れる範囲の、上のほう' },
-    { at: 1.29, name: '特上',   short: '特', color: '#b06fd0',
+    { at: 1.29, name: '特上',   short: '特', color: '#a474da',
       note: 'ここまで来ると、載せ替えたくなくなる' },
-    { at: 1.43, name: '会心作', short: '会', color: '#f0a020',
+    { at: 1.43, name: '会心作', short: '会', color: '#efa11d',
       note: '同じものをもう一度作れる保証はない' }
   ];
   /* 品質の振れかた。
@@ -460,19 +460,19 @@ GP.data = (function () {
      一度ものにした技術は、パーツを載せ替えても失われない。
      ここで上がるのはレベルで、レベルぶんだけ効きが強くなる。      */
   const PART_TRAITS = [
-    { key: 'boost', name: '高出力',   icon: '🔥', color: '#e04a3f',
+    { key: 'boost', name: '高出力',   icon: '🔥', color: '#dd5043',
       desc: '最高速がさらに上がる', per: 0.035, eff: '最高速 +3.5%/Lv',
       note: '燃焼室と過給を詰め直す。同じ排気量から、もう少しだけ引き出す' },
-    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4ea63f',
+    { key: 'sharp', name: '高剛性',   icon: '💠', color: '#4aa743',
       desc: 'コーナー性能がさらに上がる', per: 0.035, eff: 'コーナー +3.5%/Lv',
       note: '締結と積層を見直す。入力が逃げないぶん、狙った線をそのまま踏める' },
-    { key: 'light', name: '軽量化',   icon: '🪶', color: '#7ecbf0',
+    { key: 'light', name: '軽量化',   icon: '🪶', color: '#77cdea',
       desc: '加速がさらに上がる', per: 0.040, eff: '加速 +4%/Lv',
       note: '削れるところを削る。1グラムずつの積み重ねが、立ち上がりに出る' },
-    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#c98b4a',
+    { key: 'tough', name: '高耐久',   icon: '🛡️', color: '#ca8b4b',
       desc: 'パーツが消耗しにくい', per: 0.090, eff: '消耗 -9%/Lv',
       note: '先に音を上げる箇所を、先に潰しておく。週明けの現場が楽になる' },
-    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3a7ad9',
+    { key: 'cool',  name: '冷却強化', icon: '❄️', color: '#3f79d9',
       desc: 'マシンが壊れにくくなる', per: 1.60, eff: '信頼性 +1.6/Lv',
       note: '熱の出口を作る。壊れるときは、たいてい熱から壊れる' }
   ];
@@ -502,32 +502,32 @@ GP.data = (function () {
      「剛性＝壊れにくさ」だけに読めてしまっていた。
      実際はどの項目も、その車の速さそのものを作っている     */
   const BODY_ATTRS = [
-    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4ea63f',
+    { key: 'rigidity', name: '剛性',       icon: '🧱', color: '#4aa743',
       desc: 'コーナーで踏ん張る車になる',
       eff: '壊れにくくなり、クラッシュも減る（信頼性 +9／クラッシュ -20%）',
       gain: { speed: 0.00, corner: 0.18, accel: 0.00 } },
-    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#7ecbf0',
+    { key: 'light',    name: '軽量化',     icon: '🪶', color: '#77cdea',
       desc: '最高速と加速が伸びる車になる',
       eff: 'タイヤに優しくなり、スティントを引っぱれる（摩耗 -15%）',
       gain: { speed: 0.26, corner: 0.00, accel: 0.20 } },
-    { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3a7ad9',
+    { key: 'aeroBody', name: '空力コンセプト', short: '空力', icon: '🌬️', color: '#3f79d9',
       desc: 'コーナーで曲がる車になる',
       eff: 'エアロパーツの効きが増し、前車を追いやすい（追い抜き +11%）',
       gain: { speed: 0.00, corner: 0.26, accel: 0.00 } },
-    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#b06fd0',
+    { key: 'cooling',  name: '冷却',       icon: '❄️', color: '#a474da',
       desc: '加速がわずかに伸びる',
       eff: '信頼性 +7。電気の回生が増え、終盤のタレが小さい',
       gain: { speed: 0.00, corner: 0.00, accel: 0.06 } },
-    { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#f0a020',
+    { key: 'battery',  name: 'バッテリー', short: '電池',   icon: '🔋', color: '#efa11d',
       desc: '最高速と加速が伸びる車になる',
       eff: '電気の容量と放電量が増え、直線の仕掛けが決まりやすい',
       gain: { speed: 0.12, corner: 0.00, accel: 0.14 } },
-    { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0644a',
+    { key: 'drive',    name: 'ドライバビリティ', short: '乗り味', icon: '🎯', color: '#e0634f',
       desc: '車そのものは速くならない',
       eff: '素直で乗りやすくなり、ドライバーが車の持ち分を引き出せる。' +
            '合わないタイヤでも唐突に失わない（評価 +12%／ミス -25%）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } },
-    { key: 'service',  name: '整備性',     icon: '🧰', color: '#c98b4a',
+    { key: 'service',  name: '整備性',     icon: '🧰', color: '#ca8b4b',
       desc: '車そのものは速くならない',
       eff: 'ピット作業が最大1.1秒速くなり、パーツの消耗が -35%（維持費が下がる）',
       gain: { speed: 0.00, corner: 0.00, accel: 0.00 } }
@@ -558,13 +558,13 @@ GP.data = (function () {
      11組のうち9組が固まりの内側で完結し、外へ出るのは2組だけ。
      輪に並べても線が総当たりで交差しないのは、これのおかげ。      */
   const PART_GROUPS = [
-    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3a7ad9',
+    { key: 'air',   name: '空気と足', icon: '🪽', color: '#3f79d9',
       note: '空気をどう当てて、路面にどう置くか',
       parts: ['aero', 'susp'], body: ['aeroBody', 'drive'] },
-    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4ea63f',
+    { key: 'frame', name: '骨と制動', icon: '🧱', color: '#4aa743',
       note: '受け止めて、止めるところ',
       parts: ['chas', 'brake'], body: ['rigidity', 'light'] },
-    { key: 'power', name: '動力',     icon: '⚙️', color: '#e04a3f',
+    { key: 'power', name: '動力',     icon: '⚙️', color: '#dd5043',
       note: '前に出す力と、それを支えるもの',
       parts: ['pu', 'gear', 'elec'], body: ['cooling', 'battery', 'service'] }
   ];
@@ -620,25 +620,25 @@ GP.data = (function () {
      途中で大きく変えたくなったら、車のバージョンアップで作り直す。
      規則が変わる年も、そこで白紙になるので選び直せる。            */
   const CONCEPTS = [
-    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#e04a3f',
+    { key: 'speed',  name: 'ストレート重視', icon: '🏹', color: '#dd5043',
       lead: 'power',
       desc: '空気を切って、伸びで勝つ。ストレートの長いコースで戦え、追い抜きもしやすい',
       up:   ['light', 'cooling', 'battery'],
       down: ['aeroBody', 'drive'],
       pUp:  ['pu', 'gear'], pDown: ['aero'] },
-    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3a7ad9',
+    { key: 'corner', name: 'コーナー重視',   icon: '🌀', color: '#3f79d9',
       lead: 'air',
       desc: '押しつける力で曲がる。低速コーナーの多い市街地に強いが、直線では伸びない',
       up:   ['aeroBody', 'rigidity'],
       down: ['light', 'battery'],
       pUp:  ['aero', 'susp'], pDown: ['pu'] },
-    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4ea63f',
+    { key: 'accel',  name: '加速重視',       icon: '⚡', color: '#4aa743',
       lead: 'power',
       desc: '立ち上がりで前に出る。ストップ＆ゴーのコースとスタートで効く',
       up:   ['battery', 'light', 'service'],
       down: ['aeroBody', 'rigidity'],
       pUp:  ['pu', 'elec', 'gear'], pDown: ['aero'] },
-    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#b06fd0',
+    { key: 'drive',  name: 'ドライバビリティ重視', icon: '🎯', color: '#a474da',
       lead: 'air',
       desc: '限界が分かりやすく、誰が乗っても速い。'
           + 'タイヤに優しく、荒れた週末で落としにくい',
@@ -847,14 +847,14 @@ GP.data = (function () {
      ・予備も回す＝壊したときの立ち直りが速く、修理費も安い
      どちらも毎週の週コマンドは使わない。方針なので、決めたら効き続ける  */
   const MFG_PLANS = [
-    { key: 'one',   icon: '🎯', name: '一点ものを作り込む', color: '#e04a3f',
+    { key: 'one',   icon: '🎯', name: '一点ものを作り込む', color: '#dd5043',
       note: '尖らせる',
       desc: 'ラインを作るものだけに使う。予備は組まない',
       good: '作るパーツの品質が底上げされる',
       bad:  '壊したときは、徹夜か応急処置しかない',
       qual: 0.08,           // 作るときの品質の底上げ
       build: 0 },
-    { key: 'spare', icon: '🧰', name: '予備も回す', color: '#3a7ad9',
+    { key: 'spare', icon: '🧰', name: '予備も回す', color: '#3f79d9',
       note: '守る',
       desc: '作るかたわら、予備を少しずつ組んでおく',
       good: '毎週すこしずつ予備が増え、修理費も安くなる',
@@ -913,10 +913,10 @@ GP.data = (function () {
   };
   /* つなぎ込みの寄せかた。プレイヤーが決めるのはここだけ */
   const INTPLANS = [
-    { key: 'thin', icon: '🩹', name: '薄いところから埋める', color: '#4ea63f',
+    { key: 'thin', icon: '🩹', name: '薄いところから埋める', color: '#4aa743',
       desc: 'いちばんまとまっていない項目から手を付ける。穴がなくなる',
       note: 'まんべんなく' },
-    { key: 'edge', icon: '🔥', name: '強いところを先に仕上げる', color: '#e04a3f',
+    { key: 'edge', icon: '🔥', name: '強いところを先に仕上げる', color: '#dd5043',
       desc: 'すでに厚い項目を先に上限まで。車の持ち味が際立つ',
       note: '尖らせる' }
   ];
@@ -949,13 +949,13 @@ GP.data = (function () {
 
   /* 本体の性格。強い軸と、いちばん強い軸と弱い軸の開きで決まる */
   const CHASSIS_TRAITS = [
-    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3a7ad9',
+    { key: 'speed',  name: '直線番長',     icon: '🛣️', color: '#3f79d9',
       note: '伸びる。ただし、曲がるところで貯金を吐き出す' },
-    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4ea63f',
+    { key: 'corner', name: '曲がる車',     icon: '🌀', color: '#4aa743',
       note: '荷重が乗る。低速も高速も、コーナーで稼げる' },
-    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0644a',
+    { key: 'accel',  name: '蹴り出しの車', icon: '💨', color: '#e0634f',
       note: '立ち上がりが強い。ストップ&ゴーのコースで生きる' },
-    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#c98b4a',
+    { key: 'even',   name: '素直な車',     icon: '⚖️', color: '#ca8b4b',
       note: '尖ってはいないが、どこへ持って行っても大崩れしない' }
   ];
   /* 開きの大きさの呼び名（弱い軸に対する強い軸の比） */
@@ -972,9 +972,9 @@ GP.data = (function () {
      本体の強い軸へ積むのが補強、弱い軸を埋めるのが是正。
      どちらが正しいということはなく、走るコースで向き不向きが出る */
   const CAR_DIRS = [
-    { key: 'boost', name: '補強', icon: '⬆️', color: '#3a7ad9',
+    { key: 'boost', name: '補強', icon: '⬆️', color: '#3f79d9',
       note: '本体の得意をさらに伸ばしている。合うコースでは手がつけられない' },
-    { key: 'fix',   name: '是正', icon: '🩹', color: '#4ea63f',
+    { key: 'fix',   name: '是正', icon: '🩹', color: '#4aa743',
       note: '本体の苦手を埋めている。どこへ行っても大きくは崩れない' },
     { key: 'flat',  name: 'そのまま', icon: '➖', color: '#a89878',
       note: '本体の性格をそのまま引き継いでいる' }
@@ -1223,15 +1223,15 @@ GP.data = (function () {
   /* 運びかた。速さ・確実さ・値段の三すくみ。
      遅延（delay）が出ると、金曜の走行が無駄になり機材も傷んで届く      */
   const LOGI_PLANS = [
-    { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#e04a3f',
+    { key: 'charter', name: 'チャーター便', icon: '✈️', color: '#dd5043',
       cost: 2.45, fatigue: -10, perf: 1.016, delay: 0.00,
       desc: '専用機を仕立てて先乗りする。セットアップに時間をかけられ、クルーはむしろ休める',
       note: '費用は約2.5倍' },
-    { key: 'std', name: '定期便', icon: '📦', color: '#3a7ad9',
+    { key: 'std', name: '定期便', icon: '📦', color: '#3f79d9',
       cost: 1.00, fatigue: 5, perf: 1.000, delay: 0.08,
       desc: 'ふつうの空輸。過不足なく間に合う',
       note: '標準' },
-    { key: 'sea', name: '船便', icon: '🚢', color: '#4ea63f',
+    { key: 'sea', name: '船便', icon: '🚢', color: '#4aa743',
       cost: 0.30, fatigue: 15, perf: 0.978, delay: 0.28,
       desc: '安いが到着がぎりぎり。積み下ろしでクルーが消耗し、荷が遅れることもある',
       note: '費用は約3割' }
@@ -1239,15 +1239,15 @@ GP.data = (function () {
   /* 積荷。何をどれだけ持っていくか。
      予備を置いてくれば安いが、現場で何かあっても手当てができない     */
   const LOGI_LOADS = [
-    { key: 'light', name: '軽装', icon: '🎒', color: '#4ea63f',
+    { key: 'light', name: '軽装', icon: '🎒', color: '#4aa743',
       cost: 0.62, spares: 0, wear: 1.55, delay: -0.03, fatigue: -3,
       desc: '予備とツールを本国に置いていく。荷は軽く、費用も抑えられる',
       note: '費用は4割減' },
-    { key: 'std', name: '標準', icon: '📦', color: '#3a7ad9',
+    { key: 'std', name: '標準', icon: '📦', color: '#3f79d9',
       cost: 1.00, spares: 1, wear: 1.00, delay: 0, fatigue: 0,
       desc: 'いつもどおりの積み荷。ひととおりの予備は持っていく',
       note: '標準' },
-    { key: 'full', name: '万全', icon: '🧰', color: '#e04a3f',
+    { key: 'full', name: '万全', icon: '🧰', color: '#dd5043',
       cost: 1.55, spares: 3, wear: 0.72, delay: 0.05, fatigue: 5,
       desc: '予備もツールも積めるだけ積む。現場で何が起きても直せる',
       note: '費用は約1.55倍' }
@@ -1258,15 +1258,15 @@ GP.data = (function () {
      わけではなく、ミッションコントロールがあれば回線の向こうから
      同じ仕事ができる。「行く」か「残す」かの組み立てが要るところ。 */
   const LOGI_CREWS = [
-    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4ea63f',
+    { key: 'lean', name: '最小構成', icon: '🎽', color: '#4aa743',
       cost: 0.58, fatigue: -9, pit: -0.95, read: -1.10, fore: -0.07,
       desc: '必要な人数だけ連れて行く。旅費は浮き、残った人間は本国の仕事に回れる',
       note: '費用は4割減／現場が薄くなる' },
-    { key: 'std', name: '標準', icon: '👥', color: '#3a7ad9',
+    { key: 'std', name: '標準', icon: '👥', color: '#3f79d9',
       cost: 1.00, fatigue: 0, pit: 0, read: 0, fore: 0,
       desc: 'いつもの遠征メンバー。過不足のない布陣',
       note: '標準' },
-    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#e04a3f',
+    { key: 'full', name: 'フル帯同', icon: '🚌', color: '#dd5043',
       cost: 1.70, fatigue: 9, pit: 1.15, read: 1.35, fore: 0.08,
       desc: '部署ごと現地へ運ぶ。ピットもピットウォールも厚くなるが、全員が消耗する',
       note: '費用は約1.7倍／全員が疲れる' }
@@ -1456,7 +1456,7 @@ GP.data = (function () {
 
   const DIFFICULTIES = [
     {
-      key: 'easy', name: 'イージー', icon: '🌴', color: '#4ea63f',
+      key: 'easy', name: 'イージー', icon: '🌴', color: '#4aa743',
       short: '大口スポンサーの後ろ盾つき',
       desc: '産油国の巨大スポンサーが最初から付き、資金に困りません。' +
             'ライバルの土台が弱く、自チームの開発も速く、賞金もスポンサー料も多めに入り、' +
@@ -1466,7 +1466,7 @@ GP.data = (function () {
       ticket: 3, oilSponsor: true
     },
     {
-      key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3a7ad9',
+      key: 'normal', name: 'ノーマル', icon: '⚖️', color: '#3f79d9',
       short: '標準のバランス',
       desc: '弱小チームから這い上がる、基本の難易度です。' +
             'ライバルもシーズン中に少しずつ速くなり、こちらの開発はじっくり進みます。' +
@@ -1476,7 +1476,7 @@ GP.data = (function () {
       ticket: 4, oilSponsor: false
     },
     {
-      key: 'hard', name: 'ハード', icon: '🔥', color: '#e04a3f',
+      key: 'hard', name: 'ハード', icon: '🔥', color: '#dd5043',
       short: '周りが速い',
       desc: 'ライバルが強く、シーズン中も毎週マシンを煮詰めてきます。' +
             '手を止めるとすぐ置いていかれ、開発の歩みも遅く、資金も賞金も渋い。' +
@@ -1486,7 +1486,7 @@ GP.data = (function () {
       ticket: 5, oilSponsor: false
     },
     {
-      key: 'hell', name: 'ヘル', icon: '💀', color: '#8a2fb0',
+      key: 'hell', name: 'ヘル', icon: '💀', color: '#793cb0',
       short: 'レギュレーション最終年、全チーム横並び',
       desc: '規則が固まりきった最終年から始まります。' +
             'どのチームも同じところに行き着いていて、上から下まで1周2秒たらず。' +
@@ -1514,10 +1514,10 @@ GP.data = (function () {
   /* ---------- 才能（成長のしやすさ）---------- */
   const POTENTIAL = [
     { n: 1, name: '平凡',   color: '#a89878', growth: 0.72 },
-    { n: 2, name: '有望',   color: '#4ea63f', growth: 0.92 },
-    { n: 3, name: '逸材',   color: '#3a7ad9', growth: 1.15 },
-    { n: 4, name: '天才肌', color: '#b06fd0', growth: 1.45 },
-    { n: 5, name: '大器',   color: '#f0a020', growth: 1.85 }
+    { n: 2, name: '有望',   color: '#4aa743', growth: 0.92 },
+    { n: 3, name: '逸材',   color: '#3f79d9', growth: 1.15 },
+    { n: 4, name: '天才肌', color: '#a474da', growth: 1.45 },
+    { n: 5, name: '大器',   color: '#efa11d', growth: 1.85 }
   ];
 
   /* ---------- 安定感 ----------
@@ -1528,15 +1528,15 @@ GP.data = (function () {
   /* 現場で人を評するときの言い方に寄せてある。
      「荒い」「手堅い」では、速さの話なのか性格の話なのか分からない */
   const CARE_TIERS = [
-    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b8291a',
+    { max:  45, name: 'オーバードライブ', icon: '💥', color: '#b72b1f',
       note: '車の限界より先まで踏む。速い日と、壊す日がある' },
-    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#96610a',
+    { max:  75, name: 'タイヤに厳しい',   icon: '⚡', color: '#946004',
       note: '仕掛けはするが、そのぶん路面とタイヤに傷を作る' },
     { max: 105, name: 'ニュートラル',     icon: '🙂', color: '#6a5c3f',
       note: '車のとおりに走る。足しも引きもしない' },
-    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2f7a2a',
+    { max: 135, name: 'マシンを労わる',   icon: '🛡️', color: '#2d7a2b',
       note: '車を持って帰ってくる。指示どおりのペースを刻める' },
-    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2a5fb5',
+    { max: 999, name: 'メトロノーム',     icon: '💎', color: '#2b5db3',
       note: '毎周おなじところで、限界の手前にぴたりと置く' }
   ];
   /* 安定感 100 を基準に、クラッシュとミスがどれだけ増減するか */
@@ -1610,16 +1610,16 @@ GP.data = (function () {
   /* bias は3性能の配分。チームごとにマシンの個性が違い、
      コースとの相性で速さが変わる（合計 1.0）                       */
   const RIVALS = [
-    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#e02020', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
+    { name: 'スクーデリア・ロッソ', abbr: 'SCR',  color: '#d04539', power: 1.00, char: 'パワー型',       bias: { speed: .42, corner: .28, accel: .30 } },
     { name: 'アルジェント・ワークス', abbr: 'ARG', color: '#c8ccd4', power: 0.98, char: 'オールラウンド', bias: { speed: .34, corner: .33, accel: .33 } },
-    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#1a3a8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
-    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#ff8000', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
-    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#0f8a5f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
-    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#2f86d8', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
-    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#4aa8e0', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
-    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#b0182c', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
-    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#00c04a', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
-    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5a7ad0', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
+    { name: 'ブルーブル・レーシング', abbr: 'BBR', color: '#143b8f', power: 0.96, char: 'ダウンフォース型', bias: { speed: .26, corner: .44, accel: .30 } },
+    { name: 'マクレイン・パピヤ', abbr: 'MCP',    color: '#f5882d', power: 0.92, char: 'パワー型',       bias: { speed: .40, corner: .29, accel: .31 } },
+    { name: 'アストロ・グリーン', abbr: 'ASG',    color: '#32874f', power: 0.88, char: 'コーナー重視',   bias: { speed: .29, corner: .39, accel: .32 } },
+    { name: 'アルピナ・ブルー', abbr: 'ALP',      color: '#4485dd', power: 0.84, char: 'トラクション型', bias: { speed: .28, corner: .35, accel: .37 } },
+    { name: 'ウィリス・モータース', abbr: 'WLS',  color: '#5fa0e4', power: 0.78, char: 'ロードラッグ型', bias: { speed: .44, corner: .26, accel: .30 } },
+    { name: 'ハースト・レーシング', abbr: 'HRT',  color: '#af1f23', power: 0.74, char: 'トラクション型', bias: { speed: .34, corner: .26, accel: .40 } },
+    { name: 'キック・ザウバル', abbr: 'KZB',      color: '#4eb658', power: 0.72, char: 'オールラウンド', bias: { speed: .32, corner: .34, accel: .34 } },
+    { name: 'ヴィザ・トロロッソ', abbr: 'VTR',    color: '#5c77ce', power: 0.70, char: 'コーナー重視',   bias: { speed: .28, corner: .38, accel: .34 } }
   ];
 
   /* ---------- 英語3文字の略号 ----------
@@ -1870,22 +1870,22 @@ GP.data = (function () {
      毎戦のグッズ・入場料収入としてチームの柱になる。       */
   const FAN_TIERS = [
     { max: 1500,    name: '地元の応援団', icon: '🏠', color: '#a89878' },
-    { max: 6000,    name: '常連ファン',   icon: '🎪', color: '#8a9a6a' },
-    { max: 20000,   name: '全国区',       icon: '🎌', color: '#4ea63f' },
-    { max: 60000,   name: '人気チーム',   icon: '🎫', color: '#3a7ad9' },
-    { max: 180000,  name: '国民的チーム', icon: '📣', color: '#b06fd0' },
-    { max: Infinity, name: '世界的人気',  icon: '🌍', color: '#f0a020' }
+    { max: 6000,    name: '常連ファン',   icon: '🎪', color: '#839b6e' },
+    { max: 20000,   name: '全国区',       icon: '🎌', color: '#4aa743' },
+    { max: 60000,   name: '人気チーム',   icon: '🎫', color: '#3f79d9' },
+    { max: 180000,  name: '国民的チーム', icon: '📣', color: '#a474da' },
+    { max: Infinity, name: '世界的人気',  icon: '🌍', color: '#efa11d' }
   ];
   /* 1戦あたりのグッズ・入場料収入の係数（ファン数の平方根に掛ける） */
   const FAN_INCOME = 12;
 
   const HYPE_TIERS = [
     { max: 12,  name: '無名',       icon: '🫥', color: '#a89878' },
-    { max: 28,  name: '注目され始め', icon: '📻', color: '#8a9a6a' },
-    { max: 46,  name: '話題のチーム', icon: '📰', color: '#4ea63f' },
-    { max: 64,  name: '人気チーム',   icon: '📺', color: '#3a7ad9' },
-    { max: 82,  name: '主役',        icon: '🌟', color: '#b06fd0' },
-    { max: 101, name: '時代の顔',    icon: '👑', color: '#f0a020' }
+    { max: 28,  name: '注目され始め', icon: '📻', color: '#839b6e' },
+    { max: 46,  name: '話題のチーム', icon: '📰', color: '#4aa743' },
+    { max: 64,  name: '人気チーム',   icon: '📺', color: '#3f79d9' },
+    { max: 82,  name: '主役',        icon: '🌟', color: '#a474da' },
+    { max: 101, name: '時代の顔',    icon: '👑', color: '#efa11d' }
   ];
 
   /* 順位ごとの注目度の増減。ポイント圏外でも上位で終えれば露出は増える */
@@ -2054,15 +2054,15 @@ GP.data = (function () {
   const TRUST = {
     start: 60,
     tiers: [
-      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2b6b33',
+      { at: 82, name: '全幅の信頼', icon: '🤝', color: '#2e6b31',
         note: '言えば、そのとおりに走ってくれる' },
-      { at: 62, name: '信頼している', icon: '🙂', color: '#41762f',
+      { at: 62, name: '信頼している', icon: '🙂', color: '#43762e',
         note: 'おおむね指示どおりに動く' },
-      { at: 40, name: '半信半疑', icon: '😐', color: '#6d5f14',
+      { at: 40, name: '半信半疑', icon: '😐', color: '#745d13',
         note: '納得のいかない指示は、うまく飲み込めていない' },
-      { at: 22, name: '不信', icon: '😠', color: '#9c5416',
+      { at: 22, name: '不信', icon: '😠', color: '#9c5515',
         note: '無線を聞いても、自分の判断で走ることがある' },
-      { at: -99, name: '決裂寸前', icon: '💢', color: '#b03a2a',
+      { at: -99, name: '決裂寸前', icon: '💢', color: '#af392b',
         note: 'ここを出たがっている' }
     ],
     ignoreFrom: 40,   // ここを割ると、指示を飲み込めない周が出はじめる
@@ -3295,22 +3295,22 @@ GP.data = (function () {
   const ADUO_CATCH = 0.0042;      // 離されているぶんに応じた追い上げ（1週・段位1あたり）
   const ADUO_HALF = 0.62;         // 上乗せを受けるのは、順位表のこの割合より下
   const ADUO_LEVELS = [
-    { level: 1, share: 0.54, lead:  6, name: '是正勧告', icon: '⚖️', color: '#c98b10',
+    { level: 1, share: 0.54, lead:  6, name: '是正勧告', icon: '⚖️', color: '#ca8a13',
       cut: 0.90, lift: 1.10,
       note: '首位に注意喚起。下位のチームへ少しだけ時間が回される' },
-    { level: 2, share: 0.66, lead: 10, name: '是正指令', icon: '⚖️', color: '#e07a2a',
+    { level: 2, share: 0.66, lead: 10, name: '是正指令', icon: '⚖️', color: '#df7b26',
       cut: 0.80, lift: 1.20,
       note: '首位の風洞・CFD時間を削り、離されたチームへ回す' },
-    { level: 3, share: 0.78, lead: 15, name: '緊急是正', icon: '🚨', color: '#b02a20',
+    { level: 3, share: 0.78, lead: 15, name: '緊急是正', icon: '🚨', color: '#ad271e',
       cut: 0.68, lift: 1.34,
       note: '選手権の体裁を保つための緊急措置。独走チームは大きく削られる' }
   ];
 
   const ATR = [0.84, 0.87, 0.90, 0.93, 0.96, 0.99, 1.02, 1.05, 1.08, 1.11, 1.13];
   const ATR_LABEL = [
-    { max: 0.91, name: '厳しい', icon: '🪫', color: '#e04a3f' },
-    { max: 1.00, name: '標準',   icon: '⚖️', color: '#f0a020' },
-    { max: 9.99, name: '恵まれている', icon: '🔋', color: '#4ea63f' }
+    { max: 0.91, name: '厳しい', icon: '🪫', color: '#dd5043' },
+    { max: 1.00, name: '標準',   icon: '⚖️', color: '#efa11d' },
+    { max: 9.99, name: '恵まれている', icon: '🔋', color: '#4aa743' }
   ];
 
   const PRIZE = [72000, 56000, 45000, 35000, 28000, 22000, 17500, 13500, 10500, 8000, 6400];
@@ -3323,27 +3323,27 @@ GP.data = (function () {
      ここから外れるほどタイムを失う。通り雨や乾きかけの路面で
      「いつ履き替えるか」に幅を作るための仕組み                        */
   const TYRES = [
-    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#e02020', text: '#fff',
+    { key: 'soft',   name: 'ソフト',    short: 'S', color: '#d04539', text: '#fff',
       pace: 0.992, wear: 1.60, life: 11, wet: false, wetIdeal: 0.00, wetTol: 0.10,
       tLo: 28, tHi: 44,
       band: '乾き〜わずかな湿り',
       desc: 'いちばん速いが、あっという間に摩耗する。湿りにはいちばん弱い' },
-    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f0c000', text: '#3a2413',
+    { key: 'medium', name: 'ミディアム', short: 'M', color: '#f2be33', text: '#3a2413',
       pace: 1.000, wear: 1.00, life: 18, wet: false, wetIdeal: 0.00, wetTol: 0.12,
       tLo: 34, tHi: 54,
       band: '乾き〜湿りはじめ',
       desc: '速さと保ちのバランス型' },
-    { key: 'hard',   name: 'ハード',    short: 'H', color: '#eeeae0', text: '#3a2413',
+    { key: 'hard',   name: 'ハード',    short: 'H', color: '#f2ede3', text: '#3a2413',
       pace: 1.009, wear: 0.66, life: 28, wet: false, wetIdeal: 0.00, wetTol: 0.13,
       tLo: 42, tHi: 66,
       band: '乾き〜湿りはじめ',
       desc: '遅いが長く保つ。ストップを減らせる' },
-    { key: 'inter',  name: 'インター',  short: 'I', color: '#4ea63f', text: '#fff',
+    { key: 'inter',  name: 'インター',  short: 'I', color: '#4aa743', text: '#fff',
       pace: 1.000, wear: 1.15, life: 20, wet: true,  wetIdeal: 0.42, wetTol: 0.20,
       tLo: 18, tHi: 42,
       band: '湿り〜ハーフ',
       desc: '小雨と半乾き用。掻き出せる水の量には限りがあり、大雨では浮いてしまう' },
-    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3a7ad9', text: '#fff',
+    { key: 'wet',    name: 'ウェット',  short: 'W', color: '#3f79d9', text: '#fff',
       pace: 1.000, wear: 0.95, life: 26, wet: true,  wetIdeal: 0.88, wetTol: 0.18,
       tLo: 12, tHi: 34,
       band: 'ウェット〜大雨',
@@ -3633,10 +3633,10 @@ GP.data = (function () {
     pace:  0.014,  // 乗りきったときのラップタイム短縮（-1.4%）
     calm:  0.25,   // 乗っているほどミスが減る割合
     LEVELS: [
-      { at: 0.25, name: 'グリーン', short: 'G', color: '#7aa06a' },
-      { at: 0.55, name: '乗ってきた', short: '◐', color: '#b8a05a' },
-      { at: 0.85, name: '良い',     short: '◕', color: '#d09a3a' },
-      { at: 1.01, name: '完成',     short: '●', color: '#e0642a' }
+      { at: 0.25, name: 'グリーン', short: 'G', color: '#799f69' },
+      { at: 0.55, name: '乗ってきた', short: '◐', color: '#c0a35e' },
+      { at: 0.85, name: '良い',     short: '◕', color: '#d09e3c' },
+      { at: 1.01, name: '完成',     short: '●', color: '#e26040' }
     ]
   };
 
@@ -3654,11 +3654,11 @@ GP.data = (function () {
      ラバーが乗りはじめるのは「ほぼドライ」から（RUBBER.buildTo）。
      そこから乾くほど速く乗り、ハーフウェットより濡れると流れる     */
   const WET_LEVELS = [
-    { at: 0.18, name: 'ドライ',         short: 'D', color: '#c8a86a', tyre: 'medium' },
-    { at: 0.42, name: 'ほぼドライ',     short: 'd', color: '#9aae7a', tyre: 'inter' },
-    { at: 0.67, name: 'ハーフウェット', short: 'H', color: '#5f9e6a', tyre: 'inter' },
-    { at: 0.88, name: 'ウェット',       short: 'W', color: '#3f86c0', tyre: 'wet' },
-    { at: 1.01, name: 'フルウェット',   short: 'X', color: '#2a5fa0', tyre: 'wet' }
+    { at: 0.18, name: 'ドライ',         short: 'D', color: '#c9a96b', tyre: 'medium' },
+    { at: 0.42, name: 'ほぼドライ',     short: 'd', color: '#96b280', tyre: 'inter' },
+    { at: 0.67, name: 'ハーフウェット', short: 'H', color: '#639d66', tyre: 'inter' },
+    { at: 0.88, name: 'ウェット',       short: 'W', color: '#4b80c0', tyre: 'wet' },
+    { at: 1.01, name: 'フルウェット',   short: 'X', color: '#305da0', tyre: 'wet' }
   ];
 
   /* ---------- 天候 ---------- */
