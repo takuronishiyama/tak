@@ -4189,6 +4189,46 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .drv-grow{white-space:nowrap}
 .drv-grow em{font-style:normal;font-size:9px;margin-left:3px;opacity:.85}
 
+/* ---------- ラリー ----------
+   SSの一覧と、区間タイムの板。
+   並んで走らない競技なので、見せるのは「順位」ではなく「差」    */
+.sslist{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px}
+.ssday{display:flex;align-items:baseline;gap:8px;margin-top:6px;
+  border-bottom:2px solid var(--faceEdge);padding-bottom:2px}
+.ssday b{font-size:12px}
+.ssday em{font-style:normal;font-size:10px;color:var(--faceSub);margin-left:auto}
+.ssrow{display:flex;align-items:center;gap:7px;background:var(--paper3);
+  border:2px solid var(--ink);border-radius:7px;padding:4px 7px}
+.ssrow>i{font-style:normal;font-size:9px;font-weight:bold;color:#fff8e6;flex:none;
+  min-width:30px;text-align:center;border:2px solid var(--ink);border-radius:5px;
+  padding:1px 3px;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.ssrow>span{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.ssrow>span b{font-size:11.5px}
+.ssrow>span small{font-size:9.5px;color:var(--faceSub)}
+.ssrow>em{font-style:normal;font-size:9.5px;color:var(--faceSub);flex:none}
+
+.ssboard{display:flex;flex-direction:column;gap:2px;margin:4px 0 8px}
+.ssb{display:flex;align-items:center;gap:6px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px;
+  font-variant-numeric:tabular-nums}
+.ssb>i{font-style:normal;width:20px;text-align:right;font-weight:bold;flex:none}
+.ssb-c{width:9px;height:9px;border:1px solid var(--ink);border-radius:2px;flex:none}
+.ssb>b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.ssb>b small{display:block;font-size:9px;color:var(--faceSub);font-weight:normal}
+.ssb>em{font-style:normal;flex:none}
+.ssb>u{text-decoration:none;flex:none;min-width:58px;text-align:right;
+  font-size:10px;color:var(--faceSub)}
+.ssb.me{border-color:var(--gold,#d8a020);box-shadow:0 0 0 2px rgba(216,160,32,.30)}
+.ssb.out{opacity:.55}
+.ssboard.big .ssb{padding:5px 7px;font-size:12px}
+/* ラリーの日程を、SSの長さの棒で見せる（周回のコース図の代わり） */
+.stmini{display:flex;align-items:flex-end;gap:2px;height:56px;padding:4px 6px;
+  background:var(--trough);border-radius:6px;overflow-x:auto;scrollbar-width:none}
+.stmini::-webkit-scrollbar{display:none}
+.stbar{flex:0 0 7px;border:1px solid var(--ink);border-radius:2px 2px 0 0}
+.stday{font-style:normal;font-size:8px;color:var(--faceSub);align-self:flex-end;
+  writing-mode:vertical-rl;margin-right:2px;letter-spacing:-1px;flex:none}
+
 </style>
 <!--
   ドット絵フォントは表示完了後に読み込む。
@@ -12762,7 +12802,7 @@ GP.state = (function () {
     // 次の1戦にかかる週数（準備週＋決勝の週）。移動が長い戦ほど週が要る
     const PREP = prepWeeks(g2, g2.nextRace) + 1;
     // 次のレースへの輸送費（コースの遠さで変わる）
-    const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
+    const shipping = logiCost(g2, venues(g2)[g2.nextRace] || venues(g2)[0]);
     return {
       /* 割引前の総額。人件費の割合を出すときは、こちらと比べる。
          weekly（割引後）と比べると、割引が効いているチームほど
@@ -12970,10 +13010,36 @@ GP.state = (function () {
      走る数はいつも D.RACES で変わらないので、
      「レースが増える」のではなく「顔ぶれが変わる」。
      ======================================================= */
+  /* =======================================================
+     シリーズ
+
+     同じ運営ゲームの上に、2つの競技を載せる。
+     週・施設・人事・開発・資金はまったく同じもので、
+     変わるのは「週末に何をするか」と「どこを回るか」だけ。
+
+     venues() から先は、サーキットの表とラリーの表が
+     同じ形（name/country/region/every/weight/risk/far）を
+     しているので、日程まわりの計算はそのまま通る。      */
+  function seriesOf(g2) { return (g2 && g2.series) === 'wrc' ? 'wrc' : 'f1'; }
+  function isRally(g2) { return seriesOf(g2) === 'wrc'; }
+  function venues(g2) {
+    return isRally(g2) && GP.rallydata ? GP.rallydata.RALLIES : D.TRACKS;
+  }
+  function venueAt(g2, round) { return venues(g2)[trackIdx(g2, round)]; }
+  /* 画面に出す言葉も、シリーズで変える */
+  function seriesWords(g2) {
+    return isRally(g2)
+      ? { race: 'ラリー', races: 'ラリー', venue: 'ラリー', go: '🏁 ラリーへ向かう！',
+          week: 'ラリーウィーク', grid: 'スタート順', unit: '戦' }
+      : { race: 'レース', races: 'レース', venue: 'サーキット', go: '🏁 レースへ向かう！',
+          week: 'レースウィーク', grid: 'グリッド', unit: '戦' };
+  }
+
   function buildCalendar(g2) {
     const season = (g2 && g2.season) || 1;
     const fixed = [], rota = [];
-    D.TRACKS.forEach((t, i) => { ((t.every || 1) === 1 ? fixed : rota).push(i); });
+    const VEN = venues(g2);
+    VEN.forEach((t, i) => { ((t.every || 1) === 1 ? fixed : rota).push(i); });
     /* まわる組からは、窓をずらしながら取る。
        毎年ぜんぶ入れ替えると落ち着かないので、2つずつずらす。
        こうすると毎年 2つ抜けて 2つ入り、残りは続けて開催される  */
@@ -12986,7 +13052,7 @@ GP.state = (function () {
     const idx = fixed.concat(pick);
     // 足りなければ、残っているものから順に埋める
     if (idx.length < D.RACES) {
-      D.TRACKS.forEach((t, i) => {
+      VEN.forEach((t, i) => {
         if (idx.length >= D.RACES || idx.indexOf(i) >= 0) return;
         idx.push(i);
       });
@@ -13008,13 +13074,15 @@ GP.state = (function () {
     return cal[clamp(Math.round(round || 0), 0, cal.length - 1)];
   }
   /* 第n戦のコースそのもの */
-  function trackAt(g2, round) { return D.TRACKS[trackIdx(g2, round)]; }
+  function trackAt(g2, round) { return venues(g2)[trackIdx(g2, round)]; }
   /* 去年やって今年やらない大会／今年から入る大会（画面で言うために使う） */
   function calendarDiff(g2) {
     const now = calendarOf(g2);
-    const prev = buildCalendar({ season: ((g2 && g2.season) || 1) - 1 });
-    return { added: now.filter(i => prev.indexOf(i) < 0).map(i => D.TRACKS[i]),
-             gone: prev.filter(i => now.indexOf(i) < 0).map(i => D.TRACKS[i]) };
+    const prev = buildCalendar({ season: ((g2 && g2.season) || 1) - 1,
+                                series: (g2 && g2.series) || 'f1' });
+    const VEN = venues(g2);
+    return { added: now.filter(i => prev.indexOf(i) < 0).map(i => VEN[i]),
+             gone: prev.filter(i => now.indexOf(i) < 0).map(i => VEN[i]) };
   }
 
   /* =======================================================
@@ -13039,7 +13107,8 @@ GP.state = (function () {
     const cal = calendarOf(g2);
     const i = clamp(Math.round(round || 0), 0, cal.length - 1);
     if (i === 0) return 'first';
-    const t = D.TRACKS[cal[i]], prev = D.TRACKS[cal[i - 1]];
+    const VEN2 = venues(g2);
+    const t = VEN2[cal[i]], prev = VEN2[cal[i - 1]];
     const a = regionOf(prev), b = regionOf(t);
     if (a === b) return 'back';
     if (regionNear(a, b)) return 'near';
@@ -13056,7 +13125,7 @@ GP.state = (function () {
        同じ長さなら遠いほうを先にして、毎年おなじ形にする     */
     const order = P.map((p, i) => i).filter(i => P[i] > C.prep.back)
       .sort((a, b) => (P[b] - P[a])
-                   || ((D.TRACKS[cal[b]].far || 1) - (D.TRACKS[cal[a]].far || 1))
+                   || ((venues(g2)[cal[b]].far || 1) - (venues(g2)[cal[a]].far || 1))
                    || (a - b));
     let need = D.RACES * PREP_WEEKS - P.reduce((a, b) => a + b, 0);
     for (let pass = 0; need > 0 && order.length && pass < 40; pass++) {
@@ -13151,12 +13220,43 @@ GP.state = (function () {
     return guideSteps(g2).some(x => !x.done);
   }
 
-  function newGame(teamName, color, mode) {
+  /* ---------- コ・ドライバー ----------
+     ラリーの右席。読み上げの腕（skill）と、
+     その組でどれだけ長くやっているか（bond）で効きが変わる。
+     bond は一緒に走った回数で育ち、組み替えると0に戻る       */
+  function makeCoDriver(forDriver) {
+    return {
+      id: 'co' + Math.random().toString(36).slice(2, 8),
+      name: pick(D.FIRST) + '・' + pick(D.LAST),
+      skill: rint(34, 58),
+      age: rint(26, 40),
+      salary: rint(18, 34),
+      bond: 0,                       // 0〜1。一緒に走った回数で上がる
+      with: forDriver ? forDriver.id : null,
+      rallies: 0
+    };
+  }
+  /* その人の右席は誰か */
+  function coOf(g2, driver) {
+    if (!g2 || !driver) return null;
+    return (g2.codrivers || []).filter(c => c.with === driver.id)[0] || null;
+  }
+  /* 一本走り終えるたび、息が合っていく（頭打ちあり） */
+  function coBond(co) {
+    if (!co) return;
+    co.rallies = (co.rallies || 0) + 1;
+    co.bond = clamp(1 - Math.pow(0.90, co.rallies), 0, 0.95);
+  }
+
+  function newGame(teamName, color, mode, series) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
       version: 6,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
+      /* どちらの競技をやるか。運営まわりは同じもので、
+         週末の中身と回る場所だけが変わる                */
+      series: series === 'wrc' ? 'wrc' : 'f1',
       season: 1,
       week: 1,
       mode: diff.key,
@@ -13221,6 +13321,9 @@ GP.state = (function () {
       g.drivers[1].pers = pick(D.PERSONALITIES.filter(x => x.key !== g.drivers[0].pers)).key;
     }
     g.drivers.forEach(d => { d.team = g.team; });
+    /* ラリーでは、右席にもう一人乗る。
+       ペースノートを読む人で、腕と「息の合いかた」が別々に効く */
+    if (g.series === 'wrc') g.codrivers = g.drivers.map(d => makeCoDriver(d));
 
     g.staff = [makeStaff('engineer'), makeStaff('mechanic'), makeStaff('designer')];
     g.sponsors = [Object.assign({}, D.SPONSORS[0])];
@@ -14123,6 +14226,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
+    seriesOf, isRally, venues, venueAt, seriesWords, makeCoDriver, coOf, coBond,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
@@ -17973,6 +18077,545 @@ GP.race = (function () {
 
   return { simulate, prequalify, practice, applyResult, repackPU, STRATEGIES, rollWeather,
            qOpen, qStep, qClose, qPlanOf };
+})();
+
+</script>
+<script>
+/* ===== src/rallydata.js ===== */
+/* =========================================================
+   ラリー（WRC）のデータ
+
+   サーキットの代わりに「ラリー」がある。ラリーは3日に分かれ、
+   一日のなかに何本かのSS（スペシャルステージ）が入る。
+   並んで走らず、1台ずつ出て、タイムの合計で順位が決まる。
+
+   ここはデータだけ。走らせる側は rally.js。
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.rallydata = (function () {
+  'use strict';
+
+  /* ---------- 路面 ----------
+     車の作りかたの向き先が、路面ごとに変わる。
+     grip  … 路面がどれだけ食うか（低いほどタイムが伸びない）
+     rough … 壊れやすさ。石を拾う、底を打つ
+     sweep … 先頭が損をする度合い。掃き掃除がどれだけ効くか      */
+  const SURFACES = {
+    gravel: { key: 'gravel', name: 'グラベル', icon: '🪨', color: '#96683a',
+              grip: 0.92, rough: 1.00, sweep: 1.00,
+              note: '砂利。上を掃くほど下から硬い路面が出てくる' },
+    tarmac: { key: 'tarmac', name: 'ターマック', icon: '🛣️', color: '#5d5a6b',
+              grip: 1.06, rough: 0.55, sweep: 0.18,
+              note: '舗装。走行順はほとんど効かないが、路面の汚れは残る' },
+    snow:   { key: 'snow',   name: 'スノー', icon: '❄️', color: '#a8c8f2',
+              grip: 0.80, rough: 0.70, sweep: 0.55,
+              note: '雪と氷。スパイクが刺されば速いが、掘れると別物になる' }
+  };
+
+  /* ---------- ラリー ----------
+     days は「一日の中のSSの本数」。
+     twisty はコーナーの多さ（1に近いほど曲がりどころ）。
+     rough は路面の荒さ。km は1本の平均の長さ。               */
+  const RALLIES = [
+    { key: 'monte', name: 'ラリー・モンテヴェルデ', country: '🇲🇨', region: 'eu', every: 1,
+      surface: 'tarmac', mix: 'snow', far: 0.65, risk: 1.30,
+      weight: { speed: 0.26, corner: 0.48, accel: 0.26 },
+      days: [4, 6, 3], km: 19, twisty: 0.78, rough: 0.30, night: true,
+      desc: '凍った峠と、乾いた谷。同じSSの中で路面が変わる',
+      places: ['シズン峠', 'ラ・ブレオル', 'ブルデュー', 'サン・ジャン', 'ヴァル・デ・プレ', 'トゥルニ'] },
+
+    { key: 'snow', name: 'スノーフィヨルド・ラリー', country: '🇸🇪', region: 'eu', every: 1,
+      surface: 'snow', far: 0.80, risk: 0.95,
+      weight: { speed: 0.40, corner: 0.38, accel: 0.22 },
+      days: [4, 6, 3], km: 17, twisty: 0.44, rough: 0.30,
+      desc: '雪の壁に肩を預けて曲がる。世界でいちばん平均速度が高い',
+      places: ['ヴァルグスタ', 'ローサ湖', 'ハーゲン', 'コルスビー', 'スヴァネ', 'ミッケルス'] },
+
+    { key: 'sierra', name: 'シエラ・ロハ・ラリー', country: '🇲🇽', region: 'am', every: 2, slot: 0,
+      surface: 'gravel', far: 1.35, risk: 1.05,
+      weight: { speed: 0.36, corner: 0.34, accel: 0.30 },
+      days: [4, 6, 3], km: 21, twisty: 0.52, rough: 0.72, heat: 0.90,
+      desc: '標高2000m。空気が薄く、エンジンが本気を出せない',
+      places: ['オテイツォ', 'ラス・ミナス', 'エル・チョコラテ', 'グアナフアト', 'イブアイ', 'デレチョ'] },
+
+    { key: 'costa', name: 'コスタ・ヴェルデ・ラリー', country: '🇵🇹', region: 'eu', every: 1,
+      surface: 'gravel', far: 0.75, risk: 1.00,
+      weight: { speed: 0.32, corner: 0.40, accel: 0.28 },
+      days: [4, 6, 3], km: 20, twisty: 0.60, rough: 0.66,
+      desc: '砂の下から岩盤が出る。二度目に通ると別のコースになる',
+      places: ['ロウザダ', 'アマランテ', 'ヴィエイラ', 'カブレイラ', 'モンチーニョ', 'フェルゲイラス'] },
+
+    { key: 'savanna', name: 'サバンナ・トレイル', country: '🇰🇪', region: 'af', every: 1,
+      surface: 'gravel', far: 1.45, risk: 1.55,
+      weight: { speed: 0.34, corner: 0.28, accel: 0.38 },
+      days: [4, 5, 4], km: 26, twisty: 0.34, rough: 1.00, heat: 0.95,
+      desc: '岩と洗濯板と泥。完走できれば、それだけで表彰台が見える',
+      places: ['カムクンジ', 'ソイサンブ', 'エレメンタイタ', 'スリーピング', 'ハエラ', 'マランバ'] },
+
+    { key: 'lakeland', name: 'レイクランド・ラリー', country: '🇫🇮', region: 'eu', every: 1,
+      surface: 'gravel', far: 0.90, risk: 1.20,
+      weight: { speed: 0.46, corner: 0.30, accel: 0.24 },
+      days: [4, 6, 3], km: 18, twisty: 0.30, rough: 0.40,
+      desc: '丘を越えるたびに車が飛ぶ。着地の向きで次が決まる',
+      places: ['オウニンポージャ', 'ルーヒマキ', 'ピヒラヤコスキ', 'ヤムサ', 'ハルユ', 'レーッパヴオリ'] },
+
+    { key: 'olive', name: 'オリーヴ・マウンテン', country: '🇬🇷', region: 'eu', every: 2, slot: 1,
+      surface: 'gravel', far: 0.95, risk: 1.45,
+      weight: { speed: 0.28, corner: 0.36, accel: 0.36 },
+      days: [4, 6, 3], km: 22, twisty: 0.62, rough: 0.95, heat: 0.85,
+      desc: '尖った石が転がる山道。足まわりがそのまま結果になる',
+      places: ['タルジナ', 'エレフテロホリ', 'パヴリアナ', 'バウキオン', 'アギイ', 'グラヴィア'] },
+
+    { key: 'vigna', name: 'ヴィーニャ・アスファルト', country: '🇮🇹', region: 'eu', every: 1,
+      surface: 'tarmac', far: 0.70, risk: 1.10,
+      weight: { speed: 0.30, corner: 0.50, accel: 0.20 },
+      days: [4, 6, 3], km: 18, twisty: 0.80, rough: 0.35,
+      desc: '葡萄畑のあいだの細い舗装。落ちれば石垣が待っている',
+      places: ['テルジュ', 'モンテ・レルノ', 'コルテ', 'フィリッピ', 'タヴォラーラ', 'ミカリツィア'] },
+
+    { key: 'hinoki', name: 'ヒノキ・フォレスト', country: '🇯🇵', region: 'asia', every: 1,
+      surface: 'tarmac', far: 1.40, risk: 1.25,
+      weight: { speed: 0.28, corner: 0.48, accel: 0.24 },
+      days: [4, 6, 3], km: 17, twisty: 0.84, rough: 0.30,
+      desc: '濡れた杉林の林道。落ち葉と苔で、乾いた舗装の顔をしない',
+      places: ['イスミ', 'ニノミヤ', 'イナブ', 'シタラ', 'オクミカワ', 'ネジバナ'] },
+
+    { key: 'highland', name: 'ハイランド・グラベル', country: '🇬🇧', region: 'eu', every: 2, slot: 0,
+      surface: 'gravel', far: 0.72, risk: 1.15,
+      weight: { speed: 0.34, corner: 0.38, accel: 0.28 },
+      days: [4, 6, 3], km: 19, twisty: 0.58, rough: 0.70,
+      desc: '泥と水たまり。轍が深く、二番手以降のほうが走りやすい',
+      places: ['ダイフナント', 'ミルウル', 'スウィート・ラム', 'ブレンギ', 'アルウェン', 'ゲイル'] },
+
+    { key: 'mixto', name: 'ミクスト・ソル', country: '🇪🇸', region: 'eu', every: 1,
+      surface: 'gravel', mix: 'tarmac', mixByDay: true, far: 0.72, risk: 1.00,
+      weight: { speed: 0.34, corner: 0.42, accel: 0.24 },
+      days: [4, 6, 3], km: 19, twisty: 0.66, rough: 0.50,
+      desc: '初日は砂利、翌日から舗装。車を一晩で作り替える',
+      places: ['テラ・アルタ', 'エル・プリオラート', 'サヴァリャ', 'リバ・ロージャ', 'ケローリ', 'サルー'] },
+
+    { key: 'andes', name: 'アンデス・コースト', country: '🇨🇱', region: 'am', every: 2, slot: 1,
+      surface: 'gravel', far: 1.50, risk: 1.10,
+      weight: { speed: 0.38, corner: 0.36, accel: 0.26 },
+      days: [4, 6, 3], km: 20, twisty: 0.54, rough: 0.58,
+      desc: '海から丘へ駆け上がる。朝は霧、昼は埃',
+      places: ['プルンコ', 'ビオビオ', 'ロス・ゴンサレス', 'マリア・ラス・クルセス', 'ペドロ', 'ラハ'] },
+
+    { key: 'wein', name: 'ヴァインベルク・ラリー', country: '🇩🇪', region: 'eu', every: 2, slot: 0,
+      surface: 'tarmac', far: 0.70, risk: 1.35,
+      weight: { speed: 0.42, corner: 0.40, accel: 0.18 },
+      days: [4, 6, 3], km: 20, twisty: 0.62, rough: 0.42,
+      desc: '軍用地のコンクリート塊「ハインケルシュタイン」が待つ',
+      places: ['パンツァープラッテ', 'グレーフェンブルク', 'ミッテルモーゼル', 'ルヴァリー', 'アルフ', 'ゴンツェラート'] }
+  ];
+
+  /* ---------- 走らせかた ----------
+     攻めるほど速いが、外す確率も上がる。
+     SSのたびに選ぶのではなく、一日の方針として決める        */
+  const PACES = [
+    { key: 'safe',  icon: '🛡️', name: '確実に',   pace: 0.988, risk: 0.55,
+      note: '取りこぼさない。上とは離れるが、最後に残っている' },
+    { key: 'std',   icon: '⚖️', name: '標準',     pace: 1.000, risk: 1.00,
+      note: 'ペースノート通りに走る' },
+    { key: 'push',  icon: '🔥', name: '攻める',   pace: 1.011, risk: 1.75,
+      note: '差を詰めにいく。石も縁石も拾いやすくなる' },
+    { key: 'max',   icon: '💥', name: '振り切る', pace: 1.019, risk: 2.80,
+      note: '全部出す。1本で終わることもある' }
+  ];
+
+  /* ---------- SSで起きること ----------
+     w は起きやすさの重み。lossS は失う秒。out なら終わり  */
+  const TROUBLES = [
+    { key: 'punc',  icon: '🛞', name: 'パンク',       w: 1.00, lossS: [40, 150], rough: 1.6,
+      line: '右リアを切った。次のサービスまで、あと何本' },
+    { key: 'spin',  icon: '🌀', name: 'スピン',       w: 0.85, lossS: [8, 30],  twist: 1.5,
+      line: '曲がりきれずに回した。すぐ立て直したが、時計は止まらない' },
+    { key: 'off',   icon: '🌾', name: 'コースオフ',   w: 0.55, lossS: [25, 110], twist: 1.3,
+      line: '外に出た。観客に押してもらって戻る' },
+    { key: 'susp',  icon: '🔩', name: 'サスペンション', w: 0.42, lossS: [60, 210], rough: 2.0,
+      line: '底を打った。曲がる気がしないまま、フィニッシュまで' },
+    { key: 'engine',icon: '⚙️', name: 'エンジン',     w: 0.20, out: true,
+      line: '水温が上がりきった。ここで止まる' },
+    { key: 'crash', icon: '💥', name: 'クラッシュ',   w: 0.30, out: true, twist: 1.2,
+      line: '外側の土手に当てた。乗員は無事。車は動かない' }
+  ];
+
+  /* ---------- サービスパーク ----------
+     決められた時間のなかで、どこまで直すか。
+     時間を超えると、超えたぶんだけペナルティがつく          */
+  const SERVICE = {
+    minutes: 30,                  // 一回のサービスで使える時間
+    overPerMin: 10,               // 1分の超過につき、この秒数が足される
+    jobs: [
+      { key: 'check', icon: '🔍', name: '点検だけ',   min: 5,  fix: 0.10, note: '締め直して送り出す' },
+      { key: 'tyre',  icon: '🛞', name: 'タイヤ交換', min: 6,  fix: 0.00, tyre: true, note: '次の区間ぶんを積み直す' },
+      { key: 'susp',  icon: '🔩', name: '足まわり',   min: 12, fix: 0.45, note: 'ダンパーとアームを入れ替える' },
+      { key: 'body',  icon: '🔧', name: '外まわり',   min: 9,  fix: 0.25, note: 'ぶつけたところを叩き出す' },
+      { key: 'engine',icon: '⚙️', name: '駆動系',     min: 16, fix: 0.60, note: 'ミッションとデフを見る' },
+      { key: 'setup', icon: '🖊️', name: '味つけ',     min: 8,  setup: true, note: '次の路面へ合わせ込む' }
+    ]
+  };
+
+  /* ---------- ペースノート ----------
+     コ・ドライバーの腕と、レッキにかけた手間で決まる。
+     読みが甘いほど、速く走れず、外しやすくなる              */
+  const NOTES = {
+    base: 0.52,        // 何もしないときの精度
+    coNote: 0.34,      // コ・ドライバーの技能ぶん
+    recce: 0.20,       // レッキ（下見）のぶん
+    bond: 0.12,        // 息の合いかたのぶん
+    paceAt: 0.045,     // 精度1あたり、タイムがどれだけ変わるか
+    riskAt: 1.45       // 精度が低いほど、外す確率がこれだけ増える
+  };
+
+  /* レッキ（事前の下見）。週を使うかどうかを選ばせる */
+  const RECCE = [
+    { key: 'none', icon: '🚫', name: '行かない',   weeks: 0, cost: 0,    q: 0.00,
+      note: '去年のノートを使い回す。知らない曲がりは出たとこ勝負' },
+    { key: 'one',  icon: '🚗', name: '一往復',     weeks: 0, cost: 900,  q: 0.55,
+      note: '主要なSSだけ通す。週は使わないが、金はかかる' },
+    { key: 'full', icon: '📓', name: '二往復',     weeks: 1, cost: 1800, q: 1.00,
+      note: '全SSを二度通して書き直す。1週まるごと使う' }
+  ];
+
+  /* ---------- 走行順 ----------
+     グラベルの初日は、前にいるほど砂利を掃いて損をする。
+     二日目からは前日の順位の逆順で出るので、今度は得をする   */
+  const ROAD = {
+    sweepMax: 0.012,     // 先頭が背負う、いちばん重いときの割合
+    decay: 0.62,         // 後ろへ行くほど、どれだけ軽くなるか
+    cleanFrom: 8         // これより後ろは、ほぼ掃き終わったあと
+  };
+
+  /* パワーステージ。最終SSの上位に、おまけの点が入る */
+  const POWER_STAGE = [5, 4, 3, 2, 1];
+
+  return { SURFACES, RALLIES, PACES, TROUBLES, SERVICE, NOTES, RECCE, ROAD, POWER_STAGE };
+})();
+
+</script>
+<script>
+/* ===== src/rally.js ===== */
+/* =========================================================
+   ラリーを走らせる
+
+   サーキットと違って、並んで走らない。1台ずつ間隔をあけて出て、
+   SS（スペシャルステージ）ごとのタイムを足していく。
+   だから「抜く」も「ブロックする」も無い。あるのは
+     ・自分のタイムをどれだけ削れるか
+     ・削りにいって、どれだけ外さずにいられるか
+   のふたつだけ。この二択がラリーの全部といっていい。
+
+   タイムの出しかた
+     区間タイム ＝ 距離 ÷ 平均速度
+     平均速度   ＝ 路面の素の速さ
+                  × 車（その路面・曲がり具合での出来）
+                  × ドライバー（腕・調子・その路面の得手）
+                  × ペースノート（読みの精度）
+                  × 攻めかた（確実に〜振り切る）
+                  × 走行順（グラベルの掃き掃除）
+                  × 天気・夜
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.rally = (function () {
+  'use strict';
+
+  const D = () => GP.data;
+  const RD = () => GP.rallydata;
+  const S = () => GP.state;
+
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function rint(a, b) { return Math.floor(rnd(a, b + 1)); }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+  /* ---------- SSの組み立て ----------
+     ラリーごとの素性（平均の長さ・曲がり具合・荒さ）から、
+     その年のSSを組む。日ごとに顔つきを変えて、
+     「二日目がいちばん長い」という当たり前を作る            */
+  function buildStages(rally, seed) {
+    let h = (seed * 2654435761) >>> 0;
+    const r = () => { h = (h * 1103515245 + 12345) >>> 0; return h / 4294967296; };
+    const out = [];
+    const names = rally.places || ['ステージ'];
+    rally.days.forEach((n, day) => {
+      // 二日目は長く、最終日は短く締める
+      const dayKm = [0.92, 1.10, 0.80][day] || 1;
+      for (let i = 0; i < n; i++) {
+        const nm = names[(day * 3 + i) % names.length];
+        /* 同じ道を午前と午後に二度通る。二度目は路面が荒れる */
+        const second = i >= Math.ceil(n / 2);
+        const km = Math.round(rally.km * dayKm * (0.7 + r() * 0.7) * 10) / 10;
+        out.push({
+          day: day,
+          n: out.length + 1,
+          name: nm + (second ? '（2回目）' : ''),
+          km: Math.max(3, km),
+          twisty: clamp(rally.twisty + (r() - 0.5) * 0.24, 0.12, 0.95),
+          rough: clamp(rally.rough * (second ? 1.22 : 1) + (r() - 0.5) * 0.18, 0.05, 1.15),
+          /* 路面の混ざりかたは2通り。
+             mixByDay … 初日は砂利、翌日から舗装（一晩で車を作り替える）
+             mix      … 同じ日のなかに、ときどき別の路面のSSが挟まる    */
+          surface: rally.mixByDay ? (day >= 1 ? rally.mix : rally.surface)
+                 : (rally.mix && r() < 0.30) ? rally.mix : rally.surface,
+          night: !!rally.night && day === 0 && i >= n - 1,
+          second: second
+        });
+      }
+    });
+    // 最終SSがパワーステージ
+    if (out.length) out[out.length - 1].power = true;
+    return out;
+  }
+
+  /* サービスパークが入る場所。日の変わり目と、二日目の真ん中 */
+  function serviceAfter(stages) {
+    const set = {};
+    for (let i = 1; i < stages.length; i++) {
+      if (stages[i].day !== stages[i - 1].day) set[i - 1] = true;
+    }
+    // 一日のなかほどにも一度戻る（本数の多い日だけ）
+    const byDay = {};
+    stages.forEach((s, i) => { (byDay[s.day] = byDay[s.day] || []).push(i); });
+    Object.keys(byDay).forEach(d => {
+      const list = byDay[d];
+      if (list.length >= 5) set[list[Math.floor(list.length / 2) - 1]] = true;
+    });
+    return set;
+  }
+
+  /* ---------- 路面の素の速さ ----------
+     曲がりどころが多いほど遅い。荒れているほど遅い。
+     単位は km/h                                            */
+  function baseSpeed(st) {
+    const sf = RD().SURFACES[st.surface] || RD().SURFACES.gravel;
+    /* 実際のSSの平均速度は 90〜125km/h あたり。
+       曲がりどころが多いほど、荒れているほど落ちる          */
+    const v = 148 - st.twisty * 44 - st.rough * 11;
+    return v * (0.88 + sf.grip * 0.12) / 0.985;
+  }
+
+  /* ---------- 走行順による損得 ----------
+     グラベルの初日は、前を走るほど砂利を掃いて損をする。
+     舗装ではほとんど効かない                               */
+  function roadFactor(st, order) {
+    const sf = RD().SURFACES[st.surface] || RD().SURFACES.gravel;
+    const RO = RD().ROAD;
+    if (order == null) return 1;
+    const k = Math.pow(RO.decay, Math.max(0, order - 1));
+    const lose = RO.sweepMax * sf.sweep * (order >= RO.cleanFrom ? 0 : k);
+    // 二度目に通るときは、もう掃き終わっている
+    return 1 - (st.second ? lose * 0.35 : lose);
+  }
+
+  /* ---------- ペースノートの精度 ---------- */
+  function notesOf(g, crew) {
+    const N = RD().NOTES;
+    const co = crew && crew.co ? (crew.co.skill || 40) / 100 : 0.30;
+    const rc = crew && crew.recce != null ? crew.recce : 0;
+    const bond = crew && crew.bond != null ? crew.bond : 0.5;
+    return clamp(N.base + co * N.coNote + rc * N.recce + bond * N.bond, 0.2, 1.25);
+  }
+
+  /* ---------- 1本ぶんのタイム ---------- */
+  function stageTime(e, st, opt) {
+    opt = opt || {};
+    const sf = RD().SURFACES[st.surface] || RD().SURFACES.gravel;
+    const N = RD().NOTES;
+    let v = baseSpeed(st);
+
+    /* 車。基準（その週いちばん良い車）からの差で効かせる。
+       ここの係数がそのまま「トップと10番手の差」になる。
+       実際のラリーは 1位と10位で4分ほど＝3%なので、小さく取る   */
+    v *= 1 + (e.car - opt.ref) / Math.max(1, opt.ref) * 0.115;
+    // 路面の得手不得手。車の作りかたが合っているか
+    v *= 1 + (e.surfaceFit || 0) * 0.020;
+    // ドライバー
+    v *= 0.982 + (e.drvPace || 0.5) * 0.036;
+    // ペースノート
+    v *= 1 + (e.notes - 0.75) * N.paceAt;
+    // 攻めかた
+    v *= (e.paceDef || RD().PACES[1]).pace;
+    // 走行順
+    v *= roadFactor(st, e.order);
+    // 夜と天気
+    if (st.night) v *= 0.955;
+    if (opt.wet) v *= 0.93 - st.rough * 0.02;
+    // その日の当たり外れ
+    v *= rnd(0.9975, 1.0025);
+
+    return st.km / Math.max(20, v) * 3600;
+  }
+
+  /* ---------- 何かが起きるか ---------- */
+  function rollTrouble(e, st, opt) {
+    const N = RD().NOTES;
+    const rally = opt.rally;
+    let base = 0.055 * (rally.risk || 1) * (0.55 + st.rough * 0.75);
+    base *= (e.paceDef || RD().PACES[1]).risk;
+    // ノートが甘いほど外す
+    base *= 1 + (0.85 - e.notes) * N.riskAt;
+    // 車の壊れにくさ
+    base *= 1 + (100 - (e.rel || 90)) / 100 * 1.2;
+    if (opt.wet) base *= 1.25;
+    if (st.night) base *= 1.20;
+    if (Math.random() > base) return null;
+
+    // どれが起きたか。荒れた路面ならパンクと足まわり、曲がりどころならスピンと飛び出し
+    const list = RD().TROUBLES.map(t => {
+      let w = t.w;
+      if (t.rough) w *= 1 + st.rough * (t.rough - 1);
+      if (t.twist) w *= 1 + st.twisty * (t.twist - 1);
+      return { t: t, w: w };
+    });
+    const sum = list.reduce((a, x) => a + x.w, 0);
+    let r = Math.random() * sum;
+    for (const x of list) { r -= x.w; if (r <= 0) return x.t; }
+    return list[0].t;
+  }
+
+  /* ---------- 出走する面々をつくる ---------- */
+  function buildEntries(g, rally, plan) {
+    const St = S();
+    const teams = St.allTeams(g, rally);
+    const sf = RD().SURFACES[rally.surface] || RD().SURFACES.gravel;
+    const out = [];
+    let id = 0;
+    teams.forEach(t => {
+      (t.drivers || []).forEach(d => {
+        const mine = !!t.isPlayer;
+        /* 路面の得手。曲がる車は舗装で、蹴り出す車は砂利で強い。
+           自分の車は実際の作りから、ライバルは持ち味から出す      */
+        const st = t.stats || {};
+        const tot = Math.max(1, (st.speed || 30) + (st.corner || 30) + (st.accel || 30));
+        const corner = (st.corner || 30) / tot, accel = (st.accel || 30) / tot;
+        const fit = rally.surface === 'tarmac' ? (corner - 0.34) * 3.2
+                  : rally.surface === 'snow'   ? (accel - 0.33) * 2.4
+                                               : (accel - 0.33) * 3.0;
+        const drv = clamp(((St.driverRating(d) || 50) / 100) * 0.82
+                          + ((d.form || 100) - 100) / 100 * 0.6
+                          + (St.hasSkill && St.hasSkill(d, 'rain') ? 0.04 : 0), 0.05, 1.3);
+        const crew = mine ? (plan.crew && plan.crew[d.id]) || {} : null;
+        out.push({
+          id: 'e' + (id++),
+          driver: d, team: t, isPlayer: mine,
+          name: d.name, color: t.color, teamName: t.name,
+          car: t.car, rel: mine ? (t.rel || 90) : clamp(88 + (t.level || 0) * 2, 70, 97),
+          surfaceFit: fit,
+          drvPace: drv,
+          notes: mine ? notesOf(g, crew)
+                      : clamp(0.62 + ((t.level || 3) / 10) * 0.45 + rnd(-0.05, 0.05), 0.3, 1.2),
+          paceDef: mine ? (RD().PACES.filter(p => p.key === (plan.pace || 'std'))[0] || RD().PACES[1])
+                        : pick(RD().PACES.slice(0, 3)),
+          co: crew && crew.co ? crew.co : null,
+          total: 0, done: [], out: false, outAt: 0, outWhy: '',
+          damage: 0, spares: mine ? (plan.spares == null ? 2 : plan.spares) : 2
+        });
+      });
+    });
+    return out;
+  }
+
+  /* 走行順。初日は選手権の順位の逆、二日目からは前日の順位の逆 */
+  function orderFor(list, day, standings) {
+    const live = list.filter(e => !e.out);
+    if (day === 0) {
+      // 選手権で上にいるほど先に出る＝グラベルでは損をする
+      live.sort((a, b) => (standings[b.id] || 0) - (standings[a.id] || 0));
+    } else {
+      live.sort((a, b) => a.total - b.total);
+    }
+    live.forEach((e, i) => { e.order = i + 1; });
+  }
+
+  /* ---------- まるごと1ラリー ---------- */
+  function run(g, roundIdx, plan) {
+    plan = plan || {};
+    const St = S();
+    const rally = venueAt(g, roundIdx);
+    const stages = buildStages(rally, (g.season || 1) * 97 + roundIdx * 13);
+    const svc = serviceAfter(stages);
+    const list = buildEntries(g, rally, plan);
+    const ref = Math.max.apply(null, list.map(e => e.car));
+    const wet = Math.random() < (rally.wetRate == null ? 0.22 : rally.wetRate);
+
+    // 選手権での立ち位置（初日の走行順に使う）
+    const standings = {};
+    list.forEach(e => { standings[e.id] = e.driver.seasonPoints || 0; });
+
+    const log = [];
+    let curDay = -1;
+    stages.forEach((st, i) => {
+      if (st.day !== curDay) { curDay = st.day; orderFor(list, curDay, standings); }
+      const board = [];
+      list.forEach(e => {
+        if (e.out) return;
+        let t = stageTime(e, st, { ref: ref, wet: wet, rally: rally });
+        // 前のSSで負ったダメージを引きずる
+        t *= 1 + e.damage * 0.035;
+        const tr = rollTrouble(e, st, { wet: wet, rally: rally });
+        let note = null;
+        if (tr) {
+          if (tr.out) {
+            e.out = true; e.outAt = i + 1; e.outWhy = tr.name;
+            note = { icon: tr.icon, name: tr.name, line: tr.line, out: true };
+          } else {
+            let loss = rnd(tr.lossS[0], tr.lossS[1]);
+            if (tr.key === 'punc') {
+              if (e.spares > 0) { e.spares--; loss *= 0.55; }
+              else loss *= 1.8;                       // 替えが無ければ引きずる
+            }
+            t += loss;
+            e.damage += tr.key === 'susp' ? 1.4 : tr.key === 'off' ? 0.5 : 0.2;
+            note = { icon: tr.icon, name: tr.name, line: tr.line, loss: Math.round(loss) };
+          }
+        }
+        if (!e.out) { e.total += t; e.done.push(t); }
+        board.push({ e: e, t: t, note: note });
+      });
+      board.sort((a, b) => a.t - b.t);
+      const win = board[0];
+      log.push({
+        st: st, i: i, service: !!svc[i], wet: wet,
+        board: board.map((x, k) => ({
+          id: x.e.id, name: x.e.name, team: x.e.teamName, color: x.e.color,
+          isPlayer: x.e.isPlayer, t: x.t, gap: x.t - (win ? win.t : x.t),
+          pos: k + 1, note: x.note, out: x.e.out
+        }))
+      });
+      // パワーステージの点
+      if (st.power) {
+        board.filter(x => !x.e.out).slice(0, RD().POWER_STAGE.length)
+          .forEach((x, k) => { x.e.power = RD().POWER_STAGE[k]; });
+      }
+    });
+
+    // 総合順位
+    const fin = list.filter(e => !e.out).sort((a, b) => a.total - b.total);
+    const dnf = list.filter(e => e.out).sort((a, b) => b.outAt - a.outAt);
+    const classified = fin.concat(dnf).map((e, i) => ({
+      id: e.id, pos: i + 1, dnf: e.out, driver: e.driver, team: e.team,
+      isPlayer: e.isPlayer, name: e.name, color: e.color, teamName: e.teamName,
+      grid: 0, total: e.total, gap: e.total - (fin[0] ? fin[0].total : 0),
+      power: e.power || 0, outWhy: e.outWhy, outAt: e.outAt, spares: e.spares
+    }));
+    return {
+      rally: rally, round: roundIdx, stages: stages, log: log, wet: wet,
+      classified: classified, service: svc,
+      winner: classified[0] || null
+    };
+  }
+
+  /* いまの大会（シリーズによって、サーキットかラリーか） */
+  function venueAt(g, round) {
+    const St = S();
+    if (St.venueAt) return St.venueAt(g, round);
+    return RD().RALLIES[round % RD().RALLIES.length];
+  }
+
+  return { run, buildStages, serviceAfter, notesOf, baseSpeed, roadFactor, stageTime };
 })();
 
 </script>
@@ -29345,6 +29988,392 @@ GP.screens.weekend = function (A) {
 
 </script>
 <script>
+/* ===== src/screens/rallyweek.js ===== */
+/* =========================================================
+   ラリーウィーク
+
+   サーキットの週末が「金曜の走行 → 予選 → 決勝」なら、
+   ラリーの週末は「レッキ → 一日目 → サービス → 二日目 → …」。
+
+   決めることは3つだけ。
+     ・レッキ（どこまで下見するか）＝ ペースノートの精度
+     ・攻めかた（確実に〜振り切る）＝ 速さと外す確率
+     ・積むスペア（タイヤを何本持つか）＝ パンクの傷の深さ
+   あとは走って、サービスで直す。
+   ========================================================= */
+window.GP = window.GP || {};
+
+GP.screens = GP.screens || {};
+GP.screens.rallyweek = function (A) {
+  'use strict';
+
+  let $, esc, money, render, endWeek, bindPick;
+  let g = null;
+
+  function link() {
+    $ = A.$; esc = A.esc; money = A.money; render = A.render;
+    endWeek = A.endWeek; bindPick = A.bindPick;
+  }
+  function setG(x) { g = x; }
+
+  const D = () => GP.data;
+  const RD = () => GP.rallydata;
+  const S = () => GP.state;
+  const U = () => GP.ui;
+
+  /* 週末のあいだ持っておく決めごと */
+  let plan = null;
+  let pack = null;      // 走り終えた結果
+  let shown = 0;        // どこまで見せたか
+
+  function secs(t) {
+    const m = Math.floor(t / 60), s2 = t - m * 60;
+    return m + ':' + (s2 < 10 ? '0' : '') + s2.toFixed(1);
+  }
+  function gapS(t) { return (t >= 0 ? '+' : '') + t.toFixed(1); }
+
+  function freshPlan() {
+    return { recce: 'one', pace: 'std', spares: 2, crew: {}, service: {} };
+  }
+
+  /* ---------- 入口 ---------- */
+  function cmdRally() {
+    const St = S();
+    const rally = St.venueAt(g, g.nextRace);
+    if (!rally) return;
+    if (!plan) plan = freshPlan();
+    pack = null; shown = 0;
+    showBrief(rally);
+  }
+
+  /* ---------- 出発前 ---------- */
+  function showBrief(rally) {
+    const St = S(), Ui = U();
+    const sf = RD().SURFACES[rally.surface] || RD().SURFACES.gravel;
+    const stages = GP.rally.buildStages(rally, (g.season || 1) * 97 + g.nextRace * 13);
+    const km = stages.reduce((a, s) => a + s.km, 0);
+    const byDay = [0, 1, 2].map(d => stages.filter(s => s.day === d));
+
+    let body = '<div class="racehead"><b>第' + (g.nextRace + 1) + '戦 ' +
+      rally.country + ' ' + esc(rally.name) + '</b>' +
+      '<span>' + sf.icon + ' ' + sf.name + '　全' + stages.length + 'SS ／ ' +
+      km.toFixed(1) + 'km</span></div>' +
+      '<p class="desc">' + esc(rally.desc) + '</p>';
+
+    // ---- 決めること ----
+    body += '<div class="sub">レッキ（下見）</div>' +
+      '<div class="pick" data-rrecce="1">';
+    RD().RECCE.forEach(r => {
+      const can = g.funds >= r.cost;
+      body += '<button class="pickbtn' + (r.key === plan.recce ? ' on' : '') + (can ? '' : ' cant') +
+        '" data-v="' + r.key + '"' + (can ? '' : ' disabled') + '>' +
+        '<span class="pb-ic" style="background:#6b4724">' + r.icon + '</span>' +
+        '<span class="pb-body"><b>' + r.name + '</b><small>' + esc(r.note) + '</small></span>' +
+        '<span class="pb-cost">' + (r.cost ? '💰' + money(r.cost) : '—') + '</span></button>';
+    });
+    body += '</div>';
+
+    body += '<div class="sub">攻めかた</div>' +
+      '<div class="pick" data-rpace="1">';
+    RD().PACES.forEach(p => {
+      body += '<button class="pickbtn' + (p.key === plan.pace ? ' on' : '') + '" data-v="' + p.key + '">' +
+        '<span class="pb-ic" style="background:#8f2a24">' + p.icon + '</span>' +
+        '<span class="pb-body"><b>' + p.name + '</b><small>' + esc(p.note) + '</small></span>' +
+        '<span class="pb-cost">' + ((p.pace - 1) * 100 >= 0 ? '+' : '') +
+        ((p.pace - 1) * 100).toFixed(1) + '%<br><em class="' + (p.risk > 1 ? 'warn' : 'free') + '">危険×' +
+        p.risk.toFixed(2) + '</em></span></button>';
+    });
+    body += '</div>';
+
+    body += '<div class="sub">積むスペアタイヤ</div>' +
+      '<p class="desc">多く積むほどパンクしても傷が浅く済みますが、そのぶん重くなります。' +
+      '1本あたり、全区間で <b>0.25%</b> ずつ遅くなります。</p>' +
+      '<div class="pick" data-rspare="1">';
+    [0, 1, 2, 3].forEach(n => {
+      body += '<button class="pickbtn' + (n === plan.spares ? ' on' : '') + '" data-v="' + n + '">' +
+        '<span class="pb-ic" style="background:#33313e">🛞</span>' +
+        '<span class="pb-body"><b>' + n + '本</b><small>' +
+        (n === 0 ? '軽さを取る。切ったらそこまで' : n >= 3 ? '重いが、何が来ても走り切れる'
+          : '標準的な積みかた') + '</small></span>' +
+        '<span class="pb-cost">' + (n ? '-' + (n * 0.25).toFixed(2) + '%' : '±0') + '</span></button>';
+    });
+    body += '</div>';
+
+    // ---- 読み上げの見込み ----
+    const crew = crewPlan();
+    const nq = GP.rally.notesOf(g, crew[(g.drivers[0] || {}).id] || {});
+    body += '<div class="erabox"><b>📓 ペースノートの読み　<em>' +
+      Math.round(nq * 100) + ' / 100</em></b><small>' +
+      coLine() + '　レッキの手間と、右席の腕と、息の合いかたで決まります。' +
+      '読みが甘いと、速く走れないうえに外しやすくなります。</small></div>';
+
+    // ---- 日程 ----
+    body += '<div class="sub">日程</div><div class="sslist">';
+    byDay.forEach((list, d) => {
+      if (!list.length) return;
+      body += '<div class="ssday"><b>' + (d + 1) + '日目</b><em>' + list.length + 'SS ／ ' +
+        list.reduce((a, s) => a + s.km, 0).toFixed(1) + 'km</em></div>';
+      list.forEach(s => {
+        const ssf = RD().SURFACES[s.surface] || sf;
+        body += '<div class="ssrow"><i style="background:' + ssf.color + '">SS' + s.n + '</i>' +
+          '<span><b>' + esc(s.name) + '</b><small>' + s.km.toFixed(1) + 'km　' +
+          ssf.icon + ssf.name + (s.night ? '　🌙 夜' : '') +
+          (s.power ? '　⚡ パワーステージ' : '') + '</small></span>' +
+          '<em>' + (s.twisty > 0.66 ? '曲がりどころ' : s.twisty < 0.4 ? '高速' : '中速') +
+          (s.rough > 0.7 ? '・荒い' : '') + '</em></div>';
+      });
+    });
+    body += '</div>';
+
+    Ui.modal('🏁 ' + rally.name, body, [
+      { label: '🏁 スタートする', cls: 'primary', fn: () => startRally(rally) },
+      { label: 'まだ準備する', fn: Ui.closeModal }
+    ]);
+    bindOpt('data-rrecce', v => { plan.recce = v; showBrief(rally); });
+    bindOpt('data-rpace', v => { plan.pace = v; showBrief(rally); });
+    bindOpt('data-rspare', v => { plan.spares = +v; showBrief(rally); });
+  }
+
+  function bindOpt(attr, fn) {
+    const box = $('modalBody').querySelector('[' + attr + ']');
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll('[data-v]'), b => {
+      b.onclick = () => { GP.sound.play('tap'); fn(b.dataset.v); };
+    });
+  }
+
+  function coLine() {
+    const St = S();
+    const d = g.drivers[0];
+    const co = d ? St.coOf(g, d) : null;
+    if (!co) return '右席がまだ決まっていません。';
+    return '右席は ' + esc(co.name) + '（腕 ' + co.skill + '／息 ' +
+      Math.round((co.bond || 0) * 100) + '%）。';
+  }
+
+  /* いまの乗員の組み合わせを、走らせる側に渡す形にする */
+  function crewPlan() {
+    const St = S();
+    const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[1];
+    const out = {};
+    (g.drivers || []).forEach(d => {
+      const co = St.coOf(g, d);
+      out[d.id] = { co: co, recce: rc.q, bond: co ? (co.bond || 0) : 0 };
+    });
+    return out;
+  }
+
+  /* ---------- 走る ---------- */
+  function startRally(rally) {
+    const St = S(), Ui = U();
+    const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[1];
+    if (rc.cost) {
+      if (g.funds < rc.cost) return Ui.toast('資金が足りません', 'bad');
+      g.funds -= rc.cost;
+    }
+    plan.crew = crewPlan();
+    // 積んだスペアのぶんだけ、ほんの少し重い
+    pack = GP.rally.run(g, g.nextRace, plan);
+    shown = 0;
+    Ui.closeModal();
+    showStage();
+  }
+
+  /* ---------- SSを1本ずつ ---------- */
+  function showStage() {
+    const Ui = U();
+    if (!pack) return;
+    if (shown >= pack.log.length) return showResult();
+    const row = pack.log[shown];
+    const st = row.st;
+    const sf = RD().SURFACES[st.surface] || RD().SURFACES.gravel;
+    const mine = row.board.filter(b => b.isPlayer);
+
+    let body = '<div class="racehead"><b>SS' + st.n + ' ' + esc(st.name) + '</b>' +
+      '<span>' + st.km.toFixed(1) + 'km　' + sf.icon + sf.name +
+      (st.night ? '　🌙' : '') + (pack.wet ? '　🌧️ 濡れている' : '') +
+      (st.power ? '　⚡ パワーステージ' : '') + '</span></div>';
+
+    // 自分に起きたこと
+    mine.forEach(b => {
+      if (!b.note) return;
+      body += '<div class="mgrsay ' + (b.note.out ? 'bad' : 'warn') + '">' +
+        '<b>' + b.note.icon + ' ' + esc(b.name) + '：' + esc(b.note.name) + '</b>' +
+        esc(b.note.line) + (b.note.loss ? '（<b>+' + b.note.loss + '秒</b>）' : '') + '</div>';
+    });
+
+    // この区間のタイム
+    body += '<div class="sub">この区間</div><div class="ssboard">';
+    row.board.slice(0, 10).forEach(b => {
+      body += '<div class="ssb' + (b.isPlayer ? ' me' : '') + '">' +
+        '<i>' + b.pos + '</i>' +
+        '<span class="ssb-c" style="background:' + b.color + '"></span>' +
+        '<b>' + esc(b.name) + '</b>' +
+        '<em>' + secs(b.t) + '</em>' +
+        '<u>' + (b.pos === 1 ? '—' : gapS(b.gap)) + '</u></div>';
+    });
+    body += '</div>';
+
+    // 総合
+    body += '<div class="sub small">総合</div>' + overallHTML(shown);
+
+    const last = shown >= pack.log.length - 1;
+    const btns = [
+      { label: last ? '🏆 結果へ' : (row.service ? '🔧 サービスへ' : '▶ 次のSSへ'),
+        cls: 'primary', fn: () => { shown++; if (!last && row.service) showService(); else showStage(); } },
+      { label: '⏭️ 残りを一気に', fn: () => { shown = pack.log.length; showResult(); } }
+    ];
+    Ui.modal('🏁 ' + pack.rally.name, body, btns, { wide: true });
+  }
+
+  /* その時点までの総合順位 */
+  function overallHTML(uptoIdx) {
+    const tot = {};
+    const outAt = {};
+    for (let i = 0; i <= uptoIdx && i < pack.log.length; i++) {
+      pack.log[i].board.forEach(b => {
+        if (b.out && outAt[b.id] == null) outAt[b.id] = i + 1;
+        if (outAt[b.id] == null) tot[b.id] = (tot[b.id] || 0) + b.t;
+      });
+    }
+    const meta = {};
+    pack.log[0].board.forEach(b => { meta[b.id] = b; });
+    const live = Object.keys(tot).filter(k => outAt[k] == null)
+      .sort((a, b) => tot[a] - tot[b]);
+    const lead = live.length ? tot[live[0]] : 0;
+    let h = '<div class="ssboard">';
+    live.slice(0, 10).forEach((k, i) => {
+      const b = meta[k] || {};
+      h += '<div class="ssb' + (b.isPlayer ? ' me' : '') + '">' +
+        '<i>' + (i + 1) + '</i>' +
+        '<span class="ssb-c" style="background:' + b.color + '"></span>' +
+        '<b>' + esc(b.name) + '</b>' +
+        '<em>' + secs(tot[k]) + '</em>' +
+        '<u>' + (i === 0 ? '—' : gapS(tot[k] - lead)) + '</u></div>';
+    });
+    return h + '</div>';
+  }
+
+  /* ---------- サービスパーク ---------- */
+  function showService() {
+    const Ui = U();
+    const SV = RD().SERVICE;
+    const used = Object.keys(plan.service).reduce((a, k) =>
+      a + ((SV.jobs.filter(j => j.key === k)[0] || {}).min || 0), 0);
+    let body = '<div class="racehead"><b>🔧 サービスパーク</b>' +
+      '<span>使える時間 ' + SV.minutes + '分　いま ' + used + '分</span></div>' +
+      '<p class="desc">決められた時間のなかで、どこまで手を入れるか。' +
+      '超えたぶんは <b>1分につき ' + SV.overPerMin + '秒</b> が総合タイムに足されます。</p>' +
+      '<div class="pick" data-rjob="1">';
+    SV.jobs.forEach(j => {
+      const on = !!plan.service[j.key];
+      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-v="' + j.key + '">' +
+        '<span class="pb-ic" style="background:#464351">' + j.icon + '</span>' +
+        '<span class="pb-body"><b>' + j.name + '</b><small>' + esc(j.note) + '</small></span>' +
+        '<span class="pb-cost">' + j.min + '分</span></button>';
+    });
+    body += '</div>';
+    const over = Math.max(0, used - SV.minutes);
+    if (over > 0) {
+      body += '<p class="note warn">⏱️ ' + over + '分の超過。総合に <b>+' +
+        (over * SV.overPerMin) + '秒</b> が足されます。</p>';
+    }
+    Ui.modal('🔧 サービスパーク', body, [
+      { label: '▶ 次の日へ', cls: 'primary', fn: () => { applyService(); showStage(); } }
+    ], { wide: true });
+    bindOpt('data-rjob', v => {
+      if (plan.service[v]) delete plan.service[v]; else plan.service[v] = 1;
+      showService();
+    });
+  }
+
+  function applyService() {
+    const SV = RD().SERVICE;
+    const used = Object.keys(plan.service).reduce((a, k) =>
+      a + ((SV.jobs.filter(j => j.key === k)[0] || {}).min || 0), 0);
+    const over = Math.max(0, used - SV.minutes);
+    if (over > 0 && pack) {
+      /* 超過はペナルティ。自分のクルーだけが背負う */
+      pack.classified.filter(c => c.isPlayer).forEach(c => {
+        c.total += over * SV.overPerMin;
+        c.servicePenalty = over * SV.overPerMin;
+      });
+    }
+    plan.service = {};
+  }
+
+  /* ---------- 結果 ---------- */
+  function showResult() {
+    const Ui = U(), St = S();
+    if (!pack) return;
+    // 走り終えたぶんの息が合っていく
+    (g.codrivers || []).forEach(co => St.coBond(co));
+
+    const R = GP.race;
+    /* サーキットの結果処理をそのまま使う。
+       点・賞金・ファン・部品の消耗・輸送費まで、同じ計算でよい。
+       向こうが見ている形（track / weather / trackIndex）だけ揃える */
+    const res = {
+      classified: pack.classified, special: null, fastestLap: null,
+      /* 向こうが見るのは entries（スピンの数え上げ）だけなので、
+         完走・リタイアをそのまま渡しておけばよい            */
+      entries: pack.classified,
+      track: pack.rally, trackIndex: pack.round,
+      weather: { key: pack.wet ? 'rain' : 'sun', name: pack.wet ? '雨' : '晴れ' },
+      laps: pack.stages.length
+    };
+    const out = R.applyResult(g, res);
+    // パワーステージのぶん
+    pack.classified.forEach(c => {
+      if (!c.power) return;
+      c.points = (c.points || 0) + c.power;
+      if (c.driver) c.driver.seasonPoints += c.power;
+      if (c.isPlayer) g.points += c.power;
+      else if (c.team) c.team.points += c.power;
+    });
+
+    const win = pack.classified[0];
+    let body = '<div class="racehead"><b>🏆 ' + esc(pack.rally.name) + '</b>' +
+      '<span>' + (win ? esc(win.name) + ' 優勝' : '') + '</span></div>';
+    body += '<div class="ssboard big">';
+    pack.classified.slice(0, 14).forEach(c => {
+      body += '<div class="ssb' + (c.isPlayer ? ' me' : '') + (c.dnf ? ' out' : '') + '">' +
+        '<i>' + (c.dnf ? '—' : c.pos) + '</i>' +
+        '<span class="ssb-c" style="background:' + c.color + '"></span>' +
+        '<b>' + esc(c.name) + '<small>' + esc(c.teamName || '') + '</small></b>' +
+        '<em>' + (c.dnf ? 'SS' + c.outAt + ' ' + esc(c.outWhy) : secs(c.total)) + '</em>' +
+        '<u>' + (c.dnf ? 'リタイア' : c.pos === 1 ? '—' : gapS(c.gap)) +
+        (c.points ? '　<b class="up">+' + c.points + '</b>' : '') + '</u></div>';
+    });
+    body += '</div>';
+    if (out && out.notes && out.notes.length) {
+      body += '<div class="sub small">この一戦で</div>';
+      out.notes.forEach(n => { body += '<p class="note">' + n + '</p>'; });
+    }
+    Ui.modal('🏆 結果', body, [
+      { label: '拠点へ戻る', cls: 'primary', fn: () => { Ui.closeModal(); finish(); } }
+    ], { wide: true });
+  }
+
+  function finish() {
+    const Ui = U();
+    g.nextRace++;
+    pack = null; plan = null; shown = 0;
+    Ui.log(g, '🏁 ラリーを走り終えた。', 'good');
+    S().save(g);
+    endWeek();
+  }
+
+  return {
+    name: 'rallyweek',
+    link: link,
+    setG: setG,
+    api: { cmdRally: cmdRally }
+  };
+};
+
+</script>
+<script>
 /* ===== src/screens/biz.js ===== */
 /* =========================================================
    画面：営業と情報（スポンサー・サプライヤー・オーナー・診断）
@@ -35855,6 +36884,46 @@ GP.ui = (function () {
       '</div></div>';
   }
 
+  /* ---------- 路面との相性 ----------
+     区間ごとの相性（サーキット）の、ラリー版。
+     砂利は蹴り出し、舗装は曲がる力、雪はその中間が効く。
+     いまの車の振り分けが、その路面に向いているかを出す        */
+  function surfaceFitHTML(g, t) {
+    const RD = GP.rallydata;
+    if (!RD) return '';
+    const st = S.carStats(g);
+    const tot = Math.max(1, st.speed + st.corner + st.accel);
+    const corner = st.corner / tot, accel = st.accel / tot;
+    const rows = ['gravel', 'tarmac', 'snow'].map(k => {
+      const sf = RD.SURFACES[k];
+      const fit = k === 'tarmac' ? (corner - 0.34) * 3.2
+                : k === 'snow'   ? (accel - 0.33) * 2.4
+                                 : (accel - 0.33) * 3.0;
+      const pct = fit * 3.0;                 // 見せるための割合（%）
+      const now = t.surface === k;
+      return '<div class="secfit' + (pct >= 0.6 ? ' good' : pct <= -0.6 ? ' bad' : '') + '">' +
+        '<i style="background:' + sf.color + '">' + sf.icon + '</i>' +
+        '<span><b>' + sf.name + (now ? '　← 今週' : '') + '</b>' +
+        '<small>' + esc(sf.note) + '</small></span>' +
+        '<em>' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%</em></div>';
+    }).join('');
+    return '<b class="sub small">路面との相性</b><div class="secfits">' + rows + '</div>' +
+      '<p class="desc">砂利は<b>蹴り出し</b>が、舗装は<b>曲がる力</b>が、' +
+      '雪はその中間がタイムになります。合っていない路面では、' +
+      '同じ車でも一日で1分ぶん置いていかれます。</p>';
+  }
+
+  /* ラリーの路面と、日程の一行 */
+  function rallySurface(t) {
+    const RD = GP.rallydata;
+    return (RD && RD.SURFACES[t.surface]) || { icon: '🪨', name: 'グラベル' };
+  }
+  function rallyLine(t) {
+    const days = (t.days || []).reduce((a, b) => a + b, 0);
+    return '全' + days + 'SS ／ ' + (t.days || []).length + '日間' +
+           (t.mix ? '　途中で路面が変わる' : '');
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -35862,6 +36931,7 @@ GP.ui = (function () {
         '<div class="pad">全' + D.RACES + '戦が終了しました。「次の週へ」でシーズンを締めましょう。</div></div>';
     }
     const t = S.trackAt(g, g.nextRace);
+    const rally = !t.path;              // ラリーには周回のコース図が無い
     const sc = S.carScore(g, t);
     const left = Math.max(0, S.raceWeek(g, g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
@@ -35890,19 +36960,25 @@ GP.ui = (function () {
          ここが「何をすればいいか分からない」への直接の答えになる      */
       weekTipHTML(g, left) +
       '<div class="track-mini" id="trackMini"></div>' +
-      '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
-      '<div class="seclegend">' +
-      '<span><i style="background:' + SECTOR_COLORS[0] + '"></i>S1</span>' +
-      '<span><i style="background:' + SECTOR_COLORS[1] + '"></i>S2</span>' +
-      '<span><i style="background:' + SECTOR_COLORS[2] + '"></i>S3</span>' +
-      (t.landmarks ? '<em>◯ ' + t.landmarks.map(esc).join(' ／ ') + '</em>' : '') +
-      '</div>' +
+      (rally
+        ? '<div class="tinfo"><span>' + rallySurface(t).icon + ' <b>' +
+            rallySurface(t).name + '</b></span><span>難易度 <b>' +
+            '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
+          '<div class="seclegend"><em>' + esc(rallyLine(t)) + '</em></div>'
+        : '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
+          '<div class="seclegend">' +
+          '<span><i style="background:' + SECTOR_COLORS[0] + '"></i>S1</span>' +
+          '<span><i style="background:' + SECTOR_COLORS[1] + '"></i>S2</span>' +
+          '<span><i style="background:' + SECTOR_COLORS[2] + '"></i>S3</span>' +
+          (t.landmarks ? '<em>◯ ' + t.landmarks.map(esc).join(' ／ ') + '</em>' : '') +
+          '</div>') +
       '<p class="desc">' + esc(t.desc) + '</p>' +
       '<div class="req">求められる性能：' +
       reqBar('最高速', t.weight.speed) + reqBar('コーナー', t.weight.corner) + reqBar('加速', t.weight.accel) +
       '</div>' +
-      sectorFitHTML(g, t) +
-      '<div class="score">このコースでのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
+      (rally ? surfaceFitHTML(g, t) : sectorFitHTML(g, t)) +
+      '<div class="score">' + (rally ? 'このラリー' : 'このコース') +
+      'でのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
       '</div></div>';
   }
 
@@ -36410,6 +37486,9 @@ GP.ui = (function () {
   function drawMini(track) {
     const el = $('trackMini');
     if (!el || !track) return;
+    /* ラリーには周回のコース図が無い（毎回ちがう道を一度ずつ通る）。
+       代わりに、SSの長さを棒で並べた日程の絵を出す               */
+    if (!track.path) { el.innerHTML = stageMiniHTML(track); return; }
     const w = 260, h = 108, pad = 14;
     const poly = GP.geom.buildPoly(track.path, w, h, pad);
     const geo = GP.geom.analyze(track);
@@ -36624,6 +37703,30 @@ GP.ui = (function () {
       '<div class="maptags" id="hubTags"></div></div>' +
       '<div class="hublist" id="hubList"></div>' +
       '</div></div>';
+  }
+
+  /* ---------- ラリーの日程を、棒で見せる ----------
+     周回のコース図の代わり。SSの長さがそのまま棒の長さになり、
+     日ごとに区切る。路面の色で、どんな道かが分かる              */
+  function stageMiniHTML(rally) {
+    if (!GP.rally || !GP.rallydata) return '';
+    const g2 = GP.app && GP.app.g;
+    const seed = ((g2 && g2.season) || 1) * 97 + (((g2 && g2.nextRace) || 0)) * 13;
+    const stages = GP.rally.buildStages(rally, seed);
+    const maxKm = Math.max.apply(null, stages.map(s => s.km));
+    let h = '<div class="stmini">';
+    let day = -1;
+    stages.forEach(s => {
+      if (s.day !== day) {
+        day = s.day;
+        h += '<i class="stday">' + (day + 1) + '日目</i>';
+      }
+      const sf = GP.rallydata.SURFACES[s.surface] || GP.rallydata.SURFACES.gravel;
+      h += '<b class="stbar" style="height:' + Math.round(18 + s.km / maxKm * 30) +
+           'px;background:' + sf.color + '"' +
+           ' title="SS' + s.n + ' ' + esc(s.name) + ' ' + s.km.toFixed(1) + 'km"></b>';
+    });
+    return h + '</div>';
   }
 
   /* ---------- ログ ---------- */
@@ -38354,7 +39457,9 @@ window.GP = window.GP || {};
     const rg = $('cRaceGo');
     if (rg) {
       const onGrid = !!g.onGrid && !!A.prePack;
-      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！' : '<span>🏁</span>レースへ向かう！';
+      const W = S.seriesWords(g);
+      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！'
+                            : '<span>🏁</span>' + W.go.replace('🏁 ', '');
       rg.classList.toggle('go', onGrid);
     }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
@@ -38457,7 +39562,7 @@ window.GP = window.GP || {};
       cSponsor: A.cmdSponsor, cRest: cmdRest, cMeet: A.cmdMeet,
       cLogi: A.cmdLogi, cLogiR: A.cmdLogi, cLogiO: A.cmdLogi,
       cGarage: A.cmdGarage, cFacility: A.cmdFacility, cStaff: A.cmdStaff, cInfo: A.cmdInfo,
-      cRaceGo: A.cmdRace, cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,
+      cRaceGo: () => (S.isRally(g) ? A.cmdRally() : A.cmdRace()), cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,
       cOffGo: A.doOffNext, cStaffO: A.cmdStaff, cInfoO: A.cmdInfo,
       cGarageO: A.cmdGarage, cFacilityO: A.cmdFacility, cFacilityR: A.cmdFacility,
       cOwner: A.cmdOwner, cOwnerR: A.cmdOwner, cOwnerO: A.cmdOwner,
@@ -38653,9 +39758,22 @@ window.GP = window.GP || {};
   function showTitle() {
     const saved = S.load();
     const colors = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0', '#12b5b0'];
+    /* どちらの競技で立ち上げるか。運営の部分はまったく同じで、
+       回る場所と週末の中身だけが変わる                        */
+    const SERIES = [
+      { key: 'f1',  icon: '🏎️', name: 'サーキット',
+        short: 'グランプリ', desc: '予選でグリッドを取り、決勝で抜く。ピットとタイヤの読み合い。' },
+      { key: 'wrc', icon: '🏁', name: 'ラリー',
+        short: 'ワールドラリー', desc: '1台ずつ出てタイムを競う。コ・ドライバー、路面、走行順。' }
+    ];
     let body = '<div class="titlewrap">' +
-      '<p class="lead">あなたは弱小F1チームの新オーナー。<br>マシンを開発し、ドライバーを育て、世界の頂点を目指そう！</p>' +
+      '<p class="lead">あなたは弱小チームの新オーナー。<br>マシンを開発し、ドライバーを育て、世界の頂点を目指そう！</p>' +
       '<label class="fld">チーム名<input id="inTeam" maxlength="12" value="ニューカマーGP"></label>' +
+      '<div class="fld">どの競技で戦うか<div class="diffs series">' +
+      SERIES.map((x, i) => '<button class="diffbtn' + (i === 0 ? ' on' : '') + '" data-s="' + x.key + '"' +
+        ' style="--dc:' + (i === 0 ? '#e2664a' : '#96683a') + '"><b>' + x.icon + ' ' + x.name +
+        '</b><small>' + esc(x.short) + '</small></button>').join('') +
+      '</div><p class="desc" id="serDesc"></p></div>' +
       '<div class="fld">チームカラー<div class="colors">' +
       colors.map((c, i) => '<button class="colorbtn' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') +
       '</div></div>' +
@@ -38666,8 +39784,9 @@ window.GP = window.GP || {};
     const btns = [{ label: '🏁 チームを立ち上げる', cls: 'primary', fn: () => {
       const name = ($('inTeam').value || '').trim() || 'ニューカマーGP';
       const c = $('modalBody').querySelector('.colorbtn.on').dataset.c;
-      const m = $('modalBody').querySelector('.diffbtn.on').dataset.m;
-      g = S.newGame(name, c, m);
+      const m = $('modalBody').querySelector('.diffs:not(.series) .diffbtn.on').dataset.m;
+      const sr = $('modalBody').querySelector('.diffs.series .diffbtn.on').dataset.s;
+      g = S.newGame(name, c, m, sr);
       syncG();
       U.log(g, '🚩 ' + name + ' が発足！ 目指すは世界の頂点！', 'good');
       U.closeModal(); document.body.classList.remove('preboot'); S.save(g); render();
@@ -38692,9 +39811,15 @@ window.GP = window.GP || {};
       b.onclick = () => {
         Array.prototype.forEach.call(b.parentElement.children, c => c.classList.remove('on'));
         b.classList.add('on');
-        showDiff(b.dataset.m);
+        if (b.dataset.m) showDiff(b.dataset.m);
+        else if (b.dataset.s) showSeries(b.dataset.s);
       };
     });
+    const showSeries = key => {
+      const x = SERIES.filter(v => v.key === key)[0];
+      if ($('serDesc')) $('serDesc').textContent = x ? x.desc : '';
+    };
+    showSeries('f1');
     showDiff('normal');
   }
 

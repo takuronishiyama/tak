@@ -3797,7 +3797,7 @@ GP.state = (function () {
     // 次の1戦にかかる週数（準備週＋決勝の週）。移動が長い戦ほど週が要る
     const PREP = prepWeeks(g2, g2.nextRace) + 1;
     // 次のレースへの輸送費（コースの遠さで変わる）
-    const shipping = logiCost(g2, D.TRACKS[g2.nextRace] || D.TRACKS[0]);
+    const shipping = logiCost(g2, venues(g2)[g2.nextRace] || venues(g2)[0]);
     return {
       /* 割引前の総額。人件費の割合を出すときは、こちらと比べる。
          weekly（割引後）と比べると、割引が効いているチームほど
@@ -4005,10 +4005,36 @@ GP.state = (function () {
      走る数はいつも D.RACES で変わらないので、
      「レースが増える」のではなく「顔ぶれが変わる」。
      ======================================================= */
+  /* =======================================================
+     シリーズ
+
+     同じ運営ゲームの上に、2つの競技を載せる。
+     週・施設・人事・開発・資金はまったく同じもので、
+     変わるのは「週末に何をするか」と「どこを回るか」だけ。
+
+     venues() から先は、サーキットの表とラリーの表が
+     同じ形（name/country/region/every/weight/risk/far）を
+     しているので、日程まわりの計算はそのまま通る。      */
+  function seriesOf(g2) { return (g2 && g2.series) === 'wrc' ? 'wrc' : 'f1'; }
+  function isRally(g2) { return seriesOf(g2) === 'wrc'; }
+  function venues(g2) {
+    return isRally(g2) && GP.rallydata ? GP.rallydata.RALLIES : D.TRACKS;
+  }
+  function venueAt(g2, round) { return venues(g2)[trackIdx(g2, round)]; }
+  /* 画面に出す言葉も、シリーズで変える */
+  function seriesWords(g2) {
+    return isRally(g2)
+      ? { race: 'ラリー', races: 'ラリー', venue: 'ラリー', go: '🏁 ラリーへ向かう！',
+          week: 'ラリーウィーク', grid: 'スタート順', unit: '戦' }
+      : { race: 'レース', races: 'レース', venue: 'サーキット', go: '🏁 レースへ向かう！',
+          week: 'レースウィーク', grid: 'グリッド', unit: '戦' };
+  }
+
   function buildCalendar(g2) {
     const season = (g2 && g2.season) || 1;
     const fixed = [], rota = [];
-    D.TRACKS.forEach((t, i) => { ((t.every || 1) === 1 ? fixed : rota).push(i); });
+    const VEN = venues(g2);
+    VEN.forEach((t, i) => { ((t.every || 1) === 1 ? fixed : rota).push(i); });
     /* まわる組からは、窓をずらしながら取る。
        毎年ぜんぶ入れ替えると落ち着かないので、2つずつずらす。
        こうすると毎年 2つ抜けて 2つ入り、残りは続けて開催される  */
@@ -4021,7 +4047,7 @@ GP.state = (function () {
     const idx = fixed.concat(pick);
     // 足りなければ、残っているものから順に埋める
     if (idx.length < D.RACES) {
-      D.TRACKS.forEach((t, i) => {
+      VEN.forEach((t, i) => {
         if (idx.length >= D.RACES || idx.indexOf(i) >= 0) return;
         idx.push(i);
       });
@@ -4043,13 +4069,15 @@ GP.state = (function () {
     return cal[clamp(Math.round(round || 0), 0, cal.length - 1)];
   }
   /* 第n戦のコースそのもの */
-  function trackAt(g2, round) { return D.TRACKS[trackIdx(g2, round)]; }
+  function trackAt(g2, round) { return venues(g2)[trackIdx(g2, round)]; }
   /* 去年やって今年やらない大会／今年から入る大会（画面で言うために使う） */
   function calendarDiff(g2) {
     const now = calendarOf(g2);
-    const prev = buildCalendar({ season: ((g2 && g2.season) || 1) - 1 });
-    return { added: now.filter(i => prev.indexOf(i) < 0).map(i => D.TRACKS[i]),
-             gone: prev.filter(i => now.indexOf(i) < 0).map(i => D.TRACKS[i]) };
+    const prev = buildCalendar({ season: ((g2 && g2.season) || 1) - 1,
+                                series: (g2 && g2.series) || 'f1' });
+    const VEN = venues(g2);
+    return { added: now.filter(i => prev.indexOf(i) < 0).map(i => VEN[i]),
+             gone: prev.filter(i => now.indexOf(i) < 0).map(i => VEN[i]) };
   }
 
   /* =======================================================
@@ -4074,7 +4102,8 @@ GP.state = (function () {
     const cal = calendarOf(g2);
     const i = clamp(Math.round(round || 0), 0, cal.length - 1);
     if (i === 0) return 'first';
-    const t = D.TRACKS[cal[i]], prev = D.TRACKS[cal[i - 1]];
+    const VEN2 = venues(g2);
+    const t = VEN2[cal[i]], prev = VEN2[cal[i - 1]];
     const a = regionOf(prev), b = regionOf(t);
     if (a === b) return 'back';
     if (regionNear(a, b)) return 'near';
@@ -4091,7 +4120,7 @@ GP.state = (function () {
        同じ長さなら遠いほうを先にして、毎年おなじ形にする     */
     const order = P.map((p, i) => i).filter(i => P[i] > C.prep.back)
       .sort((a, b) => (P[b] - P[a])
-                   || ((D.TRACKS[cal[b]].far || 1) - (D.TRACKS[cal[a]].far || 1))
+                   || ((venues(g2)[cal[b]].far || 1) - (venues(g2)[cal[a]].far || 1))
                    || (a - b));
     let need = D.RACES * PREP_WEEKS - P.reduce((a, b) => a + b, 0);
     for (let pass = 0; need > 0 && order.length && pass < 40; pass++) {
@@ -4186,12 +4215,43 @@ GP.state = (function () {
     return guideSteps(g2).some(x => !x.done);
   }
 
-  function newGame(teamName, color, mode) {
+  /* ---------- コ・ドライバー ----------
+     ラリーの右席。読み上げの腕（skill）と、
+     その組でどれだけ長くやっているか（bond）で効きが変わる。
+     bond は一緒に走った回数で育ち、組み替えると0に戻る       */
+  function makeCoDriver(forDriver) {
+    return {
+      id: 'co' + Math.random().toString(36).slice(2, 8),
+      name: pick(D.FIRST) + '・' + pick(D.LAST),
+      skill: rint(34, 58),
+      age: rint(26, 40),
+      salary: rint(18, 34),
+      bond: 0,                       // 0〜1。一緒に走った回数で上がる
+      with: forDriver ? forDriver.id : null,
+      rallies: 0
+    };
+  }
+  /* その人の右席は誰か */
+  function coOf(g2, driver) {
+    if (!g2 || !driver) return null;
+    return (g2.codrivers || []).filter(c => c.with === driver.id)[0] || null;
+  }
+  /* 一本走り終えるたび、息が合っていく（頭打ちあり） */
+  function coBond(co) {
+    if (!co) return;
+    co.rallies = (co.rallies || 0) + 1;
+    co.bond = clamp(1 - Math.pow(0.90, co.rallies), 0, 0.95);
+  }
+
+  function newGame(teamName, color, mode, series) {
     const diff = D.DIFFICULTIES.find(x => x.key === mode) || D.DIFFICULTIES[1];
     const g = {
       version: 6,
       team: teamName || 'ニューカマーGP',
       color: color || '#e04a3f',
+      /* どちらの競技をやるか。運営まわりは同じもので、
+         週末の中身と回る場所だけが変わる                */
+      series: series === 'wrc' ? 'wrc' : 'f1',
       season: 1,
       week: 1,
       mode: diff.key,
@@ -4256,6 +4316,9 @@ GP.state = (function () {
       g.drivers[1].pers = pick(D.PERSONALITIES.filter(x => x.key !== g.drivers[0].pers)).key;
     }
     g.drivers.forEach(d => { d.team = g.team; });
+    /* ラリーでは、右席にもう一人乗る。
+       ペースノートを読む人で、腕と「息の合いかた」が別々に効く */
+    if (g.series === 'wrc') g.codrivers = g.drivers.map(d => makeCoDriver(d));
 
     g.staff = [makeStaff('engineer'), makeStaff('mechanic'), makeStaff('designer')];
     g.sponsors = [Object.assign({}, D.SPONSORS[0])];
@@ -5158,6 +5221,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
+    seriesOf, isRally, venues, venueAt, seriesWords, makeCoDriver, coOf, coBond,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,

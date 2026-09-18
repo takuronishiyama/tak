@@ -1392,7 +1392,9 @@ window.GP = window.GP || {};
     const rg = $('cRaceGo');
     if (rg) {
       const onGrid = !!g.onGrid && !!A.prePack;
-      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！' : '<span>🏁</span>レースへ向かう！';
+      const W = S.seriesWords(g);
+      rg.innerHTML = onGrid ? '<span>🚦</span>決勝へ進む！'
+                            : '<span>🏁</span>' + W.go.replace('🏁 ', '');
       rg.classList.toggle('go', onGrid);
     }
     if ($('cmdOff')) $('cmdOff').style.display = offs ? '' : 'none';
@@ -1495,7 +1497,7 @@ window.GP = window.GP || {};
       cSponsor: A.cmdSponsor, cRest: cmdRest, cMeet: A.cmdMeet,
       cLogi: A.cmdLogi, cLogiR: A.cmdLogi, cLogiO: A.cmdLogi,
       cGarage: A.cmdGarage, cFacility: A.cmdFacility, cStaff: A.cmdStaff, cInfo: A.cmdInfo,
-      cRaceGo: A.cmdRace, cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,
+      cRaceGo: () => (S.isRally(g) ? A.cmdRally() : A.cmdRace()), cGarageR: A.cmdGarage, cStaffR: A.cmdStaff,
       cOffGo: A.doOffNext, cStaffO: A.cmdStaff, cInfoO: A.cmdInfo,
       cGarageO: A.cmdGarage, cFacilityO: A.cmdFacility, cFacilityR: A.cmdFacility,
       cOwner: A.cmdOwner, cOwnerR: A.cmdOwner, cOwnerO: A.cmdOwner,
@@ -1691,9 +1693,22 @@ window.GP = window.GP || {};
   function showTitle() {
     const saved = S.load();
     const colors = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0', '#12b5b0'];
+    /* どちらの競技で立ち上げるか。運営の部分はまったく同じで、
+       回る場所と週末の中身だけが変わる                        */
+    const SERIES = [
+      { key: 'f1',  icon: '🏎️', name: 'サーキット',
+        short: 'グランプリ', desc: '予選でグリッドを取り、決勝で抜く。ピットとタイヤの読み合い。' },
+      { key: 'wrc', icon: '🏁', name: 'ラリー',
+        short: 'ワールドラリー', desc: '1台ずつ出てタイムを競う。コ・ドライバー、路面、走行順。' }
+    ];
     let body = '<div class="titlewrap">' +
-      '<p class="lead">あなたは弱小F1チームの新オーナー。<br>マシンを開発し、ドライバーを育て、世界の頂点を目指そう！</p>' +
+      '<p class="lead">あなたは弱小チームの新オーナー。<br>マシンを開発し、ドライバーを育て、世界の頂点を目指そう！</p>' +
       '<label class="fld">チーム名<input id="inTeam" maxlength="12" value="ニューカマーGP"></label>' +
+      '<div class="fld">どの競技で戦うか<div class="diffs series">' +
+      SERIES.map((x, i) => '<button class="diffbtn' + (i === 0 ? ' on' : '') + '" data-s="' + x.key + '"' +
+        ' style="--dc:' + (i === 0 ? '#e2664a' : '#96683a') + '"><b>' + x.icon + ' ' + x.name +
+        '</b><small>' + esc(x.short) + '</small></button>').join('') +
+      '</div><p class="desc" id="serDesc"></p></div>' +
       '<div class="fld">チームカラー<div class="colors">' +
       colors.map((c, i) => '<button class="colorbtn' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') +
       '</div></div>' +
@@ -1704,8 +1719,9 @@ window.GP = window.GP || {};
     const btns = [{ label: '🏁 チームを立ち上げる', cls: 'primary', fn: () => {
       const name = ($('inTeam').value || '').trim() || 'ニューカマーGP';
       const c = $('modalBody').querySelector('.colorbtn.on').dataset.c;
-      const m = $('modalBody').querySelector('.diffbtn.on').dataset.m;
-      g = S.newGame(name, c, m);
+      const m = $('modalBody').querySelector('.diffs:not(.series) .diffbtn.on').dataset.m;
+      const sr = $('modalBody').querySelector('.diffs.series .diffbtn.on').dataset.s;
+      g = S.newGame(name, c, m, sr);
       syncG();
       U.log(g, '🚩 ' + name + ' が発足！ 目指すは世界の頂点！', 'good');
       U.closeModal(); document.body.classList.remove('preboot'); S.save(g); render();
@@ -1730,9 +1746,15 @@ window.GP = window.GP || {};
       b.onclick = () => {
         Array.prototype.forEach.call(b.parentElement.children, c => c.classList.remove('on'));
         b.classList.add('on');
-        showDiff(b.dataset.m);
+        if (b.dataset.m) showDiff(b.dataset.m);
+        else if (b.dataset.s) showSeries(b.dataset.s);
       };
     });
+    const showSeries = key => {
+      const x = SERIES.filter(v => v.key === key)[0];
+      if ($('serDesc')) $('serDesc').textContent = x ? x.desc : '';
+    };
+    showSeries('f1');
     showDiff('normal');
   }
 

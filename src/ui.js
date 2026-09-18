@@ -128,6 +128,46 @@ GP.ui = (function () {
       '</div></div>';
   }
 
+  /* ---------- 路面との相性 ----------
+     区間ごとの相性（サーキット）の、ラリー版。
+     砂利は蹴り出し、舗装は曲がる力、雪はその中間が効く。
+     いまの車の振り分けが、その路面に向いているかを出す        */
+  function surfaceFitHTML(g, t) {
+    const RD = GP.rallydata;
+    if (!RD) return '';
+    const st = S.carStats(g);
+    const tot = Math.max(1, st.speed + st.corner + st.accel);
+    const corner = st.corner / tot, accel = st.accel / tot;
+    const rows = ['gravel', 'tarmac', 'snow'].map(k => {
+      const sf = RD.SURFACES[k];
+      const fit = k === 'tarmac' ? (corner - 0.34) * 3.2
+                : k === 'snow'   ? (accel - 0.33) * 2.4
+                                 : (accel - 0.33) * 3.0;
+      const pct = fit * 3.0;                 // 見せるための割合（%）
+      const now = t.surface === k;
+      return '<div class="secfit' + (pct >= 0.6 ? ' good' : pct <= -0.6 ? ' bad' : '') + '">' +
+        '<i style="background:' + sf.color + '">' + sf.icon + '</i>' +
+        '<span><b>' + sf.name + (now ? '　← 今週' : '') + '</b>' +
+        '<small>' + esc(sf.note) + '</small></span>' +
+        '<em>' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%</em></div>';
+    }).join('');
+    return '<b class="sub small">路面との相性</b><div class="secfits">' + rows + '</div>' +
+      '<p class="desc">砂利は<b>蹴り出し</b>が、舗装は<b>曲がる力</b>が、' +
+      '雪はその中間がタイムになります。合っていない路面では、' +
+      '同じ車でも一日で1分ぶん置いていかれます。</p>';
+  }
+
+  /* ラリーの路面と、日程の一行 */
+  function rallySurface(t) {
+    const RD = GP.rallydata;
+    return (RD && RD.SURFACES[t.surface]) || { icon: '🪨', name: 'グラベル' };
+  }
+  function rallyLine(t) {
+    const days = (t.days || []).reduce((a, b) => a + b, 0);
+    return '全' + days + 'SS ／ ' + (t.days || []).length + '日間' +
+           (t.mix ? '　途中で路面が変わる' : '');
+  }
+
   /* ---------- 次戦カード ---------- */
   function nextRaceCard(g) {
     if (g.nextRace >= D.RACES) {
@@ -135,6 +175,7 @@ GP.ui = (function () {
         '<div class="pad">全' + D.RACES + '戦が終了しました。「次の週へ」でシーズンを締めましょう。</div></div>';
     }
     const t = S.trackAt(g, g.nextRace);
+    const rally = !t.path;              // ラリーには周回のコース図が無い
     const sc = S.carScore(g, t);
     const left = Math.max(0, S.raceWeek(g, g.nextRace) - g.week);
     const pips = left > 0 ? new Array(left + 1).join('<i></i>') : '';
@@ -163,19 +204,25 @@ GP.ui = (function () {
          ここが「何をすればいいか分からない」への直接の答えになる      */
       weekTipHTML(g, left) +
       '<div class="track-mini" id="trackMini"></div>' +
-      '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
-      '<div class="seclegend">' +
-      '<span><i style="background:' + SECTOR_COLORS[0] + '"></i>S1</span>' +
-      '<span><i style="background:' + SECTOR_COLORS[1] + '"></i>S2</span>' +
-      '<span><i style="background:' + SECTOR_COLORS[2] + '"></i>S3</span>' +
-      (t.landmarks ? '<em>◯ ' + t.landmarks.map(esc).join(' ／ ') + '</em>' : '') +
-      '</div>' +
+      (rally
+        ? '<div class="tinfo"><span>' + rallySurface(t).icon + ' <b>' +
+            rallySurface(t).name + '</b></span><span>難易度 <b>' +
+            '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
+          '<div class="seclegend"><em>' + esc(rallyLine(t)) + '</em></div>'
+        : '<div class="tinfo"><span>周回数 <b>' + t.laps + '</b></span><span>難易度 <b>' + '★'.repeat(Math.round(t.risk * 2)) + '</b></span></div>' +
+          '<div class="seclegend">' +
+          '<span><i style="background:' + SECTOR_COLORS[0] + '"></i>S1</span>' +
+          '<span><i style="background:' + SECTOR_COLORS[1] + '"></i>S2</span>' +
+          '<span><i style="background:' + SECTOR_COLORS[2] + '"></i>S3</span>' +
+          (t.landmarks ? '<em>◯ ' + t.landmarks.map(esc).join(' ／ ') + '</em>' : '') +
+          '</div>') +
       '<p class="desc">' + esc(t.desc) + '</p>' +
       '<div class="req">求められる性能：' +
       reqBar('最高速', t.weight.speed) + reqBar('コーナー', t.weight.corner) + reqBar('加速', t.weight.accel) +
       '</div>' +
-      sectorFitHTML(g, t) +
-      '<div class="score">このコースでのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
+      (rally ? surfaceFitHTML(g, t) : sectorFitHTML(g, t)) +
+      '<div class="score">' + (rally ? 'このラリー' : 'このコース') +
+      'でのマシン評価 <b>' + Math.round(sc) + '</b></div>' +
       '</div></div>';
   }
 
@@ -683,6 +730,9 @@ GP.ui = (function () {
   function drawMini(track) {
     const el = $('trackMini');
     if (!el || !track) return;
+    /* ラリーには周回のコース図が無い（毎回ちがう道を一度ずつ通る）。
+       代わりに、SSの長さを棒で並べた日程の絵を出す               */
+    if (!track.path) { el.innerHTML = stageMiniHTML(track); return; }
     const w = 260, h = 108, pad = 14;
     const poly = GP.geom.buildPoly(track.path, w, h, pad);
     const geo = GP.geom.analyze(track);
@@ -897,6 +947,30 @@ GP.ui = (function () {
       '<div class="maptags" id="hubTags"></div></div>' +
       '<div class="hublist" id="hubList"></div>' +
       '</div></div>';
+  }
+
+  /* ---------- ラリーの日程を、棒で見せる ----------
+     周回のコース図の代わり。SSの長さがそのまま棒の長さになり、
+     日ごとに区切る。路面の色で、どんな道かが分かる              */
+  function stageMiniHTML(rally) {
+    if (!GP.rally || !GP.rallydata) return '';
+    const g2 = GP.app && GP.app.g;
+    const seed = ((g2 && g2.season) || 1) * 97 + (((g2 && g2.nextRace) || 0)) * 13;
+    const stages = GP.rally.buildStages(rally, seed);
+    const maxKm = Math.max.apply(null, stages.map(s => s.km));
+    let h = '<div class="stmini">';
+    let day = -1;
+    stages.forEach(s => {
+      if (s.day !== day) {
+        day = s.day;
+        h += '<i class="stday">' + (day + 1) + '日目</i>';
+      }
+      const sf = GP.rallydata.SURFACES[s.surface] || GP.rallydata.SURFACES.gravel;
+      h += '<b class="stbar" style="height:' + Math.round(18 + s.km / maxKm * 30) +
+           'px;background:' + sf.color + '"' +
+           ' title="SS' + s.n + ' ' + esc(s.name) + ' ' + s.km.toFixed(1) + 'km"></b>';
+    });
+    return h + '</div>';
   }
 
   /* ---------- ログ ---------- */

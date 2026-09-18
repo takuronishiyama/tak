@@ -4173,3 +4173,43 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 /* 伸びかたの型と、何年目か */
 .drv-grow{white-space:nowrap}
 .drv-grow em{font-style:normal;font-size:9px;margin-left:3px;opacity:.85}
+
+/* ---------- ラリー ----------
+   SSの一覧と、区間タイムの板。
+   並んで走らない競技なので、見せるのは「順位」ではなく「差」    */
+.sslist{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px}
+.ssday{display:flex;align-items:baseline;gap:8px;margin-top:6px;
+  border-bottom:2px solid var(--faceEdge);padding-bottom:2px}
+.ssday b{font-size:12px}
+.ssday em{font-style:normal;font-size:10px;color:var(--faceSub);margin-left:auto}
+.ssrow{display:flex;align-items:center;gap:7px;background:var(--paper3);
+  border:2px solid var(--ink);border-radius:7px;padding:4px 7px}
+.ssrow>i{font-style:normal;font-size:9px;font-weight:bold;color:#fff8e6;flex:none;
+  min-width:30px;text-align:center;border:2px solid var(--ink);border-radius:5px;
+  padding:1px 3px;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.ssrow>span{flex:1;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.ssrow>span b{font-size:11.5px}
+.ssrow>span small{font-size:9.5px;color:var(--faceSub)}
+.ssrow>em{font-style:normal;font-size:9.5px;color:var(--faceSub);flex:none}
+
+.ssboard{display:flex;flex-direction:column;gap:2px;margin:4px 0 8px}
+.ssb{display:flex;align-items:center;gap:6px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-radius:6px;padding:3px 6px;
+  font-variant-numeric:tabular-nums}
+.ssb>i{font-style:normal;width:20px;text-align:right;font-weight:bold;flex:none}
+.ssb-c{width:9px;height:9px;border:1px solid var(--ink);border-radius:2px;flex:none}
+.ssb>b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.ssb>b small{display:block;font-size:9px;color:var(--faceSub);font-weight:normal}
+.ssb>em{font-style:normal;flex:none}
+.ssb>u{text-decoration:none;flex:none;min-width:58px;text-align:right;
+  font-size:10px;color:var(--faceSub)}
+.ssb.me{border-color:var(--gold,#d8a020);box-shadow:0 0 0 2px rgba(216,160,32,.30)}
+.ssb.out{opacity:.55}
+.ssboard.big .ssb{padding:5px 7px;font-size:12px}
+/* ラリーの日程を、SSの長さの棒で見せる（周回のコース図の代わり） */
+.stmini{display:flex;align-items:flex-end;gap:2px;height:56px;padding:4px 6px;
+  background:var(--trough);border-radius:6px;overflow-x:auto;scrollbar-width:none}
+.stmini::-webkit-scrollbar{display:none}
+.stbar{flex:0 0 7px;border:1px solid var(--ink);border-radius:2px 2px 0 0}
+.stday{font-style:normal;font-size:8px;color:var(--faceSub);align-self:flex-end;
+  writing-mode:vertical-rl;margin-right:2px;letter-spacing:-1px;flex:none}
