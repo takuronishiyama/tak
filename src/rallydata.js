@@ -219,6 +219,61 @@ GP.rallydata = (function () {
      ここにあるのは name / short / icon / names / notes / desc / eff / note だけ。
      gain も cost も rp も、F1側のものをそのまま使う。
      ======================================================= */
+  /* =========================================================
+     技術規則（ラリー版）
+
+     4年にいちど、規則がまるごと書き換わる。
+     そのたびに「何で速くするか」が変わる——それが規則というものの
+     いちばん大事な働きで、条文を読めるチームだけが先に手を打てる。
+
+     mul は、その部位が車にどれだけ効くかの倍率。
+     全体としては上下が釣り合うようにしてあるので、
+     規則が変わっても車全体が遅くなるわけではない。
+     変わるのは「どこに金をかけると速いか」だけ。
+     ========================================================= */
+  const RULES = [
+    { key: 'restrict', icon: '🌀', name: '吸気リストリクター',
+      line: '過給機の入口に絞りを入れる。踏み込んでも、入る空気に天井がある',
+      mul: { pu: 0.80, chas: 1.12, susp: 1.08 },
+      note: 'エンジンで押し切れない。車体と足で稼ぐ年になる' },
+    { key: 'weight', icon: '⚖️', name: '最低重量の引き上げ',
+      line: '車検場の秤に乗る重さの下限が上がる',
+      mul: { chas: 0.86, pu: 1.10, gear: 1.08 },
+      note: '軽さで曲げられなくなるぶん、押し出す力がものを言う' },
+    { key: 'activediff', icon: '🔒', name: 'アクティブデフ禁止',
+      line: '走行中に締め具合を変える機構を認めない',
+      mul: { aero: 0.78, susp: 1.14, elec: 1.06 },
+      note: 'デフで曲げられないので、足そのものの出来で曲がる' },
+    { key: 'hybrid', icon: '🔋', name: 'ハイブリッド義務化',
+      line: '全車に回生と電動アシストを載せる',
+      mul: { elec: 1.22, gear: 1.10, pu: 0.88, chas: 0.92 },
+      note: '制御と駆動が主役になる。重くなったぶん車体は不利' },
+    { key: 'travel', icon: '🪜', name: 'サスペンションストローク上限',
+      line: '伸び縮みの幅に上限を設ける',
+      mul: { susp: 0.80, brake: 1.10, chas: 1.08 },
+      note: '足で逃がせないぶん、止めかたと車体の強さで受ける' },
+    { key: 'antilag', icon: '🔇', name: 'アンチラグ禁止',
+      line: '排気側で燃やし続ける仕掛けを認めない',
+      mul: { elec: 0.84, pu: 1.12, gear: 1.06 },
+      note: 'ラグが戻ってくる。エンジンそのものの厚みが要る' },
+    { key: 'underguard', icon: '🛡️', name: 'アンダーガード必須',
+      line: '底面に規定の厚みの板を張ることを義務づける',
+      mul: { chas: 1.14, susp: 1.06, pu: 0.88, aero: 0.94 },
+      note: '底を打っても壊れない代わりに、重くなる' },
+    { key: 'onetyre', icon: '🛞', name: 'タイヤ銘柄の統一',
+      line: '全車が同じ供給元の同じ銘柄を履く',
+      mul: { susp: 1.12, brake: 1.08, aero: 0.88, pu: 0.94 },
+      note: 'タイヤで差がつかない。足の合わせ込みが、そのまま差になる' },
+    { key: 'cabin', icon: '🧯', name: '安全装備の強化',
+      line: 'ケージ・シート・消火の規定を厳しくする',
+      mul: { chas: 1.16, brake: 1.04, pu: 0.92, gear: 0.92 },
+      note: '重く硬くなる。壊れにくくなるが、速さは車体頼りになる' },
+    { key: 'gearlimit', icon: '🔀', name: '変速段数の制限',
+      line: '6速までとし、シームレス機構を禁じる',
+      mul: { gear: 0.80, pu: 1.12, elec: 1.08 },
+      note: '変速で稼げない。低い回転からのトルクが効く' }
+  ];
+
   const WORDS = {
 
     /* ---------- マシンパーツ ---------- */
@@ -375,5 +430,5 @@ GP.rallydata = (function () {
     }
   };
 
-  return { SURFACES, RALLIES, PACES, TROUBLES, SERVICE, NOTES, RECCE, ROAD, POWER_STAGE, WORDS };
+  return { SURFACES, RALLIES, PACES, TROUBLES, SERVICE, NOTES, RECCE, ROAD, POWER_STAGE, RULES, WORDS };
 })();

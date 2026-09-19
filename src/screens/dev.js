@@ -86,6 +86,32 @@ GP.screens.dev = function (A) {
     return true;
   }
 
+  /* いまの技術規則を、ひと目ぶんだけ。
+     何にかけると速いかは規則で変わるので、
+     開発を決める画面のいちばん上に出しておく                */
+  function ruleChips() {
+    const set = S.ruleSet(g);
+    if (!set.length) return '';
+    const nm = (k) => {
+      const c = D.PART_CATS.filter(x => x.key === k)[0];
+      return c ? (c.short || c.name) : k;
+    };
+    const up = {}, dn = {};
+    set.forEach(r => Object.keys(r.mul || {}).forEach(k => {
+      const v = (up[k] || dn[k] || 1);
+      const m = (up[k] != null ? up[k] : dn[k] != null ? dn[k] : 1) * r.mul[k];
+      delete up[k]; delete dn[k];
+      if (m >= 1) up[k] = m; else dn[k] = m;
+    }));
+    const chip = (o2, cls) => Object.keys(o2).sort((a, b) =>
+        (cls === 'up' ? o2[b] - o2[a] : o2[a] - o2[b]))
+      .map(k => '<em class="' + cls + '">' + (cls === 'up' ? '▲ ' : '▼ ') + nm(k) +
+        ' ×' + o2[k].toFixed(2) + '</em>').join('');
+    return '<div class="rulechip"><b>📜 ' + set.map(r => r.icon + esc(r.name)).join('　') +
+      '</b><span class="rchips">' + chip(up, 'up') + chip(dn, 'dn') + '</span>' +
+      '<small>いまの規則では、上の部位に金をかけたほうが速くなります</small></div>';
+  }
+
   function cmdCar() {
     const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
@@ -129,6 +155,7 @@ GP.screens.dev = function (A) {
       /* ここから下は、その判断の材料。
          見出しで3つに割っておくと、ui.js が畳んで
          飛び先の並びを付けてくれる（一度に開くのはひとつだけ） */
+      ruleChips() +
       '<div class="sub">🏎️ いまの車</div>' +
       carMixHTML() +
       '<div class="sub">🔗 部品の噛み合い</div>' +

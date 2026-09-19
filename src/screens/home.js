@@ -1106,6 +1106,16 @@ GP.screens.home = function (A) {
     { key: 'tyre', icon: '🛞', who: 'タイヤ供給の技術者',
       line: g2 => {
         const t = S.trackAt(g2, g2.nextRace);
+        if (S.isRally(g2)) {
+          /* ラリーに「1ストップで引っぱる」は無い。
+             ここで話題になるのは、次のサービスまで何が残るか */
+          const sf = GP.rallydata.SURFACES[t.surface] || GP.rallydata.SURFACES.gravel;
+          return (t.rough || 0) >= 0.7
+            ? '「' + sf.name + 'の荒いほうです。石を拾います。スペアは多めに積んでください」'
+            : (t.rough || 0) <= 0.35
+              ? '「路面はきれいです。次のサービスまで、まず保ちます」'
+              : '「標準的です。二度目に通るSSだけ、気をつけてください」';
+        }
         return t.tyre >= 1.2
           ? '「今日は路面が厳しい。想定より1周ぶんは早くタレると思ってください」'
           : t.tyre <= 0.95
@@ -2074,17 +2084,32 @@ GP.screens.home = function (A) {
     if (!st) return;
     yardMark('yd:strat');
     const t = S.trackAt(g, g.nextRace);
-    const laps = t.laps;
-    const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
-    const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
-                   : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
     const rp = Math.round(3 + st.skill * 0.12);
     g.rp += rp;
     staffExp('strategist', 8);
-    yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
-      '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
-      'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
-      '推奨ストップ数 ' + stops + '回／研究P +' + rp);
+    if (S.isRally(g)) {
+      /* ラリーに周回もピットも無い。作戦の軸は
+         「どこまで攻めるか」と「何本積むか」になる            */
+      const sf = GP.rallydata.SURFACES[t.surface] || GP.rallydata.SURFACES.gravel;
+      const hard = (t.risk || 1) >= 1.15 || (t.rough || 0) >= 0.7;
+      const pace = hard ? 'まず確実に（安全）' : '標準〜攻める';
+      const spare = (t.rough || 0) >= 0.7 ? 3 : (t.rough || 0) >= 0.45 ? 2 : 1;
+      yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
+        '「' + esc(t.name) + 'は' + sf.name + '。' +
+        (hard ? '車が壊れるほうのラリーです。まず完走を取りましょう'
+              : '車には優しいほうです。前半から詰めにいけます') + '。' +
+        'スペアは <b>' + spare + '本</b>、攻めかたは <b>' + pace + '</b> を軸に」',
+        '推奨スペア ' + spare + '本／研究P +' + rp);
+    } else {
+      const laps = t.laps;
+      const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
+      const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
+                     : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
+      yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
+        '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
+        'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
+        '推奨ストップ数 ' + stops + '回／研究P +' + rp);
+    }
     GP.sound.play('good');
     S.save(g); render();
   }

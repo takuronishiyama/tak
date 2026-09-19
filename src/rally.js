@@ -255,6 +255,37 @@ GP.rally = (function () {
     return 1 - (st.second ? lose * 0.35 : lose);
   }
 
+  /* その走行順が背負う「掃き掃除」の割合（0〜）。
+     画面に出すためのもので、計算はしていない                 */
+  function roadLoss(surface, order, second) {
+    return 1 - roadFactor({ surface: surface, second: !!second }, order);
+  }
+
+  /* ---------- 初日の走行順の見込み ----------
+     初日は選手権の上位から出る。つまり、勝っている者ほど
+     まだ誰も掃いていない砂利の上を走らされる。
+     これが「ラリーでは、勝つほど次が苦しくなる」の正体       */
+  function orderPreview(g, rally) {
+    const St = S();
+    const teams = St.allTeams(g, rally);
+    const all = [];
+    teams.forEach(t => {
+      (t.drivers || []).forEach(d => {
+        all.push({ name: d.name, team: t.name, color: t.color,
+                   isPlayer: !!t.isPlayer, pts: d.seasonPoints || 0,
+                   rate: St.driverRating(d) || 50 });
+      });
+    });
+    /* 点が並んだら格で分ける。開幕戦は全員0点なので、
+       ここを決めておかないと「無名のチームが先頭で出る」ことになる */
+    all.sort((a, b) => (b.pts - a.pts) || (b.rate - a.rate));
+    all.forEach((x, i) => {
+      x.order = i + 1;
+      x.loss = roadLoss(rally.surface, x.order, false);
+    });
+    return all;
+  }
+
   /* ---------- ペースノートの精度 ---------- */
   function notesOf(g, crew) {
     const N = RD().NOTES;
@@ -367,8 +398,11 @@ GP.rally = (function () {
   function orderFor(list, day, standings) {
     const live = list.filter(e => !e.out);
     if (day === 0) {
-      // 選手権で上にいるほど先に出る＝グラベルでは損をする
-      live.sort((a, b) => (standings[b.id] || 0) - (standings[a.id] || 0));
+      /* 選手権で上にいるほど先に出る＝グラベルでは損をする。
+         点が並んだら格で分ける。開幕戦は全員0点なので、
+         ここを決めておかないと順番がその場の runtime 次第になる */
+      live.sort((a, b) => ((standings[b.id] || 0) - (standings[a.id] || 0))
+                          || ((b.drvPace || 0) - (a.drvPace || 0)));
     } else {
       live.sort((a, b) => a.total - b.total);
     }
@@ -420,7 +454,8 @@ GP.rally = (function () {
           }
         }
         if (!e.out) { e.total += t; e.done.push(t); }
-        board.push({ e: e, t: t, note: note });
+        board.push({ e: e, t: t, note: note, order: e.order,
+                     road: roadFactor(st, e.order) });
       });
       board.sort((a, b) => a.t - b.t);
       const win = board[0];
@@ -429,7 +464,8 @@ GP.rally = (function () {
         board: board.map((x, k) => ({
           id: x.e.id, name: x.e.name, team: x.e.teamName, color: x.e.color,
           isPlayer: x.e.isPlayer, t: x.t, gap: x.t - (win ? win.t : x.t),
-          pos: k + 1, note: x.note, out: x.e.out
+          pos: k + 1, note: x.note, out: x.e.out,
+          order: x.order, road: x.road
         }))
       });
       // パワーステージの点
@@ -464,5 +500,5 @@ GP.rally = (function () {
   }
 
   return { run, buildStages, serviceAfter, notesOf, baseSpeed, roadFactor, stageTime,
-           buildRoad, noteSay, SEV, TAGS };
+           buildRoad, noteSay, roadLoss, orderPreview, SEV, TAGS };
 })();

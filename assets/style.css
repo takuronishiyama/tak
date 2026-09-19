@@ -4264,6 +4264,66 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .ry-ev>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--faceSub)}
 .ry-ev>em{font-style:normal;font-weight:bold;color:#ff9a8a;flex:none}
+/* 技術規則（ラリー） */
+.rulechip{margin:8px 0;padding:8px 10px;border:2px solid var(--ink);border-radius:8px;
+  background:#fff0b0;display:flex;flex-direction:column;gap:5px}
+.rulechip>b{font-size:12px}
+.rulechip small{font-size:10px;color:#6b4724}
+[data-skin="hd"] .rulechip{background:#3d3350;color:#e8dfd2}
+[data-skin="hd"] .rulechip small{color:#c9c0cf}
+.rulelist{display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.rulerow{display:flex;gap:8px;padding:7px 9px;border:2px solid var(--ink);border-radius:8px;
+  background:#f4eecb}
+.rulerow>i{flex:0 0 26px;font-size:19px;font-style:normal;line-height:1.1}
+.rulerow>span{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rulerow b{font-size:13px}
+.rulerow small{font-size:11px;line-height:1.45;color:#4a3c28}
+.rulerow em.rn{font-style:normal;color:#6b4724;font-weight:700}
+.rchips{display:flex;flex-wrap:wrap;gap:4px}
+.rchips em{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;
+  border:2px solid var(--ink)}
+.rchips em.up{background:#cfeccb;color:var(--txUp)}
+.rchips em.dn{background:#f6d2cd;color:var(--txDn)}
+[data-skin="hd"] .rulerow{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .rulerow small{color:#c9c0cf}
+[data-skin="hd"] .rulerow em.rn{color:#ffd98a}
+[data-skin="hd"] .rchips em.up{background:#1f4a24;color:#7fd98a}
+[data-skin="hd"] .rchips em.dn{background:#5a1f1a;color:#ff9a8a}
+
+/* 走行順と路面（ラリー） */
+.ordlist{display:flex;flex-direction:column;gap:3px;margin:6px 0 4px}
+.ordrow{display:flex;align-items:center;gap:7px;padding:4px 7px;border:2px solid var(--ink);
+  border-radius:7px;background:#f4eecb;font-size:12px}
+.ordrow.me{background:#fff0b0;box-shadow:0 0 0 2px var(--gold) inset}
+.ordrow>i{flex:0 0 22px;height:20px;border-radius:5px;border:2px solid var(--ink);color:#fff8e6;
+  font-style:normal;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center}
+.ordrow>span:nth-child(2){flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.ordrow>span:nth-child(2) b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ordrow>span:nth-child(2) small{font-size:10px;color:#6e5a3c}
+.ordrow .obar{flex:0 0 68px;height:7px;border:2px solid var(--ink);border-radius:4px;
+  background:#e6d6ae;overflow:hidden;display:block}
+.ordrow .obar i{display:block;height:100%;background:var(--red)}
+.ordrow em{flex:0 0 56px;text-align:right;font-style:normal;font-weight:700;font-size:11px}
+.ordrow em.dn{color:var(--txDn)} .ordrow em.wn{color:var(--txWn)} .ordrow em.up{color:var(--txUp)}
+.ordgap{text-align:center;color:#9a8358;font-size:11px;letter-spacing:.3em}
+.roadbar{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.rb-one{display:flex;align-items:center;gap:5px;padding:4px 8px;border:2px solid var(--ink);
+  border-radius:7px;background:#f4eecb;font-size:12px;font-weight:700}
+.rb-one>i{font-style:normal;background:#6b4724;color:#fff8e6;border-radius:4px;padding:1px 5px;font-size:11px}
+.rb-one em{font-style:normal;font-size:11px}
+.rb-one em.dn{color:var(--txDn)} .rb-one em.up{color:var(--txUp)}
+.ssb-o{margin-left:5px;font-size:10px;color:#6e5a3c;font-weight:400}
+[data-skin="hd"] .ordrow{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .ordrow.me{background:#3d3350}
+[data-skin="hd"] .ordrow>span:nth-child(2) small,[data-skin="hd"] .ssb-o{color:#b5aabb}
+[data-skin="hd"] .ordrow .obar{background:#1d1a26}
+[data-skin="hd"] .rb-one{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .ordgap{color:#7d7a8c}
+
+.corow .pb-cost{min-width:96px;text-align:right}
+.corow .mini{margin-top:3px;display:block;width:100%}
+.corow.empty{opacity:.92}
+
 .ry-ctrl{display:flex;gap:5px}
 /* 見かたの切り替え。速さの列より一段小さく置く */
 .ry-view{margin-bottom:4px}

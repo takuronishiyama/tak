@@ -4279,6 +4279,66 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .ry-ev>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--faceSub)}
 .ry-ev>em{font-style:normal;font-weight:bold;color:#ff9a8a;flex:none}
+/* 技術規則（ラリー） */
+.rulechip{margin:8px 0;padding:8px 10px;border:2px solid var(--ink);border-radius:8px;
+  background:#fff0b0;display:flex;flex-direction:column;gap:5px}
+.rulechip>b{font-size:12px}
+.rulechip small{font-size:10px;color:#6b4724}
+[data-skin="hd"] .rulechip{background:#3d3350;color:#e8dfd2}
+[data-skin="hd"] .rulechip small{color:#c9c0cf}
+.rulelist{display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.rulerow{display:flex;gap:8px;padding:7px 9px;border:2px solid var(--ink);border-radius:8px;
+  background:#f4eecb}
+.rulerow>i{flex:0 0 26px;font-size:19px;font-style:normal;line-height:1.1}
+.rulerow>span{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rulerow b{font-size:13px}
+.rulerow small{font-size:11px;line-height:1.45;color:#4a3c28}
+.rulerow em.rn{font-style:normal;color:#6b4724;font-weight:700}
+.rchips{display:flex;flex-wrap:wrap;gap:4px}
+.rchips em{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;
+  border:2px solid var(--ink)}
+.rchips em.up{background:#cfeccb;color:var(--txUp)}
+.rchips em.dn{background:#f6d2cd;color:var(--txDn)}
+[data-skin="hd"] .rulerow{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .rulerow small{color:#c9c0cf}
+[data-skin="hd"] .rulerow em.rn{color:#ffd98a}
+[data-skin="hd"] .rchips em.up{background:#1f4a24;color:#7fd98a}
+[data-skin="hd"] .rchips em.dn{background:#5a1f1a;color:#ff9a8a}
+
+/* 走行順と路面（ラリー） */
+.ordlist{display:flex;flex-direction:column;gap:3px;margin:6px 0 4px}
+.ordrow{display:flex;align-items:center;gap:7px;padding:4px 7px;border:2px solid var(--ink);
+  border-radius:7px;background:#f4eecb;font-size:12px}
+.ordrow.me{background:#fff0b0;box-shadow:0 0 0 2px var(--gold) inset}
+.ordrow>i{flex:0 0 22px;height:20px;border-radius:5px;border:2px solid var(--ink);color:#fff8e6;
+  font-style:normal;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center}
+.ordrow>span:nth-child(2){flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.ordrow>span:nth-child(2) b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ordrow>span:nth-child(2) small{font-size:10px;color:#6e5a3c}
+.ordrow .obar{flex:0 0 68px;height:7px;border:2px solid var(--ink);border-radius:4px;
+  background:#e6d6ae;overflow:hidden;display:block}
+.ordrow .obar i{display:block;height:100%;background:var(--red)}
+.ordrow em{flex:0 0 56px;text-align:right;font-style:normal;font-weight:700;font-size:11px}
+.ordrow em.dn{color:var(--txDn)} .ordrow em.wn{color:var(--txWn)} .ordrow em.up{color:var(--txUp)}
+.ordgap{text-align:center;color:#9a8358;font-size:11px;letter-spacing:.3em}
+.roadbar{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.rb-one{display:flex;align-items:center;gap:5px;padding:4px 8px;border:2px solid var(--ink);
+  border-radius:7px;background:#f4eecb;font-size:12px;font-weight:700}
+.rb-one>i{font-style:normal;background:#6b4724;color:#fff8e6;border-radius:4px;padding:1px 5px;font-size:11px}
+.rb-one em{font-style:normal;font-size:11px}
+.rb-one em.dn{color:var(--txDn)} .rb-one em.up{color:var(--txUp)}
+.ssb-o{margin-left:5px;font-size:10px;color:#6e5a3c;font-weight:400}
+[data-skin="hd"] .ordrow{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .ordrow.me{background:#3d3350}
+[data-skin="hd"] .ordrow>span:nth-child(2) small,[data-skin="hd"] .ssb-o{color:#b5aabb}
+[data-skin="hd"] .ordrow .obar{background:#1d1a26}
+[data-skin="hd"] .rb-one{background:#2b2438;color:#e8dfd2}
+[data-skin="hd"] .ordgap{color:#7d7a8c}
+
+.corow .pb-cost{min-width:96px;text-align:right}
+.corow .mini{margin-top:3px;display:block;width:100%}
+.corow.empty{opacity:.92}
+
 .ry-ctrl{display:flex;gap:5px}
 /* 見かたの切り替え。速さの列より一段小さく置く */
 .ry-view{margin-bottom:4px}
@@ -8889,6 +8949,10 @@ GP.geom = (function () {
 
   /* ---------- コース解析（コーナー・ストレート・DRS区間）---------- */
   function analyze(track) {
+    if (!track || !track.path) {
+      const f = flat(track || {});
+      return { gw: f.w, secGeo: f.geo, kappa: null, flat: true };
+    }
     if (cache[track.name]) return cache[track.name];
     const poly = polyOf(track);
     const k = curvature(poly);
@@ -9009,6 +9073,7 @@ GP.geom = (function () {
      立ち上がりは「加速性能」、直線の伸びは「最高速性能」で決まる。
      戻り値は各点の通過時刻（1周を 1.0 に正規化した累積）。          */
   function speedProfile(track, stats) {
+    if (!track || !track.path) return { share: [1 / 3, 1 / 3, 1 / 3], lap: 0, flat: true };
     const info = analyze(track);
     const poly = polyOf(track);
     const N = poly.n, k = info.kappa;
@@ -9053,8 +9118,23 @@ GP.geom = (function () {
      それを、区間の地形の偏りに応じて振り分け直す。
      基準の車（速さ・曲がり・加速が同じ）の時間配分で足し戻すと
      元の weight に戻るので、コース全体の性格は変わらない。      */
+  /* ---------- 形のない会場 ----------
+     ラリーには1本の閉じたコース図が無い。SSが13本あるだけで、
+     そのどれもが「1周」ではないので、ここで測れるものが何も無い。
+     path を持たない会場が来たら、その会場の持ち味を
+     3つに均等割りしたものを返して、呼び出し側を通す。       */
+  function flat(track) {
+    const tw = track.weight || { speed: 0.34, corner: 0.33, accel: 0.33 };
+    const tot = Math.max(1e-6, tw.speed + tw.corner + tw.accel);
+    const one = { speed: tw.speed / tot, corner: tw.corner / tot, accel: tw.accel / tot };
+    return { w: [one, one, one], share0: [1 / 3, 1 / 3, 1 / 3],
+             geo: [{ twisty: 0.5, fast: 0.5 }, { twisty: 0.5, fast: 0.5 },
+                   { twisty: 0.5, fast: 0.5 }] };
+  }
+
   const secWCache = {};
   function sectorWeights(track) {
+    if (!track || !track.path) return flat(track || {});
     if (secWCache[track.name]) return secWCache[track.name];
     const info = analyze(track);
     const sh0 = speedProfile(track, { speed: 1, corner: 1, accel: 1 }).share;
@@ -10034,7 +10114,8 @@ GP.state = (function () {
       const ps = partStats(p, g);
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
-      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
+      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18))
+              * ruleMul(g, c.key);      // いまの技術規則。部位ごとに効きが変わる
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -10554,6 +10635,54 @@ GP.state = (function () {
      難易度によっては、途中の年から始まることがある            */
   function regSince(g2) {
     return ((g2.season || 1) - 1 + (g2.regFrom || 0)) % REG_EVERY;
+  }
+
+  /* =======================================================
+     技術規則（ラリー版）
+
+     4年にいちど、条文が書き換わる。書き換わると
+     「何に金をかけると速いか」が変わる——それが規則の働きで、
+     条文を読めるチームだけが先に手を打てる。
+
+     どの条文が来るかは規則期の番号から決まる。保存に持たないので、
+     途中でデータを足しても、昔のセーブが壊れない。
+     ======================================================= */
+  const EMPTY = [];
+  EMPTY.mul = {};
+  function ruleEra(g2) {
+    return Math.floor(((g2.season || 1) - 1 + (g2.regFrom || 0)) / REG_EVERY);
+  }
+  /* 条文は規則期ごとに固定なので、引いたものを控えておく。
+     carStats は1回の描画で何十回も呼ばれるので、
+     そのたびに引き直していると、ただの無駄になる            */
+  const _ruleCache = {};
+  function ruleSet(g2) {
+    if (!isRally(g2)) return EMPTY;
+    const L = (GP.rallydata && GP.rallydata.RULES) || [];
+    if (!L.length) return EMPTY;
+    const era = ruleEra(g2);
+    if (_ruleCache[era]) return _ruleCache[era];
+    let h = ((era + 1) * 2654435761) >>> 0;
+    const r = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+    const pool = L.slice();
+    const out = [];
+    for (let k = 0; k < 2 && pool.length; k++) {
+      out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
+    }
+    /* 部位ごとの倍率も、ここで一度だけ掛け合わせておく */
+    out.mul = {};
+    out.forEach(x => Object.keys(x.mul || {}).forEach(k2 => {
+      out.mul[k2] = (out.mul[k2] || 1) * x.mul[k2];
+    }));
+    _ruleCache[era] = out;
+    return out;
+  }
+  /* その部位が、いまの規則でどれだけ効くか。
+     上下は釣り合わせてあるので、規則が変わっても車全体は遅くならない。
+     変わるのは「どこに金をかけると速いか」だけ                */
+  function ruleMul(g2, catKey) {
+    const set = ruleSet(g2);
+    return (set.mul && set.mul[catKey]) || 1;
   }
 
   function regulationDue(g2) {
@@ -12840,6 +12969,8 @@ GP.state = (function () {
     const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0)
                   + (g2.reserve ? g2.reserve.salary : 0);
     const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
+    // 右席。ラリー版だけいる人たちで、ここに入れ忘れるとただ働きになる
+    const cod = (g2.codrivers || []).reduce((a, c) => a + (c.salary || 0), 0);
     const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
     // パワーユニットの供給料。1戦ぶんを週あたりにならす
     const engine = g2.engine ? Math.round(g2.engine.fee / (PREP_WEEKS + 1)) : 0;
@@ -12847,7 +12978,7 @@ GP.state = (function () {
     const estate = estateUpkeep(g2);            // 持っている事業の維持費
     const gearUp = gearUpkeep(g2).net;          // 買った装備の維持費
     const supply = supplyFee(g2);               // サプライヤーへの契約料
-    const raw = staff + mgrs + drivers + youth + facilities + engine
+    const raw = staff + mgrs + drivers + youth + cod + facilities + engine
               + estate + gearUp + supply + other;
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
@@ -13368,17 +13499,54 @@ GP.state = (function () {
      ラリーの右席。読み上げの腕（skill）と、
      その組でどれだけ長くやっているか（bond）で効きが変わる。
      bond は一緒に走った回数で育ち、組み替えると0に戻る       */
-  function makeCoDriver(forDriver) {
+  function makeCoDriver(forDriver, q) {
+    /* q はチームの格（0〜1くらい）。強いチームほど、
+       うまい右席が話を聞きに来る                              */
+    const k = q == null ? 0 : clamp(q, 0, 1.4);
+    const sk = clamp(rint(34, 58) + Math.round(k * 28) + rint(-4, 4), 24, 96);
     return {
       id: 'co' + Math.random().toString(36).slice(2, 8),
       name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: rint(34, 58),
-      age: rint(26, 40),
-      salary: rint(18, 34),
+      skill: sk,
+      age: rint(26, 44),
+      salary: Math.round(12 + sk * 0.42 + rint(0, 6)),
       bond: 0,                       // 0〜1。一緒に走った回数で上がる
       with: forDriver ? forDriver.id : null,
       rallies: 0
     };
+  }
+  /* 迎えるときの一時金。腕のぶんだけ高い */
+  function coFee(co) { return Math.round((co.salary || 20) * 16); }
+
+  /* 右席を迎える。席が埋まっていれば、そちらは自由契約になる */
+  function coHire(g2, co, driver) {
+    if (!g2 || !co || !driver) return null;
+    const fee = coFee(co);
+    if (g2.funds < fee) return null;
+    g2.funds -= fee;
+    const old = coOf(g2, driver);
+    if (old) g2.codrivers = (g2.codrivers || []).filter(c => c !== old);
+    const mine = Object.assign({}, co, { with: driver.id, bond: 0, rallies: 0 });
+    g2.codrivers = (g2.codrivers || []).concat([mine]);
+    return { co: mine, out: old, fee: fee };
+  }
+  function coRelease(g2, co) {
+    if (!g2 || !co) return null;
+    /* 契約を切るのはただではない。残りを払って別れる */
+    const pay = Math.round((co.salary || 20) * 6);
+    g2.funds -= pay;
+    g2.codrivers = (g2.codrivers || []).filter(c => c !== co);
+    return pay;
+  }
+  /* 左右を入れ替える。組み替えたぶん、息はいちから積み直しになる */
+  function coSwap(g2) {
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (ds.length < 2) return false;
+    const a = coOf(g2, ds[0]), b = coOf(g2, ds[1]);
+    if (!a || !b) return false;
+    a.with = ds[1].id; b.with = ds[0].id;
+    a.bond = b.bond = 0; a.rallies = b.rallies = 0;
+    return true;
   }
   /* その人の右席は誰か */
   function coOf(g2, driver) {
@@ -14370,8 +14538,8 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
-    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond,
-    REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
+    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
+    REG_EVERY, regSince, ruleSet, ruleMul, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
@@ -18447,6 +18615,61 @@ GP.rallydata = (function () {
      ここにあるのは name / short / icon / names / notes / desc / eff / note だけ。
      gain も cost も rp も、F1側のものをそのまま使う。
      ======================================================= */
+  /* =========================================================
+     技術規則（ラリー版）
+
+     4年にいちど、規則がまるごと書き換わる。
+     そのたびに「何で速くするか」が変わる——それが規則というものの
+     いちばん大事な働きで、条文を読めるチームだけが先に手を打てる。
+
+     mul は、その部位が車にどれだけ効くかの倍率。
+     全体としては上下が釣り合うようにしてあるので、
+     規則が変わっても車全体が遅くなるわけではない。
+     変わるのは「どこに金をかけると速いか」だけ。
+     ========================================================= */
+  const RULES = [
+    { key: 'restrict', icon: '🌀', name: '吸気リストリクター',
+      line: '過給機の入口に絞りを入れる。踏み込んでも、入る空気に天井がある',
+      mul: { pu: 0.80, chas: 1.12, susp: 1.08 },
+      note: 'エンジンで押し切れない。車体と足で稼ぐ年になる' },
+    { key: 'weight', icon: '⚖️', name: '最低重量の引き上げ',
+      line: '車検場の秤に乗る重さの下限が上がる',
+      mul: { chas: 0.86, pu: 1.10, gear: 1.08 },
+      note: '軽さで曲げられなくなるぶん、押し出す力がものを言う' },
+    { key: 'activediff', icon: '🔒', name: 'アクティブデフ禁止',
+      line: '走行中に締め具合を変える機構を認めない',
+      mul: { aero: 0.78, susp: 1.14, elec: 1.06 },
+      note: 'デフで曲げられないので、足そのものの出来で曲がる' },
+    { key: 'hybrid', icon: '🔋', name: 'ハイブリッド義務化',
+      line: '全車に回生と電動アシストを載せる',
+      mul: { elec: 1.22, gear: 1.10, pu: 0.88, chas: 0.92 },
+      note: '制御と駆動が主役になる。重くなったぶん車体は不利' },
+    { key: 'travel', icon: '🪜', name: 'サスペンションストローク上限',
+      line: '伸び縮みの幅に上限を設ける',
+      mul: { susp: 0.80, brake: 1.10, chas: 1.08 },
+      note: '足で逃がせないぶん、止めかたと車体の強さで受ける' },
+    { key: 'antilag', icon: '🔇', name: 'アンチラグ禁止',
+      line: '排気側で燃やし続ける仕掛けを認めない',
+      mul: { elec: 0.84, pu: 1.12, gear: 1.06 },
+      note: 'ラグが戻ってくる。エンジンそのものの厚みが要る' },
+    { key: 'underguard', icon: '🛡️', name: 'アンダーガード必須',
+      line: '底面に規定の厚みの板を張ることを義務づける',
+      mul: { chas: 1.14, susp: 1.06, pu: 0.88, aero: 0.94 },
+      note: '底を打っても壊れない代わりに、重くなる' },
+    { key: 'onetyre', icon: '🛞', name: 'タイヤ銘柄の統一',
+      line: '全車が同じ供給元の同じ銘柄を履く',
+      mul: { susp: 1.12, brake: 1.08, aero: 0.88, pu: 0.94 },
+      note: 'タイヤで差がつかない。足の合わせ込みが、そのまま差になる' },
+    { key: 'cabin', icon: '🧯', name: '安全装備の強化',
+      line: 'ケージ・シート・消火の規定を厳しくする',
+      mul: { chas: 1.16, brake: 1.04, pu: 0.92, gear: 0.92 },
+      note: '重く硬くなる。壊れにくくなるが、速さは車体頼りになる' },
+    { key: 'gearlimit', icon: '🔀', name: '変速段数の制限',
+      line: '6速までとし、シームレス機構を禁じる',
+      mul: { gear: 0.80, pu: 1.12, elec: 1.08 },
+      note: '変速で稼げない。低い回転からのトルクが効く' }
+  ];
+
   const WORDS = {
 
     /* ---------- マシンパーツ ---------- */
@@ -18603,7 +18826,7 @@ GP.rallydata = (function () {
     }
   };
 
-  return { SURFACES, RALLIES, PACES, TROUBLES, SERVICE, NOTES, RECCE, ROAD, POWER_STAGE, WORDS };
+  return { SURFACES, RALLIES, PACES, TROUBLES, SERVICE, NOTES, RECCE, ROAD, POWER_STAGE, RULES, WORDS };
 })();
 
 </script>
@@ -18866,6 +19089,37 @@ GP.rally = (function () {
     return 1 - (st.second ? lose * 0.35 : lose);
   }
 
+  /* その走行順が背負う「掃き掃除」の割合（0〜）。
+     画面に出すためのもので、計算はしていない                 */
+  function roadLoss(surface, order, second) {
+    return 1 - roadFactor({ surface: surface, second: !!second }, order);
+  }
+
+  /* ---------- 初日の走行順の見込み ----------
+     初日は選手権の上位から出る。つまり、勝っている者ほど
+     まだ誰も掃いていない砂利の上を走らされる。
+     これが「ラリーでは、勝つほど次が苦しくなる」の正体       */
+  function orderPreview(g, rally) {
+    const St = S();
+    const teams = St.allTeams(g, rally);
+    const all = [];
+    teams.forEach(t => {
+      (t.drivers || []).forEach(d => {
+        all.push({ name: d.name, team: t.name, color: t.color,
+                   isPlayer: !!t.isPlayer, pts: d.seasonPoints || 0,
+                   rate: St.driverRating(d) || 50 });
+      });
+    });
+    /* 点が並んだら格で分ける。開幕戦は全員0点なので、
+       ここを決めておかないと「無名のチームが先頭で出る」ことになる */
+    all.sort((a, b) => (b.pts - a.pts) || (b.rate - a.rate));
+    all.forEach((x, i) => {
+      x.order = i + 1;
+      x.loss = roadLoss(rally.surface, x.order, false);
+    });
+    return all;
+  }
+
   /* ---------- ペースノートの精度 ---------- */
   function notesOf(g, crew) {
     const N = RD().NOTES;
@@ -18978,8 +19232,11 @@ GP.rally = (function () {
   function orderFor(list, day, standings) {
     const live = list.filter(e => !e.out);
     if (day === 0) {
-      // 選手権で上にいるほど先に出る＝グラベルでは損をする
-      live.sort((a, b) => (standings[b.id] || 0) - (standings[a.id] || 0));
+      /* 選手権で上にいるほど先に出る＝グラベルでは損をする。
+         点が並んだら格で分ける。開幕戦は全員0点なので、
+         ここを決めておかないと順番がその場の runtime 次第になる */
+      live.sort((a, b) => ((standings[b.id] || 0) - (standings[a.id] || 0))
+                          || ((b.drvPace || 0) - (a.drvPace || 0)));
     } else {
       live.sort((a, b) => a.total - b.total);
     }
@@ -19031,7 +19288,8 @@ GP.rally = (function () {
           }
         }
         if (!e.out) { e.total += t; e.done.push(t); }
-        board.push({ e: e, t: t, note: note });
+        board.push({ e: e, t: t, note: note, order: e.order,
+                     road: roadFactor(st, e.order) });
       });
       board.sort((a, b) => a.t - b.t);
       const win = board[0];
@@ -19040,7 +19298,8 @@ GP.rally = (function () {
         board: board.map((x, k) => ({
           id: x.e.id, name: x.e.name, team: x.e.teamName, color: x.e.color,
           isPlayer: x.e.isPlayer, t: x.t, gap: x.t - (win ? win.t : x.t),
-          pos: k + 1, note: x.note, out: x.e.out
+          pos: k + 1, note: x.note, out: x.e.out,
+          order: x.order, road: x.road
         }))
       });
       // パワーステージの点
@@ -19075,7 +19334,7 @@ GP.rally = (function () {
   }
 
   return { run, buildStages, serviceAfter, notesOf, baseSpeed, roadFactor, stageTime,
-           buildRoad, noteSay, SEV, TAGS };
+           buildRoad, noteSay, roadLoss, orderPreview, SEV, TAGS };
 })();
 
 </script>
@@ -24549,6 +24808,7 @@ GP.screens.hr = function (A) {
      フリーメニュー：人事
      ======================================================= */
   let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
+  let coMarket = null;                // 右席（ラリー版のみ）
   let rivalStaffMarket = null;      // よそのチームで働いている人（引き抜きの相手）
   A.hrTab = 'staff';          // 人事（働く人）のいまのタブ
   A.drvTab = 'drivers';       // ドライバー（走る人）のいまのタブ（本拠地からも切り替える）
@@ -24565,6 +24825,9 @@ GP.screens.hr = function (A) {
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
+    if (S.isRally(g) && (force || !coMarket)) {
+      coMarket = [0, 1, 2].map(() => S.makeCoDriver(null, q));
+    }
   }
 
   /* ---- 部門ごとの求人 ----
@@ -24771,13 +25034,19 @@ GP.screens.hr = function (A) {
             ['school', '🏛️ 講習'], ['fia', '🌐 FIA']],
     drv:   [['drivers', '🧑‍✈️ 契約'], ['train', '💪 練習'], ['youth', '🎓 育成']]
   };
+  /* 右席は、ラリー版にだけある席。タブもそのときだけ出す */
+  function drvTabs() {
+    const t = HR_TABS.drv.slice();
+    if (S.isRally(g)) t.splice(1, 0, ['co', '📓 右席']);
+    return t;
+  }
   function cmdStaff() { hrMode = 'staff'; openHr(); }
   function cmdDrivers() { hrMode = 'drv'; openHr(); }
   function reopenHr() { openHr(); }
   function openHr() {
     refreshMarkets(false);
     const drv = hrMode === 'drv';
-    const tabs = HR_TABS[hrMode];
+    const tabs = drv ? drvTabs() : HR_TABS[hrMode];
     const keys = tabs.map(t => t[0]);
     let cur = drv ? A.drvTab : A.hrTab;
     if (keys.indexOf(cur) < 0) cur = keys[0];
@@ -24787,6 +25056,7 @@ GP.screens.hr = function (A) {
       '</div>';
 
     if (cur === 'drivers') body += hrDrivers();
+    else if (cur === 'co') body += hrCo();
     else if (cur === 'train') body += A.trainHTML();
     else if (cur === 'youth') body += hrYouth();
     else if (cur === 'staff') body += hrStaff();
@@ -24813,6 +25083,7 @@ GP.screens.hr = function (A) {
     });
     // 練習の配線は dev.js の側。bindPick を二重に掛けないよう、ここで抜ける
     if (cur === 'train') { A.bindTrain(); return; }
+    if (cur === 'co') { bindCo(); }
     bindPick(k => hrPick(k));
     bindHrActions();
     bindSchool();
@@ -25298,6 +25569,138 @@ GP.screens.hr = function (A) {
     }
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); openSeatMarket(seat); } });
     U.popup(S.nationOf(d).flag + ' ' + esc(d.name), h, btns);
+  }
+
+  /* =======================================================
+     右席（コ・ドライバー）
+
+     ラリーで速いのは、うまいドライバーではなく、
+     「次に何が来るか分かっているドライバー」になる。
+     それを教えるのが右席ひとりなので、
+     この席だけは、腕より先に「息が合っているか」で選ぶことになる。
+
+     息（bond）は一緒に走った本数で積み上がり、組み替えると0に戻る。
+     だから「もっとうまい人がいる」というだけでは、乗り換えられない。
+     ======================================================= */
+  function coCard(co, d, market) {
+    const N = GP.rallydata.NOTES;
+    const q = co ? clamp01(N.base + (co.skill / 100) * N.coNote + (co.bond || 0) * N.bond) : 0;
+    const fee = co ? S.coFee(co) : 0;
+    const pct = Math.round((co ? co.skill : 0));
+    const bond = Math.round((co ? co.bond || 0 : 0) * 100);
+    let act;
+    if (market) {
+      const cant = g.funds < fee;
+      act = (g.drivers || []).map((dd, i) =>
+        '<button class="mini' + (cant ? ' cant' : '') + '" data-cohire="' + co.id + ':' + dd.id + '"' +
+        (cant ? ' disabled' : '') + '>' + esc(String(dd.name).split(/[・\s]/)[0]) + 'と組む</button>').join('');
+    } else {
+      act = '<button class="mini danger" data-cofire="' + co.id + '">契約を切る</button>';
+    }
+    return '<div class="pickbtn corow">' +
+      '<span class="pb-ic" style="background:#4a3018">📓</span>' +
+      '<span class="pb-body"><b>' + esc(co.name) +
+      (d ? '<em class="stitle">🧑‍✈️ ' + esc(d.name) + ' の右席</em>' : '') + '</b>' +
+      '<small><em class="sage">' + co.age + '歳</em>' +
+      '　<em class="srank">読み上げの腕 ' + pct + '</em>' +
+      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 腕 <b>' + pct + '</b>' +
+      '<br><span class="skbar exp"><i style="width:' + bond + '%"></i></span> 息 <b>' + bond + '%</b>' +
+      '<em class="scap">（' + (co.rallies || 0) + '戦を一緒に走った）</em>' +
+      '<br>この組で、ノートの読みは <b>' + Math.round(q * 100) + ' / 100</b>' +
+      '</small></span>' +
+      '<span class="pb-cost">週' + money(co.salary) + '万' +
+      (market ? '<br><em>一時金 ' + money(fee) + '万</em>' : '') +
+      '<br>' + act + '</span></div>';
+  }
+  function clamp01(v) { return v < 0 ? 0 : v > 1.25 ? 1.25 : v; }
+
+  function hrCo() {
+    const N = GP.rallydata.NOTES;
+    let h = '<p class="desc">ラリーで速いのは、うまい人ではなく' +
+      '<b>次に何が来るか分かっている人</b>です。それを教えるのは右席ひとりなので、' +
+      'この席は腕だけでは決まりません。<br>' +
+      '読み上げの精度は <b>下地' + Math.round(N.base * 100) + '</b>＋' +
+      '<b>右席の腕</b>（最大+' + Math.round(N.coNote * 100) + '）＋' +
+      '<b>レッキ</b>（最大+' + Math.round(N.recce * 100) + '）＋' +
+      '<b>息</b>（最大+' + Math.round(N.bond * 100) + '）で決まり、' +
+      '精度1あたりタイムが <b>' + (N.paceAt * 100).toFixed(1) + '%</b> 変わります。' +
+      '読みが甘いと、遅いだけでなく<b>外しやすく</b>もなります。</p>';
+
+    h += '<div class="sub">📓 いまの組み合わせ</div><div class="pick">';
+    let paired = 0;
+    (g.drivers || []).forEach(d => {
+      const co = S.coOf(g, d);
+      if (co) { paired++; h += coCard(co, d, false); }
+      else {
+        h += '<div class="pickbtn corow empty">' +
+          '<span class="pb-ic" style="background:#8f2a24">⚠️</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + ' の右席が空いています</b>' +
+          '<small>右席がいないと、去年のノートを頼りに走ることになります。' +
+          '読みは下地の <b>' + Math.round(N.base * 100) + '</b> のままです</small></span>' +
+          '<span class="pb-cost">—</span></div>';
+      }
+    });
+    h += '</div>';
+
+    if (paired >= 2) {
+      h += '<p class="desc">組み替えると、積み上げた<b>息</b>はいちから積み直しになります。' +
+        '「もっとうまい人がいる」というだけでは、乗り換える理由になりません。</p>' +
+        '<div class="pick"><button class="pickbtn" id="coSwap">' +
+        '<span class="pb-ic" style="background:#6b4724">🔁</span>' +
+        '<span class="pb-body"><b>左右を入れ替える</b>' +
+        '<small>ふたりの右席を交換します。積み上げた息は、どちらも0に戻ります</small></span>' +
+        '<span class="pb-cost">—</span></button></div>';
+    }
+
+    h += '<div class="sub">🤝 話を聞きに来ている人</div><div class="pick">';
+    (coMarket || []).forEach(co => { h += coCard(co, null, true); });
+    h += '</div>' +
+      '<p class="desc">迎えると、いまその人と組んでいる右席は自由契約になります。' +
+      '顔ぶれは「市場を更新」で入れ替わります。</p>';
+    return h;
+  }
+
+  function bindCo() {
+    const box = $('modalBody');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-cohire]'), b => {
+      b.onclick = () => {
+        const [cid, did] = b.dataset.cohire.split(':');
+        const co = (coMarket || []).filter(c => c.id === cid)[0];
+        const d = (g.drivers || []).filter(x => x.id === did)[0];
+        if (!co || !d) return;
+        const res = S.coHire(g, co, d);
+        if (!res) return U.toast('資金が足りません', 'bad');
+        coMarket = (coMarket || []).filter(c => c !== co);
+        U.log(g, '📓 ' + res.co.name + ' を ' + d.name + ' の右席に迎えた（一時金 💰' +
+          money(res.fee) + '万）' + (res.out ? '。' + res.out.name + 'とは別れた' : ''), 'good');
+        GP.sound.play('good');
+        S.save(g); render(); reopenHr();
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-cofire]'), b => {
+      b.onclick = () => {
+        const co = (g.codrivers || []).filter(c => c.id === b.dataset.cofire)[0];
+        if (!co) return;
+        U.popup('📓 契約を切る', '<p class="lead">' + esc(co.name) + ' との契約を切りますか。</p>' +
+          '<p class="desc">残りぶんとして <b>💰' + money(Math.round(co.salary * 6)) +
+          '万</b> を払います。積み上げた息（' + Math.round((co.bond || 0) * 100) +
+          '%）は戻りません。</p>',
+          [{ label: '切る', cls: 'bad', fn: () => {
+              const pay = S.coRelease(g, co);
+              U.closePopup();
+              U.log(g, '📓 ' + co.name + ' との契約を切った（💰' + money(pay) + '万）', 'warn');
+              S.save(g); render(); reopenHr();
+            } },
+           { label: 'やめる', fn: U.closePopup }]);
+      };
+    });
+    const sw = $('coSwap');
+    if (sw) sw.onclick = () => {
+      if (!S.coSwap(g)) return;
+      U.log(g, '🔁 右席を入れ替えた。息はいちから積み直しになる', 'warn');
+      GP.sound.play('tap');
+      S.save(g); render(); reopenHr();
+    };
   }
 
   function hrDrivers() {
@@ -26635,6 +27038,32 @@ GP.screens.dev = function (A) {
     return true;
   }
 
+  /* いまの技術規則を、ひと目ぶんだけ。
+     何にかけると速いかは規則で変わるので、
+     開発を決める画面のいちばん上に出しておく                */
+  function ruleChips() {
+    const set = S.ruleSet(g);
+    if (!set.length) return '';
+    const nm = (k) => {
+      const c = D.PART_CATS.filter(x => x.key === k)[0];
+      return c ? (c.short || c.name) : k;
+    };
+    const up = {}, dn = {};
+    set.forEach(r => Object.keys(r.mul || {}).forEach(k => {
+      const v = (up[k] || dn[k] || 1);
+      const m = (up[k] != null ? up[k] : dn[k] != null ? dn[k] : 1) * r.mul[k];
+      delete up[k]; delete dn[k];
+      if (m >= 1) up[k] = m; else dn[k] = m;
+    }));
+    const chip = (o2, cls) => Object.keys(o2).sort((a, b) =>
+        (cls === 'up' ? o2[b] - o2[a] : o2[a] - o2[b]))
+      .map(k => '<em class="' + cls + '">' + (cls === 'up' ? '▲ ' : '▼ ') + nm(k) +
+        ' ×' + o2[k].toFixed(2) + '</em>').join('');
+    return '<div class="rulechip"><b>📜 ' + set.map(r => r.icon + esc(r.name)).join('　') +
+      '</b><span class="rchips">' + chip(up, 'up') + chip(dn, 'dn') + '</span>' +
+      '<small>いまの規則では、上の部位に金をかけたほうが速くなります</small></div>';
+  }
+
   function cmdCar() {
     const t = S.trackAt(g, g.nextRace);
     const sc = Math.round(S.carScore(g, t));
@@ -26678,6 +27107,7 @@ GP.screens.dev = function (A) {
       /* ここから下は、その判断の材料。
          見出しで3つに割っておくと、ui.js が畳んで
          飛び先の並びを付けてくれる（一度に開くのはひとつだけ） */
+      ruleChips() +
       '<div class="sub">🏎️ いまの車</div>' +
       carMixHTML() +
       '<div class="sub">🔗 部品の噛み合い</div>' +
@@ -32234,6 +32664,12 @@ GP.screens.rallyweek = function (A) {
       coLine() + '　レッキの手間と、右席の腕と、息の合いかたで決まります。' +
       '読みが甘いと、速く走れないうえに外しやすくなります。</small></div>';
 
+    // ---- いまの技術規則 ----
+    body += rulesHTML();
+
+    // ---- 走行順と路面 ----
+    body += roadHTML(rally);
+
     // ---- 日程 ----
     body += '<div class="sub">日程</div><div class="sslist">';
     byDay.forEach((list, d) => {
@@ -32259,6 +32695,111 @@ GP.screens.rallyweek = function (A) {
     bindOpt('data-rrecce', v => { plan.recce = v; showBrief(rally); });
     bindOpt('data-rpace', v => { plan.pace = v; showBrief(rally); });
     bindOpt('data-rspare', v => { plan.spares = +v; showBrief(rally); });
+  }
+
+  /* =======================================================
+     技術規則
+
+     4年にいちど条文が書き換わり、書き換わると
+     「どこに金をかけると速いか」が変わる。
+     ここに出しておかないと、開発の画面で何を伸ばすべきかが
+     ただの勘になってしまう。
+     ======================================================= */
+  function rulesHTML() {
+    const St = S();
+    const set = St.ruleSet(g);
+    if (!set.length) return '';
+    const catName = (k) => {
+      const c = D().PART_CATS.filter(x => x.key === k)[0];
+      return c ? (c.short || c.name) : k;
+    };
+    let h = '<div class="sub">📜 いまの技術規則</div>' +
+      '<p class="desc">この規則の <b>' + (St.regSince(g) + 1) + ' 年目 / 全' +
+      St.REG_EVERY + '年</b>' +
+      (St.regulationNext(g) ? '（<b class="warn">今季が最後の年</b>。来季は白紙から）' : '') + '。' +
+      '規則は全車に同じようにかかります。変わるのは' +
+      '<b>どこに金をかけると速いか</b>だけです。</p>' +
+      '<div class="rulelist">';
+    set.forEach(r => {
+      const ups = [], dns = [];
+      Object.keys(r.mul || {}).forEach(k => {
+        (r.mul[k] >= 1 ? ups : dns).push(catName(k) + ' ×' + r.mul[k].toFixed(2));
+      });
+      h += '<div class="rulerow"><i>' + r.icon + '</i>' +
+        '<span><b>' + esc(r.name) + '</b>' +
+        '<small>' + esc(r.line) + '<br><em class="rn">' + esc(r.note) + '</em></small>' +
+        '<span class="rchips">' +
+        ups.map(t => '<em class="up">▲ ' + t + '</em>').join('') +
+        dns.map(t => '<em class="dn">▼ ' + t + '</em>').join('') +
+        '</span></span></div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  /* =======================================================
+     走行順と路面
+
+     サーキットなら、前にいるほど得をする。
+     グラベルのラリーは逆で、前にいるほど損をする。
+     まだ誰も走っていない道には砂利が浮いていて、
+     先に出た者がそれを掃き、後ろほど硬い路面が出てくる。
+
+     つまり選手権で勝っているほど、次のラリーでは不利な場所から出る。
+     これは理不尽ではなく、この競技の背骨にあたる部分なので、
+     出発する前に、はっきり読めるようにしておく。
+     ======================================================= */
+  function roadHTML(rally) {
+    const sf = RD().SURFACES[rally.surface] || RD().SURFACES.gravel;
+    const RO = RD().ROAD;
+    const list = GP.rally.orderPreview(g, rally);
+    const mine = list.filter(x => x.isPlayer);
+    const top = list.slice(0, 8);
+    const extra = mine.filter(x => x.order > 8);
+    const rows = top.concat(extra.length ? [null] : []).concat(extra);
+
+    let h = '<div class="sub">🛣️ 走行順と路面</div>';
+    if (sf.sweep >= 0.5) {
+      h += '<p class="desc"><b>' + sf.name + 'は、前に出るほど損をします。</b>' +
+        'まだ誰も走っていない道には砂利が浮いていて、先に出た者がそれを掃き、' +
+        '後ろほど硬い路面が出てきます。初日は<b>選手権の上位から</b>出るので、' +
+        '勝っているほど苦しい場所から走ることになります。<br>' +
+        '二日目からは<b>前日までの総合順位の順</b>。' +
+        Math.round(RO.cleanFrom) + '番手より後ろは、ほぼ掃き終わったあとの道です。' +
+        '同じSSを二度通るときは、二度目はもう掃かれています。</p>';
+    } else {
+      h += '<p class="desc"><b>' + sf.name + 'では、走行順はほとんど効きません。</b>' +
+        '掃くべき砂利が無いからです（効きは' + sf.name + 'で ×' +
+        sf.sweep.toFixed(2) + '）。残るのは路面の汚れくらいです。</p>';
+    }
+    h += '<div class="ordlist">';
+    rows.forEach(x => {
+      if (!x) { h += '<div class="ordgap">…</div>'; return; }
+      const pc = x.loss * 100;
+      h += '<div class="ordrow' + (x.isPlayer ? ' me' : '') + '">' +
+        '<i style="background:' + x.color + '">' + x.order + '</i>' +
+        '<span><b>' + esc(x.name) + '</b><small>' + esc(x.team) + '</small></span>' +
+        '<span class="obar"><i style="width:' +
+        Math.round(x.loss / Math.max(0.0001, RO.sweepMax * sf.sweep) * 100) + '%"></i></span>' +
+        '<em class="' + (pc > 0.4 ? 'dn' : pc > 0.05 ? 'wn' : 'up') + '">' +
+        (pc < 0.005 ? '±0' : '−' + pc.toFixed(2) + '%') + '</em></div>';
+    });
+    h += '</div>';
+    if (mine.length) {
+      const worst = mine.reduce((a, x) => (x.loss > a.loss ? x : a), mine[0]);
+      const km = GP.rally.buildStages(rally, (g.season || 1) * 97 + g.nextRace * 13)
+                   .reduce((a, s2) => a + s2.km, 0);
+      /* 1ラリーぶんだと何秒になるか。％のままだと、
+         得なのか損なのかが身体で分からない                    */
+      const secs = km / 100 * 3600 * worst.loss;
+      h += '<p class="note">うちは <b>' + mine.map(x => x.order + '番手').join('・') +
+        '</b> から出ます。' +
+        (worst.loss > 0.0005
+          ? '全区間で均すと、いちばん前の1台で <b>およそ ' + secs.toFixed(0) +
+            '秒</b> ぶんの不利になります。'
+          : 'ここからだと、掃き掃除の不利はほとんどありません。') + '</p>';
+    }
+    return h;
   }
 
   function bindOpt(attr, fn) {
@@ -32400,13 +32941,31 @@ GP.screens.rallyweek = function (A) {
         esc(b.note.line) + (b.note.loss ? '（<b>+' + b.note.loss + '秒</b>）' : '') + '</div>';
     });
 
+    /* ---- 何番手で入ったか ----
+       タイムだけを並べると、遅かったのが腕のせいなのか
+       出た順のせいなのかが、いつまでも分からない            */
+    const sweep = mine.filter(b => b.order && b.road != null && b.road < 0.9999);
+    if (mine.length && mine[0].order) {
+      body += '<div class="roadbar">' + mine.map(b => {
+        const lost = b.road ? b.t * (1 - b.road) : 0;
+        return '<span class="rb-one"><i>' + b.order + '番手</i>' + esc(b.name) +
+          (lost > 0.05
+            ? '　<em class="dn">掃き掃除で +' + lost.toFixed(1) + '秒</em>'
+            : '　<em class="up">掃かれたあとの道</em>') + '</span>';
+      }).join('') + '</div>';
+      if (sweep.length && sf.sweep >= 0.5 && !st.second) {
+        body += '<p class="note">この路面では、前に出るほど砂利を掃かされます。' +
+          '後ろから出られるようになるのは、選手権で下がったときです。</p>';
+      }
+    }
+
     // この区間のタイム
     body += '<div class="sub">この区間</div><div class="ssboard">';
     row.board.slice(0, 10).forEach(b => {
       body += '<div class="ssb' + (b.isPlayer ? ' me' : '') + '">' +
         '<i>' + b.pos + '</i>' +
         '<span class="ssb-c" style="background:' + b.color + '"></span>' +
-        '<b>' + esc(b.name) + '</b>' +
+        '<b>' + esc(b.name) + (b.order ? '<small class="ssb-o">' + b.order + '番手</small>' : '') + '</b>' +
         '<em>' + secs(b.t) + '</em>' +
         '<u>' + (b.pos === 1 ? '—' : gapS(b.gap)) + '</u></div>';
     });
@@ -35072,6 +35631,16 @@ GP.screens.home = function (A) {
     { key: 'tyre', icon: '🛞', who: 'タイヤ供給の技術者',
       line: g2 => {
         const t = S.trackAt(g2, g2.nextRace);
+        if (S.isRally(g2)) {
+          /* ラリーに「1ストップで引っぱる」は無い。
+             ここで話題になるのは、次のサービスまで何が残るか */
+          const sf = GP.rallydata.SURFACES[t.surface] || GP.rallydata.SURFACES.gravel;
+          return (t.rough || 0) >= 0.7
+            ? '「' + sf.name + 'の荒いほうです。石を拾います。スペアは多めに積んでください」'
+            : (t.rough || 0) <= 0.35
+              ? '「路面はきれいです。次のサービスまで、まず保ちます」'
+              : '「標準的です。二度目に通るSSだけ、気をつけてください」';
+        }
         return t.tyre >= 1.2
           ? '「今日は路面が厳しい。想定より1周ぶんは早くタレると思ってください」'
           : t.tyre <= 0.95
@@ -36040,17 +36609,32 @@ GP.screens.home = function (A) {
     if (!st) return;
     yardMark('yd:strat');
     const t = S.trackAt(g, g.nextRace);
-    const laps = t.laps;
-    const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
-    const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
-                   : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
     const rp = Math.round(3 + st.skill * 0.12);
     g.rp += rp;
     staffExp('strategist', 8);
-    yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
-      '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
-      'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
-      '推奨ストップ数 ' + stops + '回／研究P +' + rp);
+    if (S.isRally(g)) {
+      /* ラリーに周回もピットも無い。作戦の軸は
+         「どこまで攻めるか」と「何本積むか」になる            */
+      const sf = GP.rallydata.SURFACES[t.surface] || GP.rallydata.SURFACES.gravel;
+      const hard = (t.risk || 1) >= 1.15 || (t.rough || 0) >= 0.7;
+      const pace = hard ? 'まず確実に（安全）' : '標準〜攻める';
+      const spare = (t.rough || 0) >= 0.7 ? 3 : (t.rough || 0) >= 0.45 ? 2 : 1;
+      yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
+        '「' + esc(t.name) + 'は' + sf.name + '。' +
+        (hard ? '車が壊れるほうのラリーです。まず完走を取りましょう'
+              : '車には優しいほうです。前半から詰めにいけます') + '。' +
+        'スペアは <b>' + spare + '本</b>、攻めかたは <b>' + pace + '</b> を軸に」',
+        '推奨スペア ' + spare + '本／研究P +' + rp);
+    } else {
+      const laps = t.laps;
+      const stops = (t.tyre > 1.05 || laps > 28) ? 2 : 1;
+      const tyreTalk = t.tyre >= 1.2 ? 'タイヤの摩耗が激しいコースです'
+                     : t.tyre <= 0.95 ? 'タイヤは保つほうです' : 'タイヤは標準的です';
+      yardResult('🧠 ' + esc(st.name) + 'と作戦の相談',
+        '「' + esc(t.name) + 'は' + laps + '周。' + tyreTalk + '。' +
+        'まずは <b>' + stops + 'ストップ</b>を軸に組み立てます」',
+        '推奨ストップ数 ' + stops + '回／研究P +' + rp);
+    }
     GP.sound.play('good');
     S.save(g); render();
   }
@@ -41703,8 +42287,30 @@ window.GP = window.GP || {};
          一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
       const rd = S.myEraRead(g), fit = S.myEraFit(g);
       const fitPct = Math.round((fit - 1) * 100);
+      /* ラリー版では、条文そのものが変わる。
+         何が禁止されて、何が義務になったのかを先に読ませる */
+      const rset = S.ruleSet(g);
+      const ruleHtml = rset.length
+        ? '<div class="rulelist">' + rset.map(r => {
+            const ups = [], dns = [];
+            Object.keys(r.mul || {}).forEach(k => {
+              const c = D.PART_CATS.filter(x => x.key === k)[0];
+              const nm = c ? (c.short || c.name) : k;
+              (r.mul[k] >= 1 ? ups : dns).push(nm + ' ×' + r.mul[k].toFixed(2));
+            });
+            return '<div class="rulerow"><i>' + r.icon + '</i><span><b>' + esc(r.name) +
+              '</b><small>' + esc(r.line) + '<br><em class="rn">' + esc(r.note) +
+              '</em></small><span class="rchips">' +
+              ups.map(t => '<em class="up">▲ ' + t + '</em>').join('') +
+              dns.map(t => '<em class="dn">▼ ' + t + '</em>').join('') +
+              '</span></span></div>';
+          }).join('') + '</div>'
+        : '';
       U.modal('📜 レギュレーション変更',
         '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        (ruleHtml ? '<div class="sub">📜 新しい条文</div>' +
+          '<p class="desc">全車に同じようにかかります。変わるのは' +
+          '<b>どこに金をかけると速いか</b>です。</p>' + ruleHtml : '') +
         '<div class="erabox big' + (fit >= 1.05 ? ' up' : fit <= 0.95 ? ' down' : '') + '">' +
         '<b>' + rd.icon + ' うちは、この規則を「' + rd.name + '」' +
         '<em>開発の伸び ' + (fitPct >= 0 ? '+' : '') + fitPct + '%</em></b>' +

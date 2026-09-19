@@ -135,6 +135,12 @@ GP.screens.rallyweek = function (A) {
       coLine() + '　レッキの手間と、右席の腕と、息の合いかたで決まります。' +
       '読みが甘いと、速く走れないうえに外しやすくなります。</small></div>';
 
+    // ---- いまの技術規則 ----
+    body += rulesHTML();
+
+    // ---- 走行順と路面 ----
+    body += roadHTML(rally);
+
     // ---- 日程 ----
     body += '<div class="sub">日程</div><div class="sslist">';
     byDay.forEach((list, d) => {
@@ -160,6 +166,111 @@ GP.screens.rallyweek = function (A) {
     bindOpt('data-rrecce', v => { plan.recce = v; showBrief(rally); });
     bindOpt('data-rpace', v => { plan.pace = v; showBrief(rally); });
     bindOpt('data-rspare', v => { plan.spares = +v; showBrief(rally); });
+  }
+
+  /* =======================================================
+     技術規則
+
+     4年にいちど条文が書き換わり、書き換わると
+     「どこに金をかけると速いか」が変わる。
+     ここに出しておかないと、開発の画面で何を伸ばすべきかが
+     ただの勘になってしまう。
+     ======================================================= */
+  function rulesHTML() {
+    const St = S();
+    const set = St.ruleSet(g);
+    if (!set.length) return '';
+    const catName = (k) => {
+      const c = D().PART_CATS.filter(x => x.key === k)[0];
+      return c ? (c.short || c.name) : k;
+    };
+    let h = '<div class="sub">📜 いまの技術規則</div>' +
+      '<p class="desc">この規則の <b>' + (St.regSince(g) + 1) + ' 年目 / 全' +
+      St.REG_EVERY + '年</b>' +
+      (St.regulationNext(g) ? '（<b class="warn">今季が最後の年</b>。来季は白紙から）' : '') + '。' +
+      '規則は全車に同じようにかかります。変わるのは' +
+      '<b>どこに金をかけると速いか</b>だけです。</p>' +
+      '<div class="rulelist">';
+    set.forEach(r => {
+      const ups = [], dns = [];
+      Object.keys(r.mul || {}).forEach(k => {
+        (r.mul[k] >= 1 ? ups : dns).push(catName(k) + ' ×' + r.mul[k].toFixed(2));
+      });
+      h += '<div class="rulerow"><i>' + r.icon + '</i>' +
+        '<span><b>' + esc(r.name) + '</b>' +
+        '<small>' + esc(r.line) + '<br><em class="rn">' + esc(r.note) + '</em></small>' +
+        '<span class="rchips">' +
+        ups.map(t => '<em class="up">▲ ' + t + '</em>').join('') +
+        dns.map(t => '<em class="dn">▼ ' + t + '</em>').join('') +
+        '</span></span></div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  /* =======================================================
+     走行順と路面
+
+     サーキットなら、前にいるほど得をする。
+     グラベルのラリーは逆で、前にいるほど損をする。
+     まだ誰も走っていない道には砂利が浮いていて、
+     先に出た者がそれを掃き、後ろほど硬い路面が出てくる。
+
+     つまり選手権で勝っているほど、次のラリーでは不利な場所から出る。
+     これは理不尽ではなく、この競技の背骨にあたる部分なので、
+     出発する前に、はっきり読めるようにしておく。
+     ======================================================= */
+  function roadHTML(rally) {
+    const sf = RD().SURFACES[rally.surface] || RD().SURFACES.gravel;
+    const RO = RD().ROAD;
+    const list = GP.rally.orderPreview(g, rally);
+    const mine = list.filter(x => x.isPlayer);
+    const top = list.slice(0, 8);
+    const extra = mine.filter(x => x.order > 8);
+    const rows = top.concat(extra.length ? [null] : []).concat(extra);
+
+    let h = '<div class="sub">🛣️ 走行順と路面</div>';
+    if (sf.sweep >= 0.5) {
+      h += '<p class="desc"><b>' + sf.name + 'は、前に出るほど損をします。</b>' +
+        'まだ誰も走っていない道には砂利が浮いていて、先に出た者がそれを掃き、' +
+        '後ろほど硬い路面が出てきます。初日は<b>選手権の上位から</b>出るので、' +
+        '勝っているほど苦しい場所から走ることになります。<br>' +
+        '二日目からは<b>前日までの総合順位の順</b>。' +
+        Math.round(RO.cleanFrom) + '番手より後ろは、ほぼ掃き終わったあとの道です。' +
+        '同じSSを二度通るときは、二度目はもう掃かれています。</p>';
+    } else {
+      h += '<p class="desc"><b>' + sf.name + 'では、走行順はほとんど効きません。</b>' +
+        '掃くべき砂利が無いからです（効きは' + sf.name + 'で ×' +
+        sf.sweep.toFixed(2) + '）。残るのは路面の汚れくらいです。</p>';
+    }
+    h += '<div class="ordlist">';
+    rows.forEach(x => {
+      if (!x) { h += '<div class="ordgap">…</div>'; return; }
+      const pc = x.loss * 100;
+      h += '<div class="ordrow' + (x.isPlayer ? ' me' : '') + '">' +
+        '<i style="background:' + x.color + '">' + x.order + '</i>' +
+        '<span><b>' + esc(x.name) + '</b><small>' + esc(x.team) + '</small></span>' +
+        '<span class="obar"><i style="width:' +
+        Math.round(x.loss / Math.max(0.0001, RO.sweepMax * sf.sweep) * 100) + '%"></i></span>' +
+        '<em class="' + (pc > 0.4 ? 'dn' : pc > 0.05 ? 'wn' : 'up') + '">' +
+        (pc < 0.005 ? '±0' : '−' + pc.toFixed(2) + '%') + '</em></div>';
+    });
+    h += '</div>';
+    if (mine.length) {
+      const worst = mine.reduce((a, x) => (x.loss > a.loss ? x : a), mine[0]);
+      const km = GP.rally.buildStages(rally, (g.season || 1) * 97 + g.nextRace * 13)
+                   .reduce((a, s2) => a + s2.km, 0);
+      /* 1ラリーぶんだと何秒になるか。％のままだと、
+         得なのか損なのかが身体で分からない                    */
+      const secs = km / 100 * 3600 * worst.loss;
+      h += '<p class="note">うちは <b>' + mine.map(x => x.order + '番手').join('・') +
+        '</b> から出ます。' +
+        (worst.loss > 0.0005
+          ? '全区間で均すと、いちばん前の1台で <b>およそ ' + secs.toFixed(0) +
+            '秒</b> ぶんの不利になります。'
+          : 'ここからだと、掃き掃除の不利はほとんどありません。') + '</p>';
+    }
+    return h;
   }
 
   function bindOpt(attr, fn) {
@@ -301,13 +412,31 @@ GP.screens.rallyweek = function (A) {
         esc(b.note.line) + (b.note.loss ? '（<b>+' + b.note.loss + '秒</b>）' : '') + '</div>';
     });
 
+    /* ---- 何番手で入ったか ----
+       タイムだけを並べると、遅かったのが腕のせいなのか
+       出た順のせいなのかが、いつまでも分からない            */
+    const sweep = mine.filter(b => b.order && b.road != null && b.road < 0.9999);
+    if (mine.length && mine[0].order) {
+      body += '<div class="roadbar">' + mine.map(b => {
+        const lost = b.road ? b.t * (1 - b.road) : 0;
+        return '<span class="rb-one"><i>' + b.order + '番手</i>' + esc(b.name) +
+          (lost > 0.05
+            ? '　<em class="dn">掃き掃除で +' + lost.toFixed(1) + '秒</em>'
+            : '　<em class="up">掃かれたあとの道</em>') + '</span>';
+      }).join('') + '</div>';
+      if (sweep.length && sf.sweep >= 0.5 && !st.second) {
+        body += '<p class="note">この路面では、前に出るほど砂利を掃かされます。' +
+          '後ろから出られるようになるのは、選手権で下がったときです。</p>';
+      }
+    }
+
     // この区間のタイム
     body += '<div class="sub">この区間</div><div class="ssboard">';
     row.board.slice(0, 10).forEach(b => {
       body += '<div class="ssb' + (b.isPlayer ? ' me' : '') + '">' +
         '<i>' + b.pos + '</i>' +
         '<span class="ssb-c" style="background:' + b.color + '"></span>' +
-        '<b>' + esc(b.name) + '</b>' +
+        '<b>' + esc(b.name) + (b.order ? '<small class="ssb-o">' + b.order + '番手</small>' : '') + '</b>' +
         '<em>' + secs(b.t) + '</em>' +
         '<u>' + (b.pos === 1 ? '—' : gapS(b.gap)) + '</u></div>';
     });

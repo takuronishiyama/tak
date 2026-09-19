@@ -30,6 +30,7 @@ GP.screens.hr = function (A) {
      フリーメニュー：人事
      ======================================================= */
   let staffMarket = null, driverMarket = null, youthMarket = null, mgrMarket = null;
+  let coMarket = null;                // 右席（ラリー版のみ）
   let rivalStaffMarket = null;      // よそのチームで働いている人（引き抜きの相手）
   A.hrTab = 'staff';          // 人事（働く人）のいまのタブ
   A.drvTab = 'drivers';       // ドライバー（走る人）のいまのタブ（本拠地からも切り替える）
@@ -46,6 +47,9 @@ GP.screens.hr = function (A) {
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
+    if (S.isRally(g) && (force || !coMarket)) {
+      coMarket = [0, 1, 2].map(() => S.makeCoDriver(null, q));
+    }
   }
 
   /* ---- 部門ごとの求人 ----
@@ -252,13 +256,19 @@ GP.screens.hr = function (A) {
             ['school', '🏛️ 講習'], ['fia', '🌐 FIA']],
     drv:   [['drivers', '🧑‍✈️ 契約'], ['train', '💪 練習'], ['youth', '🎓 育成']]
   };
+  /* 右席は、ラリー版にだけある席。タブもそのときだけ出す */
+  function drvTabs() {
+    const t = HR_TABS.drv.slice();
+    if (S.isRally(g)) t.splice(1, 0, ['co', '📓 右席']);
+    return t;
+  }
   function cmdStaff() { hrMode = 'staff'; openHr(); }
   function cmdDrivers() { hrMode = 'drv'; openHr(); }
   function reopenHr() { openHr(); }
   function openHr() {
     refreshMarkets(false);
     const drv = hrMode === 'drv';
-    const tabs = HR_TABS[hrMode];
+    const tabs = drv ? drvTabs() : HR_TABS[hrMode];
     const keys = tabs.map(t => t[0]);
     let cur = drv ? A.drvTab : A.hrTab;
     if (keys.indexOf(cur) < 0) cur = keys[0];
@@ -268,6 +278,7 @@ GP.screens.hr = function (A) {
       '</div>';
 
     if (cur === 'drivers') body += hrDrivers();
+    else if (cur === 'co') body += hrCo();
     else if (cur === 'train') body += A.trainHTML();
     else if (cur === 'youth') body += hrYouth();
     else if (cur === 'staff') body += hrStaff();
@@ -294,6 +305,7 @@ GP.screens.hr = function (A) {
     });
     // 練習の配線は dev.js の側。bindPick を二重に掛けないよう、ここで抜ける
     if (cur === 'train') { A.bindTrain(); return; }
+    if (cur === 'co') { bindCo(); }
     bindPick(k => hrPick(k));
     bindHrActions();
     bindSchool();
@@ -779,6 +791,138 @@ GP.screens.hr = function (A) {
     }
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); openSeatMarket(seat); } });
     U.popup(S.nationOf(d).flag + ' ' + esc(d.name), h, btns);
+  }
+
+  /* =======================================================
+     右席（コ・ドライバー）
+
+     ラリーで速いのは、うまいドライバーではなく、
+     「次に何が来るか分かっているドライバー」になる。
+     それを教えるのが右席ひとりなので、
+     この席だけは、腕より先に「息が合っているか」で選ぶことになる。
+
+     息（bond）は一緒に走った本数で積み上がり、組み替えると0に戻る。
+     だから「もっとうまい人がいる」というだけでは、乗り換えられない。
+     ======================================================= */
+  function coCard(co, d, market) {
+    const N = GP.rallydata.NOTES;
+    const q = co ? clamp01(N.base + (co.skill / 100) * N.coNote + (co.bond || 0) * N.bond) : 0;
+    const fee = co ? S.coFee(co) : 0;
+    const pct = Math.round((co ? co.skill : 0));
+    const bond = Math.round((co ? co.bond || 0 : 0) * 100);
+    let act;
+    if (market) {
+      const cant = g.funds < fee;
+      act = (g.drivers || []).map((dd, i) =>
+        '<button class="mini' + (cant ? ' cant' : '') + '" data-cohire="' + co.id + ':' + dd.id + '"' +
+        (cant ? ' disabled' : '') + '>' + esc(String(dd.name).split(/[・\s]/)[0]) + 'と組む</button>').join('');
+    } else {
+      act = '<button class="mini danger" data-cofire="' + co.id + '">契約を切る</button>';
+    }
+    return '<div class="pickbtn corow">' +
+      '<span class="pb-ic" style="background:#4a3018">📓</span>' +
+      '<span class="pb-body"><b>' + esc(co.name) +
+      (d ? '<em class="stitle">🧑‍✈️ ' + esc(d.name) + ' の右席</em>' : '') + '</b>' +
+      '<small><em class="sage">' + co.age + '歳</em>' +
+      '　<em class="srank">読み上げの腕 ' + pct + '</em>' +
+      '<br><span class="skbar"><i style="width:' + pct + '%"></i></span> 腕 <b>' + pct + '</b>' +
+      '<br><span class="skbar exp"><i style="width:' + bond + '%"></i></span> 息 <b>' + bond + '%</b>' +
+      '<em class="scap">（' + (co.rallies || 0) + '戦を一緒に走った）</em>' +
+      '<br>この組で、ノートの読みは <b>' + Math.round(q * 100) + ' / 100</b>' +
+      '</small></span>' +
+      '<span class="pb-cost">週' + money(co.salary) + '万' +
+      (market ? '<br><em>一時金 ' + money(fee) + '万</em>' : '') +
+      '<br>' + act + '</span></div>';
+  }
+  function clamp01(v) { return v < 0 ? 0 : v > 1.25 ? 1.25 : v; }
+
+  function hrCo() {
+    const N = GP.rallydata.NOTES;
+    let h = '<p class="desc">ラリーで速いのは、うまい人ではなく' +
+      '<b>次に何が来るか分かっている人</b>です。それを教えるのは右席ひとりなので、' +
+      'この席は腕だけでは決まりません。<br>' +
+      '読み上げの精度は <b>下地' + Math.round(N.base * 100) + '</b>＋' +
+      '<b>右席の腕</b>（最大+' + Math.round(N.coNote * 100) + '）＋' +
+      '<b>レッキ</b>（最大+' + Math.round(N.recce * 100) + '）＋' +
+      '<b>息</b>（最大+' + Math.round(N.bond * 100) + '）で決まり、' +
+      '精度1あたりタイムが <b>' + (N.paceAt * 100).toFixed(1) + '%</b> 変わります。' +
+      '読みが甘いと、遅いだけでなく<b>外しやすく</b>もなります。</p>';
+
+    h += '<div class="sub">📓 いまの組み合わせ</div><div class="pick">';
+    let paired = 0;
+    (g.drivers || []).forEach(d => {
+      const co = S.coOf(g, d);
+      if (co) { paired++; h += coCard(co, d, false); }
+      else {
+        h += '<div class="pickbtn corow empty">' +
+          '<span class="pb-ic" style="background:#8f2a24">⚠️</span>' +
+          '<span class="pb-body"><b>' + esc(d.name) + ' の右席が空いています</b>' +
+          '<small>右席がいないと、去年のノートを頼りに走ることになります。' +
+          '読みは下地の <b>' + Math.round(N.base * 100) + '</b> のままです</small></span>' +
+          '<span class="pb-cost">—</span></div>';
+      }
+    });
+    h += '</div>';
+
+    if (paired >= 2) {
+      h += '<p class="desc">組み替えると、積み上げた<b>息</b>はいちから積み直しになります。' +
+        '「もっとうまい人がいる」というだけでは、乗り換える理由になりません。</p>' +
+        '<div class="pick"><button class="pickbtn" id="coSwap">' +
+        '<span class="pb-ic" style="background:#6b4724">🔁</span>' +
+        '<span class="pb-body"><b>左右を入れ替える</b>' +
+        '<small>ふたりの右席を交換します。積み上げた息は、どちらも0に戻ります</small></span>' +
+        '<span class="pb-cost">—</span></button></div>';
+    }
+
+    h += '<div class="sub">🤝 話を聞きに来ている人</div><div class="pick">';
+    (coMarket || []).forEach(co => { h += coCard(co, null, true); });
+    h += '</div>' +
+      '<p class="desc">迎えると、いまその人と組んでいる右席は自由契約になります。' +
+      '顔ぶれは「市場を更新」で入れ替わります。</p>';
+    return h;
+  }
+
+  function bindCo() {
+    const box = $('modalBody');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-cohire]'), b => {
+      b.onclick = () => {
+        const [cid, did] = b.dataset.cohire.split(':');
+        const co = (coMarket || []).filter(c => c.id === cid)[0];
+        const d = (g.drivers || []).filter(x => x.id === did)[0];
+        if (!co || !d) return;
+        const res = S.coHire(g, co, d);
+        if (!res) return U.toast('資金が足りません', 'bad');
+        coMarket = (coMarket || []).filter(c => c !== co);
+        U.log(g, '📓 ' + res.co.name + ' を ' + d.name + ' の右席に迎えた（一時金 💰' +
+          money(res.fee) + '万）' + (res.out ? '。' + res.out.name + 'とは別れた' : ''), 'good');
+        GP.sound.play('good');
+        S.save(g); render(); reopenHr();
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-cofire]'), b => {
+      b.onclick = () => {
+        const co = (g.codrivers || []).filter(c => c.id === b.dataset.cofire)[0];
+        if (!co) return;
+        U.popup('📓 契約を切る', '<p class="lead">' + esc(co.name) + ' との契約を切りますか。</p>' +
+          '<p class="desc">残りぶんとして <b>💰' + money(Math.round(co.salary * 6)) +
+          '万</b> を払います。積み上げた息（' + Math.round((co.bond || 0) * 100) +
+          '%）は戻りません。</p>',
+          [{ label: '切る', cls: 'bad', fn: () => {
+              const pay = S.coRelease(g, co);
+              U.closePopup();
+              U.log(g, '📓 ' + co.name + ' との契約を切った（💰' + money(pay) + '万）', 'warn');
+              S.save(g); render(); reopenHr();
+            } },
+           { label: 'やめる', fn: U.closePopup }]);
+      };
+    });
+    const sw = $('coSwap');
+    if (sw) sw.onclick = () => {
+      if (!S.coSwap(g)) return;
+      U.log(g, '🔁 右席を入れ替えた。息はいちから積み直しになる', 'warn');
+      GP.sound.play('tap');
+      S.save(g); render(); reopenHr();
+    };
   }
 
   function hrDrivers() {

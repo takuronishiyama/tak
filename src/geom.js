@@ -74,6 +74,10 @@ GP.geom = (function () {
 
   /* ---------- コース解析（コーナー・ストレート・DRS区間）---------- */
   function analyze(track) {
+    if (!track || !track.path) {
+      const f = flat(track || {});
+      return { gw: f.w, secGeo: f.geo, kappa: null, flat: true };
+    }
     if (cache[track.name]) return cache[track.name];
     const poly = polyOf(track);
     const k = curvature(poly);
@@ -194,6 +198,7 @@ GP.geom = (function () {
      立ち上がりは「加速性能」、直線の伸びは「最高速性能」で決まる。
      戻り値は各点の通過時刻（1周を 1.0 に正規化した累積）。          */
   function speedProfile(track, stats) {
+    if (!track || !track.path) return { share: [1 / 3, 1 / 3, 1 / 3], lap: 0, flat: true };
     const info = analyze(track);
     const poly = polyOf(track);
     const N = poly.n, k = info.kappa;
@@ -238,8 +243,23 @@ GP.geom = (function () {
      それを、区間の地形の偏りに応じて振り分け直す。
      基準の車（速さ・曲がり・加速が同じ）の時間配分で足し戻すと
      元の weight に戻るので、コース全体の性格は変わらない。      */
+  /* ---------- 形のない会場 ----------
+     ラリーには1本の閉じたコース図が無い。SSが13本あるだけで、
+     そのどれもが「1周」ではないので、ここで測れるものが何も無い。
+     path を持たない会場が来たら、その会場の持ち味を
+     3つに均等割りしたものを返して、呼び出し側を通す。       */
+  function flat(track) {
+    const tw = track.weight || { speed: 0.34, corner: 0.33, accel: 0.33 };
+    const tot = Math.max(1e-6, tw.speed + tw.corner + tw.accel);
+    const one = { speed: tw.speed / tot, corner: tw.corner / tot, accel: tw.accel / tot };
+    return { w: [one, one, one], share0: [1 / 3, 1 / 3, 1 / 3],
+             geo: [{ twisty: 0.5, fast: 0.5 }, { twisty: 0.5, fast: 0.5 },
+                   { twisty: 0.5, fast: 0.5 }] };
+  }
+
   const secWCache = {};
   function sectorWeights(track) {
+    if (!track || !track.path) return flat(track || {});
     if (secWCache[track.name]) return secWCache[track.name];
     const info = analyze(track);
     const sh0 = speedProfile(track, { speed: 1, corner: 1, accel: 1 }).share;

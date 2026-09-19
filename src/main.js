@@ -1105,8 +1105,30 @@ window.GP = window.GP || {};
          一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
       const rd = S.myEraRead(g), fit = S.myEraFit(g);
       const fitPct = Math.round((fit - 1) * 100);
+      /* ラリー版では、条文そのものが変わる。
+         何が禁止されて、何が義務になったのかを先に読ませる */
+      const rset = S.ruleSet(g);
+      const ruleHtml = rset.length
+        ? '<div class="rulelist">' + rset.map(r => {
+            const ups = [], dns = [];
+            Object.keys(r.mul || {}).forEach(k => {
+              const c = D.PART_CATS.filter(x => x.key === k)[0];
+              const nm = c ? (c.short || c.name) : k;
+              (r.mul[k] >= 1 ? ups : dns).push(nm + ' ×' + r.mul[k].toFixed(2));
+            });
+            return '<div class="rulerow"><i>' + r.icon + '</i><span><b>' + esc(r.name) +
+              '</b><small>' + esc(r.line) + '<br><em class="rn">' + esc(r.note) +
+              '</em></small><span class="rchips">' +
+              ups.map(t => '<em class="up">▲ ' + t + '</em>').join('') +
+              dns.map(t => '<em class="dn">▼ ' + t + '</em>').join('') +
+              '</span></span></div>';
+          }).join('') + '</div>'
+        : '';
       U.modal('📜 レギュレーション変更',
         '<p class="lead">新しい規則のもとで、マシンは一から作り直しになりました。</p>' +
+        (ruleHtml ? '<div class="sub">📜 新しい条文</div>' +
+          '<p class="desc">全車に同じようにかかります。変わるのは' +
+          '<b>どこに金をかけると速いか</b>です。</p>' + ruleHtml : '') +
         '<div class="erabox big' + (fit >= 1.05 ? ' up' : fit <= 0.95 ? ' down' : '') + '">' +
         '<b>' + rd.icon + ' うちは、この規則を「' + rd.name + '」' +
         '<em>開発の伸び ' + (fitPct >= 0 ? '+' : '') + fitPct + '%</em></b>' +

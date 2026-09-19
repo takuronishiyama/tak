@@ -944,7 +944,8 @@ GP.state = (function () {
       const ps = partStats(p, g);
       // 傷んだパーツは本来の性能を出しきれない。
       // パワーユニットだけは、同じ数字を puForm 側で見ているので二重にかけない
-      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18));
+      const f = (c.key === 'pu' ? puForm(g) : (0.82 + p.cond / 100 * 0.18))
+              * ruleMul(g, c.key);      // いまの技術規則。部位ごとに効きが変わる
       s.speed += ps.speed * f;
       s.corner += ps.corner * f;
       s.accel += ps.accel * f;
@@ -1464,6 +1465,54 @@ GP.state = (function () {
      難易度によっては、途中の年から始まることがある            */
   function regSince(g2) {
     return ((g2.season || 1) - 1 + (g2.regFrom || 0)) % REG_EVERY;
+  }
+
+  /* =======================================================
+     技術規則（ラリー版）
+
+     4年にいちど、条文が書き換わる。書き換わると
+     「何に金をかけると速いか」が変わる——それが規則の働きで、
+     条文を読めるチームだけが先に手を打てる。
+
+     どの条文が来るかは規則期の番号から決まる。保存に持たないので、
+     途中でデータを足しても、昔のセーブが壊れない。
+     ======================================================= */
+  const EMPTY = [];
+  EMPTY.mul = {};
+  function ruleEra(g2) {
+    return Math.floor(((g2.season || 1) - 1 + (g2.regFrom || 0)) / REG_EVERY);
+  }
+  /* 条文は規則期ごとに固定なので、引いたものを控えておく。
+     carStats は1回の描画で何十回も呼ばれるので、
+     そのたびに引き直していると、ただの無駄になる            */
+  const _ruleCache = {};
+  function ruleSet(g2) {
+    if (!isRally(g2)) return EMPTY;
+    const L = (GP.rallydata && GP.rallydata.RULES) || [];
+    if (!L.length) return EMPTY;
+    const era = ruleEra(g2);
+    if (_ruleCache[era]) return _ruleCache[era];
+    let h = ((era + 1) * 2654435761) >>> 0;
+    const r = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+    const pool = L.slice();
+    const out = [];
+    for (let k = 0; k < 2 && pool.length; k++) {
+      out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
+    }
+    /* 部位ごとの倍率も、ここで一度だけ掛け合わせておく */
+    out.mul = {};
+    out.forEach(x => Object.keys(x.mul || {}).forEach(k2 => {
+      out.mul[k2] = (out.mul[k2] || 1) * x.mul[k2];
+    }));
+    _ruleCache[era] = out;
+    return out;
+  }
+  /* その部位が、いまの規則でどれだけ効くか。
+     上下は釣り合わせてあるので、規則が変わっても車全体は遅くならない。
+     変わるのは「どこに金をかけると速いか」だけ                */
+  function ruleMul(g2, catKey) {
+    const set = ruleSet(g2);
+    return (set.mul && set.mul[catKey]) || 1;
   }
 
   function regulationDue(g2) {
@@ -3750,6 +3799,8 @@ GP.state = (function () {
     const drivers = g2.drivers.reduce((a, d) => a + d.salary, 0)
                   + (g2.reserve ? g2.reserve.salary : 0);
     const youth = (g2.youth || []).reduce((a, d) => a + d.salary, 0);
+    // 右席。ラリー版だけいる人たちで、ここに入れ忘れるとただ働きになる
+    const cod = (g2.codrivers || []).reduce((a, c) => a + (c.salary || 0), 0);
     const facilities = D.FACILITIES.reduce((a, f) => a + g2.facilities[f.key] * 12, 0);
     // パワーユニットの供給料。1戦ぶんを週あたりにならす
     const engine = g2.engine ? Math.round(g2.engine.fee / (PREP_WEEKS + 1)) : 0;
@@ -3757,7 +3808,7 @@ GP.state = (function () {
     const estate = estateUpkeep(g2);            // 持っている事業の維持費
     const gearUp = gearUpkeep(g2).net;          // 買った装備の維持費
     const supply = supplyFee(g2);               // サプライヤーへの契約料
-    const raw = staff + mgrs + drivers + youth + facilities + engine
+    const raw = staff + mgrs + drivers + youth + cod + facilities + engine
               + estate + gearUp + supply + other;
     // ロジスティクス責任者は運営全体の費用を下げる
     // ロジスティクス責任者に加えて、オーナーの商才も運営費を下げる
@@ -4278,17 +4329,54 @@ GP.state = (function () {
      ラリーの右席。読み上げの腕（skill）と、
      その組でどれだけ長くやっているか（bond）で効きが変わる。
      bond は一緒に走った回数で育ち、組み替えると0に戻る       */
-  function makeCoDriver(forDriver) {
+  function makeCoDriver(forDriver, q) {
+    /* q はチームの格（0〜1くらい）。強いチームほど、
+       うまい右席が話を聞きに来る                              */
+    const k = q == null ? 0 : clamp(q, 0, 1.4);
+    const sk = clamp(rint(34, 58) + Math.round(k * 28) + rint(-4, 4), 24, 96);
     return {
       id: 'co' + Math.random().toString(36).slice(2, 8),
       name: pick(D.FIRST) + '・' + pick(D.LAST),
-      skill: rint(34, 58),
-      age: rint(26, 40),
-      salary: rint(18, 34),
+      skill: sk,
+      age: rint(26, 44),
+      salary: Math.round(12 + sk * 0.42 + rint(0, 6)),
       bond: 0,                       // 0〜1。一緒に走った回数で上がる
       with: forDriver ? forDriver.id : null,
       rallies: 0
     };
+  }
+  /* 迎えるときの一時金。腕のぶんだけ高い */
+  function coFee(co) { return Math.round((co.salary || 20) * 16); }
+
+  /* 右席を迎える。席が埋まっていれば、そちらは自由契約になる */
+  function coHire(g2, co, driver) {
+    if (!g2 || !co || !driver) return null;
+    const fee = coFee(co);
+    if (g2.funds < fee) return null;
+    g2.funds -= fee;
+    const old = coOf(g2, driver);
+    if (old) g2.codrivers = (g2.codrivers || []).filter(c => c !== old);
+    const mine = Object.assign({}, co, { with: driver.id, bond: 0, rallies: 0 });
+    g2.codrivers = (g2.codrivers || []).concat([mine]);
+    return { co: mine, out: old, fee: fee };
+  }
+  function coRelease(g2, co) {
+    if (!g2 || !co) return null;
+    /* 契約を切るのはただではない。残りを払って別れる */
+    const pay = Math.round((co.salary || 20) * 6);
+    g2.funds -= pay;
+    g2.codrivers = (g2.codrivers || []).filter(c => c !== co);
+    return pay;
+  }
+  /* 左右を入れ替える。組み替えたぶん、息はいちから積み直しになる */
+  function coSwap(g2) {
+    const ds = (g2.drivers || []).slice(0, 2);
+    if (ds.length < 2) return false;
+    const a = coOf(g2, ds[0]), b = coOf(g2, ds[1]);
+    if (!a || !b) return false;
+    a.with = ds[1].id; b.with = ds[0].id;
+    a.bond = b.bond = 0; a.rallies = b.rallies = 0;
+    return true;
   }
   /* その人の右席は誰か */
   function coOf(g2, driver) {
@@ -5280,8 +5368,8 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
-    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond,
-    REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
+    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
+    REG_EVERY, regSince, ruleSet, ruleMul, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
     puOf, puWear, usePU, nursePU, puReset, condLabel,
