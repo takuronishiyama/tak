@@ -1040,6 +1040,8 @@ GP.raceview = (function () {
   let obHead = null;          // 追いかけている向き。急に振ると酔うので、ならす
   let obProps = null;         // コース脇のもの。コースが変わったら作り直す
   let obCurv = null;          // 各点の曲がりの強さ。縁石を置く場所に使う
+  let obLast = null;          // 直前の1コマ（検査用）
+  let obTs = 0;               // 直前のコマの時刻（向きをならすのに使う）
 
   function obProject(cm, wx, wy) {
     const dx = wx - cm.px, dy = wy - cm.py;
@@ -1349,14 +1351,28 @@ GP.raceview = (function () {
     if (!f || !f.list.length) return;
     const fo = f.list[0], e = fo.e;
     const pt = placeInLap(e, fo.p);
+    /* 向きは実時間でならす。コマ落ちしている端末でコマごとに
+       ならすと、遅れが1ラジアンにもなって道が横を向いてしまった。
+       ならしはするが、車の向きから 0.22 以上は遅れさせない       */
+    const now = performance.now();
+    const dtr = obTs ? Math.min(0.1, (now - obTs) / 1000) : 0.016;
+    obTs = now;
     if (obHead == null) obHead = pt.ang;
     let d = pt.ang - obHead;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
-    obHead += d * 0.18;
+    obHead += d * Math.min(1, dtr * 16);
+    d = pt.ang - obHead;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    if (d > 0.22) obHead = pt.ang - 0.22;
+    else if (d < -0.22) obHead = pt.ang + 0.22;
+    while (obHead > Math.PI) obHead -= Math.PI * 2;
+    while (obHead < -Math.PI) obHead += Math.PI * 2;
     const a = obHead;
     const cm = { px: pt.x - Math.cos(a) * OB.back, py: pt.y - Math.sin(a) * OB.back,
                  fc: Math.cos(a), fs: Math.sin(a) };
+    obLast = { pt: pt, a: a, cm: cm, head: obHead, prof: !!e._prof, profN: e._prof ? e._prof.n : -1, polyN: poly.n };
     const th = GP.data.THEMES[themeKey()] || GP.data.THEMES.grass;
     if (!obProps || obProps.track !== res.track.name) obProps = buildObProps(th);
     obSky(g, th, night, fo.p);
@@ -1371,7 +1387,9 @@ GP.raceview = (function () {
       if (pit && inPit(o.e, t)) return;
       const q = placeInLap(o.e, o.p);
       const pr = obProject(cm, q.x, q.y);
-      if (!pr || pr[3] > 720) return;
+      /* 自車より手前にいる車（＝自車の後ろの車）は映らない。
+         カメラと自車のあいだに入って、画面いっぱいの背中になる */
+      if (!pr || pr[3] > 720 || pr[3] < OB.back + 3) return;
       cars.push({ pr: pr, q: q, o: o });
     });
     cars.sort((p1, p2) => p2.pr[3] - p1.pr[3]);
@@ -1381,6 +1399,7 @@ GP.raceview = (function () {
                                  false, tagged.indexOf(c) >= 0 ? c.o.e : null));
     obDrawProps(g, cm, pt.i, false, night);
     const me = obProject(cm, pt.x, pt.y);
+    if (obLast) { obLast.me = me; obLast.near = cars.slice(-3).map(c => [c.o.e.driver.name, +c.pr[3].toFixed(0), +c.pr[0].toFixed(0), +c.pr[1].toFixed(0)]); }
     if (me) drawF1Back(g, me[0], me[1], me[2], e.color, pt.steer, true, e);
     if (wet) {
       g.strokeStyle = 'rgba(180,210,255,.35)'; g.lineWidth = 1;
@@ -2460,7 +2479,7 @@ GP.raceview = (function () {
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, VW, VH, 34);
     pitFracCache = null;
-    obProps = null; obCurv = null; obHead = null;
+    obProps = null; obCurv = null; obHead = null; obTs = 0;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
@@ -2567,6 +2586,6 @@ GP.raceview = (function () {
   /* コース形状の平滑化をミニコース図と共有する */
   function smoothPath(path, w, h, pad) { return buildPoly(path, w, h, pad).pts; }
 
-  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, setTiming, paintCar,
+  return { start, setSpeed, setRealtime, raceDuration, skip, stop, setCamMode, obDbg: () => obLast, setTiming, paintCar,
            _drawCar: drawCar, _drawPitCrew: drawPitCrew, _drawSafetyCar: drawSafetyCar };
 })();
