@@ -4213,3 +4213,62 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
 .stbar{flex:0 0 7px;border:1px solid var(--ink);border-radius:2px 2px 0 0}
 .stday{font-style:normal;font-size:8px;color:var(--faceSub);align-self:flex-end;
   writing-mode:vertical-rl;margin-right:2px;letter-spacing:-1px;flex:none}
+
+/* ---------- ラリーの走行画面 ----------
+   映すのは1台だけ。主役は 道・ペースノート・時計 の3つ        */
+#rallyScreen{position:fixed;inset:0;background:rgba(18,16,26,.90);display:none;
+  align-items:center;justify-content:center;z-index:60;
+  padding:calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right))
+          calc(4px + env(safe-area-inset-bottom)) calc(4px + env(safe-area-inset-left))}
+#rallyScreen.show{display:flex}
+.ry-wrap{width:100%;display:flex;flex-direction:column;gap:6px;
+  background:var(--paper);border:4px solid var(--ink);border-radius:12px;padding:8px;
+  box-shadow:0 6px 0 rgba(0,0,0,.4);max-height:calc(100vh - 8px);
+  max-width:min(calc(100vw - 8px), 980px);margin:0 auto}
+/* canvas を直に flex の子にすると、入れ物の高さまで引き伸ばされて
+   縦横比が崩れる。あいだに「中身に合わせる箱」を1枚はさむ
+   （レース画面の .rv-canvaswrap と同じ手）                  */
+/* 絵の大きさは「幅」ひとつで決める。
+   幅と高さの両方に上限をかけると、片方だけが詰められて絵が歪む。
+   縦に収める必要は、入れ物の幅の上限（＝高さ×1.4）で満たす    */
+.ry-body{min-height:0;display:flex;justify-content:center;align-items:flex-start}
+.ry-canvaswrap{position:relative;flex:0 1 auto;min-width:0;
+  max-width:min(100%, calc((100vh - 220px) * 1.4));margin:0 auto}
+#rallyCanvas{display:block;border:3px solid var(--ink);border-radius:8px;
+  width:100%;height:auto;background:#4a3018}
+/* ペースノート。右席の声。いちばん新しいものを大きく出す */
+/* 読み上げは画面の上、帯のすぐ下に置く。
+   下に置くと自車と重なって、肝心の道が見えなくなる      */
+.ry-note{position:absolute;left:6px;right:6px;top:11%;
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;pointer-events:none}
+.ry-say{font-size:13px;font-weight:bold;letter-spacing:.02em;
+  background:rgba(18,16,26,.82);color:#e8dfd2;border:2px solid var(--ink);
+  border-left-width:6px;border-radius:7px;padding:2px 10px;opacity:.6}
+.ry-say.now{font-size:19px;opacity:1;color:#fff8e6;padding:4px 13px;
+  box-shadow:0 3px 0 rgba(0,0,0,.45)}
+/* きつい曲がりほど赤く。番号がそのまま危なさになる */
+.ry-say.s1{border-left-color:#c23a2e}
+.ry-say.s2{border-left-color:#e2664a}
+.ry-say.s3{border-left-color:#e0ae3c}
+.ry-say.s4{border-left-color:#f5cf70}
+.ry-say.s5{border-left-color:#78c96a}
+.ry-say.s6{border-left-color:#5cc4d6}
+.ry-log{min-height:34px;max-height:92px;overflow:hidden;display:flex;
+  flex-direction:column;gap:3px}
+.ry-ev{display:flex;align-items:center;gap:7px;font-size:11px;
+  background:var(--paper3);border:2px solid var(--ink);border-left-width:6px;
+  border-left-color:#e0ae3c;border-radius:7px;padding:3px 8px}
+.ry-ev.out{border-left-color:#c23a2e}
+.ry-ev>i{font-style:normal;font-size:15px;flex:none}
+.ry-ev>b{flex:none}
+.ry-ev>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--faceSub)}
+.ry-ev>em{font-style:normal;font-weight:bold;color:#ff9a8a;flex:none}
+.ry-ctrl{display:flex;gap:5px}
+.ry-ctrl .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px}
+.ry-ctrl .btn i{font-style:normal}
+@media (max-width:520px){
+  .ry-say.now{font-size:16px}
+  .ry-ctrl .btn span{display:none}
+  .ry-ctrl .btn i{font-size:15px}
+}

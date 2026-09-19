@@ -158,6 +158,24 @@
     </div>
   </div>
 </div>
+<!-- ラリーのSSを走っているところ。映すのは自車1台だけ -->
+<div id="rallyScreen">
+  <div class="ry-wrap">
+    <div class="ry-body">
+      <div class="ry-canvaswrap">
+        <canvas id="rallyCanvas" width="560" height="400"></canvas>
+        <div class="ry-note" id="ryNote"></div>
+      </div>
+    </div>
+    <div class="ry-log" id="ryLog"></div>
+    <div class="ry-ctrl">
+      <button class="btn primary" id="rySpeed0"><i>🐢</i><span>じっくり</span></button>
+      <button class="btn" id="rySpeed1"><i>▶▶</i><span>速く</span></button>
+      <button class="btn" id="rySpeed2"><i>▶▶▶</i><span>とばす</span></button>
+      <button class="btn primary" id="rySkip"><i>⏭</i><span>結果へ</span></button>
+    </div>
+  </div>
+</div>
 <div id="raceScreen">
   <div class="rv-wrap">
     <div class="rv-head">
@@ -235,6 +253,7 @@
 <script src="src/race.js"></script>
 <script src="src/rallydata.js"></script>
 <script src="src/rally.js"></script>
+<script src="src/rallyview.js"></script>
 <script src="src/raceview.js"></script>
 <script src="src/base.js"></script>
 <script src="src/kart.js"></script>

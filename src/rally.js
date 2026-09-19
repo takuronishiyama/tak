@@ -71,6 +71,143 @@ GP.rally = (function () {
     return out;
   }
 
+  /* =======================================================
+     道そのものを作る
+
+     SSは一本道で、行って戻らない。だから周回コースのように
+     閉じた輪ではなく、始まりと終わりのある線を引く。
+
+     引きかたは「コーナーの並び」から。先にペースノート
+     （右3 ロング、100、左5 …）を作り、そのとおりに曲げていく。
+     こうしておくと、右席が読み上げたものと、画面に見えている
+     曲がりが必ず一致する。ここがずれると、ラリーではなくなる。
+     ======================================================= */
+
+  /* コーナーのきつさ。1がいちばん曲がっていて、6でほぼ直線 */
+  const SEV = [
+    { n: 1, turn: 155, keep: 0.30, name: 'ヘアピン' },
+    { n: 2, turn: 112, keep: 0.44, name: '' },
+    { n: 3, turn: 82,  keep: 0.57, name: '' },
+    { n: 4, turn: 58,  keep: 0.69, name: '' },
+    { n: 5, turn: 38,  keep: 0.81, name: '' },
+    { n: 6, turn: 22,  keep: 0.92, name: '' }
+  ];
+  /* 曲がりに付く但し書き。読み上げの味であり、走りかたも変える */
+  const TAGS = [
+    { key: 'long',  w: 0.16, say: 'ロング',       keep: -0.04 },
+    { key: 'tight', w: 0.10, say: '締まる',       keep: -0.10 },
+    { key: 'open',  w: 0.10, say: '開く',         keep: +0.06 },
+    { key: 'crest', w: 0.09, say: 'クレスト',     keep: -0.05 },
+    { key: 'jump',  w: 0.06, say: 'ジャンプ',     keep: -0.02 },
+    { key: 'care',  w: 0.08, say: '注意',         keep: -0.12 },
+    { key: 'dont',  w: 0.05, say: '切るな',       keep: -0.08 },
+    { key: 'over',  w: 0.07, say: '飛び込める',   keep: +0.05 }
+  ];
+
+  function buildRoad(st, seed) {
+    let h = ((seed | 0) * 2246822519 + 3266489917) >>> 0;
+    const r = () => { h ^= h << 13; h >>>= 0; h ^= h >> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+
+    /* 1kmあたりのコーナーの数。曲がりどころの多い道ほど密になる */
+    const perKm = 1.1 + st.twisty * 3.2;
+    const n = Math.max(6, Math.round(st.km * perKm));
+    const notes = [];
+    for (let i = 0; i < n; i++) {
+      /* きつさは道の性格で寄る。twisty が高いほど小さい番号（＝きつい）が出る */
+      const bias = 1 - st.twisty;
+      let sev = 1 + Math.floor(Math.pow(r(), 1.6 - bias * 0.7) * 6);
+      sev = Math.max(1, Math.min(6, sev));
+      /* 向きは五分五分では決めない。
+         同じ側へ曲がり続けると道が輪になって自分と交差する。
+         いまどれだけ元の進行方向から振れているかを見て、
+         振れているほど戻る側へ曲がりやすくする                */
+      const dir = null;   // ここでは決めず、線を引くときに決める
+      // 但し書き
+      let tag = null;
+      const roll = r();
+      let acc = 0;
+      for (const t of TAGS) { acc += t.w; if (roll < acc) { tag = t; break; } }
+      // 次の曲がりまでの直線（m）。粗い道ほど詰まっている
+      /* 読み上げは10m刻みで言う。1m単位で言う人はいない */
+      const straight = Math.round((30 + Math.pow(r(), 1.8) * 420) * (1.25 - st.twisty * 0.5) / 10) * 10;
+      notes.push({ sev: sev, dir: dir, tag: tag, straight: straight,
+                   jump: !!(tag && (tag.key === 'jump' || tag.key === 'crest')) });
+    }
+
+    /* ---- ノートのとおりに線を引く ---- */
+    const pts = [];
+    let x = 0, y = 0, ang = -Math.PI / 2;      // 上向きに出発
+    const step = 9;                            // 1点あたりの長さ（見た目の単位）
+    const put = () => pts.push([x, y]);
+    put();
+    const fwd = (dist) => {
+      const k = Math.max(1, Math.round(dist / step));
+      for (let i = 0; i < k; i++) { x += Math.cos(ang) * step; y += Math.sin(ang) * step; put(); }
+    };
+    const turn = (deg, dir2) => {
+      const rad = deg * Math.PI / 180 * (dir2 === 'L' ? -1 : 1);
+      const k = Math.max(3, Math.round(Math.abs(deg) / 7));
+      for (let i = 0; i < k; i++) {
+        ang += rad / k;
+        x += Math.cos(ang) * step; y += Math.sin(ang) * step; put();
+      }
+    };
+    /* 進んでいく「おおよその向き」。ゆっくり振れていく。
+       各コーナーの向きは、ここからのずれを見て決める          */
+    let base = ang;
+    notes.forEach((nt, i) => {
+      fwd(nt.straight * 0.22);                 // 見た目の縮尺（実距離そのままだと長すぎる）
+      nt.at = pts.length;                      // この曲がりが始まる点
+      base += (r() - 0.5) * 0.22;              // 道は少しずつ向きを変えていく
+      const off = Math.atan2(Math.sin(ang - base), Math.cos(ang - base));
+      const deg = SEV[nt.sev - 1].turn * (0.8 + r() * 0.4);
+      /* ずれが大きいほど、戻る側へ曲がる。
+         ±60度を超えたら必ず戻す（これで道が自分と交差しなくなる） */
+      const back = off > 0 ? 'L' : 'R';
+      const away = off > 0 ? 'R' : 'L';
+      const hard = Math.abs(off) > 1.05;
+      nt.dir = hard ? back : (r() < 0.5 + Math.abs(off) * 0.42 ? back : away);
+      turn(deg, nt.dir);
+    });
+    fwd(140);
+
+    /* 長さと、各点までの累積 */
+    const N = pts.length;
+    const cum = new Float64Array(N);
+    let len = 0;
+    for (let i = 1; i < N; i++) {
+      len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      cum[i] = len;
+    }
+    notes.forEach(nt => { nt.f = cum[Math.min(N - 1, nt.at)] / Math.max(1, len); });
+
+    /* ---- 速度の形 ----
+       コーナーでは SEV.keep まで落ち、直線で戻る。
+       あとで実際の区間タイムに合うよう、まるごと伸び縮みさせる  */
+    const keepAt = new Float64Array(N).fill(1);
+    notes.forEach(nt => {
+      const sv = SEV[nt.sev - 1];
+      const keep = Math.max(0.18, sv.keep + (nt.tag ? nt.tag.keep : 0));
+      const half = Math.max(4, Math.round(26 - nt.sev * 3));
+      for (let k = -half; k <= half; k++) {
+        const i = nt.at + k;
+        if (i < 0 || i >= N) continue;
+        const w = 1 - Math.abs(k) / (half + 1);
+        keepAt[i] = Math.min(keepAt[i], 1 - (1 - keep) * w);
+      }
+    });
+    return { pts: pts, n: N, cum: cum, len: len, notes: notes, keep: keepAt };
+  }
+
+  /* 読み上げの文句。「右3 ロング 100」の形にする */
+  function noteSay(nt, next) {
+    const d = nt.dir === 'L' ? '左' : '右';
+    let s = d + nt.sev;
+    if (nt.tag) s += ' ' + nt.tag.say;
+    if (next) s += '　' + (next.straight >= 200 ? 'ロングストレート' : next.straight + '');
+    return s;
+  }
+
   /* サービスパークが入る場所。日の変わり目と、二日目の真ん中 */
   function serviceAfter(stages) {
     const set = {};
@@ -261,7 +398,8 @@ GP.rally = (function () {
         if (tr) {
           if (tr.out) {
             e.out = true; e.outAt = i + 1; e.outWhy = tr.name;
-            note = { icon: tr.icon, name: tr.name, line: tr.line, out: true };
+            note = { icon: tr.icon, name: tr.name, line: tr.line, out: true,
+                     at: rnd(0.10, 0.90) };
           } else {
             let loss = rnd(tr.lossS[0], tr.lossS[1]);
             if (tr.key === 'punc') {
@@ -270,7 +408,8 @@ GP.rally = (function () {
             }
             t += loss;
             e.damage += tr.key === 'susp' ? 1.4 : tr.key === 'off' ? 0.5 : 0.2;
-            note = { icon: tr.icon, name: tr.name, line: tr.line, loss: Math.round(loss) };
+            note = { icon: tr.icon, name: tr.name, line: tr.line, loss: Math.round(loss),
+                     at: rnd(0.08, 0.92) };
           }
         }
         if (!e.out) { e.total += t; e.done.push(t); }
@@ -316,5 +455,6 @@ GP.rally = (function () {
     return RD().RALLIES[round % RD().RALLIES.length];
   }
 
-  return { run, buildStages, serviceAfter, notesOf, baseSpeed, roadFactor, stageTime };
+  return { run, buildStages, serviceAfter, notesOf, baseSpeed, roadFactor, stageTime,
+           buildRoad, noteSay, SEV, TAGS };
 })();

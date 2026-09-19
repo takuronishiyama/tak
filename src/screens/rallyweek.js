@@ -185,10 +185,61 @@ GP.screens.rallyweek = function (A) {
     pack = GP.rally.run(g, g.nextRace, plan);
     shown = 0;
     Ui.closeModal();
-    showStage();
+    runStage();
   }
 
-  /* ---------- SSを1本ずつ ---------- */
+  /* ---------- SSを走る ----------
+     結果はもう出ているので、ここでやるのは再生だけ。
+     自車のうち、いちばん上の一台を映す                      */
+  function runStage() {
+    const Ui = U();
+    if (!pack || shown >= pack.log.length) return showStage();
+    const row = pack.log[shown];
+    const st = row.st;
+    const mine = row.board.filter(b => b.isPlayer).sort((a, b) => a.t - b.t)[0];
+    if (!mine || !GP.rallyview) return showStage();
+    const road = GP.rally.buildRoad(st, (g.season || 1) * 7919 + pack.round * 131 + st.n * 17);
+    const moments = [];
+    if (mine.note) {
+      moments.push({ at: mine.note.at == null ? 0.5 : mine.note.at,
+                     icon: mine.note.icon, name: mine.note.name,
+                     line: mine.note.line, loss: mine.note.loss, out: mine.note.out });
+    }
+    Ui.closeModal();
+    const scr = $('rallyScreen');
+    scr.classList.add('show');
+    GP.rallyview.start($('rallyCanvas'), {
+      n: st.n, name: st.name, km: st.km, surface: st.surface, night: st.night,
+      road: road, timeS: mine.t, moments: moments,
+      /* この区間のベスト。走っている最中に「いま何秒差か」を出す */
+      leadTime: (row.board[0] || mine).t,
+      color: g.color, name2: mine.name, rate: viewRate
+    }, () => {
+      scr.classList.remove('show');
+      showStage();
+    });
+    bindView();
+  }
+
+  let viewRate = 20;
+  function bindView() {
+    const set = (id, v) => {
+      const b = $(id);
+      if (!b) return;
+      b.onclick = () => {
+        viewRate = v; GP.rallyview.setRate(v);
+        ['rySpeed0', 'rySpeed1', 'rySpeed2'].forEach(k => {
+          const e = $(k); if (e) e.classList.toggle('primary', k === id);
+        });
+        GP.sound.play('tap');
+      };
+    };
+    set('rySpeed0', 20); set('rySpeed1', 45); set('rySpeed2', 140);
+    const sk = $('rySkip');
+    if (sk) sk.onclick = () => { GP.sound.play('tap'); GP.rallyview.skip(); };
+  }
+
+  /* ---------- SSの結果 ---------- */
   function showStage() {
     const Ui = U();
     if (!pack) return;
@@ -229,7 +280,7 @@ GP.screens.rallyweek = function (A) {
     const last = shown >= pack.log.length - 1;
     const btns = [
       { label: last ? '🏆 結果へ' : (row.service ? '🔧 サービスへ' : '▶ 次のSSへ'),
-        cls: 'primary', fn: () => { shown++; if (!last && row.service) showService(); else showStage(); } },
+        cls: 'primary', fn: () => { shown++; if (!last && row.service) showService(); else runStage(); } },
       { label: '⏭️ 残りを一気に', fn: () => { shown = pack.log.length; showResult(); } }
     ];
     Ui.modal('🏁 ' + pack.rally.name, body, btns, { wide: true });
@@ -288,7 +339,7 @@ GP.screens.rallyweek = function (A) {
         (over * SV.overPerMin) + '秒</b> が足されます。</p>';
     }
     Ui.modal('🔧 サービスパーク', body, [
-      { label: '▶ 次の日へ', cls: 'primary', fn: () => { applyService(); showStage(); } }
+      { label: '▶ 次の日へ', cls: 'primary', fn: () => { applyService(); runStage(); } }
     ], { wide: true });
     bindOpt('data-rjob', v => {
       if (plan.service[v]) delete plan.service[v]; else plan.service[v] = 1;
