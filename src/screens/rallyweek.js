@@ -202,6 +202,7 @@ GP.screens.rallyweek = function (A) {
     const moments = [];
     if (mine.note) {
       moments.push({ at: mine.note.at == null ? 0.5 : mine.note.at,
+                     key: mine.note.key,
                      icon: mine.note.icon, name: mine.note.name,
                      line: mine.note.line, loss: mine.note.loss, out: mine.note.out });
     }
@@ -211,6 +212,9 @@ GP.screens.rallyweek = function (A) {
     GP.rallyview.start($('rallyCanvas'), {
       n: st.n, name: st.name, km: st.km, surface: st.surface, night: st.night,
       road: road, timeS: mine.t, moments: moments,
+      /* 土地柄・路面の濡れ・攻めかた。
+         どこを走っているのか、どれだけ振り回しているのかが絵に出る */
+      rally: pack.rally, wet: pack.wet, pace: pack.pace,
       /* この区間のベスト。走っている最中に「いま何秒差か」を出す */
       leadTime: (row.board[0] || mine).t,
       color: g.color, name2: mine.name, rate: viewRate

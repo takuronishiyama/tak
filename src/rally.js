@@ -144,9 +144,13 @@ GP.rally = (function () {
       const k = Math.max(1, Math.round(dist / step));
       for (let i = 0; i < k; i++) { x += Math.cos(ang) * step; y += Math.sin(ang) * step; put(); }
     };
-    const turn = (deg, dir2) => {
+    /* きつい曲がりほど小さく回る。
+       どの曲がりも同じ半径で回っていたころは、ヘアピンも高速コーナーも
+       「長さが違うだけの同じ弧」で、見ても走っても区別がつかなかった   */
+    const turn = (deg, dir2, sev) => {
+      const perStep = (3 + (7 - sev) * 2.2) * Math.PI / 180;   // 1点あたり何度回るか
       const rad = deg * Math.PI / 180 * (dir2 === 'L' ? -1 : 1);
-      const k = Math.max(3, Math.round(Math.abs(deg) / 7));
+      const k = Math.max(3, Math.round(Math.abs(rad) / perStep));
       for (let i = 0; i < k; i++) {
         ang += rad / k;
         x += Math.cos(ang) * step; y += Math.sin(ang) * step; put();
@@ -156,7 +160,9 @@ GP.rally = (function () {
        各コーナーの向きは、ここからのずれを見て決める          */
     let base = ang;
     notes.forEach((nt, i) => {
-      fwd(nt.straight * 0.22);                 // 見た目の縮尺（実距離そのままだと長すぎる）
+      /* 見た目の縮尺。曲がりは弧の長さぶん点を使うので、
+         直線を詰めすぎると、道が端から端まで曲がりだらけになる */
+      fwd(nt.straight * 0.40);
       nt.at = pts.length;                      // この曲がりが始まる点
       base += (r() - 0.5) * 0.22;              // 道は少しずつ向きを変えていく
       const off = Math.atan2(Math.sin(ang - base), Math.cos(ang - base));
@@ -167,7 +173,8 @@ GP.rally = (function () {
       const away = off > 0 ? 'R' : 'L';
       const hard = Math.abs(off) > 1.05;
       nt.dir = hard ? back : (r() < 0.5 + Math.abs(off) * 0.42 ? back : away);
-      turn(deg, nt.dir);
+      turn(deg, nt.dir, nt.sev);
+      nt.out = pts.length - 1;                 // この曲がりが終わる点
     });
     fwd(140);
 
@@ -398,7 +405,7 @@ GP.rally = (function () {
         if (tr) {
           if (tr.out) {
             e.out = true; e.outAt = i + 1; e.outWhy = tr.name;
-            note = { icon: tr.icon, name: tr.name, line: tr.line, out: true,
+            note = { key: tr.key, icon: tr.icon, name: tr.name, line: tr.line, out: true,
                      at: rnd(0.10, 0.90) };
           } else {
             let loss = rnd(tr.lossS[0], tr.lossS[1]);
@@ -408,8 +415,8 @@ GP.rally = (function () {
             }
             t += loss;
             e.damage += tr.key === 'susp' ? 1.4 : tr.key === 'off' ? 0.5 : 0.2;
-            note = { icon: tr.icon, name: tr.name, line: tr.line, loss: Math.round(loss),
-                     at: rnd(0.08, 0.92) };
+            note = { key: tr.key, icon: tr.icon, name: tr.name, line: tr.line,
+                     loss: Math.round(loss), at: rnd(0.08, 0.92) };
           }
         }
         if (!e.out) { e.total += t; e.done.push(t); }
@@ -443,6 +450,7 @@ GP.rally = (function () {
     }));
     return {
       rally: rally, round: roundIdx, stages: stages, log: log, wet: wet,
+      pace: plan.pace || 'std',
       classified: classified, service: svc,
       winner: classified[0] || null
     };
