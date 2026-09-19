@@ -51,7 +51,11 @@ window.GP = window.GP || {};
     syncG();
   }
   /* g を持ち替えたら、各画面にも配り直す */
-  function syncG() { SCREENS.forEach(m => m.setG(g)); }
+  function syncG() {
+    /* 言い回しはシリーズで変わる。g を持ち替えたこの瞬間に入れ替える */
+    S.applyWords(g);
+    SCREENS.forEach(m => m.setG(g));
+  }
 
   /* =======================================================
      週の進行

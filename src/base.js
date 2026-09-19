@@ -53,6 +53,12 @@ GP.base = (function () {
     { key: 'sim',     label: 'シミュレーター' },
     { key: 'youth',   label: 'ユース' }
   ];
+  /* ラリーのチームでは、同じ建物でも呼び名が変わる。
+     風洞の代わりに砂利の試験路があり、ピットはサービスパークになる */
+  const PLOT_WRC = { pit: 'サービス班', tunnel: 'テストコース', mission: 'ラリー管制' };
+  function plotLabel(p) {
+    return (GP.rallyLook && PLOT_WRC[p.key]) || p.label;
+  }
   const PLOTS = (function () {
     const angs = ringSpread(PLOT_KEYS.length, 108, 432);
     return PLOT_KEYS.map((p, i) => ({ key: p.key, label: p.label, ang: angs[i] }));
@@ -687,17 +693,33 @@ GP.base = (function () {
     ell(RING.cx, RING.cy, RING.rx * 1.38, RING.ry * 1.42, dusk ? '#464351' : '#c2ab7c');
     ell(RING.cx, RING.cy, RING.rx * 1.30, RING.ry * 1.32, dusk ? '#5d5a6b' : '#e6d6ae');
 
-    // 周回路
-    ctx.strokeStyle = dusk ? '#23222c' : '#7d7a8c';
+    /* 周回路。ラリーのチームなら、敷地の中の試験路は砂利になる。
+       舗装に白い破線が引いてある周回路では、足の煮詰めができない */
+    const dirt = !!GP.rallyLook;
+    ctx.strokeStyle = dirt ? (dusk ? '#241708' : '#4a3018')
+                           : (dusk ? '#23222c' : '#7d7a8c');
     ctx.lineWidth = RING.w + 5;
     ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = dusk ? '#33313e' : '#6b6178';
+    ctx.strokeStyle = dirt ? (dusk ? '#6b4724' : '#96683a')
+                           : (dusk ? '#33313e' : '#6b6178');
     ctx.lineWidth = RING.w;
     ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.50)';
-    ctx.lineWidth = 2.4; ctx.setLineDash([9, 13]);
-    ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
+    if (dirt) {
+      // 白い線の代わりに、わだちを2本
+      ctx.strokeStyle = 'rgba(0,0,0,.17)';
+      ctx.lineWidth = 3;
+      [-0.10, 0.10].forEach(o2 => {
+        ctx.beginPath();
+        ctx.ellipse(RING.cx, RING.cy, RING.rx * (1 + o2 * RING.w / RING.rx),
+                    RING.ry * (1 + o2 * RING.w / RING.ry), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,.50)';
+      ctx.lineWidth = 2.4; ctx.setLineDash([9, 13]);
+      ctx.beginPath(); ctx.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 中庭（輪の内側）
     ell(RING.cx, RING.cy, RING.rx - RING.w * 0.7, RING.ry - RING.w * 0.7,
@@ -878,7 +900,7 @@ GP.base = (function () {
       bg.fill();
       // 縮めた座標系で描き、当たり判定は元の縮尺へ戻す
       bg.save(); bg.scale(sc, sc);
-      const raw = DRAW[p.key](bg, { key: p.key, x: it.sp.x / sc, y: it.sp.y / sc, label: p.label },
+      const raw = DRAW[p.key](bg, { key: p.key, x: it.sp.x / sc, y: it.sp.y / sc, label: plotLabel(p) },
                               lv, g2.color);
       bg.restore();
       const bb = { x: raw.x * sc, y: raw.y * sc, w: raw.w * sc, h: raw.h * sc };
@@ -891,7 +913,7 @@ GP.base = (function () {
       }
       // 看板は建物の上。隣とぶつからないよう一段ずつずらす
       signs.push({ x: bb.x + bb.w / 2, y: Math.max(2, bb.y - 14 - (pi % 2) * 12),
-                   text: p.label + ' Lv.' + lv, sel: sel === p.key });
+                   text: plotLabel(p) + ' Lv.' + lv, sel: sel === p.key });
     });
     signs.forEach(sg => sign(bg, sg.x, sg.y, sg.text, sg.sel ? '#e2664a' : '#4a3018'));
 

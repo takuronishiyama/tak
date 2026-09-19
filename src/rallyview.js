@@ -420,17 +420,67 @@ GP.rallyview = (function () {
   /* カメラ。道ばたのものは「立って」見えてほしいので、
      地面に寝ているもの（道・轍・土煙）だけを回した座標で描き、
      立っているものは、いったん画面の座標に落としてから描く    */
-  const CAM = { px: 0, py: 0, t: 0, ct: 1, st: 0, ox: 0, oy: 0 };
+  const CAM = { mode: 'top', px: 0, py: 0, t: 0, ct: 1, st: 0, ox: 0, oy: 0,
+                a: 0, fc: 1, fs: 0, h: 20 };
+
+  /* ---------- 見かた ----------
+     同じ走りを、3つの高さから見る。
+
+       鳥瞰     … 道の形と、次に来る曲がりが読める。
+                  ただし「速い」とは感じない
+       オンボード … 車の後ろ。自分の車が横を向いているのが、外から見える
+       車内     … フロントガラス越し。次に何が来るかは、
+                  右席の読み上げでしか分からない
+
+     ラリーで人が見ているのは、たいてい真ん中のやつで、
+     ラリーで走っている人が見ているのは、いちばん下のやつ       */
+  const VIEWS = ['top', 'chase', 'cab'];
+  const HORIZON = VH * 0.355;
+  const FOCAL = 330;
+  const BACK = { chase: 100, cab: -1 };     // 車からどれだけ後ろに目を置くか
+  const HIGH = { chase: 40, cab: 13 };     // 目の高さ
+  /* 道ばたのものは、鳥瞰で見て気持ちのいい大きさに描いてある。
+     奥行きのある絵にそのまま置くと、草が人の背丈になる      */
+  const PROPK = 0.60;
+  let view = 'top';
+
+  function setView(v) {
+    if (VIEWS.indexOf(v) < 0) return;
+    view = v;
+    if (S) { S.dust.length = 0; }
+  }
+  function getView() { return view; }
+
+  /* 画面の座標へ落とす。戻り値は [x, y, 倍率]。
+     手前すぎる・後ろすぎるものは null                        */
   function project(wx, wy) {
     const dx = wx - CAM.px, dy = wy - CAM.py;
-    return [VW / 2 + CAM.ox + (dx * CAM.ct - dy * CAM.st) * ZOOM,
-            VH * EYE + CAM.oy + (dx * CAM.st + dy * CAM.ct) * ZOOM];
+    if (CAM.mode === 'top') {
+      return [VW / 2 + CAM.ox + (dx * CAM.ct - dy * CAM.st) * ZOOM,
+              VH * EYE + CAM.oy + (dx * CAM.st + dy * CAM.ct) * ZOOM, ZOOM];
+    }
+    const fz = dx * CAM.fc + dy * CAM.fs;
+    if (fz < 7) return null;
+    const fx = -dx * CAM.fs + dy * CAM.fc;
+    const sc = FOCAL / fz;
+    return [VW / 2 + CAM.ox + fx * sc, HORIZON + CAM.oy + CAM.h * sc, sc, fz];
   }
   function camera(g) {
     g.translate(VW / 2 + CAM.ox, VH * EYE + CAM.oy);
     g.scale(ZOOM, ZOOM);
     g.rotate(CAM.t);
     g.translate(-CAM.px, -CAM.py);
+  }
+
+  /* 道の左右の縁を、画面の座標で返す */
+  function edgeAt(road, k, half) {
+    const a = normAt(road, k);
+    const nx = -Math.sin(a), ny = Math.cos(a);
+    const px = road.pts[k][0], py = road.pts[k][1];
+    const l = project(px - nx * half, py - ny * half);
+    const r = project(px + nx * half, py + ny * half);
+    if (!l || !r) return null;
+    return [l, r];
   }
 
   function draw(f) {
@@ -448,12 +498,56 @@ GP.rallyview = (function () {
 
     // カメラの置き場所
     const inc = incOffset();
-    CAM.px = L.x[i]; CAM.py = L.y[i];
-    CAM.t = -L.drv[i] - Math.PI / 2;
-    CAM.ct = Math.cos(CAM.t); CAM.st = Math.sin(CAM.t);
+    setCam(L, i, inc);
+    if (view === 'top') drawTop(g, L, i, sf, night, inc);
+    else drawPersp(g, L, i, sf, night, inc);
+    overlay(g, f);
+
+    if (dusk) {
+      GP.fx.composite(out, {
+        dof: 0.25, focus: { x: VW * PX / 2, y: VH * PX * 0.70 }, focusR: VW * PX * 0.42,
+        bloom: night ? 1.2 : 0.8, warm: 0.95, vignette: 0.9, night: night
+      });
+    }
+  }
+
+  /* ---------- カメラを置く ---------- */
+  function setCam(L, i, inc) {
+    const sl = L.slip[i];
+    CAM.mode = (view === 'top') ? 'top' : 'persp';
     CAM.ox = S.shake > 0 ? (Math.random() - 0.5) * 7 * S.shake : 0;
     CAM.oy = S.shake > 0 ? (Math.random() - 0.5) * 7 * S.shake : 0;
+    if (view === 'top') {
+      CAM.px = L.x[i]; CAM.py = L.y[i];
+      CAM.t = -L.drv[i] - Math.PI / 2;
+      CAM.ct = Math.cos(CAM.t); CAM.st = Math.sin(CAM.t);
+      return;
+    }
+    /* 後ろから見るときは、進んでいる向きに構える。
+       だから車が流れると、車だけが横を向いて見える。
+       車内から見るときは、鼻の向いている先を見ている。
+       だから車が流れると、道のほうが斜めから飛んでくる        */
+    const a = (view === 'cab') ? L.drv[i] + sl * 0.82 : L.drv[i] + sl * 0.16;
+    CAM.a = a;
+    CAM.fc = Math.cos(a); CAM.fs = Math.sin(a);
+    CAM.h = HIGH[view] || 26;
+    const back = BACK[view] || 40;
+    let px = L.x[i] - Math.cos(a) * back;
+    let py = L.y[i] - Math.sin(a) * back;
+    if (inc && inc.lat) {
+      const sg = sl >= 0 ? -1 : 1;
+      px += -Math.sin(a) * inc.lat * sg;
+      py += Math.cos(a) * inc.lat * sg;
+    }
+    CAM.px = px; CAM.py = py;
+    if (view === 'cab' && inc) CAM.oy += inc.rot * 3;
+  }
 
+  /* =========================================================
+     鳥瞰
+     ======================================================= */
+  function drawTop(g, L, i, sf, night, inc) {
+    const road = S.road;
     // 地面。一色だと「止まっている面」に見えるので、目を入れる
     g.fillStyle = groundOf(S.props.flavor, night);
     g.fillRect(0, 0, VW, VH);
@@ -464,31 +558,408 @@ GP.rallyview = (function () {
         g.fillRect(x - ox, y - oy, 4, 4);
       }
     }
-
     const lo = Math.max(0, i - 70), hi = Math.min(road.n - 1, i + 130);
-
     drawProps(g, S.props.far, lo, hi, night);
-
     g.save(); camera(g);
     drawRoad(g, road, i, sf, night);
     drawMarks(g);
     drawDust(g);
     g.restore();
-
     drawProps(g, S.props.near, lo, hi, night);
-
     g.save(); camera(g);
     drawCar(g, L, i, inc);
     g.restore();
-
     drawProps(g, S.props.over, lo, hi, night);
-    overlay(g, f);
+  }
 
-    if (dusk) {
-      GP.fx.composite(out, {
-        dof: 0.25, focus: { x: VW * PX / 2, y: VH * PX * 0.70 }, focusR: VW * PX * 0.42,
-        bloom: night ? 1.2 : 0.8, warm: 0.95, vignette: 0.9, night: night
-      });
+  /* =========================================================
+     オンボードと車内
+
+     奥から手前へ、道を台形でつないでいく。
+     遠いものから描くので、折り返してきた道が
+     手前の道を隠してしまうことがない。
+     ======================================================= */
+  const FAR_K = 150;
+
+  function drawPersp(g, L, i, sf, night, inc) {
+    const road = S.road;
+    sky(g, night);
+    const lo = Math.max(0, i - 6), hi = Math.min(road.n - 1, i + FAR_K);
+    drawPropsP(g, S.props.far, lo, hi, night);
+    drawRoadP(g, road, lo, hi, night);
+    drawMarksP(g);
+    drawPropsP(g, S.props.near, lo, hi, night);
+    drawDustP(g);
+    drawPropsP(g, S.props.over, lo, hi, night);
+    if (view === 'chase') drawCarBack(g, L, i, inc);
+    else cabin(g, L, i, night);
+  }
+
+  /* 空と、地平線の向こう。地面と空の境目が無いと、
+     どこまでが走れる場所なのかが読めない                      */
+  function sky(g, night) {
+    const fl = S.props.flavor;
+    const top = night ? '#141a33' : (fl === 'dry' ? '#7a86a8' : fl === 'snow' ? '#8ea0c8' : '#6f8ec0');
+    const bot = night ? '#26304d' : (fl === 'dry' ? '#d6c49a' : fl === 'snow' ? '#dfe4f2' : '#bcc9dd');
+    const gr = g.createLinearGradient(0, 0, 0, HORIZON);
+    gr.addColorStop(0, top); gr.addColorStop(1, bot);
+    g.fillStyle = gr; g.fillRect(0, 0, VW, HORIZON + 1);
+    // 遠くの山なみ
+    g.fillStyle = night ? '#1b2340' : (fl === 'dry' ? '#8d7a58' : '#3d5266');
+    g.beginPath(); g.moveTo(0, HORIZON);
+    for (let x = 0; x <= VW; x += 28) {
+      const h = 10 + Math.sin(x * 0.031 + 1.2) * 7 + Math.sin(x * 0.0121) * 9;
+      g.lineTo(x, HORIZON - Math.max(0, h));
+    }
+    g.lineTo(VW, HORIZON); g.closePath(); g.fill();
+    // 地面
+    g.fillStyle = groundOf(S.props.flavor, night);
+    g.fillRect(0, HORIZON, VW, VH - HORIZON);
+    /* 地面にも目を入れる。無地だと、どれだけ飛ばしても動いて見えない。
+       遠いほど細かく、手前ほど粗く                              */
+    const off = (S.road.cum[S.i] * 0.5) % 40;
+    g.fillStyle = 'rgba(0,0,0,.06)';
+    for (let k = 1; k < 26; k++) {
+      const fz = 24 + k * k * 2.6 + off;
+      const sc = FOCAL / fz;
+      const y = HORIZON + CAM.h * sc;
+      if (y > VH) break;
+      g.fillRect(0, y, VW, Math.max(0.6, sc * 0.9));
+    }
+  }
+
+  function drawRoadP(g, road, lo, hi, night) {
+    const surface = S.spec.surface;
+    const verge = 21.5, shoulder = 14.5, half = 11;
+    const cVerge = surface === 'snow' ? (night ? '#2c3357' : '#8e9ac4')
+                 : surface === 'tarmac' ? (night ? '#152e1c' : '#2f5c26')
+                 : (night ? '#241708' : '#6b4724');
+    const cShoulder = surface === 'snow' ? (night ? '#445078' : '#b5aabb')
+                 : surface === 'tarmac' ? (night ? '#12101a' : '#23222c')
+                 : (night ? '#12101a' : '#2e1d10');
+    const cRoad = roadColor(surface, night);
+    /* 台形をつなぐと、辺のところに髪の毛ほどの隙間が出る。
+       同じ色で縁をなぞって埋める                            */
+    const quad = (A, B, col) => {
+      g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(A[0][0], A[0][1]); g.lineTo(A[1][0], A[1][1]);
+      g.lineTo(B[1][0], B[1][1]); g.lineTo(B[0][0], B[0][1]);
+      g.closePath(); g.fill(); g.stroke();
+    };
+    /* 奥から手前へ。近いものが後から乗るので、
+       ヘアピンで折り返してきた道も正しく重なる                */
+    for (let k = hi; k > lo; k--) {
+      const av = edgeAt(road, k, verge), bv = edgeAt(road, k - 1, verge);
+      if (!av || !bv) continue;
+      quad(av, bv, cVerge);
+      const as = edgeAt(road, k, shoulder), bs = edgeAt(road, k - 1, shoulder);
+      if (as && bs) quad(as, bs, cShoulder);
+      const ar = edgeAt(road, k, half), br = edgeAt(road, k - 1, half);
+      if (!ar || !br) continue;
+      quad(ar, br, cRoad);
+      // 路面の目。1点おきに、濃淡の帯を置く
+      if (k % 2 === 0) {
+        quad(ar, br, surface === 'tarmac' ? 'rgba(255,255,255,.028)' : 'rgba(0,0,0,.055)');
+      }
+      // わだち
+      const aw = edgeAt(road, k, 2.2), bw = edgeAt(road, k - 1, 2.2);
+      if (aw && bw) quad(aw, bw, surface === 'tarmac' ? 'rgba(0,0,0,.07)' : 'rgba(0,0,0,.13)');
+      // ターマックの外側線
+      if (surface === 'tarmac') {
+        [-1, 1].forEach(sg => {
+          const a2 = edgeAt(road, k, half - 1.6), b2 = edgeAt(road, k - 1, half - 1.6);
+          if (!a2 || !b2) return;
+          const j = sg > 0 ? 1 : 0;
+          g.strokeStyle = night ? 'rgba(255,248,230,.18)' : 'rgba(255,248,230,.40)';
+          g.lineWidth = Math.max(0.6, (a2[j][2] + b2[j][2]) * 0.7);
+          g.beginPath(); g.moveTo(a2[j][0], a2[j][1]); g.lineTo(b2[j][0], b2[j][1]); g.stroke();
+        });
+      }
+    }
+    // ゴールの市松
+    if (hi >= road.n - 2) {
+      const e = edgeAt(road, road.n - 2, half);
+      const e2 = edgeAt(road, road.n - 4, half);
+      if (e && e2) {
+        for (let c = 0; c < 8; c++) {
+          const t0 = c / 8, t1 = (c + 1) / 8;
+          const p0 = [e[0][0] + (e[1][0] - e[0][0]) * t0, e[0][1] + (e[1][1] - e[0][1]) * t0];
+          const p1 = [e[0][0] + (e[1][0] - e[0][0]) * t1, e[0][1] + (e[1][1] - e[0][1]) * t1];
+          const q0 = [e2[0][0] + (e2[1][0] - e2[0][0]) * t0, e2[0][1] + (e2[1][1] - e2[0][1]) * t0];
+          const q1 = [e2[0][0] + (e2[1][0] - e2[0][0]) * t1, e2[0][1] + (e2[1][1] - e2[0][1]) * t1];
+          g.fillStyle = (c % 2) ? '#fff8e6' : '#12101a';
+          g.beginPath();
+          g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]);
+          g.lineTo(q1[0], q1[1]); g.lineTo(q0[0], q0[1]);
+          g.closePath(); g.fill();
+        }
+      }
+    }
+  }
+
+  function drawMarksP(g) {
+    if (!S.marks.length) return;
+    const surface = S.spec.surface;
+    const col = surface === 'tarmac' ? '14,12,18' : surface === 'snow' ? '108,122,168' : '46,29,16';
+    g.lineCap = 'round';
+    for (let k = Math.max(0, S.marks.length - 260); k < S.marks.length; k++) {
+      const m = S.marks[k];
+      const a = project(m.x0, m.y0), b2 = project(m.x1, m.y1);
+      if (!a || !b2) continue;
+      g.strokeStyle = 'rgba(' + col + ',' + (0.30 + m.a * 0.28).toFixed(2) + ')';
+      g.lineWidth = Math.max(0.6, (a[2] + b2[2]) * 1.5);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.stroke();
+    }
+  }
+
+  function drawDustP(g) {
+    const surface = S.spec.surface;
+    const col = surface === 'snow' ? '232,223,210'
+              : surface === 'tarmac' ? '120,110,100' : '150,104,58';
+    for (let k = 0; k < S.dust.length; k++) {
+      const d = S.dust[k];
+      d.x += d.vx; d.y += d.vy; d.r += 0.26; d.a -= 0.040;
+      d.vx *= 0.96; d.vy *= 0.96;
+      if (d.a <= 0) continue;
+      const q = project(d.x, d.y);
+      if (!q || q[3] < 26) continue;      // カメラの鼻先の土埃は、ただの染みになる
+      /* 土埃は地面より上に立ち上がる。目の高さより上へ持ち上げる */
+      const rr = d.r * q[2] * PROPK * 0.8;
+      if (rr < 0.5 || rr > 90) continue;
+      g.fillStyle = 'rgba(' + col + ',' + (d.a * (surface === 'snow' ? 0.26 : 0.34)).toFixed(2) + ')';
+      g.beginPath(); g.arc(q[0], q[1] - rr * 0.55, rr, 0, TAU); g.fill();
+    }
+    S.dust = S.dust.filter(d => d.a > 0);
+  }
+
+  /* 奥のものから描く。手前のものが、あとから上に乗る */
+  function drawPropsP(g, arr, lo, hi, night) {
+    let k = lowerBound(arr, hi);
+    if (k >= arr.length) k = arr.length - 1;
+    for (; k >= 0; k--) {
+      const o = arr[k];
+      if (o.i > hi) continue;
+      if (o.i < lo) break;
+      const q = project(o.x, o.y);
+      if (!q) continue;
+      if (q[2] > 8 || q[2] < 0.08) continue;
+      const z = q[2] * PROPK;
+      if (q[0] < -180 * z || q[0] > VW + 180 * z) continue;
+      if (q[1] < HORIZON - 4 || q[1] > VH + 200) continue;
+      const fn = PROP[o.t];
+      if (fn) fn(g, q[0], q[1], z, o, night);
+    }
+  }
+
+  /* ---------- 後ろから見た自車 ----------
+     流れているぶんだけ、横っ腹が見えてくる。
+     真後ろから見ているのに車の側面が見える、というのが
+     「流れている」ということの、いちばん分かりやすい形     */
+  function drawCarBack(g, L, i, inc) {
+    const q = project(L.x[i], L.y[i]);
+    if (!q) return;
+    const z = q[2];
+    const sl = L.slip[i] + (inc ? inc.rot : 0);
+    const col = S.spec.color || '#c23a2e';
+    const W2 = 19 * z, H2 = 12.5 * z;
+    const x = q[0], y = q[1];
+    const sn = Math.sin(sl), cs = Math.abs(Math.cos(sl));
+    const sideW = 30 * z * sn;                 // 横っ腹の見えかた（符号つき）
+    g.save();
+    // 影
+    g.fillStyle = 'rgba(0,0,0,.34)';
+    g.beginPath(); g.ellipse(x, y, W2 * 0.8 + Math.abs(sideW) * 0.4, H2 * 0.16, 0, 0, TAU); g.fill();
+    // 横っ腹（流れている側と反対に見える）
+    if (Math.abs(sideW) > 1) {
+      const sx = x + (sideW > 0 ? W2 * cs / 2 : -W2 * cs / 2);
+      g.fillStyle = GP.gfx.shade(col, -0.30);
+      g.beginPath();
+      g.moveTo(sx, y); g.lineTo(sx + sideW, y - H2 * 0.10);
+      g.lineTo(sx + sideW, y - H2 * 0.72); g.lineTo(sx, y - H2 * 0.92);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(0,0,0,.20)';
+      g.beginPath();
+      g.moveTo(sx, y - H2 * 0.36); g.lineTo(sx + sideW, y - H2 * 0.34);
+      g.lineTo(sx + sideW, y - H2 * 0.10); g.lineTo(sx, y);
+      g.closePath(); g.fill();
+      // 横のガラス
+      g.fillStyle = '#15161b';
+      g.beginPath();
+      g.moveTo(sx + sideW * 0.10, y - H2 * 0.60); g.lineTo(sx + sideW * 0.86, y - H2 * 0.52);
+      g.lineTo(sx + sideW * 0.86, y - H2 * 0.70); g.lineTo(sx + sideW * 0.10, y - H2 * 0.82);
+      g.closePath(); g.fill();
+    }
+    // 後ろ姿
+    const bw = W2 * cs;
+    g.fillStyle = GP.gfx.shade(col, -0.36);
+    g.fillRect(x - bw / 2 - 1.2 * z, y - H2, bw + 2.4 * z, H2);
+    g.fillStyle = col;
+    g.fillRect(x - bw / 2, y - H2 * 0.96, bw, H2 * 0.92);
+    g.fillStyle = 'rgba(0,0,0,.24)';
+    g.fillRect(x - bw / 2, y - H2 * 0.26, bw, H2 * 0.26);
+    // リアガラス
+    g.fillStyle = '#15161b';
+    g.fillRect(x - bw * 0.34, y - H2 * 0.88, bw * 0.68, H2 * 0.30);
+    // 尾灯
+    g.fillStyle = '#e2664a';
+    g.fillRect(x - bw * 0.46, y - H2 * 0.48, bw * 0.16, H2 * 0.13);
+    g.fillRect(x + bw * 0.30, y - H2 * 0.48, bw * 0.16, H2 * 0.13);
+    // 屋根の翼
+    g.fillStyle = GP.gfx.shade(col, -0.30);
+    g.fillRect(x - bw * 0.40, y - H2 * 1.12, bw * 0.09, H2 * 0.17);
+    g.fillRect(x + bw * 0.31, y - H2 * 1.12, bw * 0.09, H2 * 0.17);
+    g.fillStyle = '#23222c';
+    g.fillRect(x - bw * 0.54, y - H2 * 1.24, bw * 1.08, H2 * 0.13);
+    g.fillStyle = 'rgba(255,255,255,.16)';
+    g.fillRect(x - bw * 0.54, y - H2 * 1.24, bw * 1.08, H2 * 0.04);
+    // タイヤ
+    g.fillStyle = '#12101a';
+    g.fillRect(x - bw / 2 - 2.6 * z, y - H2 * 0.42, 3.4 * z, H2 * 0.42);
+    g.fillRect(x + bw / 2 - 0.8 * z, y - H2 * 0.42, 3.4 * z, H2 * 0.42);
+    g.restore();
+  }
+
+  /* ---------- 車内 ----------
+     ここからだと、次に来る曲がりは見えない。
+     見えるのは、いま目の前にある道だけ。
+     だから右席の読み上げが、はじめて命綱になる              */
+  function cabin(g, L, i, night) {
+    const col = S.spec.color || '#c23a2e';
+    const sl = L.slip[i];
+    const steer = clamp(-sl * 1.25, -0.72, 0.72);
+    const bob = Math.sin(S.t * 5.5) * 1.6 + (S.shake > 0 ? (Math.random() - 0.5) * 5 * S.shake : 0);
+    const dashY = VH * 0.775 + bob;
+    const WX = VW * 0.355;            // ハンドルの中心（左ハンドル）
+
+    // フロントガラスの枠（Aピラーと屋根）
+    g.fillStyle = '#15161b';
+    g.beginPath();
+    g.moveTo(0, 0); g.lineTo(VW, 0); g.lineTo(VW, VH * 0.095 + bob);
+    g.lineTo(0, VH * 0.095 + bob); g.closePath(); g.fill();
+    const pillar = (x0, x1, x2, x3) => {
+      g.fillStyle = GP.gfx.shade(col, -0.52);
+      g.beginPath();
+      g.moveTo(x0, VH * 0.06 + bob); g.lineTo(x1, VH * 0.06 + bob);
+      g.lineTo(x3, dashY + 12); g.lineTo(x2, dashY + 12);
+      g.closePath(); g.fill();
+    };
+    pillar(-40, 46, 4, -60);
+    pillar(VW - 46, VW + 40, VW + 60, VW - 4);
+    // ロールケージ
+    g.fillStyle = '#5a5462';
+    g.fillRect(52, VH * 0.095 + bob, 9, dashY - VH * 0.095 + 12);
+    g.fillRect(VW - 61, VH * 0.095 + bob, 9, dashY - VH * 0.095 + 12);
+
+    // ワイパー。窓の下端に寝ている
+    g.strokeStyle = 'rgba(18,16,26,.62)'; g.lineWidth = 2.6; g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(VW * 0.24, dashY - 41); g.lineTo(VW * 0.40, dashY - 96);
+    g.moveTo(VW * 0.58, dashY - 41); g.lineTo(VW * 0.74, dashY - 96);
+    g.stroke();
+
+    /* ボンネット。手前に少しだけ出す。
+       出しすぎると、肝心の道が見えなくなる                   */
+    g.fillStyle = GP.gfx.shade(col, -0.10);
+    g.beginPath();
+    g.moveTo(VW * 0.05, dashY + 4); g.lineTo(VW * 0.95, dashY + 4);
+    g.lineTo(VW * 1.04, VH); g.lineTo(VW * -0.04, VH);
+    g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.12)';
+    g.fillRect(VW * 0.05, dashY + 4, VW * 0.90, 3);
+    // ボンネットの空気取り入れ口と、留め金
+    g.fillStyle = 'rgba(0,0,0,.40)';
+    g.fillRect(VW * 0.37, dashY + 13, VW * 0.26, 11);
+    g.fillStyle = GP.gfx.shade(col, -0.30);
+    for (let k = 0; k < 4; k++) {
+      g.fillRect(VW * 0.37, dashY + 13 + k * 3, VW * 0.26, 1.2);
+    }
+    g.fillStyle = 'rgba(255,255,255,.10)';
+    g.fillRect(VW * 0.37, dashY + 13, VW * 0.26, 1.4);
+    g.fillStyle = '#b5aabb';
+    g.fillRect(VW * 0.16, dashY + 11, 7, 4);
+    g.fillRect(VW * 0.82, dashY + 11, 7, 4);
+    // ダッシュボード
+    g.fillStyle = '#23222c';
+    g.fillRect(0, dashY - 40, VW, 46);
+    g.fillStyle = '#33313e';
+    g.fillRect(0, dashY - 40, VW, 3);
+
+    // 計器。ハンドルの真上に置く
+    const gx = WX, gy = dashY - 22;
+    g.fillStyle = '#12101a';
+    g.beginPath(); g.arc(gx, gy, 15, 0, TAU); g.fill();
+    g.strokeStyle = '#8d8798'; g.lineWidth = 1.4;
+    g.beginPath(); g.arc(gx, gy, 12.5, Math.PI * 0.75, Math.PI * 2.25); g.stroke();
+    const rev = 0.26 + S.road.keep[i] * 0.66;
+    g.strokeStyle = rev > 0.82 ? '#e2664a' : '#e0ae3c'; g.lineWidth = 3;
+    g.beginPath();
+    g.arc(gx, gy, 10, Math.PI * 0.75, Math.PI * 0.75 + Math.PI * 1.5 * rev); g.stroke();
+    // 速度の数字
+    g.font = 'bold 10px sans-serif'; g.textAlign = 'center';
+    g.fillStyle = '#fff0b0';
+    g.fillText(Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75)), gx, gy + 4);
+    g.textAlign = 'left';
+
+    // 路面別のマップ切り替えと、無線
+    g.fillStyle = '#15161b';
+    g.fillRect(VW * 0.50, dashY - 33, 46, 20);
+    g.fillStyle = '#2d6b32';
+    g.fillRect(VW * 0.50 + 3, dashY - 30, 18, 6);
+    g.fillStyle = '#e0ae3c';
+    g.fillRect(VW * 0.50 + 24, dashY - 30, 18, 6);
+    g.fillStyle = '#5a5462';
+    for (let k = 0; k < 4; k++) g.fillRect(VW * 0.50 + 4 + k * 11, dashY - 21, 7, 5);
+
+    /* 右席の読み上げ板。人が座っているのは、こちら側 */
+    g.save();
+    g.translate(VW * 0.74, dashY - 30);
+    g.rotate(-0.06);
+    g.fillStyle = '#4a3018'; g.fillRect(-3, -3, 74, 34);
+    g.fillStyle = '#e6d6ae'; g.fillRect(0, 0, 68, 28);
+    g.fillStyle = 'rgba(0,0,0,.34)';
+    for (let k = 0; k < 4; k++) g.fillRect(5, 5 + k * 6, 56 - (k % 2) * 18, 2);
+    g.fillStyle = '#c23a2e'; g.fillRect(5, 5 + (Math.floor(S.t * 1.5) % 4) * 6 - 1, 3, 4);
+    g.restore();
+    // 右席の手
+    g.fillStyle = GP.gfx.pal.skin[3];
+    g.fillRect(VW * 0.80, dashY - 6, 13, 10);
+    g.fillStyle = GP.gfx.shade('#2a2430', 0);
+    g.fillRect(VW * 0.80, dashY + 2, 13, 5);
+
+    /* ハンドル。流れているぶんだけ、逆に切られている */
+    g.save();
+    g.translate(WX, dashY + 16);
+    g.rotate(steer);
+    g.strokeStyle = '#15161b'; g.lineWidth = 6.5;
+    g.beginPath(); g.arc(0, 0, 26, 0, TAU); g.stroke();
+    g.strokeStyle = '#2a2430'; g.lineWidth = 3.6;
+    g.beginPath(); g.moveTo(-26, 0); g.lineTo(26, 0);
+    g.moveTo(0, 0); g.lineTo(0, 26); g.stroke();
+    g.fillStyle = col;
+    g.fillRect(-8, -4, 16, 8);
+    g.fillStyle = '#fff8e6';
+    g.fillRect(-2, -29, 4, 6);
+    // 握っている手
+    g.fillStyle = GP.gfx.pal.skin[3];
+    g.fillRect(-30, -8, 10, 13); g.fillRect(20, -8, 10, 13);
+    g.restore();
+
+    // ルームミラー
+    g.fillStyle = '#15161b';
+    g.fillRect(VW * 0.45, VH * 0.095 + bob, 76, 18);
+    g.fillStyle = night ? '#1a1b33' : '#6d7aa8';
+    g.fillRect(VW * 0.45 + 3, VH * 0.095 + bob + 3, 70, 12);
+    g.fillStyle = 'rgba(0,0,0,.30)';
+    g.fillRect(VW * 0.45 + 3, VH * 0.095 + bob + 10, 70, 5);
+
+    if (night) {
+      // 前照灯の届く範囲。外は、ほんとうに何も見えない
+      const gl = g.createRadialGradient(VW / 2, dashY, 20, VW / 2, dashY, VW * 0.62);
+      gl.addColorStop(0, 'rgba(0,0,0,0)');
+      gl.addColorStop(0.55, 'rgba(0,0,0,.18)');
+      gl.addColorStop(1, 'rgba(0,0,0,.72)');
+      g.fillStyle = gl; g.fillRect(0, 0, VW, dashY);
     }
   }
 
@@ -779,6 +1250,7 @@ GP.rallyview = (function () {
   const PROP = {
     /* ---- 地面のむら ---- */
     patch: function (g, x, y, z, o, night) {
+      if (CAM.mode !== 'top') return;        // 奥行きのある絵では、帯のほうが効く
       const R = (14 + o.s * 30) * z;
       g.fillStyle = night ? 'rgba(0,0,0,.10)' : 'rgba(0,0,0,.07)';
       g.beginPath(); g.ellipse(x, y, R, R * 0.66, o.s * 3, 0, TAU); g.fill();
@@ -936,13 +1408,20 @@ GP.rallyview = (function () {
     /* ---- 雪の壁。路肩に積み上がっているほど、はみ出せない ---- */
     bank: function (g, x, y, z, o, night) {
       const H = (5 + o.s * 6) * z;
-      g.fillStyle = night ? '#6d7aa8' : '#fff8e6';
-      g.fillRect(x - 5 * z, y - H, 10 * z, H);
+      foot(g, x, y, 5, z);
       g.fillStyle = night ? '#445078' : '#c9c0cf';
-      g.fillRect(x - 5 * z, y - 1.5 * z, 10 * z, 1.5 * z);
+      g.fillRect(x - 5.4 * z, y - H * 0.42, 10.8 * z, H * 0.42);
+      g.fillStyle = night ? '#6d7aa8' : '#fff8e6';
+      g.beginPath();
+      g.moveTo(x - 5.4 * z, y - H * 0.40); g.lineTo(x - 4.2 * z, y - H);
+      g.lineTo(x + 4.2 * z, y - H); g.lineTo(x + 5.4 * z, y - H * 0.40);
+      g.closePath(); g.fill();
+      g.fillStyle = night ? '#8ea0c8' : '#ffffff';
+      g.fillRect(x - 4.2 * z, y - H, 8.4 * z, 1.2 * z);
     },
     pole: function (g, x, y, z, o, night) {
       const H = 13 * z;
+      foot(g, x, y, 1.4, z);
       g.fillStyle = night ? '#8e9ac4' : '#3a3648';
       g.fillRect(x - 0.8 * z, y - H, 1.6 * z, H);
       g.fillStyle = '#e0602c';
@@ -993,6 +1472,7 @@ GP.rallyview = (function () {
     /* ---- 石垣・ガードレール ---- */
     wall: function (g, x, y, z, o, night) {
       const H = (5 + o.s * 2.5) * z;
+      foot(g, x, y, 5, z);
       g.fillStyle = night ? '#3a3648' : '#8d8798';
       g.fillRect(x - 5 * z, y - H, 10 * z, H);
       g.fillStyle = night ? '#2a2733' : '#6b6474';
@@ -1002,6 +1482,7 @@ GP.rallyview = (function () {
     },
     guard: function (g, x, y, z, o, night) {
       const H = 7 * z;
+      foot(g, x, y, 2.4, z);
       g.fillStyle = night ? '#3a3648' : '#5a5462';
       g.fillRect(x - 0.9 * z, y - H, 1.8 * z, H);
       g.fillStyle = night ? '#4e4858' : '#9d95a8';
@@ -1056,7 +1537,9 @@ GP.rallyview = (function () {
     arch: function (g, x, y, z, o, night) {
       g.save();
       g.translate(x, y);
-      g.rotate(o.a + CAM.t + Math.PI / 2);
+      /* 鳥瞰では道に対して直角に架ける。
+         奥行きのある絵では、もう画面と平行に見えている */
+      if (CAM.mode === 'top') g.rotate(o.a + CAM.t + Math.PI / 2);
       const W = 34 * z, H = 15 * z;
       g.fillStyle = '#4a3018';
       g.fillRect(-W / 2, -H, 2.6 * z, H);
@@ -1135,5 +1618,5 @@ GP.rallyview = (function () {
       (m.loss ? '<em>+' + m.loss + '秒</em>' : '') + '</div>').join('');
   }
 
-  return { start, stop, skip, setRate, dbg: () => S };
+  return { start, stop, skip, setRate, setView, getView, dbg: () => S };
 })();

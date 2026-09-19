@@ -75,6 +75,7 @@ GP.interior = (function () {
      鼻から後ろへ、低い→高い→低い の線を作り、
      前後に車輪、後ろに翼、真ん中にコクピットの穴を置く       */
   function carSide(g, x, fy, w, col) {
+    if (GP.rallyLook) return carSideRally(g, x, fy, w, col);
     const wr = w * 0.105;                    // 車輪の半径。ここを基準に全部決める
     const line = GP.gfx.shade(col, -0.36);
     const dark = GP.gfx.shade(col, -0.18);
@@ -145,6 +146,156 @@ GP.interior = (function () {
       g.beginPath(); g.arc(wx - wr * 0.18, fy - wr * 1.42, wr * 0.30, 0, Math.PI * 2); g.fill();
     };
     wheel(x + w * 0.175); wheel(x + w * 0.795);
+  }
+
+  /* ---- 横から見たラリーカー ----
+     フォーミュラは「低く平たい」。ラリーカーは「高く四角い」。
+     屋根があって人が2人乗り、車輪は泥よけの張り出しの中にいて、
+     鼻先には夜のSSのための補助灯が並んでいる                  */
+  function carSideRally(g, x, fy, w, col) {
+    const wr = w * 0.110;
+    const line = GP.gfx.shade(col, -0.40);
+    const dark = GP.gfx.shade(col, -0.20);
+    const lite = GP.gfx.shade(col, 0.18);
+    GP.gfx.shadow(g, x + w * 0.5, fy, w * 0.86, 0.30);
+    const X = (u) => x + w * u;
+    const Y = (u) => fy - wr * u;
+
+    // 屋根の上の翼。胴と同じくらい幅がある
+    g.fillStyle = line;
+    g.fillRect(X(0.082), Y(3.46), w * 0.030, wr * 0.76);
+    g.fillRect(X(0.220), Y(3.46), w * 0.030, wr * 0.76);
+    g.fillStyle = '#23222c';
+    g.fillRect(X(0.050), Y(3.82), w * 0.225, wr * 0.36);
+    g.fillStyle = col;
+    g.fillRect(X(0.058), Y(3.78), w * 0.208, wr * 0.14);
+    g.fillStyle = '#33313e';
+    g.fillRect(X(0.038), Y(3.96), w * 0.024, wr * 0.52);
+    g.fillRect(X(0.263), Y(3.96), w * 0.024, wr * 0.52);
+
+    // 胴
+    const body = (o3, fill) => {
+      g.fillStyle = fill;
+      g.beginPath();
+      g.moveTo(X(0.022) - o3, Y(0.62) + o3);
+      g.lineTo(X(0.022) - o3, Y(1.95));
+      g.lineTo(X(0.060) - o3, Y(3.05) + o3);
+      g.lineTo(X(0.230),      Y(3.34) + o3);
+      g.lineTo(X(0.560),      Y(3.34) + o3);
+      g.lineTo(X(0.700) + o3, Y(2.12));
+      g.lineTo(X(0.930) + o3, Y(1.84));
+      g.lineTo(X(0.975) + o3, Y(1.18));
+      g.lineTo(X(0.975) + o3, Y(0.62) + o3);
+      g.closePath(); g.fill();
+    };
+    body(1.4, line);
+    body(0, col);
+    g.fillStyle = lite;
+    g.fillRect(X(0.03), Y(2.00), w * 0.94, wr * 0.14);
+    g.fillStyle = 'rgba(0,0,0,.26)';
+    g.fillRect(X(0.03), Y(0.78), w * 0.94, wr * 0.20);
+
+    // ガラス
+    const glass = '#1b2330';
+    g.fillStyle = glass;
+    g.beginPath();
+    g.moveTo(X(0.075), Y(2.10)); g.lineTo(X(0.100), Y(2.96));
+    g.lineTo(X(0.225), Y(3.10)); g.lineTo(X(0.225), Y(2.10));
+    g.closePath(); g.fill();
+    g.fillRect(X(0.245), Y(3.12), w * 0.265, wr * 1.02);
+    g.beginPath();
+    g.moveTo(X(0.540), Y(3.12)); g.lineTo(X(0.665), Y(2.18));
+    g.lineTo(X(0.665), Y(2.10)); g.lineTo(X(0.540), Y(2.10));
+    g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.13)';
+    g.fillRect(X(0.245), Y(3.12), w * 0.265, wr * 0.22);
+    // 窓越しのロールケージ
+    g.strokeStyle = 'rgba(255,248,230,.38)';
+    g.lineWidth = Math.max(0.7, w * 0.008);
+    g.beginPath();
+    g.moveTo(X(0.255), Y(2.10)); g.lineTo(X(0.255), Y(3.04));
+    g.moveTo(X(0.500), Y(2.10)); g.lineTo(X(0.500), Y(3.04));
+    g.stroke();
+    // ドアの継ぎ目
+    g.strokeStyle = 'rgba(0,0,0,.30)';
+    g.beginPath();
+    g.moveTo(X(0.235), Y(0.85)); g.lineTo(X(0.235), Y(2.00));
+    g.moveTo(X(0.520), Y(0.85)); g.lineTo(X(0.520), Y(2.00));
+    g.stroke();
+
+    // 屋根の空気取り入れ口
+    g.fillStyle = dark;
+    g.fillRect(X(0.315), Y(3.60), w * 0.105, wr * 0.28);
+    g.fillStyle = lite;
+    g.fillRect(X(0.315), Y(3.60), w * 0.105, wr * 0.09);
+
+    // 泥よけの張り出し
+    const arch = (u) => {
+      g.fillStyle = dark;
+      g.beginPath();
+      g.arc(X(u), fy - wr, wr * 1.34, Math.PI, 0);
+      g.lineTo(X(u) + wr * 1.34, fy - wr * 0.52);
+      g.lineTo(X(u) - wr * 1.34, fy - wr * 0.52);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.10)';
+      g.beginPath();
+      g.arc(X(u), fy - wr, wr * 1.34, Math.PI, Math.PI * 1.35);
+      g.lineTo(X(u) - wr * 1.05, fy - wr);
+      g.closePath(); g.fill();
+    };
+    arch(0.185); arch(0.790);
+    // 泥よけの布。張り出しのすぐ後ろに垂れている
+    g.fillStyle = '#12101a';
+    g.fillRect(X(0.078), Y(1.18), w * 0.046, wr * 1.14);
+    g.fillRect(X(0.682), Y(1.18), w * 0.046, wr * 1.14);
+    g.fillStyle = dark;
+    g.fillRect(X(0.082), Y(1.18), w * 0.038, wr * 0.13);
+    g.fillRect(X(0.686), Y(1.18), w * 0.038, wr * 0.13);
+
+    // 前の補助灯
+    g.fillStyle = '#12101a';
+    g.fillRect(X(0.870), Y(2.00), w * 0.115, wr * 0.18);
+    for (let k = 0; k < 4; k++) {
+      const lx = X(0.878 + k * 0.0265);
+      g.fillStyle = '#12101a';
+      g.beginPath(); g.arc(lx, Y(2.24), wr * 0.20, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#fff0b0';
+      g.beginPath(); g.arc(lx, Y(2.24), wr * 0.13, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = '#ffd9b8';
+    g.fillRect(X(0.930), Y(1.76), w * 0.048, wr * 0.30);
+    g.fillStyle = '#12101a';
+    g.fillRect(X(0.880), Y(0.80), w * 0.105, wr * 0.26);
+
+    // ゼッケンの円
+    g.fillStyle = '#fff8e6';
+    g.beginPath(); g.arc(X(0.385), Y(1.42), wr * 0.54, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.16)';
+    g.beginPath(); g.arc(X(0.385), Y(1.42), wr * 0.54, 0.2, Math.PI * 0.9); g.fill();
+
+    // タイヤ
+    const wheel = (u) => {
+      const cx = X(u);
+      g.fillStyle = '#12101a';
+      g.beginPath(); g.arc(cx, fy - wr, wr, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#23222c';
+      g.beginPath(); g.arc(cx, fy - wr, wr * 0.90, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#12101a'; g.lineWidth = Math.max(0.7, wr * 0.13);
+      for (let k = 0; k < 5; k++) {
+        const a = k * Math.PI / 5 + 0.3;
+        g.beginPath();
+        g.moveTo(cx + Math.cos(a) * wr * 0.62, fy - wr + Math.sin(a) * wr * 0.62);
+        g.lineTo(cx + Math.cos(a) * wr * 0.97, fy - wr + Math.sin(a) * wr * 0.97);
+        g.stroke();
+      }
+      g.fillStyle = '#b5aabb';
+      g.beginPath(); g.arc(cx, fy - wr, wr * 0.40, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#5d5a6b';
+      g.beginPath(); g.arc(cx, fy - wr, wr * 0.17, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.14)';
+      g.beginPath(); g.arc(cx - wr * 0.20, fy - wr * 1.44, wr * 0.30, 0, Math.PI * 2); g.fill();
+    };
+    wheel(0.185); wheel(0.790);
   }
 
   /* 部屋の枠。レベルが上がるほど天井が高く、明かりが増える */

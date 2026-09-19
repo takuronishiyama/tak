@@ -4022,6 +4022,65 @@ GP.state = (function () {
   }
   function venueAt(g2, round) { return venues(g2)[trackIdx(g2, round)]; }
   /* 画面に出す言葉も、シリーズで変える */
+  /* =======================================================
+     言い回しの入れ替え
+
+     ラリー版でも、数字はひとつも変えない。
+     変えるのは呼び名だけ——同じ「旋回に効く部位」でも、
+     サーキットではそれが翼で、ラリーではデフになる。
+
+     D.PART_CATS などは1本しか無いので、ここで上書きする。
+     元の言い回しは最初の1回で控えておき、
+     F1に戻ったときは、そこから書き戻す。                   */
+  const LISTS = ['PART_CATS', 'BODY_ATTRS', 'PART_GROUPS', 'CONCEPTS', 'FACILITIES'];
+  const FIELDS = ['name', 'short', 'icon', 'names', 'notes', 'desc', 'eff', 'note'];
+  let _origWords = null;
+  let _wordsMode = null;
+
+  function snapWords() {
+    if (_origWords) return;
+    _origWords = {};
+    LISTS.forEach(L => {
+      const o2 = _origWords[L] = {};
+      (D[L] || []).forEach(it => {
+        const row = o2[it.key] = {};
+        FIELDS.forEach(f => {
+          if (!(f in it)) return;
+          row[f] = Array.isArray(it[f]) ? it[f].slice() : it[f];
+        });
+      });
+    });
+  }
+
+  function applyWords(g2) {
+    const want = isRally(g2) ? 'wrc' : 'f1';
+    if (_wordsMode === want) return;
+    snapWords();
+    const W = (GP.rallydata && GP.rallydata.WORDS) || {};
+    LISTS.forEach(L => {
+      const wrc = W[L] || {};
+      (D[L] || []).forEach(it => {
+        const base = (_origWords[L] || {})[it.key] || {};
+        /* いちど控えた側へ必ず戻してから、ラリー側を上から塗る。
+           塗り残した項目が前の版のまま居座らないように            */
+        FIELDS.forEach(f => {
+          if (f in base) it[f] = Array.isArray(base[f]) ? base[f].slice() : base[f];
+          else delete it[f];
+        });
+        if (want !== 'wrc') return;
+        const src = wrc[it.key];
+        if (!src) return;
+        FIELDS.forEach(f => {
+          if (!(f in src)) return;
+          it[f] = Array.isArray(src[f]) ? src[f].slice() : src[f];
+        });
+      });
+    });
+    _wordsMode = want;
+    /* 絵のほうも切り替える。車体の輪郭は、呼び名より先に目に入る */
+    GP.rallyLook = (want === 'wrc');
+  }
+
   function seriesWords(g2) {
     return isRally(g2)
       ? { race: 'ラリー', races: 'ラリー', venue: 'ラリー', go: '🏁 ラリーへ向かう！',
@@ -5221,7 +5280,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
-    seriesOf, isRally, venues, venueAt, seriesWords, makeCoDriver, coOf, coBond,
+    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond,
     REG_EVERY, regSince, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,

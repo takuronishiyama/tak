@@ -137,6 +137,7 @@ GP.grid = (function () {
      y は接地線、x は車体の中心。s で奥行きぶんの大きさを変える
      ========================================================= */
   function sideCar(c, x, y, s, color, gen, dim) {
+    if (GP.rallyLook) return rallySide(c, x, y, s, color, gen, dim);
     const L = 78 * s, hub = 9 * s;            // 全長とタイヤ半径
     const x0 = x - L / 2, x1 = x + L / 2;     // 後端・前端
     const dark = shade(color, -0.24), lite = shade(color, 0.18);
@@ -196,6 +197,159 @@ GP.grid = (function () {
       c.beginPath(); c.arc(x0 + tx * s, y - hub, hub * 0.26, 0, Math.PI * 2); c.fill();
     };
     tyre(11); tyre(60);
+    c.restore();
+  }
+
+  /* =========================================================
+     横から見たラリーカー
+
+     フォーミュラとは、骨格からして別のものになる。
+       ・車輪が胴の外に出ていない。泥よけの張り出しの中にいる
+       ・車高がある。底を打たないぶんだけ、地面から浮いている
+       ・屋根がある。人が2人、並んで座っている
+       ・鼻先に補助灯が並ぶ。夜のSSは、これが無いと走れない
+     だから「低く平たい」ではなく「高く四角い」を作りにいく
+     ========================================================= */
+  function rallySide(c, x, y, s, color, gen, dim) {
+    const L = 80 * s, hub = 9.6 * s;
+    const x0 = x - L / 2;
+    const dark = shade(color, -0.26), lite = shade(color, 0.18);
+    const deep = shade(color, -0.42);
+    const ink = dim ? 'rgba(24,22,30,.55)' : '#12101a';
+    const glass = dim ? '#3a3648' : '#1b2330';
+    const P = (rx, ry) => [x0 + rx * s, y - ry * s];
+    const R = (rx, ry, rw, rh, col) => {
+      c.fillStyle = col;
+      c.fillRect(x0 + rx * s, y - ry * s, rw * s, rh * s);
+    };
+    c.save();
+    // 影
+    c.fillStyle = 'rgba(0,0,0,' + (0.16 + 0.16 * s).toFixed(2) + ')';
+    c.beginPath(); c.ellipse(x, y + 1, L * 0.44, 3.4 * s, 0, 0, Math.PI * 2); c.fill();
+
+    /* 後ろの翼。ラリーのそれは屋根の上にあり、胴と同じくらい幅がある */
+    const wingH = 40 + gen * 0.9;
+    R(7, wingH - 6.5, 4, 8, deep);                     // 支柱
+    R(20, wingH - 6.5, 4, 8, deep);
+    R(4, wingH, 25, 4.2, ink);                         // 翼板
+    R(5, wingH - 0.6, 23, 1.6, lite);
+    R(3, wingH + 1.6, 2.6, 6, ink);                    // 翼端板
+    R(27, wingH + 1.6, 2.6, 6, ink);
+
+    /* 胴。四角い箱に、後ろへ切り落とした尻と、寝かせた前窓 */
+    const body = (o2, fill) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      c.moveTo.apply(c, P(2 - o2, 6 - o2));
+      c.lineTo.apply(c, P(2 - o2, 21));
+      c.lineTo.apply(c, P(6 - o2, 33 + o2));
+      c.lineTo.apply(c, P(24, 36 + o2));
+      c.lineTo.apply(c, P(49, 36 + o2));
+      c.lineTo.apply(c, P(60 + o2, 23));
+      c.lineTo.apply(c, P(75 + o2, 20));
+      c.lineTo.apply(c, P(78 + o2, 13));
+      c.lineTo.apply(c, P(78 + o2, 6 - o2));
+      c.closePath(); c.fill();
+    };
+    body(1.4, deep);
+    body(0, color);
+    // 腰の線と、裾の影
+    R(3, 21, 74, 1.6, lite);
+    R(3, 7.4, 74, 2.2, 'rgba(0,0,0,.26)');
+
+    /* ガラス。後ろから前へ、3枚 */
+    c.fillStyle = glass;
+    c.beginPath();                                      // 後ろの窓（寝ている）
+    c.moveTo.apply(c, P(8, 22.5)); c.lineTo.apply(c, P(11, 32));
+    c.lineTo.apply(c, P(23, 33.5)); c.lineTo.apply(c, P(23, 22.5));
+    c.closePath(); c.fill();
+    R(25, 33.5, 21, 11, glass);                         // 横の窓
+    c.beginPath();                                      // 前窓
+    c.moveTo.apply(c, P(48, 33.5)); c.lineTo.apply(c, P(58, 23.5));
+    c.lineTo.apply(c, P(58, 22.5)); c.lineTo.apply(c, P(48, 22.5));
+    c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.14)';
+    R(25, 33.5, 21, 2.4, 'rgba(255,255,255,.14)');
+    // ロールケージが、窓越しに透けて見える
+    c.strokeStyle = dim ? 'rgba(255,248,230,.22)' : 'rgba(255,248,230,.40)';
+    c.lineWidth = Math.max(0.8, 1.5 * s);
+    c.beginPath();
+    c.moveTo.apply(c, P(26, 22.5)); c.lineTo.apply(c, P(26, 33));
+    c.moveTo.apply(c, P(45, 22.5)); c.lineTo.apply(c, P(45, 33));
+    c.stroke();
+    // ドアの継ぎ目と、扉の取っ手
+    c.strokeStyle = 'rgba(0,0,0,.30)';
+    c.beginPath(); c.moveTo.apply(c, P(24, 8)); c.lineTo.apply(c, P(24, 22)); c.stroke();
+    c.beginPath(); c.moveTo.apply(c, P(47, 8)); c.lineTo.apply(c, P(47, 22)); c.stroke();
+    R(41, 17, 4, 1.4, dark);
+
+    /* 屋根の空気取り入れ口 */
+    R(30, 39, 10, 3, dark);
+    R(30, 39, 10, 1, lite);
+
+    /* 泥よけの張り出し。ここが、ラリーカーの顔になる */
+    const arch = (ax) => {
+      c.fillStyle = dark;
+      c.beginPath();
+      c.arc(x0 + ax * s, y - hub, hub * 1.34, Math.PI, 0);
+      c.lineTo(x0 + ax * s + hub * 1.34, y - hub * 0.55);
+      c.lineTo(x0 + ax * s - hub * 1.34, y - hub * 0.55);
+      c.closePath(); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.10)';
+      c.beginPath();
+      c.arc(x0 + ax * s, y - hub, hub * 1.34, Math.PI, Math.PI * 1.35);
+      c.lineTo(x0 + ax * s - hub * 1.05, y - hub * 1.0);
+      c.closePath(); c.fill();
+    };
+    arch(15); arch(63);
+    /* 泥よけ。張り出しのすぐ後ろに垂れている */
+    R(6.2, 10.5, 4.2, 10.5, ink);
+    R(6.6, 10.5, 3.4, 1.2, dark);
+    R(54.2, 10.5, 4.2, 10.5, ink);
+    R(54.6, 10.5, 3.4, 1.2, dark);
+
+    /* 前の補助灯。夜のSSは、これが無いと走れない */
+    const lamps = 2 + (gen >= 2 ? 2 : 0);
+    R(70, 21.5, 9, 1.8, ink);                           // 灯具の台
+    for (let k = 0; k < lamps; k++) {
+      const lx = 70.4 + k * (8.4 / lamps);
+      c.fillStyle = ink;
+      c.beginPath(); c.arc(x0 + lx * s + 1.0 * s, y - 23.6 * s, 2.0 * s, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dim ? '#8d8798' : '#fff0b0';
+      c.beginPath(); c.arc(x0 + lx * s + 1.0 * s, y - 23.6 * s, 1.35 * s, 0, Math.PI * 2); c.fill();
+    }
+    // 前の灯りと、下の張り出し
+    R(74, 18.5, 4.6, 3, dim ? '#8d8798' : '#ffd9b8');
+    R(70, 7.6, 9.5, 2.6, ink);
+
+    /* ゼッケンの円 */
+    c.fillStyle = dim ? '#6b6178' : '#fff8e6';
+    c.beginPath(); c.arc(x0 + 35 * s, y - 15 * s, 5.4 * s, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(0,0,0,.18)';
+    c.beginPath(); c.arc(x0 + 35 * s, y - 15 * s, 5.4 * s, 0.2, Math.PI * 0.9); c.fill();
+
+    /* タイヤ。張り出しの中に収まり、溝が深い */
+    const tyre = (tx) => {
+      const cx = x0 + tx * s;
+      c.fillStyle = ink;
+      c.beginPath(); c.arc(cx, y - hub, hub, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dim ? '#33313e' : '#23222c';
+      c.beginPath(); c.arc(cx, y - hub, hub * 0.90, 0, Math.PI * 2); c.fill();
+      // 溝
+      c.strokeStyle = ink; c.lineWidth = Math.max(0.7, 1.2 * s);
+      for (let k = 0; k < 5; k++) {
+        const a = k * Math.PI / 5 + 0.3;
+        c.beginPath();
+        c.moveTo(cx + Math.cos(a) * hub * 0.62, y - hub + Math.sin(a) * hub * 0.62);
+        c.lineTo(cx + Math.cos(a) * hub * 0.97, y - hub + Math.sin(a) * hub * 0.97);
+        c.stroke();
+      }
+      c.fillStyle = dim ? '#6b6178' : '#b5aabb';
+      c.beginPath(); c.arc(cx, y - hub, hub * 0.40, 0, Math.PI * 2); c.fill();
+      c.fillStyle = dim ? '#464351' : '#5d5a6b';
+      c.beginPath(); c.arc(cx, y - hub, hub * 0.16, 0, Math.PI * 2); c.fill();
+    };
+    tyre(15); tyre(63);
     c.restore();
   }
 

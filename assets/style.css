@@ -4265,6 +4265,9 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
   color:var(--faceSub)}
 .ry-ev>em{font-style:normal;font-weight:bold;color:#ff9a8a;flex:none}
 .ry-ctrl{display:flex;gap:5px}
+/* 見かたの切り替え。速さの列より一段小さく置く */
+.ry-view{margin-bottom:4px}
+.ry-view .btn{padding:5px 6px;font-size:12px}
 .ry-ctrl .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px}
 .ry-ctrl .btn i{font-style:normal}
 @media (max-width:520px){

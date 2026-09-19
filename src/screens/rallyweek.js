@@ -55,9 +55,22 @@ GP.screens.rallyweek = function (A) {
     showBrief(rally);
   }
 
+  /* 払えない下見を選んだまま出発できなくなる、ということが起きないように。
+     金が無いのは「出発できない理由」ではなく「下見に行けない理由」であるべき */
+  function affordRecce() {
+    const list = RD().RECCE;
+    const cur = list.filter(r => r.key === plan.recce)[0] || list[1];
+    if (g.funds >= cur.cost) return null;
+    const ok = list.filter(r => g.funds >= r.cost)
+                   .sort((a, b) => b.cost - a.cost)[0] || list[0];
+    plan.recce = ok.key;
+    return { from: cur, to: ok };
+  }
+
   /* ---------- 出発前 ---------- */
   function showBrief(rally) {
     const St = S(), Ui = U();
+    const fell = affordRecce();
     const sf = RD().SURFACES[rally.surface] || RD().SURFACES.gravel;
     const stages = GP.rally.buildStages(rally, (g.season || 1) * 97 + g.nextRace * 13);
     const km = stages.reduce((a, s) => a + s.km, 0);
@@ -68,6 +81,12 @@ GP.screens.rallyweek = function (A) {
       '<span>' + sf.icon + ' ' + sf.name + '　全' + stages.length + 'SS ／ ' +
       km.toFixed(1) + 'km</span></div>' +
       '<p class="desc">' + esc(rally.desc) + '</p>';
+    if (fell) {
+      body += '<div class="mgrsay warn"><b>💸 下見を「' + fell.to.name + '」に落としました</b>' +
+        '「' + fell.from.name + '」には 💰' + money(fell.from.cost) + '万 かかりますが、' +
+        'いま手元にあるのは 💰' + money(g.funds) + '万です。' +
+        '下見に行けなくても、ラリーには出られます。</div>';
+    }
 
     // ---- 決めること ----
     body += '<div class="sub">レッキ（下見）</div>' +
@@ -175,11 +194,10 @@ GP.screens.rallyweek = function (A) {
   /* ---------- 走る ---------- */
   function startRally(rally) {
     const St = S(), Ui = U();
-    const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[1];
-    if (rc.cost) {
-      if (g.funds < rc.cost) return Ui.toast('資金が足りません', 'bad');
-      g.funds -= rc.cost;
-    }
+    const fell = affordRecce();
+    if (fell) Ui.toast('資金が足りないので、下見は「' + fell.to.name + '」にしました', 'warn');
+    const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[0];
+    if (rc.cost) g.funds -= rc.cost;
     plan.crew = crewPlan();
     // 積んだスペアのぶんだけ、ほんの少し重い
     pack = GP.rally.run(g, g.nextRace, plan);
@@ -226,7 +244,24 @@ GP.screens.rallyweek = function (A) {
   }
 
   let viewRate = 20;
+  let viewKind = 'top';
   function bindView() {
+    /* 見かた。同じ走りでも、どこから見るかで別の競技に見える */
+    const VK = ['top', 'chase', 'cab'];
+    VK.forEach((k, idx) => {
+      const b = $('ryView' + idx);
+      if (!b) return;
+      b.onclick = () => {
+        viewKind = k;
+        if (GP.rallyview.setView) GP.rallyview.setView(k);
+        VK.forEach((_, j) => {
+          const e = $('ryView' + j); if (e) e.classList.toggle('primary', j === idx);
+        });
+        GP.sound.play('tap');
+      };
+      b.classList.toggle('primary', k === viewKind);
+    });
+    if (GP.rallyview.setView) GP.rallyview.setView(viewKind);
     const set = (id, v) => {
       const b = $(id);
       if (!b) return;

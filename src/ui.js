@@ -974,7 +974,37 @@ GP.ui = (function () {
   }
 
   /* ---------- ログ ---------- */
+  /* =======================================================
+     シリーズごとの言い換え
+
+     開発のデータ側（PART_CATS など）は state.applyWords が
+     まるごと入れ替える。けれど画面の説明文には、
+     「パワーユニットの購入」のように地の文へ書いた言葉が残る。
+     そこだけを、出す直前に置き換える。
+
+     置き換えるのは、ほかの意味に取りようのない語だけ。
+     「コーナー」のような一般語には手を出さない                */
+  const RWORDS = [
+    ['パワーユニット', 'エンジン'],
+    ['エアロダイナミクス', 'デフと旋回'],
+    ['ギアボックス', 'トランスミッション'],
+    ['サーキット', 'ラリー'],
+    ['スターティンググリッド', 'スタート順'],
+    ['グリッド', 'スタート順'],
+    ['ピットレーン', 'サービスパーク'],
+    ['ピット作業', 'サービス作業'],
+    ['ピットストップ', 'サービス'],
+    ['フォーミュラ', 'ラリー']
+  ];
+  function rword(t) {
+    if (!GP.rallyLook || typeof t !== 'string') return t;
+    let out = t;
+    for (let i = 0; i < RWORDS.length; i++) out = out.split(RWORDS[i][0]).join(RWORDS[i][1]);
+    return out;
+  }
+
   function log(g, s, type) {
+    s = rword(s);
     g.log.push({ s: '[S' + g.season + ' W' + g.week + '] ' + s, t: type || '' });
     if (g.log.length > 400) g.log.splice(0, g.log.length - 400);
   }
@@ -987,7 +1017,7 @@ GP.ui = (function () {
     }
     const el = document.createElement('div');
     el.className = 'toast ' + (type || '');
-    el.innerHTML = text;
+    el.innerHTML = rword(text);
     $('toastLayer').appendChild(el);
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 2200);
   }
@@ -1007,9 +1037,9 @@ GP.ui = (function () {
     opts = opts || {};
     const m = $('modal');
     m.className = 'show' + (opts.wide ? ' wide' : '');
-    $('modalTitle').innerHTML = title;
+    $('modalTitle').innerHTML = rword(title);
     paintModalFunds(null);
-    $('modalBody').innerHTML = body;
+    $('modalBody').innerHTML = rword(body);
     const bar = $('modalBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closeModal }]).forEach(b => {
@@ -1274,8 +1304,8 @@ GP.ui = (function () {
     opts = opts || {};
     const m = $('pop');
     m.className = 'show' + (opts.wide ? ' wide' : '');
-    $('popTitle').innerHTML = title;
-    $('popBody').innerHTML = body;
+    $('popTitle').innerHTML = rword(title);
+    $('popBody').innerHTML = rword(body);
     const bar = $('popBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closePopup }]).forEach(b => {
@@ -1299,7 +1329,7 @@ GP.ui = (function () {
     return !!m && /show/.test(m.className);
   }
 
-  return { renderAll, hubCard, puLine, partIcon, renderTop, renderSide, log, toast, pop, modal, closeModal,
+  return { renderAll, hubCard, puLine, partIcon, renderTop, renderSide, log, rword, toast, pop, modal, closeModal,
            popup, closePopup, popupOpen, coupling, helpLink,
            money, esc, paintModalFunds, driverCard, drawMini, partRow, skillChips, stars, partTraitChips, face, standings, finance, $ };
 })();
