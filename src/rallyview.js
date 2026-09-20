@@ -404,7 +404,7 @@ GP.rallyview = (function () {
       S.holdUntil = Math.min(6, (m.loss || 3) * 0.25);
       S.holdAll = S.holdUntil;
       S.inc = { key: m.key || '', out: !!m.out };
-      if (m.out) { paintLog(); draw(f); setTimeout(finish, 900); return; }
+      if (m.out) { paintLog(); try { draw(f); } catch (e) {} setTimeout(finish, 900); return; }
       paintLog();
     }
     if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 3);
@@ -417,7 +417,11 @@ GP.rallyview = (function () {
       pushDust([L.x[i], L.y[i]], head, sl, S.road.keep[i]);
     }
 
-    draw(f);
+    /* 一枚の絵で転んでも、走りは止めない。
+       止まると「次のSSから動かない」に見えるのが、いちばん困る  */
+    try { draw(f); } catch (e) {
+      if (!S.drawErr) { S.drawErr = true; try { console.error('rallyview draw', e); } catch (e2) {} }
+    }
     if (S.i >= N - 1) { finish(); return; }
     raf = requestAnimationFrame(tick);
   }

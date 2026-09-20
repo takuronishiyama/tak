@@ -354,7 +354,11 @@ GP.screens.rallyweek = function (A) {
     bindView();
   }
 
-  let viewRate = 20;
+  /* 見せる速さ。実時間の何倍か。
+     20 を「じっくり」にしていたら速すぎた。いまの 20 を「ふつう」に格下げし、
+     その下にもう一段ゆっくりを置く。既定はいちばん遅いほう           */
+  const RATES = [9, 20, 45, 140];
+  let viewRate = RATES[0];
   let viewKind = 'top';
   function bindView() {
     /* 見かた。同じ走りでも、どこから見るかで別の競技に見える */
@@ -378,13 +382,14 @@ GP.screens.rallyweek = function (A) {
       if (!b) return;
       b.onclick = () => {
         viewRate = v; GP.rallyview.setRate(v);
-        ['rySpeed0', 'rySpeed1', 'rySpeed2'].forEach(k => {
-          const e = $(k); if (e) e.classList.toggle('primary', k === id);
+        RATES.forEach((_, j) => {
+          const e = $('rySpeed' + j); if (e) e.classList.toggle('primary', 'rySpeed' + j === id);
         });
         GP.sound.play('tap');
       };
     };
-    set('rySpeed0', 20); set('rySpeed1', 45); set('rySpeed2', 140);
+    RATES.forEach((r, j) => set('rySpeed' + j, r));
+    RATES.forEach((r, j) => { const e = $('rySpeed' + j); if (e) e.classList.toggle('primary', r === viewRate); });
     const sk = $('rySkip');
     if (sk) sk.onclick = () => { GP.sound.play('tap'); GP.rallyview.skip(); };
   }

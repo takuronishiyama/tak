@@ -620,7 +620,7 @@ GP.screens.hr = function (A) {
         g.funds -= fee;
         g.drivers = g.drivers.filter(x => x.id !== d.id);
         U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(fee) + '万）。');
-        S.save(g); render(); U.closePopup(); reopenHr();
+        S.save(g); render(); reopenHr(); back();
       } });
     } else if (seat === 'res') {
       const full = Math.round((d.speed + d.technique + d.stamina + d.mental) / 4 * 0.95 + 18);
@@ -633,7 +633,7 @@ GP.screens.hr = function (A) {
           GP.sound.play('levelup');
           U.log(g, '🎉 リザーブの ' + r.name + ' が正ドライバーに昇格！（週' + money(r.salary) + '万）', 'good');
           U.toast('🎉 ' + r.name + ' が正ドライバーに！', 'good');
-          S.save(g); render(); U.closePopup(); reopenHr();
+          S.save(g); render(); reopenHr(); back();
         } });
       }
       (g.drivers || []).forEach(o => {
@@ -642,14 +642,14 @@ GP.screens.hr = function (A) {
           if (!r) return;
           GP.sound.play('levelup');
           U.log(g, '🔁 ' + r.inD.name + ' が正ドライバーに、' + r.outD.name + ' がリザーブに回った。', 'good');
-          S.save(g); render(); U.closePopup(); reopenHr();
+          S.save(g); render(); reopenHr(); back();
         } });
       });
       btns.push({ label: '👋 契約を解除', cls: 'danger', fn: () => {
         const r = S.clearReserve(g);
         if (!r) return;
         U.log(g, '👋 リザーブの ' + r.name + ' との契約を解除した。');
-        S.save(g); render(); U.closePopup(); reopenHr();
+        S.save(g); render(); reopenHr(); back();
       } });
     } else {
       if ((g.drivers || []).length < 2) {
@@ -659,7 +659,7 @@ GP.screens.hr = function (A) {
           GP.sound.play('levelup');
           U.log(g, '🎉 ' + r.name + ' がトップチームに昇格！ デビュー戦が待っている。', 'good');
           U.toast('🎉 ' + r.name + ' が昇格！', 'good');
-          S.save(g); render(); U.closePopup(); reopenHr();
+          S.save(g); render(); reopenHr(); back();
         } });
       }
       if (!g.reserve) {
@@ -668,13 +668,13 @@ GP.screens.hr = function (A) {
           S.setReserve(g, d);
           GP.sound.play('confirm');
           U.log(g, '🪑 ' + d.name + ' をリザーブドライバーにした。', 'good');
-          S.save(g); render(); U.closePopup(); reopenHr();
+          S.save(g); render(); reopenHr(); back();
         } });
       }
       btns.push({ label: '👋 放出する', cls: 'danger', fn: () => {
         g.youth = (g.youth || []).filter(x => x.id !== d.id);
         U.log(g, '👋 若手の ' + d.name + ' を放出した。');
-        S.save(g); render(); U.closePopup(); reopenHr();
+        S.save(g); render(); reopenHr(); back();
       } });
     }
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); back(); } });
@@ -767,13 +767,13 @@ GP.screens.hr = function (A) {
       if (!roomY) h += '<p class="note"><b class="warn">下部組織の席が埋まっています。</b></p>';
       btns.push({ label: '🎓 下部組織に迎える　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || !roomY,
-        fn: () => { hrPick('ym:' + i); U.closePopup(); reopenHr(); } });
+        fn: () => { if (hrPick('ym:' + i)) openSeat(seat); } });
     } else {
       if (!roomFull) h += '<p class="note">フルタイムの席は埋まっています（2/2）。' +
         (roomRes ? 'リザーブとしてなら迎えられます。' : '') + '</p>';
       btns.push({ label: '✍️ 契約する（フルタイム）　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || !roomFull,
-        fn: () => { hrPick('dm:' + i); U.closePopup(); reopenHr(); } });
+        fn: () => { if (hrPick('dm:' + i)) openSeat(seat); } });
       if (roomRes) {
         const rfee = Math.round(d.salary * 12 * S.RESERVE_PAY);
         btns.push({ label: '🪑 リザーブとして迎える　💰' + money(rfee) + '万',
@@ -785,7 +785,7 @@ GP.screens.hr = function (A) {
             GP.sound.play('confirm');
             U.log(g, '🪑 ' + d.name + ' をリザーブドライバーとして迎えた（' + money(rfee) + '万）。', 'good');
             U.toast('🪑 ' + d.name + ' がリザーブに', 'good');
-            S.save(g); render(); U.closePopup(); reopenHr();
+            S.save(g); render(); reopenHr(); openSeat(seat);
           } });
       }
     }
@@ -1231,7 +1231,7 @@ GP.screens.hr = function (A) {
     U.popup((t.icon || '👤') + ' ' + esc(st.name), h, [
       { label: '✍️ 雇う　💰' + money(fee) + '万', cls: 'primary',
         disabled: short > 0 || room <= 0,
-        fn: () => { hrPick('sm:' + i); U.closePopup(); reopenHr(); } },
+        fn: () => { if (hrPick('sm:' + i)) openGroupPop(key); } },
       { label: '戻る', fn: () => { GP.sound.play('tap'); openStaffMarket(key); } }
     ]);
   }
@@ -1262,7 +1262,7 @@ GP.screens.hr = function (A) {
           U.log(g, '👔 ' + rr.name + ' が ' + m.name + ' に昇進した！（技能 ' + rr.skill +
                    '／週' + money(rr.salary) + '万）', 'good');
           U.toast('👔 ' + rr.name + ' が' + m.name + 'に昇進！', 'good');
-          S.save(g); render(); U.closePopup(); reopenHr();
+          S.save(g); render(); reopenHr(); if (back) back(); else U.closePopup();
         } };
     });
     btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger',
@@ -1271,7 +1271,7 @@ GP.screens.hr = function (A) {
         g.staff = g.staff.filter(x => x.id !== id);
         U.log(g, '👋 ' + st.name + ' を解雇した（違約金 ' + money(fee) + '万）。');
         U.toast('👋 ' + st.name + ' を解雇');
-        S.save(g); render(); U.closePopup(); reopenHr();
+        S.save(g); render(); reopenHr(); if (back) back(); else U.closePopup();
       } });
     btns.push({ label: '戻る', fn: () => { GP.sound.play('tap'); U.closePopup(); if (back) back(); } });
     U.popup((t.icon || '👤') + ' ' + esc(st.name), h, btns);
@@ -1720,13 +1720,18 @@ GP.screens.hr = function (A) {
   }
 
   /* ---- 操作 ---- */
+  /* 雇う・迎える。できなかったときは理由を出して false を返す。
+     黙って何も起きないと「押したのに閉じない」に見える           */
   function hrPick(k) {
     if (k.indexOf('sch:') === 0) return doEnrol(k.slice(4));
+    const nope = msg => { U.toast(msg, 'bad'); return false; };
     const parts = k.split(':');
     const kind = parts[0], idx = +parts[1];
     if (kind === 'dm') {
       const d = driverMarket[idx], fee = Math.round(d.salary * 12);
-      if (g.drivers.length >= 2 || g.funds < fee) return;
+      if (!d) return false;
+      if (g.drivers.length >= 2) return nope('フルタイムの席は埋まっています');
+      if (g.funds < fee) return nope('資金が足りません');
       g.funds -= fee; d.team = g.team; g.drivers.push(d);
       driverMarket.splice(idx, 1);
       if (d.paid) {
@@ -1740,7 +1745,9 @@ GP.screens.hr = function (A) {
       U.toast('🧑‍✈️ ' + d.name + ' が加入！', 'good');
     } else if (kind === 'ym') {
       const d = youthMarket[idx], fee = youthFee(d);
-      if ((g.youth || []).length >= S.youthSlots(g) || g.funds < fee) return;
+      if (!d) return false;
+      if ((g.youth || []).length >= S.youthSlots(g)) return nope('下部組織の席が埋まっています');
+      if (g.funds < fee) return nope('資金が足りません');
       g.funds -= fee;
       g.youth = (g.youth || []).concat([d]);
       youthMarket.splice(idx, 1);
@@ -1749,7 +1756,9 @@ GP.screens.hr = function (A) {
       U.toast('🎓 ' + d.name + ' が下部組織に加入！', 'good');
     } else if (kind === 'sm') {
       const st = staffMarket[idx], fee = staffFee(st);
-      if (g.funds < fee || S.staffRoom(g) <= 0) return;
+      if (!st) return false;
+      if (S.staffRoom(g) <= 0) return nope('席が埋まっています。施設を伸ばすと増えます');
+      if (g.funds < fee) return nope('資金が足りません');
       g.funds -= fee; g.staff.push(st);
       S.guideMark(g, 'hire');
       staffMarket.splice(idx, 1);
@@ -1757,9 +1766,10 @@ GP.screens.hr = function (A) {
       U.toast('👥 ' + st.name + ' が加入！', 'good');
     } else if (kind === 'ps') {
       const st = rivalStaffMarket[idx];
-      if (!st) return;
+      if (!st) return false;
       const fee = S.poachFee(g, st);
-      if (g.funds < fee || S.staffRoom(g) <= 0) return;
+      if (S.staffRoom(g) <= 0) return nope('席が埋まっています。施設を伸ばすと増えます');
+      if (g.funds < fee) return nope('資金が足りません');
       g.funds -= fee;
       const from = st.team;
       delete st.team;
@@ -1771,7 +1781,8 @@ GP.screens.hr = function (A) {
       U.toast('🕵️ ' + st.name + ' を引き抜いた！', 'good');
     } else if (kind === 'mm') {
       const cand = mgrMarket[idx], fee = mgrFee(cand);
-      if (g.funds < fee) return;
+      if (!cand) return false;
+      if (g.funds < fee) return nope('資金が足りません');
       const m = D.MANAGERS.find(x => x.key === cand.role);
       const cur = g.managers && g.managers[cand.role];
       g.funds -= fee;
@@ -1782,8 +1793,9 @@ GP.screens.hr = function (A) {
       U.log(g, '👔 ' + m.name + ' に ' + cand.name + ' が就任！（技能 ' + cand.skill + '）' +
         (cur ? ' ' + cur.name + ' は退任した。' : ''), 'good');
       U.toast('👔 ' + m.name + '：' + cand.name + ' が就任！', 'good');
-    }
+    } else return false;
     S.save(g); render(); reopenHr();
+    return true;
   }
 
   function bindHrActions() {

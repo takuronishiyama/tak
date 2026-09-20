@@ -38,7 +38,19 @@ GP.fx = (function () {
     return blurOK;
   }
 
+  /* 同じ大きさなら紙を作り直さない。
+     iOS は canvas の裏の記憶を返すのが遅く、SSごとに4枚ずつ作っていると
+     何本目かで上限に当たり、絵が出なくなる（見た目は「止まった」）  */
   function init(w, h) {
+    w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+    if (ready && scene && scene.width === w && scene.height === h) {
+      W = w; H = h;
+      [sctx, hctx, h2ctx, mctx].forEach(c => {
+        if (c) c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      });
+      parts.length = 0;
+      return sctx;
+    }
     W = w; H = h;
     scene = make(W, H); sctx = scene.getContext('2d');
     half = make(W / 2, H / 2); hctx = half.getContext('2d');
