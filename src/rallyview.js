@@ -1659,6 +1659,15 @@ GP.rallyview = (function () {
       g.fillStyle = 'rgba(255,248,230,.75)';
       g.fillText('ベストとの差', VW / 2, 58);
     }
+    // 見物しているとき。自分の車でないことは、はっきり言う
+    if (S.spec.watch) {
+      g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
+      const tw = g.measureText(S.spec.watch).width + 18;
+      g.fillStyle = 'rgba(18,16,26,.78)';
+      g.fillRect(VW / 2 - tw / 2, VH - 24, tw, 18);
+      g.fillStyle = '#ffd98a';
+      g.fillText(S.spec.watch, VW / 2, VH - 11);
+    }
     // 進み具合の帯
     g.fillStyle = 'rgba(255,248,230,.20)'; g.fillRect(0, 26, VW, 3);
     g.fillStyle = '#e0ae3c'; g.fillRect(0, 26, VW * f, 3);

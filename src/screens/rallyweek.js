@@ -325,7 +325,12 @@ GP.screens.rallyweek = function (A) {
     if (!pack || shown >= pack.log.length) return showStage();
     const row = pack.log[shown];
     const st = row.st;
-    const mine = row.board.filter(b => b.isPlayer).sort((a, b) => a.t - b.t)[0];
+    /* 自車のうち、いちばん上の一台を映す。
+       両方ともリタイアしていたら、先頭の走りを見物する。
+       黙って結果だけ出すと「画面が動かなくなった」に見える     */
+    let mine = row.board.filter(b => b.isPlayer).sort((a, b) => a.t - b.t)[0];
+    let watch = null;
+    if (!mine && row.board.length) { mine = row.board[0]; watch = mine; }
     if (!mine || !GP.rallyview) return showStage();
     const road = GP.rally.buildRoad(st, (g.season || 1) * 7919 + pack.round * 131 + st.n * 17);
     const moments = [];
@@ -346,7 +351,8 @@ GP.screens.rallyweek = function (A) {
       rally: pack.rally, wet: pack.wet, pace: pack.pace,
       /* この区間のベスト。走っている最中に「いま何秒差か」を出す */
       leadTime: (row.board[0] || mine).t,
-      color: g.color, name2: mine.name, rate: viewRate
+      color: watch ? (watch.color || g.color) : g.color, name2: mine.name, rate: viewRate,
+      watch: watch ? '自分の車はリタイア。先頭 ' + mine.name + ' の走りを見ています' : ''
     }, () => {
       scr.classList.remove('show');
       showStage();
@@ -410,6 +416,10 @@ GP.screens.rallyweek = function (A) {
       (st.power ? '　⚡ パワーステージ' : '') + '</span></div>';
 
     // 自分に起きたこと
+    if (!mine.length) {
+      body += '<div class="mgrsay bad"><b>🛠 自分の車はもう走っていません</b>' +
+        'リタイア済みのため、このSSは先頭の走りを見ています。</div>';
+    }
     mine.forEach(b => {
       if (!b.note) return;
       body += '<div class="mgrsay ' + (b.note.out ? 'bad' : 'warn') + '">' +
