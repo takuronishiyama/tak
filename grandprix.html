@@ -20006,6 +20006,19 @@ GP.rallyview = (function () {
     return [l, r];
   }
 
+  /* ---------- ドット絵の紙 ----------
+     世界は小さな紙（280×200）に描き、それを目を粗くしたまま拡大する。
+     線も面もひとつの粒に揃うので、絵が「ドット絵」になる。
+     文字や札は上から等倍で載せる。読めなくなっては困る          */
+  const LW = 280, LH = 200, LK = LW / VW;
+  let lo = null, lg = null;
+  function loCtx() {
+    if (!lo) { lo = document.createElement('canvas'); lo.width = LW; lo.height = LH; lg = lo.getContext('2d'); }
+    lg.setTransform(LK, 0, 0, LK, 0, 0);
+    lg.imageSmoothingEnabled = false;
+    return lg;
+  }
+
   function draw(f) {
     const road = S.road, L = S.line, i = S.i;
     S.f = f;
@@ -20013,19 +20026,25 @@ GP.rallyview = (function () {
     if (Math.abs(k - PX) > 0.01) { PX = k; GP.fx.init(VW * PX, VH * PX); }
     const dusk = document.body.getAttribute('data-skin') === 'hd';
     const out = ctx;
-    const g = dusk ? GP.fx.begin() : out;
-    GP.gfx.begin(g, PX);
-    g.clearRect(0, 0, VW, VH);
 
     const sf = (RD().SURFACES[S.spec.surface] || RD().SURFACES.gravel);
     const night = !!S.spec.night;
 
-    // カメラの置き場所
+    // 世界は小さな紙へ
+    const g = loCtx();
+    g.clearRect(0, 0, VW, VH);
     const inc = incOffset();
     setCam(L, i, inc);
     if (view === 'top') drawTop(g, L, i, sf, night, inc);
     else drawPersp(g, L, i, sf, night, inc);
-    overlay(g, f);
+
+    // 粒を残したまま拡大し、札を上から
+    const top = dusk ? GP.fx.begin() : out;
+    GP.gfx.begin(top, PX);
+    top.imageSmoothingEnabled = false;
+    top.clearRect(0, 0, VW, VH);
+    top.drawImage(lo, 0, 0, VW, VH);
+    overlay(top, f);
 
     if (dusk) {
       GP.fx.composite(out, {
@@ -20329,11 +20348,11 @@ GP.rallyview = (function () {
       quad(ar, br, cRoad);
       // 路面の目。1点おきに、濃淡の帯を置く
       if (k % 2 === 0) {
-        quad(ar, br, surface === 'tarmac' ? 'rgba(255,255,255,.028)' : 'rgba(0,0,0,.055)');
+        quad(ar, br, surface === 'tarmac' ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.09)');
       }
       // わだち
       const aw = edgeAt(road, k, 2.2), bw = edgeAt(road, k - 1, 2.2);
-      if (aw && bw) quad(aw, bw, surface === 'tarmac' ? 'rgba(0,0,0,.07)' : 'rgba(0,0,0,.13)');
+      if (aw && bw) quad(aw, bw, surface === 'tarmac' ? 'rgba(0,0,0,.09)' : 'rgba(0,0,0,.17)');
       // ターマックの外側線
       if (surface === 'tarmac') {
         [-1, 1].forEach(sg => {
@@ -20525,63 +20544,106 @@ GP.rallyview = (function () {
     g.fillRect(x - bw / 2 - 2 * z, y - 6 * z + bob, 4 * z, 5 * z);
     g.fillRect(x + bw / 2 - 2 * z, y - 6 * z + bob, 4 * z, 5 * z);
 
-    /* ---- 後ろ姿。車体だけが上下し、車輪は道に残る ---- */
+    /* ---- 後ろ姿。車体だけが上下し、車輪は道に残る ----
+       いまのラリーカー（Rally1）の形。張り出したフェンダー、
+       白鳥の首で吊った大きな翼と端板、下のディフューザー、
+       屋根の空気取り、一本の帯になった尾灯                     */
     g.translate(0, bob);
     g.translate(x, y); g.rotate(-sl * 0.09); g.translate(-x, -y);
-    // バンパー
-    g.fillStyle = darker;
-    g.fillRect(x - bw / 2, y - 8 * z, bw, 5 * z);
-    // 車体
+    const hw = bw / 2;
+    // ディフューザー。黒い下顎に縦の板
+    g.fillStyle = '#1a181f';
+    g.fillRect(x - hw - 1 * z, y - 7 * z, bw + 2 * z, 4.5 * z);
+    g.fillStyle = '#34323c';
+    for (let k = -2; k <= 2; k++) g.fillRect(x + k * 4.2 * z - 0.6 * z, y - 7 * z, 1.2 * z, 4.5 * z);
+    // 車体の下半分（バンパーから腰まで）
     g.fillStyle = dark;
-    g.fillRect(x - bw / 2 - 0.8 * z, y - 17 * z, bw + 1.6 * z, 9.6 * z);
+    g.fillRect(x - hw - 0.8 * z, y - 17 * z, bw + 1.6 * z, 10.5 * z);
     g.fillStyle = col;
-    g.fillRect(x - bw / 2, y - 16.5 * z, bw, 8.5 * z);
-    // ナンバー
+    g.fillRect(x - hw, y - 16.5 * z, bw, 9.6 * z);
+    // 張り出したフェンダー。車体より外へ、車輪の上に被さる
+    const fender = (sx, dir) => {
+      g.fillStyle = dark;
+      g.fillRect(sx - (dir < 0 ? 5 * z : 0), y - 15 * z, 5 * z, 12 * z);
+      g.fillStyle = col;
+      g.fillRect(sx - (dir < 0 ? 4.4 * z : 0.6 * z), y - 14.4 * z, 5 * z, 10.4 * z);
+      g.fillStyle = lit;
+      g.fillRect(sx - (dir < 0 ? 4.4 * z : 0.6 * z), y - 14.4 * z, 5 * z, 1.4 * z);
+    };
+    fender(x - hw, -1); fender(x + hw, 1);
+    // 腰のライン。上を向いた面の光
+    g.fillStyle = 'rgba(255,255,255,.22)';
+    g.fillRect(x - hw, y - 16.5 * z, bw, 1.2 * z);
+    // ナンバーと、スポンサーの白い帯
     g.fillStyle = '#fff8e6';
-    g.fillRect(x - 4 * z, y - 12 * z, 8 * z, 3 * z);
-    // 尾灯。減速で光る。夜はいつも薄く点く
-    const lamp = (lx) => {
+    g.fillRect(x - 4 * z, y - 11.5 * z, 8 * z, 3 * z);
+    g.fillStyle = 'rgba(255,255,255,.55)';
+    g.fillRect(x - hw + 1 * z, y - 9.2 * z, bw * 0.28, 1.2 * z);
+    g.fillRect(x + hw - 1 * z - bw * 0.28, y - 9.2 * z, bw * 0.28, 1.2 * z);
+    // 尾灯。左右をつなぐ一本の帯。減速で光り、夜は薄く点く
+    {
+      const ly = y - 14.2 * z;
       if (brake || night) {
-        const gl = g.createRadialGradient(lx, y - 13.5 * z, 1, lx, y - 13.5 * z, (brake ? 10 : 6) * z);
-        gl.addColorStop(0, brake ? 'rgba(255,90,60,.55)' : 'rgba(255,90,60,.28)'); gl.addColorStop(1, 'rgba(255,90,60,0)');
-        g.fillStyle = gl; g.fillRect(lx - 10 * z, y - 24 * z, 20 * z, 20 * z);
+        const gl = g.createRadialGradient(x, ly, 2, x, ly, (brake ? 26 : 16) * z);
+        gl.addColorStop(0, brake ? 'rgba(255,90,60,.50)' : 'rgba(255,90,60,.22)'); gl.addColorStop(1, 'rgba(255,90,60,0)');
+        g.fillStyle = gl; g.fillRect(x - 30 * z, ly - 14 * z, 60 * z, 26 * z);
       }
       g.fillStyle = brake ? '#ff6a3c' : night ? '#d84a34' : '#a8342a';
-      g.fillRect(lx - 3 * z, y - 15 * z, 6 * z, 3 * z);
-      g.fillStyle = 'rgba(255,255,255,.35)';
-      g.fillRect(lx - 3 * z, y - 15 * z, 6 * z, 0.8 * z);
-    };
-    lamp(x - bw / 2 + 4.5 * z); lamp(x + bw / 2 - 4.5 * z);
-    // 上半分。窓と屋根
-    const gw = bw * 0.84;
+      g.fillRect(x - hw + 1.2 * z, ly - 1 * z, bw - 2.4 * z, 2 * z);
+      g.fillStyle = brake ? '#ffd0b8' : 'rgba(255,255,255,.30)';
+      g.fillRect(x - hw + 1.2 * z, ly - 1 * z, bw * 0.26, 0.8 * z);
+      g.fillRect(x + hw - 1.2 * z - bw * 0.26, ly - 1 * z, bw * 0.26, 0.8 * z);
+      // 真ん中は車体の色（帯は左右で切れている）
+      g.fillStyle = col;
+      g.fillRect(x - bw * 0.16, ly - 1 * z, bw * 0.32, 2 * z);
+    }
+    // 上半分。ハッチの窓は上へ向かって少し窄まる
+    const gw = bw * 0.86, gt = bw * 0.70;
     g.fillStyle = dark;
-    g.fillRect(x - gw / 2 - 0.8 * z, y - 26 * z, gw + 1.6 * z, 9.5 * z);
+    g.beginPath();
+    g.moveTo(x - gw / 2 - 0.8 * z, y - 17 * z); g.lineTo(x + gw / 2 + 0.8 * z, y - 17 * z);
+    g.lineTo(x + gt / 2 + 0.8 * z, y - 27 * z); g.lineTo(x - gt / 2 - 0.8 * z, y - 27 * z);
+    g.closePath(); g.fill();
     g.fillStyle = '#15161b';
-    g.fillRect(x - gw / 2, y - 25 * z, gw, 8 * z);
+    g.beginPath();
+    g.moveTo(x - gw / 2, y - 17.5 * z); g.lineTo(x + gw / 2, y - 17.5 * z);
+    g.lineTo(x + gt / 2, y - 26 * z); g.lineTo(x - gt / 2, y - 26 * z);
+    g.closePath(); g.fill();
     g.fillStyle = 'rgba(255,248,230,.16)';
-    g.fillRect(x - gw / 2, y - 25 * z, gw, 1.6 * z);
+    g.fillRect(x - gt / 2, y - 26 * z, gt, 1.6 * z);
     // 窓の中に、ふたつのヘルメットの後ろ
     g.fillStyle = 'rgba(255,255,255,.10)';
-    g.fillRect(x - gw * 0.30, y - 23.5 * z, gw * 0.18, 4.5 * z);
-    g.fillRect(x + gw * 0.12, y - 23 * z, gw * 0.18, 4 * z);
-    // 屋根。上を向いた面は明るい
+    g.fillRect(x - gw * 0.30, y - 24 * z, gw * 0.17, 4.5 * z);
+    g.fillRect(x + gw * 0.13, y - 23.5 * z, gw * 0.17, 4 * z);
+    // 屋根。上を向いた面は明るい。真ん中に空気取り
     g.fillStyle = lit;
-    g.fillRect(x - gw / 2, y - 28 * z, gw, 3 * z);
+    g.fillRect(x - gt / 2 - 0.8 * z, y - 29.5 * z, gt + 1.6 * z, 3.5 * z);
     g.fillStyle = '#23222c';
-    g.fillRect(x - 3 * z, y - 28.4 * z, 6 * z, 1.8 * z);             // 屋根の空気取り
+    g.fillRect(x - 4 * z, y - 32 * z, 8 * z, 3 * z);
+    g.fillStyle = '#4a4856';
+    g.fillRect(x - 4 * z, y - 32 * z, 8 * z, 0.8 * z);
     g.strokeStyle = ink; g.lineWidth = Math.max(0.6, 0.5 * z);
-    g.beginPath(); g.moveTo(x - gw * 0.4, y - 28 * z); g.lineTo(x - gw * 0.42, y - 36 * z); g.stroke();   // アンテナ
-    // 翼。柱・板・端板
+    g.beginPath(); g.moveTo(x - gt * 0.42, y - 29.5 * z); g.lineTo(x - gt * 0.45, y - 38 * z); g.stroke();   // アンテナ
+    // 翼。屋根の後ろから白鳥の首で吊る。板は車幅より広く、端板は車の色
     g.fillStyle = dark;
-    g.fillRect(x - bw * 0.30, y - 34 * z, 2 * z, 7 * z);
-    g.fillRect(x + bw * 0.30 - 2 * z, y - 34 * z, 2 * z, 7 * z);
+    g.beginPath();
+    g.moveTo(x - bw * 0.18, y - 29.5 * z); g.lineTo(x - bw * 0.13, y - 29.5 * z);
+    g.lineTo(x - bw * 0.20, y - 38 * z); g.lineTo(x - bw * 0.25, y - 38 * z); g.closePath(); g.fill();
+    g.beginPath();
+    g.moveTo(x + bw * 0.18, y - 29.5 * z); g.lineTo(x + bw * 0.13, y - 29.5 * z);
+    g.lineTo(x + bw * 0.20, y - 38 * z); g.lineTo(x + bw * 0.25, y - 38 * z); g.closePath(); g.fill();
     g.fillStyle = '#23222c';
-    g.fillRect(x - bw * 0.54, y - 36.5 * z, bw * 1.08, 3 * z);
-    g.fillStyle = 'rgba(255,255,255,.18)';
-    g.fillRect(x - bw * 0.54, y - 36.5 * z, bw * 1.08, 0.9 * z);
+    g.fillRect(x - bw * 0.58, y - 40.5 * z, bw * 1.16, 3.2 * z);
+    g.fillStyle = 'rgba(255,255,255,.20)';
+    g.fillRect(x - bw * 0.58, y - 40.5 * z, bw * 1.16, 0.9 * z);
+    g.fillStyle = '#3a3846';
+    g.fillRect(x - bw * 0.58, y - 37.3 * z, bw * 1.16, 0.8 * z);      // ガーニー
     g.fillStyle = col;
-    g.fillRect(x - bw * 0.54 - 1.2 * z, y - 39 * z, 1.8 * z, 6 * z);
-    g.fillRect(x + bw * 0.54 - 0.6 * z, y - 39 * z, 1.8 * z, 6 * z);
+    g.fillRect(x - bw * 0.58 - 1.4 * z, y - 44 * z, 2 * z, 10 * z);
+    g.fillRect(x + bw * 0.58 - 0.6 * z, y - 44 * z, 2 * z, 10 * z);
+    g.fillStyle = 'rgba(255,255,255,.35)';
+    g.fillRect(x - bw * 0.58 - 1.4 * z, y - 44 * z, 2 * z, 1 * z);
+    g.fillRect(x + bw * 0.58 - 0.6 * z, y - 44 * z, 2 * z, 1 * z);
     // 泥。走った距離ぶんだけ、下半分に乗る
     if (surface !== 'tarmac' || S.spec.wet) {
       const f = S.f || 0;
@@ -20596,14 +20658,12 @@ GP.rallyview = (function () {
       }
     }
     // 排気。減速で、ときどき火を吹く
-    g.fillStyle = ink;
-    g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 1.7 * z, 0, TAU); g.fill();
-    if (brake && Math.random() < 0.35 && !night) {
-      g.fillStyle = 'rgba(255,170,60,.85)';
-      g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 1.3 * z, 0, TAU); g.fill();
-    } else if (brake && night && Math.random() < 0.35) {
-      g.fillStyle = 'rgba(255,190,80,.95)';
-      g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 2.2 * z, 0, TAU); g.fill();
+    g.fillStyle = '#0d0c10';
+    g.beginPath(); g.arc(x - 1.6 * z, y - 4.8 * z, 1.4 * z, 0, TAU); g.arc(x + 1.6 * z, y - 4.8 * z, 1.4 * z, 0, TAU); g.fill();
+    if (brake && Math.random() < 0.35) {
+      g.fillStyle = night ? 'rgba(255,190,80,.95)' : 'rgba(255,170,60,.85)';
+      const fr = (night ? 2.2 : 1.3) * z;
+      g.beginPath(); g.arc(x - 1.6 * z, y - 4.8 * z, fr, 0, TAU); g.arc(x + 1.6 * z, y - 4.8 * z, fr, 0, TAU); g.fill();
     }
     g.restore();
   }
@@ -20625,33 +20685,35 @@ GP.rallyview = (function () {
     const bob = Math.sin(S.t * 5.5) * 1.4 * rough + Math.sin(S.t * 13.1) * 0.6 * rough
               + (S.shake > 0 ? (Math.random() - 0.5) * 6 * S.shake : 0);
     const lean = -sl * 15;                         // 横Gで身体が外へ振られる
-    const dashY = VH * 0.60 + bob;
+    /* ダッシュは低く。近い路面が見えないと、どれだけ飛ばしても止まって見える */
+    const dashY = VH * 0.74 + bob;
+    const roofY = VH * 0.06;
     const ink = '#15161b';
     const suit = GP.gfx.shade(col, -0.42);
     const skin = GP.gfx.pal.skin;
 
     // フロントガラスの枠（屋根とAピラー）
     g.fillStyle = ink;
-    g.fillRect(0, 0, VW, VH * 0.085 + bob);
+    g.fillRect(0, 0, VW, roofY + bob);
     const pillar = (x0, x1, x2, x3) => {
       g.fillStyle = GP.gfx.shade(col, -0.52);
       g.beginPath();
-      g.moveTo(x0, VH * 0.05 + bob); g.lineTo(x1, VH * 0.05 + bob);
+      g.moveTo(x0, roofY * 0.6 + bob); g.lineTo(x1, roofY * 0.6 + bob);
       g.lineTo(x3, dashY + 10); g.lineTo(x2, dashY + 10);
       g.closePath(); g.fill();
     };
-    pillar(-40, 44, 6, -60);
-    pillar(VW - 44, VW + 40, VW + 60, VW - 6);
+    pillar(-40, 34, 4, -60);
+    pillar(VW - 34, VW + 40, VW + 60, VW - 4);
     // ロールケージ。窓の内側を縦に2本、上を1本
     g.fillStyle = '#5a5462';
-    g.fillRect(50, VH * 0.085 + bob, 8, dashY - VH * 0.085 + 10);
-    g.fillRect(VW - 58, VH * 0.085 + bob, 8, dashY - VH * 0.085 + 10);
-    g.fillRect(0, VH * 0.085 + bob, VW, 6);
+    g.fillRect(40, roofY + bob, 7, dashY - roofY + 10);
+    g.fillRect(VW - 47, roofY + bob, 7, dashY - roofY + 10);
+    g.fillRect(0, roofY + bob, VW, 5);
     // 雨。ガラスに粒が付いて、下へ流れる
     const wet = !!S.spec.wet;
     const wipe = wet ? Math.abs(Math.sin(S.t * 2.4)) : 0;      // ワイパーの振り（0..1）
     if (wet) {
-      const top = VH * 0.085 + bob, hgt = dashY - top;
+      const top = roofY + bob, hgt = dashY - top;
       g.fillStyle = 'rgba(220,232,250,.34)';
       for (let k = 0; k < 46; k++) {
         const px = hsh(k * 9 + 1) * VW;
@@ -20690,34 +20752,34 @@ GP.rallyview = (function () {
     g.fillStyle = '#33313e';
     g.fillRect(0, dashY, VW, 3);
     // 計器と切り替え。ふたつの席のあいだに置く
-    const gx = VW * 0.47, gy = dashY + 22;
+    const gx = VW * 0.47, gy = dashY + 20;
     g.fillStyle = '#12101a';
-    g.beginPath(); g.arc(gx, gy, 14, 0, TAU); g.fill();
-    g.strokeStyle = '#8d8798'; g.lineWidth = 1.3;
-    g.beginPath(); g.arc(gx, gy, 11.5, Math.PI * 0.75, Math.PI * 2.25); g.stroke();
+    g.beginPath(); g.arc(gx, gy, 16, 0, TAU); g.fill();
+    g.strokeStyle = '#8d8798'; g.lineWidth = 2;
+    g.beginPath(); g.arc(gx, gy, 13, Math.PI * 0.75, Math.PI * 2.25); g.stroke();
     const rev = 0.26 + S.road.keep[i] * 0.66;
-    g.strokeStyle = rev > 0.82 ? '#e2664a' : '#e0ae3c'; g.lineWidth = 2.8;
+    g.strokeStyle = rev > 0.82 ? '#e2664a' : '#e0ae3c'; g.lineWidth = 4;
     g.beginPath();
-    g.arc(gx, gy, 9, Math.PI * 0.75, Math.PI * 0.75 + Math.PI * 1.5 * rev); g.stroke();
-    g.font = 'bold 9px sans-serif'; g.textAlign = 'center';
+    g.arc(gx, gy, 10, Math.PI * 0.75, Math.PI * 0.75 + Math.PI * 1.5 * rev); g.stroke();
+    g.font = 'bold 15px sans-serif'; g.textAlign = 'center';
     g.fillStyle = '#fff0b0';
-    g.fillText(Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75)), gx, gy + 3);
+    g.fillText(speedNow(), gx, gy + 5);
     g.textAlign = 'left';
     g.fillStyle = '#15161b';
-    g.fillRect(VW * 0.51, dashY + 10, 46, 18);
-    g.fillStyle = '#2d6b32'; g.fillRect(VW * 0.51 + 3, dashY + 13, 18, 5);
-    g.fillStyle = '#e0ae3c'; g.fillRect(VW * 0.51 + 24, dashY + 13, 18, 5);
+    g.fillRect(VW * 0.52, dashY + 8, 50, 20);
+    g.fillStyle = '#2d6b32'; g.fillRect(VW * 0.52 + 4, dashY + 12, 18, 6);
+    g.fillStyle = '#e0ae3c'; g.fillRect(VW * 0.52 + 26, dashY + 12, 18, 6);
     g.fillStyle = '#5a5462';
-    for (let k = 0; k < 4; k++) g.fillRect(VW * 0.51 + 4 + k * 11, dashY + 21, 7, 4);
+    for (let k = 0; k < 4; k++) g.fillRect(VW * 0.52 + 4 + k * 11, dashY + 21, 8, 4);
     // ルームミラー
     g.fillStyle = ink;
-    g.fillRect(VW * 0.44, VH * 0.085 + bob + 6, 70, 16);
+    g.fillRect(VW * 0.44, roofY + bob + 5, 70, 14);
     g.fillStyle = night ? '#1a1b33' : '#6d7aa8';
-    g.fillRect(VW * 0.44 + 3, VH * 0.085 + bob + 9, 64, 10);
+    g.fillRect(VW * 0.44 + 3, roofY + bob + 8, 64, 8);
 
     /* ---- ハンドル。ドライバーの頭の向こうに、上半分だけ見える ---- */
-    const WX = VW * 0.31 + lean * 0.35, WY = dashY + 34;
-    const WR = 36;
+    const WX = VW * 0.30 + lean * 0.35, WY = dashY + 24;
+    const WR = 27;
     g.save();
     g.translate(WX, WY);
     g.rotate(steer);
@@ -20725,48 +20787,48 @@ GP.rallyview = (function () {
     g.beginPath(); g.arc(0, 0, WR, 0, TAU); g.stroke();
     g.strokeStyle = '#2a2430'; g.lineWidth = 4;
     g.beginPath(); g.moveTo(-WR, 0); g.lineTo(WR, 0); g.moveTo(0, 0); g.lineTo(0, WR); g.stroke();
-    g.fillStyle = col; g.fillRect(-9, -4, 18, 8);
+    g.fillStyle = col; g.fillRect(-7, -3, 14, 6);
     g.fillStyle = '#fff8e6'; g.fillRect(-2, -WR - 3, 4, 6);
     g.restore();
 
     /* ---- ドライバー ----
        頭は左の席。横Gで外へ振られ、荒れた路面で上下する      */
-    const DX = VW * 0.31 + lean, DY = VH * 0.815 + bob * 0.8;
-    const DR = 34;
+    const DX = VW * 0.30 + lean, DY = VH * 0.90 + bob * 0.8;
+    const DR = 26;
     // 腕。肩からハンドルの縁まで。縁の位置はハンドルと一緒に回る
     const grip = (ang) => [WX + Math.cos(ang + steer) * (WR - 1), WY + Math.sin(ang + steer) * (WR - 1)];
     const lh = grip(Math.PI + 0.32), rh = grip(-0.32);
-    g.strokeStyle = suit; g.lineWidth = 13; g.lineCap = 'round';
+    g.strokeStyle = suit; g.lineWidth = 10; g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(DX - 30, DY + 16); g.lineTo(DX - 34, DY - 4); g.lineTo(lh[0], lh[1]);
-    g.moveTo(DX + 30, DY + 16); g.lineTo(DX + 34, DY - 4); g.lineTo(rh[0], rh[1]);
+    g.moveTo(DX - 24, DY + 12); g.lineTo(DX - 27, DY - 4); g.lineTo(lh[0], lh[1]);
+    g.moveTo(DX + 24, DY + 12); g.lineTo(DX + 27, DY - 4); g.lineTo(rh[0], rh[1]);
     g.stroke();
     // 手（グローブ）
     g.fillStyle = GP.gfx.shade(col, -0.20);
-    g.beginPath(); g.arc(lh[0], lh[1], 6.5, 0, TAU); g.fill();
-    g.beginPath(); g.arc(rh[0], rh[1], 6.5, 0, TAU); g.fill();
+    g.beginPath(); g.arc(lh[0], lh[1], 5, 0, TAU); g.fill();
+    g.beginPath(); g.arc(rh[0], rh[1], 5, 0, TAU); g.fill();
     helmetBack(g, DX, DY, DR, col, 0);
 
     /* ---- 右席。ノートに目を落として、読むたびに小さくうなずく ---- */
     const nod = Math.max(0, Math.sin(S.t * 2.6)) * 4;
-    const CX = VW * 0.70 + lean * 0.9, CY = VH * 0.835 + bob * 0.8 + nod;
-    const CR = 32;
+    const CX = VW * 0.71 + lean * 0.9, CY = VH * 0.91 + bob * 0.8 + nod;
+    const CR = 24;
     // ノートを持つ手と、ノート
     g.save();
-    g.translate(VW * 0.60 + lean * 0.7, VH * 0.70 + bob * 0.6 + nod * 0.5);
+    g.translate(VW * 0.60 + lean * 0.7, VH * 0.80 + bob * 0.6 + nod * 0.5);
     g.rotate(-0.18);
-    g.fillStyle = '#4a3018'; g.fillRect(-3, -3, 64, 46);
-    g.fillStyle = '#e6d6ae'; g.fillRect(0, 0, 58, 40);
+    g.fillStyle = '#4a3018'; g.fillRect(-3, -3, 50, 36);
+    g.fillStyle = '#e6d6ae'; g.fillRect(0, 0, 44, 30);
     g.fillStyle = 'rgba(0,0,0,.34)';
-    for (let k = 0; k < 5; k++) g.fillRect(5, 6 + k * 7, 46 - (k % 2) * 16, 2);
-    const cur = Math.min(4, Math.floor(S.said % 5));
-    g.fillStyle = '#c23a2e'; g.fillRect(5, 5 + cur * 7, 3, 4);
+    for (let k = 0; k < 4; k++) g.fillRect(4, 5 + k * 6, 34 - (k % 2) * 12, 2);
+    const line = Math.min(3, Math.floor(S.said % 4));
+    g.fillStyle = '#c23a2e'; g.fillRect(4, 4 + line * 6, 3, 4);
     g.restore();
     g.fillStyle = skin[3];
-    g.beginPath(); g.arc(VW * 0.575 + lean * 0.7, VH * 0.80 + bob * 0.6, 7, 0, TAU); g.fill();
-    g.strokeStyle = suit; g.lineWidth = 12;
+    g.beginPath(); g.arc(VW * 0.58 + lean * 0.7, VH * 0.875 + bob * 0.6, 6, 0, TAU); g.fill();
+    g.strokeStyle = suit; g.lineWidth = 10;
     g.beginPath();
-    g.moveTo(CX - 28, CY + 18); g.lineTo(VW * 0.585 + lean * 0.7, VH * 0.80 + bob * 0.6);
+    g.moveTo(CX - 22, CY + 14); g.lineTo(VW * 0.59 + lean * 0.7, VH * 0.875 + bob * 0.6);
     g.stroke();
     helmetBack(g, CX, CY, CR, col, 0.10);
 
@@ -20783,8 +20845,8 @@ GP.rallyview = (function () {
       g.fillStyle = col;
       g.fillRect(x - 14, y + 10, 8, 14); g.fillRect(x + 6, y + 10, 8, 14);
     };
-    seat(DX, DY + DR * 0.55, 62);
-    seat(CX, CY + CR * 0.55, 58);
+    seat(DX, DY + DR * 0.55, 50);
+    seat(CX, CY + CR * 0.55, 46);
   }
 
   /* 後ろから見たヘルメット。丸い殻に、上の光と、背中側の帯。
@@ -21048,53 +21110,72 @@ GP.rallyview = (function () {
     // マッドフラップ
     g.fillStyle = GP.gfx.shade(col, -0.5);
     g.fillRect(-10, 10, 4, 1.6); g.fillRect(6, 10, 4, 1.6);
-    /* 車体。横Gで、車輪の上を少しだけ外へ寄る（ロール） */
+    /* 車体。横Gで、車輪の上を少しだけ外へ寄る（ロール）
+       上から見た Rally1。車輪のところでフェンダーが張り出し、
+       屋根に空気取り、尻に車幅より広い翼                       */
     g.save();
     g.translate(-sl * 1.6, 0);
     g.fillStyle = dark;
     g.fillRect(-8, -12.5, 16, 25);
     g.fillStyle = col;
     g.fillRect(-7, -11.5, 14, 23);
-    // ボンネット（前）は明るく、後ろ（トランク）は少し暗い
+    // フェンダーの張り出し（前後の車輪の上）
+    g.fillStyle = dark;
+    g.fillRect(-9.5, -9.5, 2.5, 6); g.fillRect(7, -9.5, 2.5, 6);
+    g.fillRect(-9.5, 4, 2.5, 6.5); g.fillRect(7, 4, 2.5, 6.5);
+    g.fillStyle = col;
+    g.fillRect(-9, -9, 2, 5); g.fillRect(7, -9, 2, 5);
+    g.fillRect(-9, 4.5, 2, 5.5); g.fillRect(7, 4.5, 2, 5.5);
+    // ボンネット（前）は明るく、空気の抜けを二つ。後ろ（ハッチ）は少し暗い
     g.fillStyle = lit;
-    g.fillRect(-7, -11.5, 14, 5);
+    g.fillRect(-7, -11.5, 14, 5.5);
+    g.fillStyle = '#23222c';
+    g.fillRect(-4.5, -9.5, 2.4, 1.2); g.fillRect(2.1, -9.5, 2.4, 1.2);
     g.fillStyle = GP.gfx.shade(col, -0.16);
-    g.fillRect(-7, 6.5, 14, 5);
+    g.fillRect(-7, 5.5, 14, 6);
+    // 前のスプリッター
+    g.fillStyle = '#1a181f';
+    g.fillRect(-8, -13, 16, 1.2);
     // 前照灯
     g.fillStyle = S.spec.night ? '#fff6c8' : '#e8e2c8';
     g.fillRect(-6.5, -12, 3, 1.6); g.fillRect(3.5, -12, 3, 1.6);
-    // フロントガラスと屋根、リアガラス
+    // フロントガラス、屋根、リアガラス
     g.fillStyle = '#15161b';
-    g.fillRect(-5.5, -6.5, 11, 4);
+    g.fillRect(-5.5, -6, 11, 3.6);
     g.fillStyle = 'rgba(255,248,230,.18)';
-    g.fillRect(-5.5, -6.5, 11, 1.2);
+    g.fillRect(-5.5, -6, 11, 1);
     g.fillStyle = GP.gfx.shade(col, 0.06);
-    g.fillRect(-5.5, -2.5, 11, 6);
+    g.fillRect(-5.5, -2.4, 11, 5.4);
     g.fillStyle = '#15161b';
-    g.fillRect(-5, 3.5, 10, 2.6);
+    g.fillRect(-5, 3, 10, 2.6);
     // 屋根の空気取りと番号板
     g.fillStyle = '#23222c';
-    g.fillRect(-1.5, -2.2, 3, 1.4);
+    g.fillRect(-1.6, -2.6, 3.2, 1.6);
     g.fillStyle = '#fff8e6';
-    g.fillRect(-2.5, 0, 5, 3);
-    // 腰の帯（ラリーカーらしい一本）
+    g.fillRect(-2.5, 0, 5, 2.6);
+    // 腰の帯（スポンサーの白）
     g.fillStyle = 'rgba(255,255,255,.28)';
-    g.fillRect(-7, -7.5, 1.4, 19); g.fillRect(5.6, -7.5, 1.4, 19);
-    // 尾灯。減速で明るく、夜は薄く
+    g.fillRect(-7, -6.5, 1.4, 12); g.fillRect(5.6, -6.5, 1.4, 12);
+    // 尾灯。一本の帯。減速で明るく、夜は薄く
     g.fillStyle = brake ? '#ff6a3c' : S.spec.night ? '#d84a34' : '#a8342a';
-    g.fillRect(-6.5, 10.4, 3, 1.4); g.fillRect(3.5, 10.4, 3, 1.4);
+    g.fillRect(-6.5, 11, 5, 1.2); g.fillRect(1.5, 11, 5, 1.2);
     if (brake) {
       const gl2 = g.createRadialGradient(0, 12, 1, 0, 12, 9);
       gl2.addColorStop(0, 'rgba(255,90,60,.45)'); gl2.addColorStop(1, 'rgba(255,90,60,0)');
       g.fillStyle = gl2; g.fillRect(-10, 8, 20, 10);
     }
-    // 翼。車体より広く、いちばん上に載る
+    // ディフューザー
+    g.fillStyle = '#1a181f';
+    g.fillRect(-7, 12.2, 14, 0.9);
+    // 翼。白鳥の首で吊る。板は車幅より広く、端板は車の色
+    g.fillStyle = dark;
+    g.fillRect(-2.6, 5.5, 1.2, 4); g.fillRect(1.4, 5.5, 1.2, 4);
     g.fillStyle = '#23222c';
-    g.fillRect(-9, 8.5, 18, 2.2);
-    g.fillStyle = col;
-    g.fillRect(-9.5, 7.6, 1.6, 4); g.fillRect(7.9, 7.6, 1.6, 4);
+    g.fillRect(-10, 8.6, 20, 2.6);
     g.fillStyle = 'rgba(255,255,255,.18)';
-    g.fillRect(-9, 8.5, 18, 0.7);
+    g.fillRect(-10, 8.6, 20, 0.7);
+    g.fillStyle = col;
+    g.fillRect(-10.6, 7.4, 1.6, 5); g.fillRect(9, 7.4, 1.6, 5);
     // 泥。走った距離ぶんだけ、車体の後ろ半分に乗る
     if (surface !== 'tarmac' || S.spec.wet) {
       const f = S.f || 0;
