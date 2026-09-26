@@ -10153,6 +10153,15 @@ GP.state = (function () {
     s.accel = Math.max(0, mean + (s.accel - mean) * amp);
     // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
     s.speed *= it; s.corner *= it; s.accel *= it;
+    /* どこかに数字の穴があると、ここが NaN になって車が走らなくなる。
+       出どころは healNumbers と rally.run の記録で追う。ここでは走らせる */
+    if (!isFinite(s.speed + s.corner + s.accel)) {
+      try { console.warn('carStats NaN', JSON.stringify({ it: it, ch: chassisStats(g), bs: bodyStats(g),
+        parts: D.PART_CATS.map(c => { const p = g.equipped[c.key]; return p ? [c.key, p.power, p.cond] : c.key; }) })); } catch (e) {}
+      g.carNaN = (g.carNaN || 0) + 1;
+      const safe = v => isFinite(v) ? v : 15;
+      s.speed = safe(s.speed); s.corner = safe(s.corner); s.accel = safe(s.accel);
+    }
     return s;
   }
 
@@ -14383,6 +14392,40 @@ GP.state = (function () {
   }
 
   /* ---------- セーブ・ロード ---------- */
+  /* 数字の穴（NaN）をふさぐ。ひとつ混じると車の速さが丸ごと出なくなり、
+     走行画面が動かなくなる。何をふさいだかは記録に残し、原因を追えるようにする */
+  function healNumbers(g) {
+    const fixed = [];
+    /* NaN は保存すると null になる。読み直したときは null が穴の跡 */
+    const fix = (o, k, v, name) => {
+      if (!o) return;
+      if (o[k] === null || (typeof o[k] === 'number' && !isFinite(o[k]))) { o[k] = v; fixed.push(name + '.' + k); }
+    };
+    const part = (p, name) => {
+      if (!p) return;
+      fix(p, 'power', 10, name); fix(p, 'cond', 60, name); fix(p, 'quality', 1, name);
+      fix(p, 'worn', 0, name); fix(p, 'mat', 0, name);
+    };
+    D.PART_CATS.forEach(c => part(g.equipped && g.equipped[c.key], 'equipped.' + c.key));
+    (g.inventory || []).forEach((p, i) => part(p, 'inventory' + i));
+    D.BODY_ATTRS.forEach(a => fix(g.body, a.key, 0, 'body'));
+    ['funds', 'rp', 'fans', 'hype', 'points', 'capSpent', 'week', 'season'].forEach(k => fix(g, k, 0, 'g'));
+    if (g.pu) ['used', 'grid', 'over', 'n'].forEach(k => fix(g.pu, k, 1, 'pu'));
+    D.FACILITIES.forEach(f => fix(g.facilities, f.key, 1, 'facilities'));
+    (g.staff || []).forEach((st, i) => { fix(st, 'skill', 40, 'staff' + i); fix(st, 'salary', 10, 'staff' + i); });
+    [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : []).forEach((d, i) => {
+      if (!d) return;
+      ['speed', 'technique', 'stamina', 'mental', 'salary', 'form', 'age', 'pot'].forEach(k => fix(d, k, 50, 'driver' + i));
+    });
+    (g.codrivers || []).forEach((co, i) => { fix(co, 'skill', 40, 'co' + i); fix(co, 'bond', 0, 'co' + i); fix(co, 'salary', 5, 'co' + i); });
+    if (fixed.length) {
+      g.log = g.log || [];
+      g.log.push({ s: '[S' + g.season + ' W' + g.week + '] 🩹 数字の穴をふさいだ（' + fixed.slice(0, 6).join(' ') + '）', t: 'warn' });
+      g.healed = (g.healed || []).concat(fixed).slice(-30);
+    }
+    return fixed;
+  }
+
   function save(g) {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); return true; }
     catch (e) { return false; }
@@ -14442,6 +14485,7 @@ GP.state = (function () {
       };
       D.PART_CATS.forEach(c => toQual(g.equipped && g.equipped[c.key]));
       (g.inventory || []).forEach(toQual);
+      healNumbers(g);
       (g.stock || []).forEach(toQual);
       if (g.spare == null) g.spare = 0;
       /* 研究の単位を部位から扇へ移した。
@@ -14552,7 +14596,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
-    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
+    healNumbers, seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
     REG_EVERY, regSince, ruleSet, ruleMul, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
@@ -19265,7 +19309,17 @@ GP.rally = (function () {
     const stages = buildStages(rally, (g.season || 1) * 97 + roundIdx * 13);
     const svc = serviceAfter(stages);
     const list = buildEntries(g, rally, plan);
-    const ref = Math.max.apply(null, list.map(e => e.car));
+    /* 数字に穴（NaN）があると、誰のタイムも出ず、走行画面は動かなくなる。
+       ここでふさいで走らせ、何を補ったかは結果に残す（原因を追うため） */
+    const fixed = [];
+    list.forEach(e => {
+      if (!isFinite(e.car)) { fixed.push('car:' + e.name + '=' + e.car); e.car = 50; }
+      if (!isFinite(e.notes)) { fixed.push('notes:' + e.name); e.notes = 0.75; }
+      if (!isFinite(e.drvPace)) { fixed.push('drvPace:' + e.name); e.drvPace = 0.6; }
+      if (!isFinite(e.surfaceFit)) { fixed.push('fit:' + e.name); e.surfaceFit = 0; }
+    });
+    let ref = Math.max.apply(null, list.map(e => e.car));
+    if (!isFinite(ref)) { fixed.push('ref'); ref = 50; }
     const wet = Math.random() < (rally.wetRate == null ? 0.22 : rally.wetRate);
 
     // 選手権での立ち位置（初日の走行順に使う）
@@ -19280,7 +19334,12 @@ GP.rally = (function () {
       list.forEach(e => {
         if (e.out) return;
         let t = stageTime(e, st, { ref: ref, wet: wet, rally: rally });
+        if (!isFinite(t)) {
+          fixed.push('time:' + e.name + '@SS' + st.n);
+          t = st.km / Math.max(20, baseSpeed(st)) * 3600;
+        }
         // 前のSSで負ったダメージを引きずる
+        if (!isFinite(e.damage)) e.damage = 0;
         t *= 1 + e.damage * 0.035;
         const tr = rollTrouble(e, st, { wet: wet, rally: rally });
         let note = null;
@@ -19290,7 +19349,8 @@ GP.rally = (function () {
             note = { key: tr.key, icon: tr.icon, name: tr.name, line: tr.line, out: true,
                      at: rnd(0.10, 0.90) };
           } else {
-            let loss = rnd(tr.lossS[0], tr.lossS[1]);
+            let loss = tr.lossS ? rnd(tr.lossS[0], tr.lossS[1]) : 30;
+            if (!isFinite(loss)) { fixed.push('loss:' + tr.key); loss = 30; }
             if (tr.key === 'punc') {
               if (e.spares > 0) { e.spares--; loss *= 0.55; }
               else loss *= 1.8;                       // 替えが無ければ引きずる
@@ -19336,7 +19396,8 @@ GP.rally = (function () {
       rally: rally, round: roundIdx, stages: stages, log: log, wet: wet,
       pace: plan.pace || 'std',
       classified: classified, service: svc,
-      winner: classified[0] || null
+      winner: classified[0] || null,
+      fixed: fixed
     };
   }
 
@@ -19502,6 +19563,7 @@ GP.rallyview = (function () {
      最後に、実際の区間タイムに合うよう、まるごと伸び縮みさせる  */
   function buildTimeline(road, totalS) {
     const N = road.n;
+    if (!isFinite(totalS) || totalS <= 0) totalS = road.len / 30;   // 壊れていても走らせる
     const t = new Float64Array(N);
     let acc = 0;
     for (let i = 1; i < N; i++) {
@@ -21505,8 +21567,9 @@ GP.rallyview = (function () {
   /* いまの速さ。区間の平均に、道の速さの形を掛ける */
   function speedNow() {
     const i = S.i;
-    const rev = 0.26 + S.road.keep[i] * 0.66;
-    return Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75));
+    const rev = 0.26 + (S.road.keep[i] || 0.5) * 0.66;
+    const v = Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75));
+    return isFinite(v) ? v : 0;
   }
   /* 雨の筋。走っている向きに流れる */
   function rain(g) {
@@ -33841,8 +33904,18 @@ GP.screens.rallyweek = function (A) {
     const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[0];
     if (rc.cost) g.funds -= rc.cost;
     plan.crew = crewPlan();
+    // 走る前に、数字の穴をふさいでおく（穴があると車が動かない）
+    if (St.healNumbers) {
+      const hf = St.healNumbers(g);
+      if (hf.length) Ui.toast('🩹 数字の穴をふさぎました：' + hf.slice(0, 3).join(' '), 'warn');
+    }
     // 積んだスペアのぶんだけ、ほんの少し重い
     pack = GP.rally.run(g, g.nextRace, plan);
+    if (pack.fixed && pack.fixed.length) {
+      const what = pack.fixed.slice(0, 4).join(' ');
+      Ui.log(g, '🩹 車かタイムの数字に穴があったので、補って走らせました（' + what + '）。', 'warn');
+      Ui.toast('🩹 数字の穴を補って走らせます', 'warn');
+    }
     shown = 0;
     Ui.closeModal();
     runStage();

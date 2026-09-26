@@ -310,8 +310,18 @@ GP.screens.rallyweek = function (A) {
     const rc = RD().RECCE.filter(r => r.key === plan.recce)[0] || RD().RECCE[0];
     if (rc.cost) g.funds -= rc.cost;
     plan.crew = crewPlan();
+    // 走る前に、数字の穴をふさいでおく（穴があると車が動かない）
+    if (St.healNumbers) {
+      const hf = St.healNumbers(g);
+      if (hf.length) Ui.toast('🩹 数字の穴をふさぎました：' + hf.slice(0, 3).join(' '), 'warn');
+    }
     // 積んだスペアのぶんだけ、ほんの少し重い
     pack = GP.rally.run(g, g.nextRace, plan);
+    if (pack.fixed && pack.fixed.length) {
+      const what = pack.fixed.slice(0, 4).join(' ');
+      Ui.log(g, '🩹 車かタイムの数字に穴があったので、補って走らせました（' + what + '）。', 'warn');
+      Ui.toast('🩹 数字の穴を補って走らせます', 'warn');
+    }
     shown = 0;
     Ui.closeModal();
     runStage();

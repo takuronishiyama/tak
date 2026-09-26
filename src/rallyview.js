@@ -146,6 +146,7 @@ GP.rallyview = (function () {
      最後に、実際の区間タイムに合うよう、まるごと伸び縮みさせる  */
   function buildTimeline(road, totalS) {
     const N = road.n;
+    if (!isFinite(totalS) || totalS <= 0) totalS = road.len / 30;   // 壊れていても走らせる
     const t = new Float64Array(N);
     let acc = 0;
     for (let i = 1; i < N; i++) {
@@ -2149,8 +2150,9 @@ GP.rallyview = (function () {
   /* いまの速さ。区間の平均に、道の速さの形を掛ける */
   function speedNow() {
     const i = S.i;
-    const rev = 0.26 + S.road.keep[i] * 0.66;
-    return Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75));
+    const rev = 0.26 + (S.road.keep[i] || 0.5) * 0.66;
+    const v = Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75));
+    return isFinite(v) ? v : 0;
   }
   /* 雨の筋。走っている向きに流れる */
   function rain(g) {

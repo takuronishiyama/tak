@@ -417,7 +417,17 @@ GP.rally = (function () {
     const stages = buildStages(rally, (g.season || 1) * 97 + roundIdx * 13);
     const svc = serviceAfter(stages);
     const list = buildEntries(g, rally, plan);
-    const ref = Math.max.apply(null, list.map(e => e.car));
+    /* 数字に穴（NaN）があると、誰のタイムも出ず、走行画面は動かなくなる。
+       ここでふさいで走らせ、何を補ったかは結果に残す（原因を追うため） */
+    const fixed = [];
+    list.forEach(e => {
+      if (!isFinite(e.car)) { fixed.push('car:' + e.name + '=' + e.car); e.car = 50; }
+      if (!isFinite(e.notes)) { fixed.push('notes:' + e.name); e.notes = 0.75; }
+      if (!isFinite(e.drvPace)) { fixed.push('drvPace:' + e.name); e.drvPace = 0.6; }
+      if (!isFinite(e.surfaceFit)) { fixed.push('fit:' + e.name); e.surfaceFit = 0; }
+    });
+    let ref = Math.max.apply(null, list.map(e => e.car));
+    if (!isFinite(ref)) { fixed.push('ref'); ref = 50; }
     const wet = Math.random() < (rally.wetRate == null ? 0.22 : rally.wetRate);
 
     // 選手権での立ち位置（初日の走行順に使う）
@@ -432,7 +442,12 @@ GP.rally = (function () {
       list.forEach(e => {
         if (e.out) return;
         let t = stageTime(e, st, { ref: ref, wet: wet, rally: rally });
+        if (!isFinite(t)) {
+          fixed.push('time:' + e.name + '@SS' + st.n);
+          t = st.km / Math.max(20, baseSpeed(st)) * 3600;
+        }
         // 前のSSで負ったダメージを引きずる
+        if (!isFinite(e.damage)) e.damage = 0;
         t *= 1 + e.damage * 0.035;
         const tr = rollTrouble(e, st, { wet: wet, rally: rally });
         let note = null;
@@ -442,7 +457,8 @@ GP.rally = (function () {
             note = { key: tr.key, icon: tr.icon, name: tr.name, line: tr.line, out: true,
                      at: rnd(0.10, 0.90) };
           } else {
-            let loss = rnd(tr.lossS[0], tr.lossS[1]);
+            let loss = tr.lossS ? rnd(tr.lossS[0], tr.lossS[1]) : 30;
+            if (!isFinite(loss)) { fixed.push('loss:' + tr.key); loss = 30; }
             if (tr.key === 'punc') {
               if (e.spares > 0) { e.spares--; loss *= 0.55; }
               else loss *= 1.8;                       // 替えが無ければ引きずる
@@ -488,7 +504,8 @@ GP.rally = (function () {
       rally: rally, round: roundIdx, stages: stages, log: log, wet: wet,
       pace: plan.pace || 'std',
       classified: classified, service: svc,
-      winner: classified[0] || null
+      winner: classified[0] || null,
+      fixed: fixed
     };
   }
 

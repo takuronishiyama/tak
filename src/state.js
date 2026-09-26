@@ -969,6 +969,15 @@ GP.state = (function () {
     s.accel = Math.max(0, mean + (s.accel - mean) * amp);
     // ここまでが「持っているもの」。どれだけ引き出せるかを掛ける
     s.speed *= it; s.corner *= it; s.accel *= it;
+    /* どこかに数字の穴があると、ここが NaN になって車が走らなくなる。
+       出どころは healNumbers と rally.run の記録で追う。ここでは走らせる */
+    if (!isFinite(s.speed + s.corner + s.accel)) {
+      try { console.warn('carStats NaN', JSON.stringify({ it: it, ch: chassisStats(g), bs: bodyStats(g),
+        parts: D.PART_CATS.map(c => { const p = g.equipped[c.key]; return p ? [c.key, p.power, p.cond] : c.key; }) })); } catch (e) {}
+      g.carNaN = (g.carNaN || 0) + 1;
+      const safe = v => isFinite(v) ? v : 15;
+      s.speed = safe(s.speed); s.corner = safe(s.corner); s.accel = safe(s.accel);
+    }
     return s;
   }
 
@@ -5199,6 +5208,40 @@ GP.state = (function () {
   }
 
   /* ---------- セーブ・ロード ---------- */
+  /* 数字の穴（NaN）をふさぐ。ひとつ混じると車の速さが丸ごと出なくなり、
+     走行画面が動かなくなる。何をふさいだかは記録に残し、原因を追えるようにする */
+  function healNumbers(g) {
+    const fixed = [];
+    /* NaN は保存すると null になる。読み直したときは null が穴の跡 */
+    const fix = (o, k, v, name) => {
+      if (!o) return;
+      if (o[k] === null || (typeof o[k] === 'number' && !isFinite(o[k]))) { o[k] = v; fixed.push(name + '.' + k); }
+    };
+    const part = (p, name) => {
+      if (!p) return;
+      fix(p, 'power', 10, name); fix(p, 'cond', 60, name); fix(p, 'quality', 1, name);
+      fix(p, 'worn', 0, name); fix(p, 'mat', 0, name);
+    };
+    D.PART_CATS.forEach(c => part(g.equipped && g.equipped[c.key], 'equipped.' + c.key));
+    (g.inventory || []).forEach((p, i) => part(p, 'inventory' + i));
+    D.BODY_ATTRS.forEach(a => fix(g.body, a.key, 0, 'body'));
+    ['funds', 'rp', 'fans', 'hype', 'points', 'capSpent', 'week', 'season'].forEach(k => fix(g, k, 0, 'g'));
+    if (g.pu) ['used', 'grid', 'over', 'n'].forEach(k => fix(g.pu, k, 1, 'pu'));
+    D.FACILITIES.forEach(f => fix(g.facilities, f.key, 1, 'facilities'));
+    (g.staff || []).forEach((st, i) => { fix(st, 'skill', 40, 'staff' + i); fix(st, 'salary', 10, 'staff' + i); });
+    [].concat(g.drivers || [], g.youth || [], g.reserve ? [g.reserve] : []).forEach((d, i) => {
+      if (!d) return;
+      ['speed', 'technique', 'stamina', 'mental', 'salary', 'form', 'age', 'pot'].forEach(k => fix(d, k, 50, 'driver' + i));
+    });
+    (g.codrivers || []).forEach((co, i) => { fix(co, 'skill', 40, 'co' + i); fix(co, 'bond', 0, 'co' + i); fix(co, 'salary', 5, 'co' + i); });
+    if (fixed.length) {
+      g.log = g.log || [];
+      g.log.push({ s: '[S' + g.season + ' W' + g.week + '] 🩹 数字の穴をふさいだ（' + fixed.slice(0, 6).join(' ') + '）', t: 'warn' });
+      g.healed = (g.healed || []).concat(fixed).slice(-30);
+    }
+    return fixed;
+  }
+
   function save(g) {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); return true; }
     catch (e) { return false; }
@@ -5258,6 +5301,7 @@ GP.state = (function () {
       };
       D.PART_CATS.forEach(c => toQual(g.equipped && g.equipped[c.key]));
       (g.inventory || []).forEach(toQual);
+      healNumbers(g);
       (g.stock || []).forEach(toQual);
       if (g.spare == null) g.spare = 0;
       /* 研究の単位を部位から扇へ移した。
@@ -5368,7 +5412,7 @@ GP.state = (function () {
     makeOwner, osk, ownerRank, ownerProgress, addFame, learnOwnerSkill,
     buildCalendar, calendarOf, calendarDiff, raceCount, trackIdx, trackAt,
     guideMark, guideSteps, guideOn,
-    seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
+    healNumbers, seriesOf, isRally, venues, venueAt, seriesWords, applyWords, makeCoDriver, coOf, coBond, coFee, coHire, coRelease, coSwap,
     REG_EVERY, regSince, ruleSet, ruleMul, regulationDue, regulationNext, applyRegulation,
     makeManager, mgr, finances, ersOf, ersFrom,
     ticketCash, grantTicket, expireTickets,
