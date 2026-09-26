@@ -340,9 +340,17 @@ GP.rallyview = (function () {
       shake: 0,
       dust: [],
       marks: [],
-      mprev: [null, null]
+      mprev: [null, null],
+      pre: 0,               // 走り出すまでの数え（実時間・秒）
+      go: 0,                // GO! の残り
+      split: null,          // 出ているスプリットの札
+      splitN: 0,            // 何本目まで出したか
+      fin: 0,               // ゴールしてから結果へ行くまでの余韻
+      outAt: null           // 止まってから結果へ行くまで
     };
     rate = spec.rate || 12;
+    /* 飛ばしているときは待たせない。じっくりのときだけ、数えてから出る */
+    S.pre = rate <= 20 ? 3.5 : rate <= 45 ? 1.6 : 0;
     lastTs = performance.now();
     GP.fx.init(VW * PX, VH * PX);
     paintNote();
@@ -356,15 +364,21 @@ GP.rallyview = (function () {
   function setRate(v) { rate = v; }
 
   function skip() {
-    if (!S) return;
+    if (!S || S.done) return;
     S.t = S.time[S.road.n - 1];
     S.i = S.road.n - 1;
+    S.pre = 0; S.outAt = null;
     finish();
+    S.fin = 0.9;
   }
 
   function finish() {
     if (!S || S.done) return;
     S.done = true;
+    S.fin = (S.inc && S.inc.out) ? 1.6 : 1.7;
+    if (!(S.inc && S.inc.out)) GP.sound.play('confirm');
+  }
+  function leave() {
     stop();
     if (onEnd) { const f = onEnd; onEnd = null; f(); }
   }
@@ -375,6 +389,33 @@ GP.rallyview = (function () {
     const dt = Math.min(0.15, (ts - lastTs) / 1000);
     lastTs = ts;
     const N = S.road.n;
+
+    // ゴールしたあとの余韻。板を出してから結果へ
+    if (S.done) {
+      S.fin -= dt;
+      try { draw(S.road.cum[S.i] / Math.max(1, S.road.len)); } catch (e) {}
+      if (S.fin <= 0) { leave(); return; }
+      raf = requestAnimationFrame(tick); return;
+    }
+    // 止まってしまったあと。少し見せてから
+    if (S.outAt != null) {
+      S.outAt -= dt;
+      try { draw(S.road.cum[S.i] / Math.max(1, S.road.len)); } catch (e) {}
+      if (S.outAt <= 0) { S.outAt = null; finish(); return; }
+      raf = requestAnimationFrame(tick); return;
+    }
+    // 走り出す前の数え。実時間で数える
+    if (S.pre > 0) {
+      const before = Math.ceil(S.pre);
+      S.pre -= dt;
+      const after = Math.ceil(S.pre);
+      if (after < before && after > 0) GP.sound.play('light');
+      if (S.pre <= 0) { S.pre = 0; S.go = 1.0; GP.sound.play('go'); }
+      try { draw(0); } catch (e) {}
+      raf = requestAnimationFrame(tick); return;
+    }
+    if (S.go > 0) S.go -= dt;
+    if (S.split) { S.split.left -= dt; if (S.split.left <= 0) S.split = null; }
 
     if (S.holdUntil > 0) {
       S.holdUntil -= dt * rate;
@@ -404,10 +445,16 @@ GP.rallyview = (function () {
       S.holdUntil = Math.min(6, (m.loss || 3) * 0.25);
       S.holdAll = S.holdUntil;
       S.inc = { key: m.key || '', out: !!m.out };
-      if (m.out) { paintLog(); try { draw(f); } catch (e) {} setTimeout(finish, 900); return; }
+      if (m.out) { paintLog(); S.outAt = 1.0; GP.sound.play('dnf'); break; }
       paintLog();
     }
     if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 3);
+    // スプリット。道の 1/3 と 2/3 で、いまの差を札にする
+    if (S.spec.leadTime && S.splitN < 2 && f >= (S.splitN + 1) / 3) {
+      S.splitN++;
+      S.split = { n: S.splitN, d: S.t - S.spec.leadTime * f, left: 2.6 };
+      GP.sound.play('tap');
+    }
 
     // 轍と土煙。横を向いているぶんだけ、派手になる
     if (S.holdUntil <= 0 && S.i > 0) {
@@ -422,7 +469,7 @@ GP.rallyview = (function () {
     try { draw(f); } catch (e) {
       if (!S.drawErr) { S.drawErr = true; try { console.error('rallyview draw', e); } catch (e2) {} }
     }
-    if (S.i >= N - 1) { finish(); return; }
+    if (S.i >= N - 1) finish();
     raf = requestAnimationFrame(tick);
   }
 
@@ -451,8 +498,8 @@ GP.rallyview = (function () {
   const HORIZON = VH * 0.355;
   function OB_H() { return HORIZON; }
   const FOCAL = 330;
-  const BACK = { chase: 100, cab: 6 };     // 車からどれだけ後ろに目を置くか
-  const HIGH = { chase: 40, cab: 18 };     // 目の高さ
+  const BACK = { chase: 62, cab: 6 };      // 車からどれだけ後ろに目を置くか
+  const HIGH = { chase: 28, cab: 18 };     // 目の高さ
   /* 道ばたのものは、鳥瞰で見て気持ちのいい大きさに描いてある。
      奥行きのある絵にそのまま置くと、草が人の背丈になる      */
   const PROPK = 0.60;
@@ -499,6 +546,7 @@ GP.rallyview = (function () {
 
   function draw(f) {
     const road = S.road, L = S.line, i = S.i;
+    S.f = f;
     const k = GP.gfx.fit(cv, VW, VH, { max: 2 });
     if (Math.abs(k - PX) > 0.01) { PX = k; GP.fx.init(VW * PX, VH * PX); }
     const dusk = document.body.getAttribute('data-skin') === 'hd';
@@ -617,36 +665,160 @@ GP.rallyview = (function () {
     else cabin(g, L, i, night);
   }
 
-  /* 空と、地平線の向こう。地面と空の境目が無いと、
-     どこまでが走れる場所なのかが読めない                      */
+  /* ---------- 空と、地平線の向こう ----------
+     土地柄で空の色が変わり、太陽は世界の決まった向きにある。
+     車が向きを変えると、山なみと木立が横へ流れる。
+     遠いものほどゆっくり動く。それだけで、奥行きが出る          */
+  const SCENE = {
+    forest: { top: '#5f86c4', bot: '#c6d3e2', far: '#4d6a86', hill: '#2f5a3c', tree: '#1f4426', haze: '198,211,226', sun: '#fff3c4', kind: 'pine' },
+    alp:    { top: '#5b82c2', bot: '#cad6e6', far: '#6f7f9a', hill: '#3a5d44', tree: '#244a2c', haze: '202,214,230', sun: '#fff3c4', kind: 'pine', cap: true },
+    med:    { top: '#6e93c9', bot: '#e0d6c2', far: '#8c7f6c', hill: '#5d6a3b', tree: '#3f5a2c', haze: '224,214,194', sun: '#fff0b0', kind: 'round' },
+    dry:    { top: '#7a86a8', bot: '#d6c49a', far: '#a08660', hill: '#7a6a48', tree: '#5c5230', haze: '214,196,154', sun: '#ffd48a', kind: 'flat' },
+    snow:   { top: '#8ea0c8', bot: '#dfe4f2', far: '#b8c4dc', hill: '#9aa6c4', tree: '#3a5a4a', haze: '223,228,242', sun: '#fff8e6', kind: 'pine', cap: true }
+  };
+  const SUN_DIR = 0.9;                       // 太陽のある向き（世界の角）
+  function hsh(n) {
+    let h = Math.imul(n | 0, 2654435761) >>> 0;
+    h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+    return (h >>> 0) / 4294967296;
+  }
   function sky(g, night) {
     const fl = S.props.flavor;
-    const top = night ? '#141a33' : (fl === 'dry' ? '#7a86a8' : fl === 'snow' ? '#8ea0c8' : '#6f8ec0');
-    const bot = night ? '#26304d' : (fl === 'dry' ? '#d6c49a' : fl === 'snow' ? '#dfe4f2' : '#bcc9dd');
+    const sc = SCENE[fl] || SCENE.forest;
+    const wet = !!S.spec.wet;
+    const head = CAM.a;
+    const top = night ? '#0f1430' : wet ? '#7d8797' : sc.top;
+    const bot = night ? '#26304d' : wet ? '#b7bdc6' : sc.bot;
     const gr = g.createLinearGradient(0, 0, 0, HORIZON);
     gr.addColorStop(0, top); gr.addColorStop(1, bot);
     g.fillStyle = gr; g.fillRect(0, 0, VW, HORIZON + 1);
-    // 遠くの山なみ
-    g.fillStyle = night ? '#1b2340' : (fl === 'dry' ? '#8d7a58' : '#3d5266');
-    g.beginPath(); g.moveTo(0, HORIZON);
-    for (let x = 0; x <= VW; x += 28) {
-      const h = 10 + Math.sin(x * 0.031 + 1.2) * 7 + Math.sin(x * 0.0121) * 9;
-      g.lineTo(x, HORIZON - Math.max(0, h));
+
+    // 星。夜だけ。向きを変えると空も回る
+    if (night) {
+      g.fillStyle = 'rgba(255,248,230,.8)';
+      for (let k = 0; k < 70; k++) {
+        const sx = ((hsh(k * 7 + 1) * VW * 2.4 - head * 300) % (VW * 2.4) + VW * 2.4) % (VW * 2.4) - VW * 0.7;
+        if (sx < -2 || sx > VW + 2) continue;
+        const sy = hsh(k * 7 + 3) * HORIZON * 0.8;
+        const tw = 0.5 + hsh(k * 7 + 5) * 0.9 * (0.6 + 0.4 * Math.sin(S.t * 3 + k));
+        g.fillRect(sx, sy, tw, tw);
+      }
     }
-    g.lineTo(VW, HORIZON); g.closePath(); g.fill();
+
+    // 太陽か月。世界の決まった向きにあるので、車が向きを変えると動く
+    {
+      const rel = wrap(SUN_DIR - head);
+      if (Math.abs(rel) < 1.3) {
+        const sx = VW / 2 + rel * 300, sy = HORIZON * (night ? 0.30 : fl === 'dry' ? 0.52 : 0.42);
+        if (night) {
+          g.fillStyle = '#e8e6d8';
+          g.beginPath(); g.arc(sx, sy, 11, 0, TAU); g.fill();
+          g.fillStyle = top;
+          g.beginPath(); g.arc(sx + 5, sy - 3, 9.5, 0, TAU); g.fill();
+        } else if (!wet) {
+          const glow = g.createRadialGradient(sx, sy, 4, sx, sy, fl === 'dry' ? 90 : 60);
+          glow.addColorStop(0, 'rgba(255,244,200,.55)'); glow.addColorStop(1, 'rgba(255,244,200,0)');
+          g.fillStyle = glow; g.fillRect(sx - 100, sy - 100, 200, 200);
+          g.fillStyle = sc.sun;
+          g.beginPath(); g.arc(sx, sy, fl === 'dry' ? 15 : 11, 0, TAU); g.fill();
+        }
+      }
+    }
+
+    // 雲。ゆっくり流れ、向きを変えると横へ動く
+    {
+      const n = wet ? 9 : night ? 3 : 6;
+      g.fillStyle = night ? 'rgba(60,70,110,.55)' : wet ? 'rgba(150,158,170,.85)' : 'rgba(255,255,255,.82)';
+      for (let k = 0; k < n; k++) {
+        const per = VW * 2.6;
+        let cx = (hsh(k * 11 + 2) * per + S.t * (2 + hsh(k * 11 + 4) * 3) - head * 90) % per;
+        if (cx < 0) cx += per;
+        cx -= VW * 0.8;
+        if (cx < -90 || cx > VW + 90) continue;
+        const cy = HORIZON * (0.16 + hsh(k * 11 + 6) * 0.42);
+        const w = 26 + hsh(k * 11 + 8) * 40;
+        g.beginPath();
+        g.ellipse(cx, cy, w, w * 0.30, 0, 0, TAU);
+        g.ellipse(cx - w * 0.4, cy + 2, w * 0.55, w * 0.24, 0, 0, TAU);
+        g.ellipse(cx + w * 0.35, cy + 1, w * 0.6, w * 0.27, 0, 0, TAU);
+        g.fill();
+      }
+    }
+
+    // 遠い山。二層。奥はゆっくり、手前は少し速く流れる
+    const layer = (col, amp, base, k1, k2, shift, cap) => {
+      const path = () => {
+        g.beginPath(); g.moveTo(0, HORIZON + 1);
+        for (let x = 0; x <= VW; x += 10) {
+          const u = x + shift;
+          const h = base + Math.sin(u * k1 + 1.2) * amp + Math.sin(u * k2) * amp * 0.9 + Math.sin(u * k1 * 3.1) * amp * 0.25;
+          g.lineTo(x, HORIZON - Math.max(0, h));
+        }
+        g.lineTo(VW, HORIZON + 1); g.closePath();
+      };
+      if (cap) {
+        path(); g.fillStyle = night ? '#4a5470' : '#e9eef8'; g.fill();
+        // 雪は峰にだけ残る。低いところは岩
+        g.beginPath(); g.moveTo(0, HORIZON + 1);
+        for (let x = 0; x <= VW; x += 10) {
+          const u = x + shift;
+          const h = base + Math.sin(u * k1 + 1.2) * amp + Math.sin(u * k2) * amp * 0.9 + Math.sin(u * k1 * 3.1) * amp * 0.25;
+          g.lineTo(x, HORIZON - Math.max(0, Math.min(h, base * 0.9 + (h - base * 0.9) * 0.35)));
+        }
+        g.lineTo(VW, HORIZON + 1); g.closePath(); g.fillStyle = col; g.fill();
+      } else { path(); g.fillStyle = col; g.fill(); }
+    };
+    const farC = night ? '#1b2340' : wet ? '#6f7a8a' : sc.far;
+    const hillC = night ? '#141c34' : wet ? '#4b5a4a' : sc.hill;
+    layer(farC, 13, 26, 0.021, 0.0093, head * 70, !!sc.cap);
+    layer(hillC, 7, 11, 0.037, 0.016, head * 150, false);
+
+    // 地平の木立。近いので、いちばん速く流れる
+    {
+      const treeC = night ? '#0e1526' : wet ? '#2c3a2c' : sc.tree;
+      g.fillStyle = treeC;
+      const step = sc.kind === 'flat' ? 13 : 7;
+      const shift = head * 240;
+      for (let x = -20; x <= VW + 20; x += step) {
+        const idx = Math.floor((x + shift) / step);
+        const r = hsh(idx);
+        if (sc.kind === 'flat' && r > 0.45) continue;
+        const sx = x - ((shift % step) + step) % step;
+        const hh = (sc.kind === 'pine' ? 5 : 4) + r * (sc.kind === 'pine' ? 9 : 6);
+        const w = sc.kind === 'pine' ? 3 + r * 3 : 5 + r * 5;
+        g.beginPath();
+        if (sc.kind === 'pine') {
+          g.moveTo(sx - w, HORIZON + 1); g.lineTo(sx, HORIZON - hh); g.lineTo(sx + w, HORIZON + 1);
+        } else if (sc.kind === 'flat') {
+          g.rect(sx - 0.8, HORIZON - hh * 0.7, 1.6, hh);
+          g.ellipse(sx, HORIZON - hh * 0.75, w, hh * 0.32, 0, 0, TAU);
+        } else {
+          g.ellipse(sx, HORIZON - hh * 0.55, w * 0.8, hh * 0.6, 0, 0, TAU);
+        }
+        g.closePath(); g.fill();
+      }
+    }
+
     // 地面
     g.fillStyle = groundOf(S.props.flavor, night);
     g.fillRect(0, HORIZON, VW, VH - HORIZON);
+    // 遠くの地面は空気に溶ける（遠くほど白く霞む）
+    {
+      const hz = g.createLinearGradient(0, HORIZON, 0, HORIZON + 80);
+      hz.addColorStop(0, 'rgba(' + (night ? '38,48,77' : sc.haze) + ',' + (night ? '.55' : wet ? '.72' : '.60') + ')');
+      hz.addColorStop(1, 'rgba(' + (night ? '38,48,77' : sc.haze) + ',0)');
+      g.fillStyle = hz; g.fillRect(0, HORIZON, VW, 80);
+    }
     /* 地面にも目を入れる。無地だと、どれだけ飛ばしても動いて見えない。
        遠いほど細かく、手前ほど粗く                              */
     const off = (S.road.cum[S.i] * 0.5) % 40;
     g.fillStyle = 'rgba(0,0,0,.06)';
     for (let k = 1; k < 26; k++) {
       const fz = 24 + k * k * 2.6 + off;
-      const sc = FOCAL / fz;
-      const y = HORIZON + CAM.h * sc;
+      const sc2 = FOCAL / fz;
+      const y = HORIZON + CAM.h * sc2;
       if (y > VH) break;
-      g.fillRect(0, y, VW, Math.max(0.6, sc * 0.9));
+      g.fillRect(0, y, VW, Math.max(0.6, sc2 * 0.9));
     }
   }
 
@@ -777,68 +949,182 @@ GP.rallyview = (function () {
   /* ---------- 後ろから見た自車 ----------
      流れているぶんだけ、横っ腹が見えてくる。
      真後ろから見ているのに車の側面が見える、というのが
-     「流れている」ということの、いちばん分かりやすい形     */
+     「流れている」ということの、いちばん分かりやすい形。
+     車輪は車体の外に出ていて、荒れた道では車体だけが上下する。
+     減速でブレーキ灯が点き、走るほど泥が乗る                 */
+  function braking(i) {
+    const kp = S.road.keep;
+    const j = Math.min(S.road.n - 1, i + 3);
+    return kp[j] < kp[i] - 0.012 || (S.inc && S.holdUntil > 0);
+  }
   function drawCarBack(g, L, i, inc) {
     const q = project(L.x[i], L.y[i]);
     if (!q) return;
-    const z = q[2];
+    /* 道の幅は 22。車は 16 くらい。それより大きく描くと道からはみ出す */
+    const z = q[2] * 0.46;
     const sl = L.slip[i] + (inc ? inc.rot : 0);
     const col = S.spec.color || '#c23a2e';
-    const W2 = 19 * z, H2 = 12.5 * z;
+    const night = !!S.spec.night;
+    const surface = S.spec.surface;
     const x = q[0], y = q[1];
     const sn = Math.sin(sl), cs = Math.abs(Math.cos(sl));
-    const sideW = 30 * z * sn;                 // 横っ腹の見えかた（符号つき）
+    const bw = 34 * z * cs + 6 * z;             // 後ろ姿の幅
+    const side = 44 * z * sn;                   // 横っ腹の見えかた（符号つき）
+    const rough = surface === 'tarmac' ? 0.35 : 1;
+    const bob = (Math.sin(S.t * 9.3) * 0.9 + Math.sin(S.t * 17.7) * 0.5) * z * rough * 0.5
+              + (S.shake > 0 ? (Math.random() - 0.5) * 3 * z * S.shake : 0);
+    const brake = braking(i);
+    const dark = GP.gfx.shade(col, -0.34), darker = GP.gfx.shade(col, -0.50), lit = GP.gfx.shade(col, 0.14);
+    const ink = '#12101a';
+    const phase = (S.road.cum[i] * 0.4) % 1;
+
     g.save();
-    // 影
+    // 前照灯。夜は道の先が明るい。車より先に描く
+    if (night) {
+      const ax = L.x[i] + Math.cos(L.drv[i] + sl) * 34, ay = L.y[i] + Math.sin(L.drv[i] + sl) * 34;
+      const q2 = project(ax, ay);
+      if (q2) {
+        const R = 44 * q2[2];
+        const lg = g.createRadialGradient(q2[0], q2[1], 2, q2[0], q2[1], R);
+        lg.addColorStop(0, 'rgba(255,240,190,.42)'); lg.addColorStop(1, 'rgba(255,240,190,0)');
+        g.fillStyle = lg;
+        g.beginPath(); g.ellipse(q2[0], q2[1], R, R * 0.45, 0, 0, TAU); g.fill();
+      }
+    }
+    // 影。流れている側へ伸びる
     g.fillStyle = 'rgba(0,0,0,.34)';
-    g.beginPath(); g.ellipse(x, y, W2 * 0.8 + Math.abs(sideW) * 0.4, H2 * 0.16, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(x + side * 0.3, y + 0.5 * z, bw * 0.62 + Math.abs(side) * 0.5, 3.2 * z, 0, 0, TAU); g.fill();
+
+    // 車輪。転がる目が、下から上へ流れる
+    const tire = (wx, wy, k, steer) => {
+      const w = 5.5 * z * k, h = 9 * z * k;
+      g.fillStyle = ink;
+      g.fillRect(wx - w / 2, wy - h, w, h);
+      g.fillStyle = 'rgba(255,255,255,.13)';
+      const band = ((phase + (wx > x ? 0.5 : 0)) % 1) * h;
+      g.fillRect(wx - w / 2, wy - h + band, w, Math.max(1, h * 0.16));
+      g.fillStyle = '#3a3846';
+      g.fillRect(wx - w * 0.22, wy - h * 0.66, w * 0.44, h * 0.34);
+    };
     // 横っ腹（流れている側と反対に見える）
-    if (Math.abs(sideW) > 1) {
-      const sx = x + (sideW > 0 ? W2 * cs / 2 : -W2 * cs / 2);
-      g.fillStyle = GP.gfx.shade(col, -0.30);
+    const edge = side > 0 ? x + bw / 2 : x - bw / 2;
+    const fy = -3 * z * Math.abs(sn);          // 車の先は少し遠いので、少し上
+    if (Math.abs(side) > 1.5) {
+      // 前輪。横を向いているときだけ見える
+      tire(edge + side * 0.82, y + fy, 0.9);
+      const by = y + bob;
+      g.fillStyle = dark;
       g.beginPath();
-      g.moveTo(sx, y); g.lineTo(sx + sideW, y - H2 * 0.10);
-      g.lineTo(sx + sideW, y - H2 * 0.72); g.lineTo(sx, y - H2 * 0.92);
-      g.closePath(); g.fill();
-      g.fillStyle = 'rgba(0,0,0,.20)';
-      g.beginPath();
-      g.moveTo(sx, y - H2 * 0.36); g.lineTo(sx + sideW, y - H2 * 0.34);
-      g.lineTo(sx + sideW, y - H2 * 0.10); g.lineTo(sx, y);
+      g.moveTo(edge, by - 3 * z); g.lineTo(edge + side, by + fy - 2.6 * z);
+      g.lineTo(edge + side, by + fy - 21 * z); g.lineTo(edge, by - 24 * z);
       g.closePath(); g.fill();
       // 横のガラス
       g.fillStyle = '#15161b';
       g.beginPath();
-      g.moveTo(sx + sideW * 0.10, y - H2 * 0.60); g.lineTo(sx + sideW * 0.86, y - H2 * 0.52);
-      g.lineTo(sx + sideW * 0.86, y - H2 * 0.70); g.lineTo(sx + sideW * 0.10, y - H2 * 0.82);
+      g.moveTo(edge + side * 0.08, by - 16 * z); g.lineTo(edge + side * 0.88, by + fy - 14.5 * z);
+      g.lineTo(edge + side * 0.88, by + fy - 20 * z); g.lineTo(edge + side * 0.08, by - 22.5 * z);
+      g.closePath(); g.fill();
+      // 腰のライン
+      g.fillStyle = 'rgba(255,255,255,.20)';
+      g.beginPath();
+      g.moveTo(edge, by - 14 * z); g.lineTo(edge + side, by + fy - 12.8 * z);
+      g.lineTo(edge + side, by + fy - 11.6 * z); g.lineTo(edge, by - 12.6 * z);
+      g.closePath(); g.fill();
+      // 下は影
+      g.fillStyle = 'rgba(0,0,0,.28)';
+      g.beginPath();
+      g.moveTo(edge, by - 7 * z); g.lineTo(edge + side, by + fy - 6.5 * z);
+      g.lineTo(edge + side, by + fy - 2.6 * z); g.lineTo(edge, by - 3 * z);
       g.closePath(); g.fill();
     }
-    // 後ろ姿
-    const bw = W2 * cs;
-    g.fillStyle = GP.gfx.shade(col, -0.36);
-    g.fillRect(x - bw / 2 - 1.2 * z, y - H2, bw + 2.4 * z, H2);
+    // 後輪
+    tire(x - bw / 2 - 1.2 * z, y, 1);
+    tire(x + bw / 2 + 1.2 * z, y, 1);
+    // マッドフラップ
+    g.fillStyle = darker;
+    g.fillRect(x - bw / 2 - 2 * z, y - 6 * z + bob, 4 * z, 5 * z);
+    g.fillRect(x + bw / 2 - 2 * z, y - 6 * z + bob, 4 * z, 5 * z);
+
+    /* ---- 後ろ姿。車体だけが上下し、車輪は道に残る ---- */
+    g.translate(0, bob);
+    g.translate(x, y); g.rotate(-sl * 0.09); g.translate(-x, -y);
+    // バンパー
+    g.fillStyle = darker;
+    g.fillRect(x - bw / 2, y - 8 * z, bw, 5 * z);
+    // 車体
+    g.fillStyle = dark;
+    g.fillRect(x - bw / 2 - 0.8 * z, y - 17 * z, bw + 1.6 * z, 9.6 * z);
     g.fillStyle = col;
-    g.fillRect(x - bw / 2, y - H2 * 0.96, bw, H2 * 0.92);
-    g.fillStyle = 'rgba(0,0,0,.24)';
-    g.fillRect(x - bw / 2, y - H2 * 0.26, bw, H2 * 0.26);
-    // リアガラス
+    g.fillRect(x - bw / 2, y - 16.5 * z, bw, 8.5 * z);
+    // ナンバー
+    g.fillStyle = '#fff8e6';
+    g.fillRect(x - 4 * z, y - 12 * z, 8 * z, 3 * z);
+    // 尾灯。減速で光る。夜はいつも薄く点く
+    const lamp = (lx) => {
+      if (brake || night) {
+        const gl = g.createRadialGradient(lx, y - 13.5 * z, 1, lx, y - 13.5 * z, (brake ? 10 : 6) * z);
+        gl.addColorStop(0, brake ? 'rgba(255,90,60,.55)' : 'rgba(255,90,60,.28)'); gl.addColorStop(1, 'rgba(255,90,60,0)');
+        g.fillStyle = gl; g.fillRect(lx - 10 * z, y - 24 * z, 20 * z, 20 * z);
+      }
+      g.fillStyle = brake ? '#ff6a3c' : night ? '#d84a34' : '#a8342a';
+      g.fillRect(lx - 3 * z, y - 15 * z, 6 * z, 3 * z);
+      g.fillStyle = 'rgba(255,255,255,.35)';
+      g.fillRect(lx - 3 * z, y - 15 * z, 6 * z, 0.8 * z);
+    };
+    lamp(x - bw / 2 + 4.5 * z); lamp(x + bw / 2 - 4.5 * z);
+    // 上半分。窓と屋根
+    const gw = bw * 0.84;
+    g.fillStyle = dark;
+    g.fillRect(x - gw / 2 - 0.8 * z, y - 26 * z, gw + 1.6 * z, 9.5 * z);
     g.fillStyle = '#15161b';
-    g.fillRect(x - bw * 0.34, y - H2 * 0.88, bw * 0.68, H2 * 0.30);
-    // 尾灯
-    g.fillStyle = '#e2664a';
-    g.fillRect(x - bw * 0.46, y - H2 * 0.48, bw * 0.16, H2 * 0.13);
-    g.fillRect(x + bw * 0.30, y - H2 * 0.48, bw * 0.16, H2 * 0.13);
-    // 屋根の翼
-    g.fillStyle = GP.gfx.shade(col, -0.30);
-    g.fillRect(x - bw * 0.40, y - H2 * 1.12, bw * 0.09, H2 * 0.17);
-    g.fillRect(x + bw * 0.31, y - H2 * 1.12, bw * 0.09, H2 * 0.17);
+    g.fillRect(x - gw / 2, y - 25 * z, gw, 8 * z);
+    g.fillStyle = 'rgba(255,248,230,.16)';
+    g.fillRect(x - gw / 2, y - 25 * z, gw, 1.6 * z);
+    // 窓の中に、ふたつのヘルメットの後ろ
+    g.fillStyle = 'rgba(255,255,255,.10)';
+    g.fillRect(x - gw * 0.30, y - 23.5 * z, gw * 0.18, 4.5 * z);
+    g.fillRect(x + gw * 0.12, y - 23 * z, gw * 0.18, 4 * z);
+    // 屋根。上を向いた面は明るい
+    g.fillStyle = lit;
+    g.fillRect(x - gw / 2, y - 28 * z, gw, 3 * z);
     g.fillStyle = '#23222c';
-    g.fillRect(x - bw * 0.54, y - H2 * 1.24, bw * 1.08, H2 * 0.13);
-    g.fillStyle = 'rgba(255,255,255,.16)';
-    g.fillRect(x - bw * 0.54, y - H2 * 1.24, bw * 1.08, H2 * 0.04);
-    // タイヤ
-    g.fillStyle = '#12101a';
-    g.fillRect(x - bw / 2 - 2.6 * z, y - H2 * 0.42, 3.4 * z, H2 * 0.42);
-    g.fillRect(x + bw / 2 - 0.8 * z, y - H2 * 0.42, 3.4 * z, H2 * 0.42);
+    g.fillRect(x - 3 * z, y - 28.4 * z, 6 * z, 1.8 * z);             // 屋根の空気取り
+    g.strokeStyle = ink; g.lineWidth = Math.max(0.6, 0.5 * z);
+    g.beginPath(); g.moveTo(x - gw * 0.4, y - 28 * z); g.lineTo(x - gw * 0.42, y - 36 * z); g.stroke();   // アンテナ
+    // 翼。柱・板・端板
+    g.fillStyle = dark;
+    g.fillRect(x - bw * 0.30, y - 34 * z, 2 * z, 7 * z);
+    g.fillRect(x + bw * 0.30 - 2 * z, y - 34 * z, 2 * z, 7 * z);
+    g.fillStyle = '#23222c';
+    g.fillRect(x - bw * 0.54, y - 36.5 * z, bw * 1.08, 3 * z);
+    g.fillStyle = 'rgba(255,255,255,.18)';
+    g.fillRect(x - bw * 0.54, y - 36.5 * z, bw * 1.08, 0.9 * z);
+    g.fillStyle = col;
+    g.fillRect(x - bw * 0.54 - 1.2 * z, y - 39 * z, 1.8 * z, 6 * z);
+    g.fillRect(x + bw * 0.54 - 0.6 * z, y - 39 * z, 1.8 * z, 6 * z);
+    // 泥。走った距離ぶんだけ、下半分に乗る
+    if (surface !== 'tarmac' || S.spec.wet) {
+      const f = S.f || 0;
+      const a = Math.min(0.55, 0.08 + f * 0.62);
+      g.fillStyle = surface === 'snow' ? 'rgba(236,240,248,' + a + ')'
+                  : S.spec.wet && surface === 'tarmac' ? 'rgba(40,36,44,' + a * 0.7 + ')'
+                  : 'rgba(78,52,26,' + a + ')';
+      for (let k = 0; k < 9; k++) {
+        const hh = (2 + hsh(k * 3 + 11) * 5 + f * 4) * z;
+        const sx = x - bw / 2 + (k / 9) * bw;
+        g.fillRect(sx, y - 3 * z - hh, bw / 9 + 0.5, hh);
+      }
+    }
+    // 排気。減速で、ときどき火を吹く
+    g.fillStyle = ink;
+    g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 1.7 * z, 0, TAU); g.fill();
+    if (brake && Math.random() < 0.35 && !night) {
+      g.fillStyle = 'rgba(255,170,60,.85)';
+      g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 1.3 * z, 0, TAU); g.fill();
+    } else if (brake && night && Math.random() < 0.35) {
+      g.fillStyle = 'rgba(255,190,80,.95)';
+      g.beginPath(); g.arc(x + bw * 0.34, y - 4.5 * z, 2.2 * z, 0, TAU); g.fill();
+    }
     g.restore();
   }
 
@@ -880,12 +1166,28 @@ GP.rallyview = (function () {
     g.fillRect(50, VH * 0.085 + bob, 8, dashY - VH * 0.085 + 10);
     g.fillRect(VW - 58, VH * 0.085 + bob, 8, dashY - VH * 0.085 + 10);
     g.fillRect(0, VH * 0.085 + bob, VW, 6);
-    // ワイパー。窓の下端に寝ている
-    g.strokeStyle = 'rgba(18,16,26,.62)'; g.lineWidth = 2.4; g.lineCap = 'round';
-    g.beginPath();
-    g.moveTo(VW * 0.24, dashY - 3); g.lineTo(VW * 0.40, dashY - 52);
-    g.moveTo(VW * 0.58, dashY - 3); g.lineTo(VW * 0.74, dashY - 52);
-    g.stroke();
+    // 雨。ガラスに粒が付いて、下へ流れる
+    const wet = !!S.spec.wet;
+    const wipe = wet ? Math.abs(Math.sin(S.t * 2.4)) : 0;      // ワイパーの振り（0..1）
+    if (wet) {
+      const top = VH * 0.085 + bob, hgt = dashY - top;
+      g.fillStyle = 'rgba(220,232,250,.34)';
+      for (let k = 0; k < 46; k++) {
+        const px = hsh(k * 9 + 1) * VW;
+        const py = top + ((hsh(k * 9 + 2) * hgt + performance.now() * 0.001 * (12 + hsh(k * 9 + 3) * 30)) % hgt);
+        const r = 1 + hsh(k * 9 + 4) * 1.8;
+        g.beginPath(); g.ellipse(px, py, r, r * 1.6, 0, 0, TAU); g.fill();
+      }
+    }
+    // ワイパー。雨なら振る。晴れなら窓の下端に寝ている
+    g.strokeStyle = 'rgba(18,16,26,.72)'; g.lineWidth = 2.6; g.lineCap = 'round';
+    [[VW * 0.24, -0.30], [VW * 0.58, -0.30]].forEach(w => {
+      const ang = w[1] - wipe * 1.35;                       // 寝た位置から左へ振る
+      g.beginPath();
+      g.moveTo(w[0], dashY - 3);
+      g.lineTo(w[0] + Math.cos(ang) * 60, dashY - 3 + Math.sin(ang) * 60);
+      g.stroke();
+    });
 
     if (night) {
       // 前照灯。まず道の先を暖かく照らし、そのまわりを落とす
@@ -1235,36 +1537,17 @@ GP.rallyview = (function () {
     g.translate(px, py);
     g.rotate(drv + slip + Math.PI / 2);
     const col = S.spec.color || '#c23a2e';
+    const dark = GP.gfx.shade(col, -0.34), lit = GP.gfx.shade(col, 0.16);
     const sl = L.slip[i];
+    const brake = braking(i);
+    const surface = S.spec.surface;
     // 影。流れている側へずれる
     g.fillStyle = 'rgba(0,0,0,.34)';
-    g.beginPath(); g.ellipse(sl * 5, 3, 9, 5, 0, 0, TAU); g.fill();
-    // タイヤ。後ろは車体なり、前はハンドルなり
-    const steer = steerOf(L, i);
-    g.fillStyle = '#12101a';
-    g.fillRect(-10, 4, 4, 6); g.fillRect(6, 4, 4, 6);
-    wheel(g, -8, -6, steer); wheel(g, 8, -6, steer);
-    // 車体（上から見た形）
-    g.fillStyle = GP.gfx.shade(col, -0.34);
-    g.fillRect(-8, -12, 16, 24);
-    g.fillStyle = col;
-    g.fillRect(-7, -11, 14, 22);
-    g.fillStyle = 'rgba(255,255,255,.22)';
-    g.fillRect(-7, -11, 14, 4);
-    g.fillStyle = GP.gfx.shade(col, -0.18);
-    g.fillRect(-7, 5, 14, 6);
-    // 窓
-    g.fillStyle = '#15161b';
-    g.fillRect(-5, -6, 10, 8);
-    g.fillStyle = 'rgba(255,248,230,.16)';
-    g.fillRect(-5, -6, 10, 2);
-    // ルーフの番号板
-    g.fillStyle = '#fff8e6';
-    g.fillRect(-3, 1, 6, 4);
-    // ライト
+    g.beginPath(); g.ellipse(sl * 5, 3, 10, 6, 0, 0, TAU); g.fill();
+    // 前照灯の光（夜）。車体より先に、道に落とす
     if (S.spec.night) {
-      /* 光は四角く出ない。前照灯の形に切っておく */
-      g.save(); g.rotate(steer * 0.5);
+      const steer0 = steerOf(L, i);
+      g.save(); g.rotate(steer0 * 0.5);
       const gl = g.createRadialGradient(0, -12, 3, 0, -12, 72);
       gl.addColorStop(0, 'rgba(255,240,190,.52)');
       gl.addColorStop(0.5, 'rgba(255,240,190,.20)');
@@ -1275,6 +1558,72 @@ GP.rallyview = (function () {
       g.closePath(); g.fill();
       g.restore();
     }
+    // タイヤ。車体の外に出ている。後ろは車体なり、前はハンドルなり
+    const steer = steerOf(L, i);
+    g.fillStyle = '#12101a';
+    g.fillRect(-10.5, 4, 4, 6.5); g.fillRect(6.5, 4, 4, 6.5);
+    wheel(g, -8.5, -6.5, steer); wheel(g, 8.5, -6.5, steer);
+    // マッドフラップ
+    g.fillStyle = GP.gfx.shade(col, -0.5);
+    g.fillRect(-10, 10, 4, 1.6); g.fillRect(6, 10, 4, 1.6);
+    /* 車体。横Gで、車輪の上を少しだけ外へ寄る（ロール） */
+    g.save();
+    g.translate(-sl * 1.6, 0);
+    g.fillStyle = dark;
+    g.fillRect(-8, -12.5, 16, 25);
+    g.fillStyle = col;
+    g.fillRect(-7, -11.5, 14, 23);
+    // ボンネット（前）は明るく、後ろ（トランク）は少し暗い
+    g.fillStyle = lit;
+    g.fillRect(-7, -11.5, 14, 5);
+    g.fillStyle = GP.gfx.shade(col, -0.16);
+    g.fillRect(-7, 6.5, 14, 5);
+    // 前照灯
+    g.fillStyle = S.spec.night ? '#fff6c8' : '#e8e2c8';
+    g.fillRect(-6.5, -12, 3, 1.6); g.fillRect(3.5, -12, 3, 1.6);
+    // フロントガラスと屋根、リアガラス
+    g.fillStyle = '#15161b';
+    g.fillRect(-5.5, -6.5, 11, 4);
+    g.fillStyle = 'rgba(255,248,230,.18)';
+    g.fillRect(-5.5, -6.5, 11, 1.2);
+    g.fillStyle = GP.gfx.shade(col, 0.06);
+    g.fillRect(-5.5, -2.5, 11, 6);
+    g.fillStyle = '#15161b';
+    g.fillRect(-5, 3.5, 10, 2.6);
+    // 屋根の空気取りと番号板
+    g.fillStyle = '#23222c';
+    g.fillRect(-1.5, -2.2, 3, 1.4);
+    g.fillStyle = '#fff8e6';
+    g.fillRect(-2.5, 0, 5, 3);
+    // 腰の帯（ラリーカーらしい一本）
+    g.fillStyle = 'rgba(255,255,255,.28)';
+    g.fillRect(-7, -7.5, 1.4, 19); g.fillRect(5.6, -7.5, 1.4, 19);
+    // 尾灯。減速で明るく、夜は薄く
+    g.fillStyle = brake ? '#ff6a3c' : S.spec.night ? '#d84a34' : '#a8342a';
+    g.fillRect(-6.5, 10.4, 3, 1.4); g.fillRect(3.5, 10.4, 3, 1.4);
+    if (brake) {
+      const gl2 = g.createRadialGradient(0, 12, 1, 0, 12, 9);
+      gl2.addColorStop(0, 'rgba(255,90,60,.45)'); gl2.addColorStop(1, 'rgba(255,90,60,0)');
+      g.fillStyle = gl2; g.fillRect(-10, 8, 20, 10);
+    }
+    // 翼。車体より広く、いちばん上に載る
+    g.fillStyle = '#23222c';
+    g.fillRect(-9, 8.5, 18, 2.2);
+    g.fillStyle = col;
+    g.fillRect(-9.5, 7.6, 1.6, 4); g.fillRect(7.9, 7.6, 1.6, 4);
+    g.fillStyle = 'rgba(255,255,255,.18)';
+    g.fillRect(-9, 8.5, 18, 0.7);
+    // 泥。走った距離ぶんだけ、車体の後ろ半分に乗る
+    if (surface !== 'tarmac' || S.spec.wet) {
+      const f = S.f || 0;
+      const a = Math.min(0.5, 0.05 + f * 0.55);
+      g.fillStyle = surface === 'snow' ? 'rgba(236,240,248,' + a + ')' : 'rgba(78,52,26,' + a + ')';
+      for (let k = 0; k < 6; k++) {
+        const hh = 1 + hsh(k * 5 + 21) * 3 + f * 3;
+        g.fillRect(-7 + k * 2.33, 11.5 - hh, 2.4, hh);
+      }
+    }
+    g.restore();
     g.restore();
   }
   function wheel(g, x, y, a) {
@@ -1659,6 +2008,81 @@ GP.rallyview = (function () {
       g.fillStyle = 'rgba(255,248,230,.75)';
       g.fillText('ベストとの差', VW / 2, 58);
     }
+    // 速さ。車内では計器が言うので出さない
+    if (view !== 'cab') {
+      g.font = 'bold 15px sans-serif'; g.textAlign = 'right';
+      g.fillStyle = 'rgba(18,16,26,.62)';
+      g.fillRect(VW - 78, VH - 28, 70, 22);
+      g.fillStyle = '#fff8e6';
+      g.fillText(speedNow() + '', VW - 30, VH - 11);
+      g.font = 'bold 9px sans-serif'; g.fillStyle = '#b5aabb';
+      g.fillText('km/h', VW - 12, VH - 11);
+    }
+    // 雨。外から見ているときは、画面に筋が走る
+    if (S.spec.wet && view !== 'cab') rain(g);
+    // スプリットの札
+    if (S.split) {
+      const sp = S.split, good = sp.d <= 0;
+      const a = Math.min(1, sp.left / 0.4);
+      g.globalAlpha = a;
+      const w = 150, x0 = VW / 2 - w / 2, y0 = 64;
+      g.fillStyle = 'rgba(18,16,26,.84)'; g.fillRect(x0, y0, w, 30);
+      g.fillStyle = good ? '#5fbf62' : '#e2664a'; g.fillRect(x0, y0, 5, 30);
+      g.font = 'bold 10px sans-serif'; g.textAlign = 'left'; g.fillStyle = '#b5aabb';
+      g.fillText('スプリット ' + sp.n, x0 + 12, y0 + 12);
+      g.font = 'bold 16px sans-serif'; g.fillStyle = good ? '#9be08a' : '#ffb09a';
+      g.fillText((sp.d >= 0 ? '+' : '−') + Math.abs(sp.d).toFixed(1), x0 + 12, y0 + 27);
+      g.font = 'bold 9px sans-serif'; g.textAlign = 'right'; g.fillStyle = '#b5aabb';
+      g.fillText(good ? 'ベストより速い' : 'ベストより遅い', x0 + w - 8, y0 + 27);
+      g.globalAlpha = 1;
+    }
+    // 走り出す前の数え
+    if (S.pre > 0 || S.go > 0) {
+      const n = Math.ceil(S.pre);
+      const txt = S.pre > 0 ? String(n) : 'GO!';
+      const frac = S.pre > 0 ? (S.pre - Math.floor(S.pre)) : S.go;
+      const k = S.pre > 0 ? 1 + (1 - frac) * 0.25 : 1 + clamp(1 - S.go, 0, 1) * 0.4;
+      g.save();
+      g.translate(VW / 2, VH * 0.46);
+      g.scale(k, k);
+      g.globalAlpha = S.pre > 0 ? 0.95 : Math.min(1, S.go * 2);
+      g.font = 'bold 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 8; g.strokeStyle = '#12101a'; g.strokeText(txt, 0, 0);
+      g.fillStyle = S.pre > 0 ? '#ffd98a' : '#9be08a'; g.fillText(txt, 0, 0);
+      g.restore();
+      g.textBaseline = 'alphabetic';
+      if (S.pre > 0) {
+        const cap = S.spec.km.toFixed(1) + ' km　' + (S.spec.watch ? '' : 'スタート待ち');
+        g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
+        const cw = g.measureText(cap).width + 20;
+        g.fillStyle = 'rgba(18,16,26,.72)';
+        g.fillRect(VW / 2 - cw / 2, VH * 0.46 - 58, cw, 20);
+        g.fillStyle = '#fff8e6';
+        g.fillText(cap, VW / 2, VH * 0.46 - 44);
+      }
+    }
+    // ゴールの板
+    if (S.done && S.fin > 0) {
+      const out = !!(S.inc && S.inc.out);
+      const a = Math.min(1, (1.7 - S.fin) / 0.25);
+      g.globalAlpha = a;
+      g.fillStyle = 'rgba(18,16,26,.80)';
+      g.fillRect(VW / 2 - 130, VH * 0.34, 260, 84);
+      g.fillStyle = out ? '#e2664a' : '#e0ae3c';
+      g.fillRect(VW / 2 - 130, VH * 0.34, 260, 5);
+      g.font = 'bold 26px sans-serif'; g.textAlign = 'center';
+      g.fillStyle = '#fff8e6';
+      g.fillText(out ? 'リタイア' : 'FINISH', VW / 2, VH * 0.34 + 38);
+      g.font = 'bold 15px sans-serif'; g.fillStyle = '#ffd98a';
+      if (out) {
+        const m = S.logs[0];
+        g.fillText(m ? (m.icon + ' ' + m.name) : '', VW / 2, VH * 0.34 + 64);
+      } else {
+        const d = S.t - S.spec.leadTime;
+        g.fillText(fmt(S.t) + (S.spec.leadTime ? '　' + (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(1) : ''), VW / 2, VH * 0.34 + 64);
+      }
+      g.globalAlpha = 1;
+    }
     // 見物しているとき。自分の車でないことは、はっきり言う
     if (S.spec.watch) {
       g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
@@ -1673,6 +2097,25 @@ GP.rallyview = (function () {
     g.fillStyle = '#e0ae3c'; g.fillRect(0, 26, VW * f, 3);
   }
 
+  /* いまの速さ。区間の平均に、道の速さの形を掛ける */
+  function speedNow() {
+    const i = S.i;
+    const rev = 0.26 + S.road.keep[i] * 0.66;
+    return Math.round(S.spec.km / Math.max(1, S.spec.timeS) * 3600 * (0.45 + rev * 0.75));
+  }
+  /* 雨の筋。走っている向きに流れる */
+  function rain(g) {
+    g.strokeStyle = 'rgba(210,225,245,.28)'; g.lineWidth = 1;
+    g.beginPath();
+    for (let k = 0; k < 42; k++) {
+      const spd = 260 + hsh(k * 5 + 2) * 200;
+      const x = (hsh(k * 5 + 1) * (VW + 60) + S.t * rate * 0.03 * spd * 0.05) % (VW + 60) - 30;
+      const y = (hsh(k * 5 + 3) * (VH + 40) + performance.now() * 0.001 * spd) % (VH + 40) - 20;
+      const len = 8 + hsh(k * 5 + 4) * 10;
+      g.moveTo(x, y); g.lineTo(x - len * 0.25, y + len);
+    }
+    g.stroke();
+  }
   function fmt(t) {
     const m = Math.floor(t / 60), s2 = t - m * 60;
     return m + ':' + (s2 < 10 ? '0' : '') + s2.toFixed(1);
