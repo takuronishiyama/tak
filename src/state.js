@@ -1631,7 +1631,10 @@ GP.state = (function () {
   /* 1周あたり何秒ぶんの発見か → マシン性能で何点ぶんか に直す */
   function secToScore(g2, sec) {
     const t = trackAt(g2, g2.nextRace);
-    return sec / (t.base * 0.00092 * 0.60);
+    /* ラリーの会場には「1周の基準タイム」が無い。ここが NaN になると
+       ライバルの数字が丸ごと壊れ、誰のタイムも出なくなる（走行画面が止まる） */
+    const base = (t && isFinite(t.base) && t.base > 0) ? t.base : 92;
+    return sec / (base * 0.00092 * 0.60);
   }
   function innovName() { return pick(D.INNOV.NAMES); }
 
@@ -5234,6 +5237,13 @@ GP.state = (function () {
       ['speed', 'technique', 'stamina', 'mental', 'salary', 'form', 'age', 'pot'].forEach(k => fix(d, k, 50, 'driver' + i));
     });
     (g.codrivers || []).forEach((co, i) => { fix(co, 'skill', 40, 'co' + i); fix(co, 'bond', 0, 'co' + i); fix(co, 'salary', 5, 'co' + i); });
+    /* ライバルの数字。壊れていたら、シーズン初めの水準か、無難な値に戻す */
+    (g.rivals || []).forEach(r => {
+      if (!r.stats) { r.stats = { speed: 30, corner: 30, accel: 30 }; fixed.push('rival.' + r.name + '.stats'); }
+      ['speed', 'corner', 'accel'].forEach(k => fix(r.stats, k, (r.base0 && isFinite(r.base0[k])) ? r.base0[k] : 30, 'rival.' + r.name));
+      fix(r, 'rel', 85, 'rival.' + r.name); fix(r, 'points', 0, 'rival.' + r.name);
+      (r.drivers || []).forEach(d => fix(d, 'seasonPoints', 0, 'rival.' + r.name + '.drv'));
+    });
     if (fixed.length) {
       g.log = g.log || [];
       g.log.push({ s: '[S' + g.season + ' W' + g.week + '] 🩹 数字の穴をふさいだ（' + fixed.slice(0, 6).join(' ') + '）', t: 'warn' });
