@@ -41,9 +41,21 @@ GP.screens.hr = function (A) {
   function refreshMarkets(force) {
     const q = teamQuality();
     if (force || !staffMarket) staffMarket = [0, 1, 2, 3].map(() => S.makeStaff(S.pick(D.STAFF_TYPES).key, q));
-    if (force || !driverMarket) driverMarket = [0, 1, 2].map(() =>
-      S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2),
-                   Math.random() < D.PAID.odds ? { paid: true } : {}));
+    if (force || !driverMarket) {
+      driverMarket = [0, 1, 2].map(() =>
+        S.makeDriver(1.2 + g.season * 1.4 + S.rnd(-0.6, 1.2),
+                     Math.random() < D.PAID.odds ? { paid: true } : {}));
+      /* ラリーでは、長く組んできた右席を連れてくる人がいる。
+         コンビで迎えれば、息の合ったところから始められる        */
+      if (S.isRally(g)) driverMarket.forEach(d => {
+        if (Math.random() < 0.55) {
+          const co = S.makeCoDriver(d, q);
+          co.bond = Math.round((0.45 + Math.random() * 0.35) * 100) / 100;
+          co.rallies = Math.max(1, Math.round(Math.log(1 - co.bond) / Math.log(0.90)));
+          d.pair = co;
+        }
+      });
+    }
     if (force || !youthMarket) youthMarket = [0, 1, 2].map(() => S.makeYouth(g.season));
     if (force || !mgrMarket) mgrMarket = D.MANAGERS.map(m => S.makeManager(m.key, q));
     if (force || !rivalStaffMarket) rivalStaffMarket = [0, 1, 2].map(() => S.makeRivalStaff(g, q));
@@ -619,7 +631,11 @@ GP.screens.hr = function (A) {
       btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger', fn: () => {
         g.funds -= fee;
         g.drivers = g.drivers.filter(x => x.id !== d.id);
-        U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(fee) + '万）。');
+        // 組んでいた右席も一緒に去る
+        const co = (g.codrivers || []).filter(c => c.with === d.id)[0];
+        if (co) g.codrivers = g.codrivers.filter(c => c !== co);
+        U.log(g, '👋 ' + d.name + ' との契約を解除した（違約金 ' + money(fee) + '万）。' +
+          (co ? '右席の ' + co.name + ' も去った。' : ''));
         S.save(g); render(); reopenHr(); back();
       } });
     } else if (seat === 'res') {
@@ -722,6 +738,7 @@ GP.screens.hr = function (A) {
         Math.round(S.driverRating(d)) + '</b>' +
         '　<em style="color:' + p3.color + '">' + U.stars(d.pot || 2) + '</em>' +
         (d.paid ? '　<b class="paidin">持参金 +' + money(d.paid.dowry) + '</b>' : '') +
+        (d.pair ? '　<em class="hirechip">🤝 右席つき</em>' : '') +
         '</small></span>' +
         '<span class="pb-cost">💰' + money(fee) + '</span></button>';
     });
@@ -756,6 +773,19 @@ GP.screens.hr = function (A) {
     }
     if (short > 0) h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
       money(short) + '万</b> です。</p>';
+    /* 右席を連れている人。コンビで迎えると、息が合った状態から始まる */
+    const pair = (!youth && d.pair) ? d.pair : null;
+    const pairFee = pair ? Math.round(fee + S.coFee(pair) * 0.7) : 0;
+    if (pair) {
+      h += '<div class="sub small">🤝 長く組んできた右席</div>' +
+        '<div class="pickbtn corow" style="cursor:default">' +
+        '<span class="pb-ic" style="background:#4a6a8a">📓</span>' +
+        '<span class="pb-body"><b>' + esc(pair.name) + '</b><small>' + pair.age + '歳　読み <b>' + pair.skill +
+        '</b>　息 <b>' + Math.round(pair.bond * 100) + '%</b>　週' + money(pair.salary) + '万</small></span>' +
+        '<span class="pb-cost">一時金 💰' + money(Math.round(S.coFee(pair) * 0.7)) + '</span></div>' +
+        '<p class="note">コンビで迎えると右席の一時金は3割引き。' +
+        'ひとりで迎えると、この右席はよそへ行きます。</p>';
+    }
     /* 迎え先ごとに空きを見る。リザーブの席から開いたときでも、
        「契約する」が見ているのはフルタイムの席のほう          */
     const fullSeat = seatOf('full'), ySeat = seatOf('youth');
@@ -771,7 +801,12 @@ GP.screens.hr = function (A) {
     } else {
       if (!roomFull) h += '<p class="note">フルタイムの席は埋まっています（2/2）。' +
         (roomRes ? 'リザーブとしてなら迎えられます。' : '') + '</p>';
-      btns.push({ label: '✍️ 契約する（フルタイム）　💰' + money(fee) + '万', cls: 'primary',
+      if (pair) {
+        btns.push({ label: '🤝 右席ごと契約する　💰' + money(pairFee) + '万', cls: 'primary',
+          disabled: g.funds < pairFee || !roomFull,
+          fn: () => { if (hirePair(i)) openSeat(seat); } });
+      }
+      btns.push({ label: '✍️ 契約する（' + (pair ? 'ひとりで' : 'フルタイム') + '）　💰' + money(fee) + '万', cls: pair ? '' : 'primary',
         disabled: short > 0 || !roomFull,
         fn: () => { if (hrPick('dm:' + i)) openSeat(seat); } });
       if (roomRes) {
@@ -1720,6 +1755,31 @@ GP.screens.hr = function (A) {
   }
 
   /* ---- 操作 ---- */
+  /* 右席ごと迎える。息の合った二人組で、右席の一時金は3割引き */
+  function hirePair(idx) {
+    const d = driverMarket[idx];
+    if (!d || !d.pair) return false;
+    const co = d.pair;
+    const fee = Math.round(d.salary * 12 + S.coFee(co) * 0.7);
+    if (g.drivers.length >= 2) { U.toast('フルタイムの席は埋まっています', 'bad'); return false; }
+    if (g.funds < fee) { U.toast('資金が足りません', 'bad'); return false; }
+    g.funds -= fee; d.team = g.team; delete d.pair; g.drivers.push(d);
+    driverMarket.splice(idx, 1);
+    const old = S.coOf(g, d);
+    if (old) g.codrivers = (g.codrivers || []).filter(c => c !== old);
+    g.codrivers = (g.codrivers || []).concat([Object.assign({}, co, { with: d.id })]);
+    if (d.paid) {
+      g.funds += d.paid.dowry;
+      U.log(g, '💼 ' + d.paid.icon + ' ' + d.paid.name + ' から持参金 +' + money(d.paid.dowry) + '万。' + d.paid.line, 'good');
+    }
+    GP.sound.play('levelup');
+    U.log(g, '🤝 ' + d.name + ' と右席の ' + co.name + ' をコンビで迎えた（息 ' + Math.round(co.bond * 100) + '%／💰' + money(fee) + '万）！', 'good');
+    S.pushNews(g, 'drvIn', d.name);
+    U.toast('🤝 ' + d.name + ' ＆ ' + co.name + ' が加入！', 'good');
+    S.save(g); render(); reopenHr();
+    return true;
+  }
+
   /* 雇う・迎える。できなかったときは理由を出して false を返す。
      黙って何も起きないと「押したのに閉じない」に見える           */
   function hrPick(k) {
@@ -1734,6 +1794,10 @@ GP.screens.hr = function (A) {
       if (g.funds < fee) return nope('資金が足りません');
       g.funds -= fee; d.team = g.team; g.drivers.push(d);
       driverMarket.splice(idx, 1);
+      if (d.pair) {
+        U.log(g, '📓 ' + d.pair.name + ' は ' + d.name + ' と組めず、よそのチームへ行った。');
+        delete d.pair;
+      }
       if (d.paid) {
         g.funds += d.paid.dowry;
         U.log(g, '💼 ' + d.paid.icon + ' ' + d.paid.name + ' から持参金 +' +
