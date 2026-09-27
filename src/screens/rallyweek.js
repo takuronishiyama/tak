@@ -327,6 +327,18 @@ GP.screens.rallyweek = function (A) {
     runStage();
   }
 
+  /* 部品の育ちを、見た目の 0〜1 に直す */
+  function carLook() {
+    const St = S();
+    const r = k => {
+      const p = g.equipped && g.equipped[k];
+      if (!p || !St.partCap) return 0.3;
+      const v = p.power / Math.max(1, St.partCap(g, p));
+      return Math.max(0, Math.min(1, isFinite(v) ? v : 0.3));
+    };
+    return { gen: g.carGen || 0, aero: r('aero'), susp: r('susp'), pu: r('pu'), brake: r('brake') };
+  }
+
   /* ---------- SSを走る ----------
      結果はもう出ているので、ここでやるのは再生だけ。
      自車のうち、いちばん上の一台を映す                      */
@@ -362,6 +374,9 @@ GP.screens.rallyweek = function (A) {
       /* この区間のベスト。走っている最中に「いま何秒差か」を出す */
       leadTime: (row.board[0] || mine).t,
       color: watch ? (watch.color || g.color) : g.color, name2: mine.name, rate: viewRate,
+      /* 車の見た目。部品が育つと翼が広がり、屋根の空気取りが大きくなり、
+         フェンダーが張り、世代が進むと帯が増える。見物のときは平均的な車 */
+      look: watch ? { gen: 0, aero: 0.5, susp: 0.5, pu: 0.5 } : carLook(),
       watch: watch ? '自分の車はリタイア。先頭 ' + mine.name + ' の走りを見ています' : ''
     }, () => {
       scr.classList.remove('show');
@@ -378,7 +393,7 @@ GP.screens.rallyweek = function (A) {
   let viewKind = 'top';
   function bindView() {
     /* 見かた。同じ走りでも、どこから見るかで別の競技に見える */
-    const VK = ['top', 'chase', 'cab'];
+    const VK = ['top', 'chase', 'cab', 'tv'];
     VK.forEach((k, idx) => {
       const b = $('ryView' + idx);
       if (!b) return;
