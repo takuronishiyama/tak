@@ -4543,6 +4543,7 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
           <button data-cam="mine" title="自チーム"><i>🚩</i><span>自チーム</span></button>
           <button data-cam="wide" title="全体"><i>🗺️</i><span>全体</span></button>
           <button data-cam="onboard" title="自車の後ろから"><i>🎥</i><span>オンボード</span></button>
+          <button data-cam="tv" title="コース脇の定点カメラ"><i>📺</i><span>定点</span></button>
         </div>
       </div>
       <div class="rv-side">
@@ -20856,9 +20857,12 @@ GP.rallyview = (function () {
     /* 四隅。dx は前へ、dy は右へ。奥にある隅は少し上に上がる */
     const Lh = 22 * z, Wh = 17 * z;
     const sy = Math.sin(yaw), cy = Math.cos(yaw);
+    /* 奥にある隅は上に上がる。どれだけ上がるかは、目がどれだけ見下ろしているか
+       （目の高さ÷車までの距離）。これで屋根の広さが出る          */
+    const kd = clamp(CAM.h / Math.max(8, q[3]), 0.08, 0.7);
     const corner = (dx, dy) => {
       const depth = dx * cy - dy * sy;
-      return [x + dy * cy + dx * sy, y0 - depth * 0.07, depth];
+      return [x + dy * cy + dx * sy, y0 - depth * kd, depth];
     };
     const RL = corner(-Lh, -Wh), RR = corner(-Lh, Wh), FL = corner(Lh, -Wh), FR = corner(Lh, Wh);
     // 影。浮いていると薄く、少し小さい
@@ -20899,6 +20903,31 @@ GP.rallyview = (function () {
       if (f.kind === 'rear') faceRear(g, mx, my, bw, z, K);
       else faceFront(g, mx, my, bw, z, K);
     });
+    /* 上面。後ろのガラス → 屋根 → フロントガラス → ボンネット。
+       見下ろしているぶんだけ広がる。屋根には空気取り            */
+    {
+      const top = (dx, dy, h) => { const cn = corner(dx, dy); return [cn[0], cn[1] + bob - liftBody - h * z]; };
+      const quad = (a, b2, c2, d, fill) => {
+        g.fillStyle = fill; g.beginPath();
+        g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]);
+        g.closePath(); g.fill();
+      };
+      const wr = Wh * 0.66, wg = Wh * 0.80;
+      // 後ろのガラス（尻の腰から屋根へ）
+      quad(top(-Lh * 0.98, -wg, 17.5), top(-Lh * 0.98, wg, 17.5), top(-Lh * 0.62, wr, 29.5), top(-Lh * 0.62, -wr, 29.5), '#15161b');
+      // 屋根
+      quad(top(-Lh * 0.62, -wr, 29.5), top(-Lh * 0.62, wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.18, -wr, 29.5), look.gen >= 2 ? '#fff8e6' : K.lit);
+      quad(top(-Lh * 0.62, -wr, 29.5), top(-Lh * 0.62, wr, 29.5), top(-Lh * 0.58, wr, 29.5), top(-Lh * 0.58, -wr, 29.5), 'rgba(0,0,0,.25)');
+      const sw = (6 + look.pu * 5) * z / (34 * z) * Wh;
+      quad(top(-Lh * 0.30, -sw / 2, 32), top(-Lh * 0.30, sw / 2, 32), top(-Lh * 0.05, sw / 2, 32), top(-Lh * 0.05, -sw / 2, 32), '#23222c');
+      // フロントガラス（屋根から鼻の付け根へ落ちる）
+      quad(top(Lh * 0.18, -wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.52, wg, 17.5), top(Lh * 0.52, -wg, 17.5), '#15161b');
+      quad(top(Lh * 0.18, -wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.24, wr * 0.98, 27.5), top(Lh * 0.24, -wr * 0.98, 27.5), 'rgba(255,248,230,.16)');
+      // ボンネット（少し下って鼻へ）と、空気の抜け
+      quad(top(Lh * 0.52, -wg, 17.5), top(Lh * 0.52, wg, 17.5), top(Lh * 0.98, Wh * 0.92, 13.5), top(Lh * 0.98, -Wh * 0.92, 13.5), K.lit);
+      quad(top(Lh * 0.60, -wg * 0.7, 17), top(Lh * 0.60, -wg * 0.35, 17), top(Lh * 0.70, -wg * 0.35, 16.2), top(Lh * 0.70, -wg * 0.7, 16.2), '#23222c');
+      quad(top(Lh * 0.60, wg * 0.35, 17), top(Lh * 0.60, wg * 0.7, 17), top(Lh * 0.70, wg * 0.7, 16.2), top(Lh * 0.70, wg * 0.35, 16.2), '#23222c');
+    }
     // 翼。後ろの二隅のあいだ。いちばん上に載る
     {
       const rl = [RL[0], RL[1] + bob - liftBody], rr = [RR[0], RR[1] + bob - liftBody];
@@ -22849,9 +22878,9 @@ GP.raceview = (function () {
     if (cam.mode === 'mine') return mine.length ? { list: mine.slice(0, 2), label: 'マイチーム' } : null;
     /* オンボードは1台の後ろに乗る。自車がいれば自車、
        いなければ（リタイア後など）先頭の車に乗り換える          */
-    if (cam.mode === 'onboard') {
+    if (cam.mode === 'onboard' || cam.mode === 'tv') {
       const ride = mine.filter(o => !(pitSpan() && inPit(o.e, t)))[0] || alive[0];
-      return { list: [ride], label: '🎥 ' + ride.e.driver.name };
+      return { list: [ride], label: (cam.mode === 'tv' ? '📺 ' : '🎥 ') + ride.e.driver.name };
     }
 
     // auto：自チームが誰かと接近していればそのバトル、いなければ先頭争い
@@ -22873,10 +22902,50 @@ GP.raceview = (function () {
   }
 
   /* カメラの目標位置を更新する */
+  /* ---------- 定点カメラ ----------
+     コース脇に据えた何台かのカメラを、車が通るたびに繋いでいく。
+     カメラは動かない。車が来て、通り過ぎて、次のカメラへ切り替わる  */
+  let tv = null;
+  function tvSpots() {
+    if (tv && tv.spots) return tv.spots;
+    const n = 9, spots = [];
+    for (let k = 0; k < n; k++) {
+      const f = (k + 0.5) / n;
+      const pt = placeInLap({ isPlayer: false }, f);
+      spots.push({ f: f, x: pt.x, y: pt.y });
+    }
+    return spots;
+  }
+  function updateTv(f) {
+    const o = f.list[0];
+    const frac = ((o.p % 1) + 1) % 1;
+    const pt = placeInLap(o.e, o.p);
+    if (!tv) tv = { spots: null, k: -1 };
+    tv.spots = tvSpots();
+    const spots = tv.spots;
+    /* いまのカメラから遠ざかった（通り過ぎた）ら、車の少し先のカメラへ */
+    const cur = tv.k >= 0 ? spots[tv.k] : null;
+    const passed = !cur || (((frac - cur.f) + 1) % 1) < 0.5 && (((frac - cur.f) + 1) % 1) > 0.03;
+    if (passed) {
+      let best = -1, bestD = 9;
+      spots.forEach((s, k) => { const d = ((s.f - frac) + 1) % 1; if (d > 0.015 && d < bestD) { bestD = d; best = k; } });
+      if (best >= 0 && best !== tv.k) {
+        tv.k = best;
+        cam.x = spots[best].x; cam.y = spots[best].y;      // 切り替えは一瞬で
+        cam.z = 2.3;
+        tv.cut = 0.2;
+      }
+    }
+    const s = spots[tv.k] || { x: pt.x, y: pt.y };
+    cam.tx = s.x; cam.ty = s.y; cam.tz = 2.3;
+    if (tv.cut > 0) tv.cut -= 0.016;
+  }
+
   function updateCam(t) {
     const f = pickFocus(t);
     cam.label = f ? f.label : '';
     if (!f) { cam.tx = VW / 2; cam.ty = VH / 2; cam.tz = 1; }
+    else if (cam.mode === 'tv') { updateTv(f); }
     else {
       let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       f.list.forEach(o => {
@@ -24504,7 +24573,7 @@ GP.raceview = (function () {
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, VW, VH, 34);
     pitFracCache = null;
-    obProps = null; obCurv = null; obHead = null; obTs = 0;
+    obProps = null; obCurv = null; obHead = null; obTs = 0; tv = null;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
@@ -42456,10 +42525,15 @@ GP.ui = (function () {
   function modal(title, body, buttons, opts) {
     opts = opts || {};
     const m = $('modal');
+    /* 同じ窓を描き直すとき（雇ったあとの人事など）は、見ていた場所を保つ。
+       毎回いちばん上に戻ると、どこを見ていたのか分からなくなる  */
+    const same = /show/.test(m.className) && $('modalTitle').innerHTML === rword(title);
+    const keep = same ? $('modalBody').scrollTop : 0;
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('modalTitle').innerHTML = rword(title);
     paintModalFunds(null);
     $('modalBody').innerHTML = rword(body);
+    if (keep) $('modalBody').scrollTop = keep;
     const bar = $('modalBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closeModal }]).forEach(b => {
@@ -42723,9 +42797,12 @@ GP.ui = (function () {
   function popup(title, body, buttons, opts) {
     opts = opts || {};
     const m = $('pop');
+    const same = /show/.test(m.className) && $('popTitle').innerHTML === rword(title);
+    const keep = same ? $('popBody').scrollTop : 0;
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('popTitle').innerHTML = rword(title);
     $('popBody').innerHTML = rword(body);
+    if (keep) $('popBody').scrollTop = keep;
     const bar = $('popBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closePopup }]).forEach(b => {

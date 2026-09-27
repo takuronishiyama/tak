@@ -1420,9 +1420,12 @@ GP.rallyview = (function () {
     /* 四隅。dx は前へ、dy は右へ。奥にある隅は少し上に上がる */
     const Lh = 22 * z, Wh = 17 * z;
     const sy = Math.sin(yaw), cy = Math.cos(yaw);
+    /* 奥にある隅は上に上がる。どれだけ上がるかは、目がどれだけ見下ろしているか
+       （目の高さ÷車までの距離）。これで屋根の広さが出る          */
+    const kd = clamp(CAM.h / Math.max(8, q[3]), 0.08, 0.7);
     const corner = (dx, dy) => {
       const depth = dx * cy - dy * sy;
-      return [x + dy * cy + dx * sy, y0 - depth * 0.07, depth];
+      return [x + dy * cy + dx * sy, y0 - depth * kd, depth];
     };
     const RL = corner(-Lh, -Wh), RR = corner(-Lh, Wh), FL = corner(Lh, -Wh), FR = corner(Lh, Wh);
     // 影。浮いていると薄く、少し小さい
@@ -1463,6 +1466,31 @@ GP.rallyview = (function () {
       if (f.kind === 'rear') faceRear(g, mx, my, bw, z, K);
       else faceFront(g, mx, my, bw, z, K);
     });
+    /* 上面。後ろのガラス → 屋根 → フロントガラス → ボンネット。
+       見下ろしているぶんだけ広がる。屋根には空気取り            */
+    {
+      const top = (dx, dy, h) => { const cn = corner(dx, dy); return [cn[0], cn[1] + bob - liftBody - h * z]; };
+      const quad = (a, b2, c2, d, fill) => {
+        g.fillStyle = fill; g.beginPath();
+        g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]);
+        g.closePath(); g.fill();
+      };
+      const wr = Wh * 0.66, wg = Wh * 0.80;
+      // 後ろのガラス（尻の腰から屋根へ）
+      quad(top(-Lh * 0.98, -wg, 17.5), top(-Lh * 0.98, wg, 17.5), top(-Lh * 0.62, wr, 29.5), top(-Lh * 0.62, -wr, 29.5), '#15161b');
+      // 屋根
+      quad(top(-Lh * 0.62, -wr, 29.5), top(-Lh * 0.62, wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.18, -wr, 29.5), look.gen >= 2 ? '#fff8e6' : K.lit);
+      quad(top(-Lh * 0.62, -wr, 29.5), top(-Lh * 0.62, wr, 29.5), top(-Lh * 0.58, wr, 29.5), top(-Lh * 0.58, -wr, 29.5), 'rgba(0,0,0,.25)');
+      const sw = (6 + look.pu * 5) * z / (34 * z) * Wh;
+      quad(top(-Lh * 0.30, -sw / 2, 32), top(-Lh * 0.30, sw / 2, 32), top(-Lh * 0.05, sw / 2, 32), top(-Lh * 0.05, -sw / 2, 32), '#23222c');
+      // フロントガラス（屋根から鼻の付け根へ落ちる）
+      quad(top(Lh * 0.18, -wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.52, wg, 17.5), top(Lh * 0.52, -wg, 17.5), '#15161b');
+      quad(top(Lh * 0.18, -wr, 29.5), top(Lh * 0.18, wr, 29.5), top(Lh * 0.24, wr * 0.98, 27.5), top(Lh * 0.24, -wr * 0.98, 27.5), 'rgba(255,248,230,.16)');
+      // ボンネット（少し下って鼻へ）と、空気の抜け
+      quad(top(Lh * 0.52, -wg, 17.5), top(Lh * 0.52, wg, 17.5), top(Lh * 0.98, Wh * 0.92, 13.5), top(Lh * 0.98, -Wh * 0.92, 13.5), K.lit);
+      quad(top(Lh * 0.60, -wg * 0.7, 17), top(Lh * 0.60, -wg * 0.35, 17), top(Lh * 0.70, -wg * 0.35, 16.2), top(Lh * 0.70, -wg * 0.7, 16.2), '#23222c');
+      quad(top(Lh * 0.60, wg * 0.35, 17), top(Lh * 0.60, wg * 0.7, 17), top(Lh * 0.70, wg * 0.7, 16.2), top(Lh * 0.70, wg * 0.35, 16.2), '#23222c');
+    }
     // 翼。後ろの二隅のあいだ。いちばん上に載る
     {
       const rl = [RL[0], RL[1] + bob - liftBody], rr = [RR[0], RR[1] + bob - liftBody];

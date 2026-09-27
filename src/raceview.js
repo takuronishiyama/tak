@@ -824,9 +824,9 @@ GP.raceview = (function () {
     if (cam.mode === 'mine') return mine.length ? { list: mine.slice(0, 2), label: 'マイチーム' } : null;
     /* オンボードは1台の後ろに乗る。自車がいれば自車、
        いなければ（リタイア後など）先頭の車に乗り換える          */
-    if (cam.mode === 'onboard') {
+    if (cam.mode === 'onboard' || cam.mode === 'tv') {
       const ride = mine.filter(o => !(pitSpan() && inPit(o.e, t)))[0] || alive[0];
-      return { list: [ride], label: '🎥 ' + ride.e.driver.name };
+      return { list: [ride], label: (cam.mode === 'tv' ? '📺 ' : '🎥 ') + ride.e.driver.name };
     }
 
     // auto：自チームが誰かと接近していればそのバトル、いなければ先頭争い
@@ -848,10 +848,50 @@ GP.raceview = (function () {
   }
 
   /* カメラの目標位置を更新する */
+  /* ---------- 定点カメラ ----------
+     コース脇に据えた何台かのカメラを、車が通るたびに繋いでいく。
+     カメラは動かない。車が来て、通り過ぎて、次のカメラへ切り替わる  */
+  let tv = null;
+  function tvSpots() {
+    if (tv && tv.spots) return tv.spots;
+    const n = 9, spots = [];
+    for (let k = 0; k < n; k++) {
+      const f = (k + 0.5) / n;
+      const pt = placeInLap({ isPlayer: false }, f);
+      spots.push({ f: f, x: pt.x, y: pt.y });
+    }
+    return spots;
+  }
+  function updateTv(f) {
+    const o = f.list[0];
+    const frac = ((o.p % 1) + 1) % 1;
+    const pt = placeInLap(o.e, o.p);
+    if (!tv) tv = { spots: null, k: -1 };
+    tv.spots = tvSpots();
+    const spots = tv.spots;
+    /* いまのカメラから遠ざかった（通り過ぎた）ら、車の少し先のカメラへ */
+    const cur = tv.k >= 0 ? spots[tv.k] : null;
+    const passed = !cur || (((frac - cur.f) + 1) % 1) < 0.5 && (((frac - cur.f) + 1) % 1) > 0.03;
+    if (passed) {
+      let best = -1, bestD = 9;
+      spots.forEach((s, k) => { const d = ((s.f - frac) + 1) % 1; if (d > 0.015 && d < bestD) { bestD = d; best = k; } });
+      if (best >= 0 && best !== tv.k) {
+        tv.k = best;
+        cam.x = spots[best].x; cam.y = spots[best].y;      // 切り替えは一瞬で
+        cam.z = 2.3;
+        tv.cut = 0.2;
+      }
+    }
+    const s = spots[tv.k] || { x: pt.x, y: pt.y };
+    cam.tx = s.x; cam.ty = s.y; cam.tz = 2.3;
+    if (tv.cut > 0) tv.cut -= 0.016;
+  }
+
   function updateCam(t) {
     const f = pickFocus(t);
     cam.label = f ? f.label : '';
     if (!f) { cam.tx = VW / 2; cam.ty = VH / 2; cam.tz = 1; }
+    else if (cam.mode === 'tv') { updateTv(f); }
     else {
       let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       f.list.forEach(o => {
@@ -2479,7 +2519,7 @@ GP.raceview = (function () {
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, VW, VH, 34);
     pitFracCache = null;
-    obProps = null; obCurv = null; obHead = null; obTs = 0;
+    obProps = null; obCurv = null; obHead = null; obTs = 0; tv = null;
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();

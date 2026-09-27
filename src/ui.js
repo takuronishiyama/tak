@@ -1036,10 +1036,15 @@ GP.ui = (function () {
   function modal(title, body, buttons, opts) {
     opts = opts || {};
     const m = $('modal');
+    /* 同じ窓を描き直すとき（雇ったあとの人事など）は、見ていた場所を保つ。
+       毎回いちばん上に戻ると、どこを見ていたのか分からなくなる  */
+    const same = /show/.test(m.className) && $('modalTitle').innerHTML === rword(title);
+    const keep = same ? $('modalBody').scrollTop : 0;
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('modalTitle').innerHTML = rword(title);
     paintModalFunds(null);
     $('modalBody').innerHTML = rword(body);
+    if (keep) $('modalBody').scrollTop = keep;
     const bar = $('modalBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closeModal }]).forEach(b => {
@@ -1303,9 +1308,12 @@ GP.ui = (function () {
   function popup(title, body, buttons, opts) {
     opts = opts || {};
     const m = $('pop');
+    const same = /show/.test(m.className) && $('popTitle').innerHTML === rword(title);
+    const keep = same ? $('popBody').scrollTop : 0;
     m.className = 'show' + (opts.wide ? ' wide' : '');
     $('popTitle').innerHTML = rword(title);
     $('popBody').innerHTML = rword(body);
+    if (keep) $('popBody').scrollTop = keep;
     const bar = $('popBtns');
     bar.innerHTML = '';
     (buttons || [{ label: '閉じる', fn: closePopup }]).forEach(b => {
