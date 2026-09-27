@@ -19838,7 +19838,11 @@ GP.rallyview = (function () {
 
   function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 
-  function setRate(v) { rate = v; }
+  function setRate(v) {
+    rate = v;
+    // 走り出す前に「とばす」を押したら、数えを待たせない
+    if (S && S.pre > 0 && v > 20) S.pre = Math.min(S.pre, 0.4);
+  }
 
   function skip() {
     if (!S || S.done) return;
