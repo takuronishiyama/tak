@@ -55,6 +55,7 @@ GP.rally = (function () {
           name: nm + (second ? '（2回目）' : ''),
           km: Math.max(3, km),
           twisty: clamp(rally.twisty + (r() - 0.5) * 0.24, 0.12, 0.95),
+          jumps: rally.jumps == null ? 0.2 : rally.jumps,
           rough: clamp(rally.rough * (second ? 1.22 : 1) + (r() - 0.5) * 0.18, 0.05, 1.15),
           /* 路面の混ざりかたは2通り。
              mixByDay … 初日は砂利、翌日から舗装（一晩で車を作り替える）
@@ -127,11 +128,18 @@ GP.rally = (function () {
       const roll = r();
       let acc = 0;
       for (const t of TAGS) { acc += t.w; if (roll < acc) { tag = t; break; } }
+      /* ジャンプの多い土地では、緩い曲がりの前の直線がジャンプ台になる。
+         長い直線の先で飛ぶほど大きい                            */
+      const jr = st.jumps == null ? 0.2 : st.jumps;
+      if (sev >= 4 && r() < jr * 0.35) {
+        tag = { key: 'jump', w: 0, say: r() < jr * 0.5 ? 'ビッグジャンプ' : 'ジャンプ', keep: -0.02, big: true };
+      }
       // 次の曲がりまでの直線（m）。粗い道ほど詰まっている
       /* 読み上げは10m刻みで言う。1m単位で言う人はいない */
       const straight = Math.round((30 + Math.pow(r(), 1.8) * 420) * (1.25 - st.twisty * 0.5) / 10) * 10;
       notes.push({ sev: sev, dir: dir, tag: tag, straight: straight,
-                   jump: !!(tag && (tag.key === 'jump' || tag.key === 'crest')) });
+                   jump: !!(tag && (tag.key === 'jump' || tag.key === 'crest')),
+                   big: !!(tag && tag.say === 'ビッグジャンプ') });
     }
 
     /* ---- ノートのとおりに線を引く ---- */

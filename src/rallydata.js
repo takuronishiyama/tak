@@ -128,7 +128,10 @@ GP.rallydata = (function () {
   /* サーキット向けの共通の式（発見の点数化・PUの摩耗・追い抜きやすさ）は
      会場の「1周の基準タイム」「周回数」を読む。ラリーには無いので、
      ならした値を持たせておく。無いままだと NaN が生まれて広がる      */
+  /* ジャンプの多さ。レイクランドは飛ぶ道、サバンナと海岸は起伏、舗装は少ない */
+  const JUMPY = { lakeland: 1.0, savanna: 0.55, costa: 0.45, sierra: 0.4, snow: 0.3, hinoki: 0.35 };
   RALLIES.forEach(v => {
+    if (v.jumps == null) v.jumps = JUMPY[v.key] != null ? JUMPY[v.key] : (v.surface === 'tarmac' ? 0.08 : 0.25);
     if (v.base == null) v.base = 92;
     if (v.laps == null) v.laps = 22;
     if (v.risk == null) v.risk = 1;

@@ -18594,7 +18594,10 @@ GP.rallydata = (function () {
   /* サーキット向けの共通の式（発見の点数化・PUの摩耗・追い抜きやすさ）は
      会場の「1周の基準タイム」「周回数」を読む。ラリーには無いので、
      ならした値を持たせておく。無いままだと NaN が生まれて広がる      */
+  /* ジャンプの多さ。レイクランドは飛ぶ道、サバンナと海岸は起伏、舗装は少ない */
+  const JUMPY = { lakeland: 1.0, savanna: 0.55, costa: 0.45, sierra: 0.4, snow: 0.3, hinoki: 0.35 };
   RALLIES.forEach(v => {
+    if (v.jumps == null) v.jumps = JUMPY[v.key] != null ? JUMPY[v.key] : (v.surface === 'tarmac' ? 0.08 : 0.25);
     if (v.base == null) v.base = 92;
     if (v.laps == null) v.laps = 22;
     if (v.risk == null) v.risk = 1;
@@ -18967,6 +18970,7 @@ GP.rally = (function () {
           name: nm + (second ? '（2回目）' : ''),
           km: Math.max(3, km),
           twisty: clamp(rally.twisty + (r() - 0.5) * 0.24, 0.12, 0.95),
+          jumps: rally.jumps == null ? 0.2 : rally.jumps,
           rough: clamp(rally.rough * (second ? 1.22 : 1) + (r() - 0.5) * 0.18, 0.05, 1.15),
           /* 路面の混ざりかたは2通り。
              mixByDay … 初日は砂利、翌日から舗装（一晩で車を作り替える）
@@ -19039,11 +19043,18 @@ GP.rally = (function () {
       const roll = r();
       let acc = 0;
       for (const t of TAGS) { acc += t.w; if (roll < acc) { tag = t; break; } }
+      /* ジャンプの多い土地では、緩い曲がりの前の直線がジャンプ台になる。
+         長い直線の先で飛ぶほど大きい                            */
+      const jr = st.jumps == null ? 0.2 : st.jumps;
+      if (sev >= 4 && r() < jr * 0.35) {
+        tag = { key: 'jump', w: 0, say: r() < jr * 0.5 ? 'ビッグジャンプ' : 'ジャンプ', keep: -0.02, big: true };
+      }
       // 次の曲がりまでの直線（m）。粗い道ほど詰まっている
       /* 読み上げは10m刻みで言う。1m単位で言う人はいない */
       const straight = Math.round((30 + Math.pow(r(), 1.8) * 420) * (1.25 - st.twisty * 0.5) / 10) * 10;
       notes.push({ sev: sev, dir: dir, tag: tag, straight: straight,
-                   jump: !!(tag && (tag.key === 'jump' || tag.key === 'crest')) });
+                   jump: !!(tag && (tag.key === 'jump' || tag.key === 'crest')),
+                   big: !!(tag && tag.say === 'ビッグジャンプ') });
     }
 
     /* ---- ノートのとおりに線を引く ---- */
@@ -19770,6 +19781,19 @@ GP.rallyview = (function () {
       if (r() < 0.30) add(near, clamp(at - 12, 1, N - 2), 18 + r() * 5, outside, 'hay', r());
     });
 
+    /* ---- 大きなジャンプ。人が集まり、両側に看板が立つ ---- */
+    (road.notes || []).forEach(nt => {
+      if (!nt.big) return;
+      const at = clamp(nt.at - 2, 2, N - 3);
+      for (const side of [-1, 1]) {
+        add(near, clamp(at - 6, 1, N - 2), 17.5, side, 'jumpsign', 0.5);
+        const cnt = 4 + Math.floor(r() * 5);
+        for (let m = 0; m < cnt; m++) {
+          add(over, clamp(at + 2 + Math.round((r() - 0.3) * 18), 1, N - 2), 22 + r() * 12, side, 'fan', r(),
+              FANC[Math.floor(r() * FANC.length)], FANC[Math.floor(r() * FANC.length)]);
+        }
+      }
+    });
     /* ---- 注意の看板。曲がりの手前に立つ ---- */
     (road.notes || []).forEach(nt => {
       if (!nt.tag || (nt.tag.key !== 'care' && nt.tag.key !== 'jump' && nt.tag.key !== 'crest')) return;
@@ -19824,7 +19848,10 @@ GP.rallyview = (function () {
     rate = spec.rate || 12;
     /* 飛ぶところ。ジャンプは高く長く、クレストは低く短く */
     road.jumps = (road.notes || []).filter(nt => nt.jump).map(nt => ({
-      at: Math.max(0, nt.at - 2), len: nt.tag && nt.tag.key === 'jump' ? 9 : 6, h: nt.tag && nt.tag.key === 'jump' ? 5.5 : 2.6
+      at: Math.max(0, nt.at - 2),
+      len: nt.big ? 13 : nt.tag && nt.tag.key === 'jump' ? 9 : 6,
+      h: nt.big ? 9 : nt.tag && nt.tag.key === 'jump' ? 5.5 : 2.6,
+      big: !!nt.big
     }));
     S.air = 0; S.landed = 0;
     /* 飛ばしているときは待たせない。じっくりのときだけ、数えてから出る */
@@ -19999,7 +20026,13 @@ GP.rallyview = (function () {
     const road = S.road, N = road.n;
     const nts = (road.notes || []).filter(nt => nt.at > i + 6 && nt.sev <= 5);
     let at, out, side;
-    if (nts.length) {
+    /* 少し先に大きなジャンプがあれば、そこへカメラを据える。中継の華 */
+    const bigs = (road.notes || []).filter(nt => nt.big && nt.at > i + 6 && nt.at < i + 90);
+    if (bigs.length) {
+      const nt = bigs[0];
+      at = Math.max(0, nt.at - 4); out = Math.min(N - 2, nt.at + 14);
+      side = (i % 2) ? 1 : -1;
+    } else if (nts.length) {
       const nt = nts[0];
       at = nt.at; out = Math.min(N - 2, nt.out || nt.at + 6);
       side = nt.dir === 'R' ? -1 : 1;              // 曲がりの外側
@@ -20477,6 +20510,21 @@ GP.rallyview = (function () {
         });
       }
     }
+    /* ジャンプ台。踏み切りの手前が明るく、向こう側が暗い（盛り上がりに見える） */
+    (road.jumps || []).forEach(j => {
+      const k0 = Math.max(lo + 1, j.at), k1 = Math.min(hi, j.at + 2);
+      for (let k = k1; k > k0; k--) {
+        const a2 = edgeAt(road, k, half), b2 = edgeAt(road, k - 1, half);
+        if (!a2 || !b2) continue;
+        quad(a2, b2, 'rgba(255,248,230,' + (j.big ? '.22' : '.12') + ')');
+      }
+      const k2 = Math.min(hi, j.at + 4);
+      for (let k = k2; k > k1; k--) {
+        const a2 = edgeAt(road, k, half), b2 = edgeAt(road, k - 1, half);
+        if (!a2 || !b2) continue;
+        quad(a2, b2, 'rgba(0,0,0,' + (j.big ? '.20' : '.10') + ')');
+      }
+    });
     /* 路面の粒。砂利は石、雪は掘れた青い影、舗装は継ぎ目。
        無地の帯のままでは、どれだけ速くても止まって見える      */
     for (let k = hi; k > lo; k--) {
@@ -20595,7 +20643,8 @@ GP.rallyview = (function () {
      低い屋根、鼻へ落ちるボンネット、ミラー                      */
   function drawCarSide(g, e1, e2, flip, z, K) {
     const col = K.col, dark = K.dark, lit = K.lit, brake = K.brake, night = K.night, look = K.look;
-    const P = (t, h) => { const u = flip ? 1 - t : t; return [e1[0] + (e2[0] - e1[0]) * u, e1[1] + (e2[1] - e1[1]) * u - h * z]; };
+    const z1 = e1[2] != null ? e1[2] : z, z2 = e2[2] != null ? e2[2] : z;
+    const P = (t, h) => { const u = flip ? 1 - t : t; const zz = z1 + (z2 - z1) * u; return [e1[0] + (e2[0] - e1[0]) * u, e1[1] + (e2[1] - e1[1]) * u - h * zz]; };
     const poly = (pts, fill) => {
       g.fillStyle = fill;
       g.beginPath();
@@ -20857,31 +20906,41 @@ GP.rallyview = (function () {
     /* 四隅。dx は前へ、dy は右へ。奥にある隅は少し上に上がる */
     const Lh = 22 * z, Wh = 17 * z;
     const sy = Math.sin(yaw), cy = Math.cos(yaw);
-    /* 奥にある隅は上に上がる。どれだけ上がるかは、目がどれだけ見下ろしているか
-       （目の高さ÷車までの距離）。これで屋根の広さが出る          */
-    const kd = clamp(CAM.h / Math.max(8, q[3]), 0.08, 0.7);
+    /* 四隅は世界の座標で置き、ひとつずつ投影する。
+       画面の中でごまかすと、近くで見たときや見下ろしたときに
+       箱がばらけて見える（翼だけ遠くに飛ぶ、屋根が浮く）       */
+    const head = c.drv + sl;
+    const hc = Math.cos(head), hs = Math.sin(head);
+    const CL = 10.2, CW = 7.6;                    // 車の半分の長さと幅（世界の単位）
     const corner = (dx, dy) => {
-      const depth = dx * cy - dy * sy;
-      return [x + dy * cy + dx * sy, y0 - depth * kd, depth];
+      const wx = c.x + hc * dx - hs * dy, wy = c.y + hs * dx + hc * dy;
+      const qq = project(wx, wy);
+      if (!qq) return null;
+      return [qq[0], qq[1], qq[3], qq[2] * 0.46];   // 画面x, 画面y, 奥行き, 粒の大きさ
     };
-    const RL = corner(-Lh, -Wh), RR = corner(-Lh, Wh), FL = corner(Lh, -Wh), FR = corner(Lh, Wh);
+    const RL = corner(-CL, -CW), RR = corner(-CL, CW), FL = corner(CL, -CW), FR = corner(CL, CW);
+    if (!RL || !RR || !FL || !FR) { g.restore(); return; }
     // 影。浮いていると薄く、少し小さい
     g.fillStyle = 'rgba(0,0,0,' + (0.34 - Math.min(0.24, air * 0.03)) + ')';
     g.beginPath();
     g.ellipse(x, y0 + 0.5 * z, (Wh * Math.abs(cy) + Lh * Math.abs(sy)) * 0.95 + 3 * z, 3.4 * z, 0, 0, TAU); g.fill();
 
     // 浮いているぶん、車輪と車体を持ち上げる。車体は車輪より高く（足が伸びる）
-    const lift = air * z * 1.1, liftBody = air * z * 1.5;
-    // 車輪。転がる目が、下から上へ流れる
-    const tire = (wx, wy, k) => {
-      const w = 5.5 * z * k, h = 9 * z * k;
+    // 車輪。転がる目が、下から上へ流れる。前輪はハンドルの向きに傾く（カウンターが見える）
+    const steer = steerOfC(c);
+    const tire = (wx, wy, zc, front) => {
+      const w = 5.5 * zc, h = 9 * zc;
+      g.save();
+      g.translate(wx, wy - h / 2);
+      if (front) g.rotate(steer * 0.55 * (cy >= 0 ? 1 : -1));
       g.fillStyle = ink;
-      g.fillRect(wx - w / 2, wy - h, w, h);
+      g.fillRect(-w / 2, -h / 2, w, h);
       g.fillStyle = 'rgba(255,255,255,.13)';
       const band = ((phase + (wx > x ? 0.5 : 0)) % 1) * h;
-      g.fillRect(wx - w / 2, wy - h + band, w, Math.max(1, h * 0.16));
+      g.fillRect(-w / 2, -h / 2 + band, w, Math.max(1, h * 0.16));
       g.fillStyle = look.gen >= 1 ? '#6a6878' : '#3a3846';
-      g.fillRect(wx - w * 0.22, wy - h * 0.66, w * 0.44, h * 0.34);
+      g.fillRect(-w * 0.22, -h / 2 + h * 0.34, w * 0.44, h * 0.34);
+      g.restore();
     };
     /* 面。外から見て左→右の順に隅を並べる。画面でもその順なら見えている */
     const faces = [
@@ -20893,20 +20952,29 @@ GP.rallyview = (function () {
      .sort((p1, p2) => ((p2.e1[2] + p2.e2[2]) - (p1.e1[2] + p1.e2[2])));
     // 車輪は奥から。面より先に置いて、手前の面に隠れる
     [RL, RR, FL, FR].slice().sort((p1, p2) => p2[2] - p1[2]).forEach(cn => {
-      const inset = cn === RL || cn === FL ? 1.0 * z : -1.0 * z;
-      tire(cn[0] + inset * 0, cn[1] - lift, cn === FL || cn === FR ? 0.92 : 1);
+      tire(cn[0], cn[1] - air * cn[3] * 1.1, cn[3] * (cn === FL || cn === FR ? 0.92 : 1), cn === FL || cn === FR);
     });
     faces.forEach(f => {
-      const e1 = [f.e1[0], f.e1[1] + bob - liftBody], e2 = [f.e2[0], f.e2[1] + bob - liftBody];
-      if (f.kind === 'side') { drawCarSide(g, e1, e2, f.flip, z, K); return; }
-      const mx = (e1[0] + e2[0]) / 2, my = (e1[1] + e2[1]) / 2, bw = e2[0] - e1[0];
-      if (f.kind === 'rear') faceRear(g, mx, my, bw, z, K);
-      else faceFront(g, mx, my, bw, z, K);
+      const z1 = f.e1[3], z2 = f.e2[3];
+      const e1 = [f.e1[0], f.e1[1] + bob - air * z1 * 1.5, z1], e2 = [f.e2[0], f.e2[1] + bob - air * z2 * 1.5, z2];
+      if (f.kind === 'side') { drawCarSide(g, e1, e2, f.flip, (z1 + z2) / 2, K); return; }
+      /* 面の足もとは e1 から e2 へ傾いている。面ごと傾けて描く（縦は縦のまま） */
+      const mx = (e1[0] + e2[0]) / 2, bw = e2[0] - e1[0];
+      const sh = (e2[1] - e1[1]) / bw;
+      g.save();
+      g.transform(1, sh, 0, 1, 0, -sh * e1[0]);
+      if (f.kind === 'rear') faceRear(g, mx, e1[1], bw, (z1 + z2) / 2, K);
+      else faceFront(g, mx, e1[1], bw, (z1 + z2) / 2, K);
+      g.restore();
     });
     /* 上面。後ろのガラス → 屋根 → フロントガラス → ボンネット。
        見下ろしているぶんだけ広がる。屋根には空気取り            */
     {
-      const top = (dx, dy, h) => { const cn = corner(dx, dy); return [cn[0], cn[1] + bob - liftBody - h * z]; };
+      const top = (dx, dy, h) => {
+        const cn = corner(dx * (CL / Lh), dy * (CW / Wh));
+        if (!cn) return [x, y0];
+        return [cn[0], cn[1] + bob - air * cn[3] * 1.5 - h * cn[3]];
+      };
       const quad = (a, b2, c2, d, fill) => {
         g.fillStyle = fill; g.beginPath();
         g.moveTo(a[0], a[1]); g.lineTo(b2[0], b2[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]);
@@ -20930,15 +20998,15 @@ GP.rallyview = (function () {
     }
     // 翼。後ろの二隅のあいだ。いちばん上に載る
     {
-      const rl = [RL[0], RL[1] + bob - liftBody], rr = [RR[0], RR[1] + bob - liftBody];
+      const rl = [RL[0], RL[1] + bob - air * RL[3] * 1.5], rr = [RR[0], RR[1] + bob - air * RR[3] * 1.5];
       const left = rl[0] <= rr[0] ? rl : rr, right = rl[0] <= rr[0] ? rr : rl;
-      if (right[0] - left[0] > 2 * z) drawWing(g, left, right, z, K);
+      if (right[0] - left[0] > 2 * z) drawWing(g, left, right, (RL[3] + RR[3]) / 2, K);
     }
     // 泥。走った距離ぶんだけ、下半分に乗る（後ろ姿にだけ）
     if ((surface !== 'tarmac' || S.spec.wet) && cy > 0.3) {
       const f = S.f || 0;
       const a = Math.min(0.55, 0.08 + f * 0.62);
-      const bw = RR[0] - RL[0], mx = (RR[0] + RL[0]) / 2, my = (RR[1] + RL[1]) / 2 + bob - liftBody;
+      const bw = RR[0] - RL[0], mx = (RR[0] + RL[0]) / 2, my = (RR[1] + RL[1]) / 2 + bob - air * z * 1.5;
       g.fillStyle = surface === 'snow' ? 'rgba(236,240,248,' + a + ')'
                   : S.spec.wet && surface === 'tarmac' ? 'rgba(40,36,44,' + a * 0.7 + ')'
                   : 'rgba(78,52,26,' + a + ')';
@@ -21906,6 +21974,12 @@ GP.rallyview = (function () {
       g.font = 'bold 9px sans-serif';
       g.fillStyle = 'rgba(255,248,230,.75)';
       g.fillText('ベストとの差', VW / 2, 58);
+    }
+    // 大きく飛んでいるあいだの札
+    if ((S.air || 0) > 4) {
+      g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
+      g.fillStyle = 'rgba(18,16,26,.7)'; g.fillRect(VW / 2 - 48, VH * 0.20, 96, 22);
+      g.fillStyle = '#ffd98a'; g.fillText('✈ ' + Math.round(S.air * 1.6) + 'm', VW / 2, VH * 0.20 + 16);
     }
     // 定点の切り替え。一瞬だけ暗くして「カメラが変わった」と分からせる
     if (view === 'tv' && S.tvCut > 0) {
