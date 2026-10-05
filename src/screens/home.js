@@ -1292,7 +1292,7 @@ GP.screens.home = function (A) {
       const rv = (g.rivals || [])[S.rint(0, Math.max(0, (g.rivals || []).length - 1))];
       const who = rv ? rv.name : 'よそのチーム';
       U.modal('👀 よそのエンジニアと話す',
-        '<p class="lead">「最近、調子いいですね。' + esc(cur.t.what) + '——あれ、うちでも話題ですよ」<br>' +
+        '<p class="lead">「最近、調子いいですね。' + esc(cur.t.what) + '。あれ、うちでも話題ですよ」<br>' +
         '<span class="desc">' + esc(who) + ' のエンジニアが、うちのマシンの後ろをじっと覗き込んでいる。</span></p>' +
         '<p class="note">うちの解釈は、もう ' + cur.t.copied.length + 'チームに写されています。' +
         '見せれば恩を売れますが、そのぶん向こうも速くなります。</p>',
@@ -2139,7 +2139,7 @@ GP.screens.home = function (A) {
       S.addHype(g, h);
       g.fans += f;
       yardResult('📰 ' + (hit ? hit.topic.icon + ' 取材を受ける' : '取材を受ける'),
-        esc(q) + '——うまく答えられた。記事は好意的に出そうだ。',
+        esc(q) + '。うまく答えられた。記事は好意的に出そうだ。',
         '注目度 +' + h.toFixed(1) + '／ファン +' + money(f));
       GP.sound.play('good');
     } else {
@@ -2147,7 +2147,7 @@ GP.screens.home = function (A) {
       const d = (g.drivers || [])[0];
       if (d) d.form = S.clamp(d.form - S.rnd(1, 4) * hot, 62, 122);
       yardResult('📰 ' + (hit ? hit.topic.icon + ' 取材を受ける' : '取材を受ける'),
-        esc(q) + '——言葉を選び損ねた。少し波風が立ちそうだ。',
+        esc(q) + '。言葉を選び損ねた。少し波風が立ちそうだ。',
         '注目度 +1.0／チームの空気が少し重くなった');
       GP.sound.play('tap');
     }
