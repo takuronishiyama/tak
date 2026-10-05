@@ -710,10 +710,10 @@ GP.screens.dev = function (A) {
     /* 上に残すのは要点の一行だけ。
        「何のための一覧か」の説明と内訳は、押したあとに読むもの     */
     body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
-      '<p class="desc">いまのまとめ上げは <b>' + Math.round(itNow.rate * 100) + '%</b>。' +
-      'パーツの力は合わせて <b>' + Math.round(rawHave) + '</b> あって、車に出ているのは <b>' +
-      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
-      '</b> は、まだ眠っています。</p>';
+      '<p class="desc">パーツの実力は合計 <b>' + Math.round(rawHave) + '</b>。' +
+      'いまの車はそのうち <b>' + Math.round(rawHave * itNow.rate) + '</b> しか出せていません' +
+      '（まとめ上げ <b>' + Math.round(itNow.rate * 100) + '%</b>）。' +
+      'あと <b>' + Math.round(asleep) + '</b> は、まとめ上げが進めば出てきます。</p>';
     // ↓ 一覧の下に回すぶん
     const intRead =
       '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
