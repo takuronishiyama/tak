@@ -2089,8 +2089,8 @@ GP.raceview = (function () {
           : wAvg <= R.dryAt ? '乗っています'
           : 'すこしずつ乗っています';
         rb.innerHTML = '<i class="rvw-h">ラバー</i>' +
-          '<span class="rvrub" title="路面が「ほぼドライ」まで乾くとゴムが乗りはじめ、' +
-          '乾くほど速く乗ります。ハーフウェットより濡れると流れます" ' +
+          '<span class="rvrub" title="路面がほぼ乾くとゴムが乗りはじめ、乾くほど早く乗っていきます。' +
+          'ハーフウェットより濡れていると、乗ったゴムは流れてしまいます" ' +
           'style="border-color:' + lv.color + '"><u style="width:' + Math.round(rv * 100) +
           '%;background:' + lv.color + '"></u></span>' +
           '<i class="rvw-h">' + lv.name + '</i>' +
@@ -2129,7 +2129,7 @@ GP.raceview = (function () {
           ? '約' + Math.max(1, f.in) + '周後' : 'この先';
         h += cell(when, f.to.icon, pc + '%', ' next' + cls,
           'この先 ' + f.to.name + ' になる見込み ' + pc + '%。' +
-          '読みの力（ストラテジストと天気の設備）が高いほど、この数字は当たります');
+          'ストラテジストと天気の設備がそろうほど、この予想は当たりやすくなります');
       }
       fb.innerHTML = h;
     }
@@ -2202,7 +2202,7 @@ GP.raceview = (function () {
                  : h >= 0.50 ? { c: 'mid',  t: '負担' } : null;
         return '<i class="rvo ' + k + '" title="' + (o.note || '') + '">' +
           o.icon + ' ' + e.driver.name.split('・')[0] + ' ' + o.name + '</i>' +
-          (lv ? '<i class="rvo grip ' + lv.c + '" title="路面と銘柄のずれ・タイヤの残り・攻めの度合いから見た、いまの余裕">'
+          (lv ? '<i class="rvo grip ' + lv.c + '" title="路面と銘柄が合っているか、タイヤの残り、どれだけ攻めているかで決まる、いまの余裕">'
                 + '🫱 ' + lv.t + '</i>' : '');
       }).join('');
     }
@@ -2698,7 +2698,7 @@ GP.raceview = (function () {
               : 'タイヤ ' + tp.temp + '℃／' + tp.tier.name) +
             (tp.off < 0 ? '（作動域まで あと' + Math.round(-tp.off) + '℃）'
                         : tp.off > 0 ? '（作動域を ' + Math.round(tp.off) + '℃ 超過）' : '')
-          : (dry ? '路面に対して溝がない。いつ失ってもおかしくない' : '');
+          : (dry ? 'この路面じゃ溝が足りない。いつ飛び出してもおかしくない' : '');
         tychip = '<span class="tb-ty"><b class="rv-ty' + worn + (dry ? ' aqua' : '') +
           (tp ? ' has-heat ' + tp.tier.key : '') +
           '" style="color:' + td.color + ';border-color:' + td.color + '"' +

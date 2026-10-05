@@ -77,7 +77,7 @@ GP.screens.weekend = function (A) {
     const cross = seg.slice(1).map(sg => Math.round(sg.from * 100));
     return '<div class="sub">タイヤの担当範囲</div>' +
       '<p class="desc">路面の濡れ具合で、いちばん速い銘柄は入れ替わります。' +
-      '担当から外れるほど損は加速度的に大きくなり、' +
+      '得意な範囲から外れるほど損は一気に大きくなり、' +
       '大雨をインターのまま走ると1周で10秒近く失います。' +
       'ドライタイヤで水に乗ると、遅いどころかまともに走れません。<br>' +
       '雨に強いドライバーほど、この範囲が左右に広がります。</p>' +
@@ -119,8 +119,8 @@ GP.screens.weekend = function (A) {
         '<span class="tmp-num">気温 ' + air + '℃／路面 ' + Math.round(road) + '℃</span>' +
         '<div class="tmp-row">' + rows + '</div>' +
         '<small>' + w.note + '。<br>' +
-        '走れば芯に熱が入ります。攻めればさらに上がり、抑えれば抜けます。' +
-        'レース終盤は日が傾いて路面が下がります。</small></div>';
+        '走れば芯に熱が入り、攻めるほど上がって、抑えると抜けていきます。' +
+        'レース終盤は日が傾き、路面温度も下がります。</small></div>';
     }
     const cls = pc >= 65 ? 'hi' : pc >= 35 ? 'mid' : 'lo';
     const wet = f.to && (f.to.key === 'rain' || f.to.key === 'storm');
@@ -133,7 +133,7 @@ GP.screens.weekend = function (A) {
       tempBoxHTML(wx) +
       '<small>ピットウォールの読み <b>' + fo + '%</b>' +
       '（🧠ストラテジストと📡天気の設備で上がります）。' +
-      '読みが高いほど、この％は本当のことに近づきます。<br>' +
+      '読みが高いほど、この％は当たるようになります。<br>' +
       (pc >= 65
         ? (wet ? '<b class="warn">降る可能性が高い。スタートタイヤを賭けるなら、ここです。</b>'
                : '<b>路面は良くなっていく見込みです。</b>')
@@ -177,7 +177,7 @@ GP.screens.weekend = function (A) {
     h += '</div>';
     h += '<p class="desc">攻めると 1周ぶん速くなるかわりに、タイヤが早く終わり、' +
       'ミスとクラッシュが増えます。安全第一はその逆です。<br>' +
-      'クラッシュの起きやすさは<b>ドライバーの安定感</b>にも直結します' +
+      'クラッシュの起きやすさは<b>ドライバーの安定感</b>でも大きく変わります' +
       (d0 ? '（' + esc(d0.name) + ' は ' + S.careTier(d0).icon + S.careTier(d0).name +
             '＝クラッシュ ×' + S.careCrashMul(d0).toFixed(2) + '）' : '') + '。<br>' +
       'レース中はこれとは別に、ピットウォールから周ごとの指示（' +
@@ -271,7 +271,7 @@ GP.screens.weekend = function (A) {
         '／🏭 運営 ' + money(weekly) + '万　→　残り <b class="' +
         (after < 0 ? 'bad' : 'good') + '">' + money(after) + '万</b>' +
         (after < 0 ? '<br><b class="warn">このままだと資金がマイナスになります。' +
-                     '「🚚 遠征」で運びかたと積荷を落とせば減らせます。</b>' : '') +
+                     '「🚚 遠征」で運びかたを安くするか、積荷を減らせば抑えられます。</b>' : '') +
         '</small></div>';
     }
 
@@ -304,14 +304,14 @@ GP.screens.weekend = function (A) {
           ? 'ストラテジスト ' + esc(strat.name) + '（技能 ' + strat.skill + '）' +
             (g.managers && g.managers.principal ? '' : '') + '。'
           : '<b class="warn">ストラテジストがいません。</b>') +
-        '路面がこれからどうなるかを、どこまで織り込んでタイヤを選べるかです。' +
+        '路面がこの先どう変わるかを、どこまで見込んでタイヤを選べるかです。' +
         '読みが浅いと、いまの路面に合わせてしまい、次の周にはもう外しています。<br>' +
-        'ひとつは<b>合わないタイヤで走る周</b>が減ること' +
-        '（読み20→1.5周／読み46→1.2周／読み61→1.1周）。<br>' +
+        '効き目はふたつ。ひとつは<b>合わないタイヤで走る周</b>が減ること' +
+        '（読みが20なら1.5周、60を超えれば1周ほどで済みます）。<br>' +
         'もうひとつは<b>天候が急変したとき、何周後に入るか</b>。飛び込むのが' +
         '早すぎればまだ乾いた路面をウェットで走り、遅すぎれば合わないまま何周も損をします。' +
         '読みが利くほど、その「ちょうどの周」を当てられます' +
-        '（急変したレースの平均順位 読み20→4.6位／読み46→4.1位／読み61→4.0位）。</small>' +
+        '（天気が急に変わったレースでは、平均で半分ほど順位が上がります）。</small>' +
         '<div class="wetdrv">' + lineup.map(d => {
           const ws = S.wetSkillOf(d), ts = S.tyreSkillOf(d);
           return '<span><b>' + esc(d.name) + '</b>' +
@@ -356,7 +356,7 @@ GP.screens.weekend = function (A) {
         vscL.toFixed(1) + '秒。隊列そのものが遅いので、走るぶんだけが安くなります' +
         '（止まっているぶんは変わりません）。<br>' +
         '1ストップで ' + one.toFixed(1) + '秒、2ストップで ' + (one * 2).toFixed(1) + '秒。' +
-        'この差より新しいタイヤで取り返せるかが、ストップ回数の分かれ目です。</small>' +
+        'この差を新しいタイヤの速さで取り返せるかどうかが、ストップ回数の分かれ目です。</small>' +
         '</div>';
     }
 
@@ -367,7 +367,7 @@ GP.screens.weekend = function (A) {
     const subs = lineup.filter(d => d.standIn || d.hurt);
     if (subs.length) {
       body += '<p class="note">' + subs.map(d => d.hurt
-        ? '🩹 ' + esc(d.name) + ' は本調子ではありません（本来の力を出せません）'
+        ? '🩹 ' + esc(d.name) + ' は本調子ではありません'
         : '🪑 リザーブの ' + esc(d.name) + ' が代役として出走します').join('<br>') + '</p>';
     }
     body += '<div class="sub">作戦を決める</div>';
@@ -701,13 +701,13 @@ GP.screens.weekend = function (A) {
       'ソフトは一発が速いぶん、走らせても長い距離のことは分かりません。' +
       '<b>ハードを履けるのは、長い距離を走り込む「レース重視」だけ</b>で、' +
       '短い走りでは働く温度まで持っていけません。<br>' +
-      '<b>何を履いて走ったかが、そのまま日曜に分かっていることになります。</b>' +
+      '<b>金曜に履いたタイヤのことだけが、日曜にはっきり分かります。</b>' +
       'ただし、データは読める人がいてはじめて数字になります' +
       '（いまの読み手の厚み <b>' + Math.round(crew * 100) + '%</b>' +
       '：ストラテジストとエンジニアの両方が要ります）。</p>';
     let h = '<div class="sub small">🛞 金曜に履くタイヤ</div>' +
       '<p class="desc">ちがいは<b>ソフトを何本使うか</b>。' +
-      '履いたものが、そのまま日曜に分かっていることになります。</p>' +
+      '履いたタイヤのことが、そのまま日曜の読みになります。</p>' +
       '<div class="pick fptyre" data-fpt="1">';
     D.FP_TYRE.forEach(p => {
       const read = S.tyreRead(g, p.key, 1);
@@ -1147,7 +1147,7 @@ GP.screens.weekend = function (A) {
       // 返しかたの効きめの説明は、選び終えたあとに置く
       const brNote = '<p class="desc">ここでの返し方が、そのままこの週末のマシンと、' +
         'この人のピットへの信頼に効きます。' +
-        '部屋が大きいほど話は届き（いまの伝わりやすさ <b>' +
+        'ブリーフィングルームが広いほど話は届き（いまの伝わりやすさ <b>' +
         S.roomPower(g).toFixed(1) + '</b>）、決まったときの信頼の伸びも大きくなります。</p>';
       body += '<div class="pick">';
       D.BRIEF_REPLIES.forEach(r => {
@@ -1623,7 +1623,7 @@ GP.screens.weekend = function (A) {
     });
     h += '</div>';
     h += '<p class="desc">タイヤの減りは、<b>ドライバーのタイヤへの入力</b>' +
-      '（丁寧なほど保つ）と、<b>マシンのタイヤへの攻撃性</b>' +
+      '（丁寧なほど保つ）と、<b>マシンのタイヤへの厳しさ</b>' +
       '（いま ×' + S.tyreKind(g).toFixed(2) + '：ダウンフォースと軽さで変わります）、' +
       'そして<b>路面に乗ったゴム</b>で決まります。' +
       (read < D.TYRE_READ.missFrom
@@ -1806,7 +1806,7 @@ GP.screens.weekend = function (A) {
     let h = '<div class="sub">🔍 デブリーフィング</div>' +
       '<p class="desc">' + esc(rival.team.name) + '（' + (rival.pos) + '位）と比べて、' +
       '1周あたり <b class="' + (gap >= 0 ? 'bad' : 'good') + '">' + sign(gap) + '秒</b>' +
-      (gap >= 0 ? ' 遅れていました。その内訳です。' : ' 速く走れていました。その内訳です。') + '</p>';
+      (gap >= 0 ? ' 遅れていました。どこで差がついたかを見てみます。' : ' 速く走れていました。どこで稼いだかを見てみます。') + '</p>';
     h += '<div class="dbr">';
     items.forEach(it => {
       h += '<div class="dbr-row' + (it === worst && it.sec > 0.02 ? ' worst' : '') + '">' +
@@ -2009,7 +2009,7 @@ GP.screens.weekend = function (A) {
         const scored = !res.fastestLap.dnf && res.fastestLap.pos <= D.POINTS.length && !res.special;
         body += '<p class="desc">⚡ ファステストラップ：' + esc(res.fastestLap.driver.name) +
           '（' + fmtTime(res.fastestLap.fastest) + '）' +
-          (scored ? ' — 10位以内で完走のためボーナス <b>+1pt</b>' : ' — 10位以内ではないためボーナスなし') + '</p>';
+          (scored ? ' — 10位以内で完走したのでボーナス <b>+1pt</b>' : ' — 10位圏外なのでボーナスはつきません') + '</p>';
       }
 
       // 性格に応じて調子が動き、ひとことを残す。
@@ -2251,7 +2251,7 @@ GP.screens.weekend = function (A) {
                             '「刻みすぎました。次はもう少し引っぱります」'])
                   : lr.pits >= 2
                     ? S.pick(['「' + lr.pits + 'ストップでした。1回に減らせた可能性はあります」',
-                              '「' + lr.pits + '回。悪くはないですが、最適だったかは微妙です」'])
+                              '「' + lr.pits + '回。悪くはないですが、もっと良い手があったかもしれません」'])
                     : S.pick(['「' + lr.pits + 'ストップ。読みは当たっていました」',
                               '「引っぱりきりました。タイヤの使い方が良かった」']) });
     }

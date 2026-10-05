@@ -78,7 +78,7 @@ GP.screens.home = function (A) {
       body += '<p class="desc">保管パーツはありません。' +
         '「🏭 工房」→「作る」で作ると、ここに入ります。</p>';
     } else {
-      body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材は消滅）。</p><div class="parts">';
+      body += '<p class="desc">合成すると素材の性能の一部を引き継ぎ、レアリティが上がることがあります（素材にしたパーツはなくなります）。</p><div class="parts">';
       g.inventory.forEach(p => {
         const act = '<span class="p-act">' +
           '<button class="mini" data-eq="' + p.id + '">装着</button>' +
@@ -94,7 +94,7 @@ GP.screens.home = function (A) {
       '<p class="desc">走るほど残りが減り、へたると出力も信頼性も落ちます。' +
       '新品は基数を1つ使います。上限（' + S.puLimit(g) + '基）を超えると、' +
       '超過1基目は ' + D.PU_PENALTY + 'グリッド降格、2基目からは最後尾スタートです。' +
-      '<b>決勝の途中で使い切った場合も同じ</b>ように数えられます。<br>' +
+      '<b>決勝の途中で使い切って載せ替えた場合も、1基として数えます</b>。<br>' +
       'よそから買うか、こちらから分けるかは「🔌 供給」で決めます。</p>' +
       U.puLine(g);
 
@@ -153,7 +153,7 @@ GP.screens.home = function (A) {
     let h = '<div class="pubox' + (pu.grid ? ' pen' : willSwap && left <= 0 ? ' warn' : '') + '">' +
       '<b>⚙️ パワーユニット ' + pu.n + '基目／今季 ' + pu.used + '基（あと ' + left + '基）</b>' +
       '<small class="punote">この残量が、そのままマシン画面のパワーユニットの' +
-      'コンディションです。整備で少し戻せますが、元に戻せるのは新品だけです。</small>' +
+      'コンディションです。整備で少しは回復しますが、元どおりにするには新品に替えるしかありません。</small>' +
       '<span class="skbar big"><i class="' + (pu.life < 25 ? 'f2' : pu.life < 50 ? 'f1' : 'f0') +
         '" style="width:' + Math.round(pu.life) + '%"></i></span>' +
       '<em>残り ' + Math.round(pu.life) + '%</em>' +
@@ -191,7 +191,7 @@ GP.screens.home = function (A) {
         '／1戦 -' + Math.round(per) + '%<br>いまのユニットであと約' + races + '戦</small></button>';
     });
     h += '</div><small class="pumnote">' + esc(mode.note) +
-      '<br>「◯台」はグリッドでおよそ何台ぶん速い／遅いか。' +
+      '<br>「◯台」は、グリッドで何台ぶん前後するかの目安です。' +
       'へたったユニットは、これとは別に最大 ' + D.PU_PERF_DROP.toFixed(1) + '台ぶん遅くなります。</small>';
 
     // ---- 降格を取るなら、どのコースか ----
@@ -325,8 +325,8 @@ GP.screens.home = function (A) {
       '<div class="popcost"><span>引き継ぐ性能</span><span><b class="up">+' +
         gain.toFixed(1) + '</b>（' + Math.round(newPart.power) + ' → ' +
         Math.round(newPart.power + gain) + '）</span></div>' +
-      '<div class="popcost"><span>器が広がる見込み</span><span><b>' +
-        Math.round(upChance * 100) + '%</b>　出来の良い素材ほど拾えます</span></div>' +
+      '<div class="popcost"><span>品質の上限が上がる確率</span><span><b>' +
+        Math.round(upChance * 100) + '%</b>　素材の出来が良いほど上がりやすい</span></div>' +
       '<div class="popcost"><span>素材の出来</span><span>' +
         esc(S.qualTier(mq).name) + ' ' + mq.toFixed(2) + '／性能 ' +
         Math.round(oldPart.power) + '</span></div>' +
@@ -368,8 +368,8 @@ GP.screens.home = function (A) {
       '／性能 ' + Math.round(m.power) + '）<br>' +
       'この素材を吸収させる ' + c.name + ' を選んでください。</p>' +
       '<p class="desc">性能を <b>+' + gainNow.toFixed(1) + '</b> 引き継ぎ、' +
-      Math.round(upChance * 100) + '% の確率で<b>品質そのものが少し広がります</b>' +
-      '（出来の良い素材ほど、拾えるものが多い）。<br>' +
+      Math.round(upChance * 100) + '% の確率で<b>品質そのものも少し上がります</b>' +
+      '（素材の出来が良いほど上がりやすい）。<br>' +
       '費用 💰' + money(cost) + '万（週は消費しません）</p>' +
       (short > 0 ? '<p class="note"><b class="warn">資金が足りません。</b>' +
         'あと <b>💰' + money(short) + '万</b> あれば合成できます。' +
@@ -618,13 +618,13 @@ GP.screens.home = function (A) {
       '<div class="sub small">🎮 自分でハンドルを握る</div>' +
       '<p class="desc">誰かの車に乗って、実際に走らせられます。' +
       '<b>使うのは左右だけ</b>（キーボードなら ← →）。' +
-      'ラジコンと同じで、前に進むのは勝手にやります。<br>' +
-      'アクセルとブレーキは、<b>いま走っている線で曲がりきれる速さ</b>に自動で当たります。' +
+      'ラジコンのように、前へ進むのは車に任せておけば大丈夫です。<br>' +
+      'アクセルとブレーキは、<b>いま走っている線で曲がりきれる速さ</b>に自動で合わせてくれます。' +
       'だから<b>どこを走るかが、そのままタイムになります</b>。' +
       '内へ詰めれば小回りになって遅く、外へふくらませれば大きな弧になって速い。<br>' +
-      'コーナーの<b>外から入って、ふくらませて抜ける</b>のが速い、ということです。' +
+      'コーナーの<b>外から入って、ふくらませて抜ける</b>のが速い走りかたです。' +
       'ただしコースの外へ出ると急に遅くなります。<br>' +
-      'その子のカート適性は、<b>タイヤの許容</b>として効きます（うまい子ほど、同じ線でも速く抜けられる）。</p>' +
+      'カートのうまい子ほど<b>タイヤが粘る</b>ので、同じ線でも速く抜けられます。</p>' +
       '<div class="pick">' + ys.slice(0, 4).map(d =>
         '<button class="pickbtn" data-k="kdrive:' + d.id + '"' + (ok ? '' : ' disabled') + '>' +
         '<span class="pb-ic" style="background:#3f8a4a">🏎️</span>' +
@@ -864,8 +864,8 @@ GP.screens.home = function (A) {
     if (fac === 'depot') {
       h += '<div class="sub small">🧰 現地に持ち込む装備</div>' +
         foreBoxHTML() +
-        '<p class="desc">倉庫に据えるのではなく、週末ごとに運んでいくもの。' +
-        '一度きりの買い物ではなく、<b>段を上げていく</b>形です。買ったぶんは残ります。</p>' +
+        '<p class="desc">据え置きではなく、週末ごとに運んでいく道具です。' +
+        '<b>段を上げながら</b>買い足していけて、買ったぶんは残ります。</p>' +
         '<div class="pick gearpick">' + kitRowsHTML() + '</div>';
     }
     h += '<p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
@@ -1452,19 +1452,19 @@ GP.screens.home = function (A) {
     body += '<div class="cnpt-boss' + (tech ? '' : ' empty') + '">' +
       '<b>📐 基本設計能力 <em>' + db.value.toFixed(1) + '</em></b>' +
       '<small>コンセプトを図面に落とし込む力です。' +
-      'もとになるのは<b>人事の噛み合わせ</b>（設計グループと開発グループ）で、' +
-      'そこに<b>開発責任者の相性</b>が掛かります。' +
+      '設計と開発、二つのグループの<b>噛み合い</b>が土台で、' +
+      'そこに<b>開発責任者との相性</b>が加わります。' +
       (tech
         ? '<br>いまの開発責任者は <b>' + esc(tech.name) + '</b>。' +
           '得意は ' + cnptChip(tech.good) + '、苦手は ' + cnptChip(tech.bad) + '。'
-        : '<br><em class="warn">開発責任者が空席です。図面の質はスタッフの力そのままになります。</em>') +
+        : '<br><em class="warn">開発責任者が空席なので、図面の出来はスタッフの腕だけで決まります。</em>') +
       '</small></div>';
 
     if (stock > 0) {
       body += '<div class="stockbox"><b>🌱 積んである来季ぶんの開発：' +
         Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
-        '<small>方針を決めると、この仕込みが<b>いまここでマシンに落とし込まれます</b>。' +
-        '決めた方向のパーツと車体に厚く配られます。<br>' +
+        '<small>方針を決めた時点で、この仕込みが<b>マシンに注ぎ込まれ</b>、' +
+        '選んだ方向のパーツと車体に多めに回ります。<br>' +
         '<em class="warn">オフのうちに決めないと、来季へ持ち越すあいだに2割が失われます。</em></small></div>';
     }
     body += '<div class="pick">';
@@ -1586,8 +1586,7 @@ GP.screens.home = function (A) {
       return y;
     });
     const cost = Math.round(600 + g.facilities.youth * 120);
-    let body = '<p class="lead">オフは各地をゆっくり見て回れます。' +
-      '良い素材に当たりやすい。</p>' +
+    let body = '<p class="lead">オフは各地をゆっくり回れるので、いい素材に当たりやすくなります。</p>' +
       '<p class="desc">枠 ' + (g.youth || []).length + ' / ' + slots +
       '　契約金 💰' + money(cost) + '万（いまの資金 ' + money(g.funds) + '万）</p><div class="pick">';
     cands.forEach((y, i) => {
@@ -2601,7 +2600,7 @@ GP.screens.home = function (A) {
     const st = S.readPower(g);
     return '<div class="forebox"><b>🌦️ 天候とタイヤの読み<em>' + Math.round(fo * 100) + '%</em></b>' +
       '<i class="grp-bar"><b style="width:' + Math.round(fo * 100) + '%"></b></i>' +
-      '<small>外すと、合わないタイヤのまま何周も走ることになります。<br>' +
+      '<small>読みが外れると、合わないタイヤのまま何周も走ることになります。<br>' +
       'ピットウォール（ストラテジスト）<b>' + st.toFixed(1) + '</b>' +
       '／采配 <b>+' + Math.round(S.osk(g, 'call') * 6) + '%</b>' +
       '／天気の読みの装備 <b>+' + Math.round(wKit * 100) + '%</b></small></div>';
@@ -2630,7 +2629,7 @@ GP.screens.home = function (A) {
         '<div class="popcost"><span>費用</span><span>' +
         (pr.price < pr.list ? '<s>💰' + money(pr.list) + '</s> ' : '') +
         '<b>💰' + money(pr.price) + '万</b></span></div>' +
-        '<p class="note">持ち込んだ道具は、置いてあるだけで <b>💰' + money(pr.up) +
+        '<p class="note">持ち込んだ道具は、持っているだけで <b>💰' + money(pr.up) +
         '万／週</b> の維持費がかかります。</p>';
       if (short > 0) {
         h += '<p class="note"><b class="warn">資金が足りません。</b>あと <b>💰' +
@@ -2707,7 +2706,7 @@ GP.screens.home = function (A) {
       '<em class="' + state.c + '">' + lvl + ' / 100　' + state.t + '</em>' +
       '<small>ピット作業 +' + cw.pit.toFixed(1) + '秒／信頼性 -' + cw.rel.toFixed(1) +
       '／作業ミス +' + (cw.mistake * 100).toFixed(1) + '%<br>' +
-      '「☕ 休養」で回復します。オフシーズンには抜けます。</small></div>';
+      '疲れは「☕ 休養」で取れ、オフシーズンに入れば抜けます。</small></div>';
 
     g.logi = g.logi || { plan: 'std', load: 'std', crew: 0 };
     const curLoad = S.logiLoad(g);
@@ -2803,7 +2802,7 @@ GP.screens.home = function (A) {
             (S.missionLv(g) * D.MISSION.read).toFixed(2) +
             '／天候 +' + Math.round(S.missionLv(g) * D.MISSION.fore * 100) + '%）。' +
             /* 埋め戻す割合は crewEff と同じ式。前は存在しない定数を読んでいて NaN が出ていた */
-            '人を減らして薄くなったぶんも ' +
+            '人を減らした穴も ' +
             Math.round(Math.min(0.92, D.MISSION.coverBase + S.missionLv(g) * D.MISSION.coverLv) * 100) +
             '% 埋め戻します。'
           : '本国に残した人間は、いまはレースに関われません。' +

@@ -152,9 +152,9 @@ GP.ui = (function () {
         '<em>' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%</em></div>';
     }).join('');
     return '<b class="sub small">路面との相性</b><div class="secfits">' + rows + '</div>' +
-      '<p class="desc">砂利は<b>蹴り出し</b>が、舗装は<b>曲がる力</b>が、' +
-      '雪はその中間がタイムになります。合っていない路面では、' +
-      '同じ車でも一日で1分ぶん置いていかれます。</p>';
+      '<p class="desc">砂利では<b>蹴り出し</b>、舗装では<b>曲がる力</b>がタイムを左右します。' +
+      '雪はその中間。路面に合っていないと、' +
+      '同じ車でも一日で1分は置いていかれます。</p>';
   }
 
   /* ラリーの路面と、日程の一行 */
@@ -313,7 +313,7 @@ GP.ui = (function () {
       '<span class="p-bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></span>' +
       '<span class="p-cond ' + (p.cond < 45 ? 'bad' : p.cond < 70 ? 'warn' : '') + '"' +
         ' title="' + (c.key === 'pu'
-          ? 'いま載せているユニットの残量。使い切ると次の基へ載せ替えになります'
+          ? 'いま載せているユニットの残り。使い切ったら次のユニットに替わります'
           : 'パーツのコンディション。整備で戻ります') + '">' +
         (c.key === 'pu' ? '<i class="p-cl">残量</i>' : '') +
         Math.round(p.cond) + '%</span>' +
@@ -392,7 +392,7 @@ GP.ui = (function () {
       puLine(g) +
       '<div class="pad">' +
       '<div class="statrow">' + statBar('最高速', st.speed, '#e04a3f') + statBar('コーナー', st.corner, '#3a7ad9') + statBar('加速', st.accel, '#4ea63f') + '</div>' +
-      '<div class="ersrow" title="エレクトロニクスの性能で決まります。直線での放電に使われ、前車に迫るときは多く消費します">' +
+      '<div class="ersrow" title="ERSの容量はエレクトロニクスの性能で決まります。直線で放電し、前の車に迫るときは多めに使います">' +
       '<span>🔋 バッテリー</span>' +
       '<em>容量 <b>' + Math.round(ers.capacity) + '</b></em>' +
       '<em>回生 <b>' + ers.recover + '</b>/周</em>' +
@@ -803,7 +803,7 @@ GP.ui = (function () {
       '<div class="fin-row"><span>' + S.fanTier(g).icon + ' グッズ・入場料（' + S.fanTier(g).name + '）</span><b class="good">+' + money(f.merch) + '</b></div>' +
       /* 出走賞金はここに出していなかったので、
          毎戦かならず入るものが勘定から抜けていた         */
-      '<div class="fin-row"><span>🏁 出走賞金（2台とも完走すれば最低）</span><b class="good">+' +
+      '<div class="fin-row"><span>🏁 出走賞金（2台完走での最低保証）</span><b class="good">+' +
         money(f.racePrize) + '</b></div>' +
       (f.sponsorRpPerRace ? '<div class="fin-row"><span>🔬 スポンサーの研究P</span><b class="good">+' + f.sponsorRpPerRace + '</b></div>' : '') +
       (f.puSupply ? '<div class="fin-row"><span>🔌 PUの供給料（よそへ）</span><b class="good">+' + money(f.puSupply) + '</b></div>' : '') +
@@ -907,7 +907,7 @@ GP.ui = (function () {
       '<span>距離 <b>' + laps + '周</b></span>' +
       '<span>エントリー費 <b>💰' + money(sp.entry) + '万</b></span></div>' +
       '<p class="note">' + esc(sp.note) + '</p>' +
-      '<p class="desc">選手権のポイントは動きません。参加には1週かかります。</p>' +
+      '<p class="desc">選手権のポイントには関わりませんが、参加すると1週を使います。</p>' +
       '<div class="sp-btns">' +
       '<button class="btn primary" id="specialGo"' + (g.funds < sp.entry ? ' disabled' : '') + '>' + sp.icon + ' 参加する</button>' +
       '<button class="btn" id="specialSkip">見送る</button></div>' +

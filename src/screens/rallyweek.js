@@ -188,8 +188,8 @@ GP.screens.rallyweek = function (A) {
       '<p class="desc">この規則の <b>' + (St.regSince(g) + 1) + ' 年目 / 全' +
       St.REG_EVERY + '年</b>' +
       (St.regulationNext(g) ? '（<b class="warn">今季が最後の年</b>。来季は白紙から）' : '') + '。' +
-      '規則は全車に同じようにかかります。変わるのは' +
-      '<b>どこに金をかけると速いか</b>だけです。</p>' +
+      '規則は全車に同じだけ効きます。違うのは' +
+      '<b>どこに金をかければ速いか</b>だけです。</p>' +
       '<div class="rulelist">';
     set.forEach(r => {
       const ups = [], dns = [];
@@ -266,8 +266,8 @@ GP.screens.rallyweek = function (A) {
       h += '<p class="note">うちは <b>' + mine.map(x => x.order + '番手').join('・') +
         '</b> から出ます。' +
         (worst.loss > 0.0005
-          ? '全区間で均すと、いちばん前の1台で <b>およそ ' + secs.toFixed(0) +
-            '秒</b> ぶんの不利になります。'
+          ? '前を走るほうの1台だと、ラリー全体で <b>およそ ' + secs.toFixed(0) +
+            '秒</b> の損になります。'
           : 'ここからだと、掃き掃除の不利はほとんどありません。') + '</p>';
     }
     return h;
@@ -313,14 +313,14 @@ GP.screens.rallyweek = function (A) {
     // 走る前に、数字の穴をふさいでおく（穴があると車が動かない）
     if (St.healNumbers) {
       const hf = St.healNumbers(g);
-      if (hf.length) Ui.toast('🩹 数字の穴をふさぎました：' + hf.slice(0, 3).join(' '), 'warn');
+      if (hf.length) Ui.toast('🩹 抜けていた値を埋めました：' + hf.slice(0, 3).join(' '), 'warn');
     }
     // 積んだスペアのぶんだけ、ほんの少し重い
     pack = GP.rally.run(g, g.nextRace, plan);
     if (pack.fixed && pack.fixed.length) {
       const what = pack.fixed.slice(0, 4).join(' ');
-      Ui.log(g, '🩹 車かタイムの数字に穴があったので、補って走らせました（' + what + '）。', 'warn');
-      Ui.toast('🩹 数字の穴を補って走らせます', 'warn');
+      Ui.log(g, '🩹 記録に抜けがあったので、仮の値で走らせました（' + what + '）。', 'warn');
+      Ui.toast('🩹 抜けた値を補って走らせます', 'warn');
     }
     shown = 0;
     Ui.closeModal();
@@ -443,7 +443,7 @@ GP.screens.rallyweek = function (A) {
     // 自分に起きたこと
     if (!mine.length) {
       body += '<div class="mgrsay bad"><b>🛠 自分の車はもう走っていません</b>' +
-        'リタイア済みのため、このSSは先頭の走りを見ています。</div>';
+        'うちの車はもう止まっているので、このSSは先頭の走りを見ています。</div>';
     }
     mine.forEach(b => {
       if (!b.note) return;

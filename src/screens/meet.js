@@ -115,8 +115,8 @@ GP.screens.meet = function (A) {
       say = '弱点らしい弱点はありません。<b>' + best.name + 'が平均より ' + pct(best.rel) +
             '% 高い</b>ので、ここをさらに伸ばして武器にするのも手です。';
     } else {
-      say = 'どの軸も平均並みです。いまは' + plan.name + '方向。' +
-            'どちらへ振るかで、この先の性格が決まります。';
+      say = 'どこも平均並みです。いまは' + plan.name + '方向で進めていて、' +
+            'このあとどちらへ寄せるかで車の性格が決まります。';
     }
 
     /* ---- 今週どこに使うか ----
@@ -146,7 +146,7 @@ GP.screens.meet = function (A) {
       tip = '🔩 ' + capped.map(c => c.name).join('・') + ' が上限。💡ひらめきで作り直す';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
         '💡ひらめきは ' + ideaN + 'つ持っているので、' +
-        'その部位を器の85%まで育てるか、技術部門を厚くすれば⚡が起こせます。';
+        'その部位を器の85%まで育てるか技術部門を厚くすれば、⚡イノベーションも狙えます。';
     } else if (capped.length && found) {
       tip = '🔬 知見を 💡ひらめき に変える（' + found + 'つ余っています）';
       advise = '🔩 <b>' + capped.map(c => c.name).join('・') + ' が上限です。</b>' +
@@ -163,10 +163,10 @@ GP.screens.meet = function (A) {
     } else {
       tip = found ? '🔬 知見が ' + found + 'つ。💡ひらめきに変えるか、研究を続ける'
                   : '🔬 研究・🖊️技術・🏭作り直し。あとで効くものに使う週';
-      advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週進めています。' +
-        '週は<b>あとで効くもの</b>に使うのが得です。' +
+      advise = '🔩 いま上限に詰まっている部品はありません。煮詰めは工房が毎週やってくれています。' +
+        'だから週は<b>あとで効くもの</b>に回すのが得です。' +
         '🔬研究（' + (found ? '知見 ' + found + 'つ持っています' : '⚡の元手になります') + '）、' +
-        '🖊️技術、🏭作り直しの引き。';
+        '🖊️技術を伸ばす、🏭作り直しで大きな器を引く、のどれかです。';
     }
 
     return {
@@ -229,9 +229,9 @@ GP.screens.meet = function (A) {
             '遠いレースが続くようなら、どこかで休ませたいところです。';
     } else if (o.dept.mechanic < 3) {
       say = 'クルーの頭数が足りません（厚み ' + o.dept.mechanic.toFixed(1) + '）。' +
-            '人を入れれば静止時間が縮みます。いまは ' + stand.toFixed(2) + '秒。';
+            '人を入れれば、いま ' + stand.toFixed(2) + '秒の静止時間を縮められます。';
     } else {
-      say = '現場は問題ありません。疲労 ' + lvl + '、静止 ' + stand.toFixed(2) + '秒。' +
+      say = '現場は問題ありません。疲れは ' + lvl + ' くらいで、静止は ' + stand.toFixed(2) + '秒。' +
             'このまま行けます。';
     }
     return {
@@ -280,12 +280,12 @@ GP.screens.meet = function (A) {
     } else if (ship > fin.weekly * 2.2) {
       /* 収支ぜんたいはプリンシパルの持ち場。
          ここは「運ぶこと」だけを見る。同じ話を二人にさせない */
-      say = '次の ' + track.name + ' は遠いです。輸送費だけで <b>💰' + money(ship) +
-            '万</b>、週の固定費 ' + Math.round(ship / Math.max(1, fin.weekly) * 10) / 10 +
-            '週ぶんにあたります。積荷を軽くすれば、そのぶん浮きます。';
+      say = '次の ' + track.name + ' は遠いですね。運ぶだけで <b>💰' + money(ship) +
+            '万</b>、ふだんの固定費 ' + Math.round(ship / Math.max(1, fin.weekly) * 10) / 10 +
+            '週ぶんが飛びます。積荷を軽くすれば、そのぶん浮きます。';
     } else {
-      say = '運びは問題ありません。次戦の輸送費 💰' + money(ship) + '万、遅延 ' + pct(risk) +
-            '%。積荷も編成も、いまの手配で足ります。';
+      say = '運びは心配いりません。次の輸送費は 💰' + money(ship) + '万、遅れる心配も ' + pct(risk) +
+            '% ほど。いまの手配のままで足ります。';
     }
     return {
       key: 'logistics', who: w,
@@ -318,8 +318,8 @@ GP.screens.meet = function (A) {
       ['次の1戦', '<b class="' + (fin.net < 0 ? 'down' : 'up') + '">' +
         sign(money(fin.net)) + '万</b>　<small>' +
         S.hopDef(S.hopOf(g, g.nextRace)).icon + '準備' + S.prepWeeks(g, g.nextRace) +
-        '回ぶんの固定費で計算。2台とも完走しての最低ラインで、' +
-        '入賞すると 1点 +💰470万</small>'],
+        '回ぶんの固定費を引いた額。2台とも最後尾で完走した場合で、' +
+        '入賞すれば1点ごとに +💰470万</small>'],
       ['スタッフ', '<b>' + have + ' / ' + slots + '席</b>' +
         (room > 0 ? '（あと ' + room + '人 置けます）' : '（満席）')],
       ['いちばん低い施設', low ? low.f.icon + ' <b>' + low.f.name + ' Lv.' + low.lv + '</b>' : '—']
@@ -335,14 +335,13 @@ GP.screens.meet = function (A) {
       /* net は「2台とも最後尾で完走したとき」の額。
          入賞すればここから上がるので、そう言わないと
          ただ「赤字です」と脅しているだけになる            */
-      say = '<b>入賞できないと、次の1戦で ' + money(fin.net) + '万の赤字</b>です' +
+      say = '<b>このまま入賞なしだと、次の1戦は ' + money(fin.net) + '万の赤字</b>です' +
             '（' + S.hopDef(S.hopOf(g, g.nextRace)).name + 'で準備' +
-            S.prepWeeks(g, g.nextRace) + '回ぶん、2台とも完走しての最低ライン）。' +
-            'ポイントを持ち帰れば、1台につき 1点あたり 💰470万 が上乗せされます。' +
-            '入賞が続けば黒字に乗ります。';
+            S.prepWeeks(g, g.nextRace) + '回ぶん、2台とも最後尾で完走した場合）。' +
+            'ポイントは1点ごとに 💰470万 入るので、入賞が続けば黒字に戻せます。';
     } else if (room > 2) {
-      say = '席が <b>' + room + '人ぶん空いています</b>。施設を広げたのに人を入れていません。' +
-            '空けておくだけでは何も起きません。';
+      say = '席が <b>' + room + '人ぶん空いたまま</b>です。' +
+            'せっかく施設を広げたのだから、人を入れないともったいない。';
     } else if (room <= 0) {
       say = '席が埋まりました（' + have + '/' + slots + '）。' +
             'これ以上入れるには、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
@@ -351,8 +350,8 @@ GP.screens.meet = function (A) {
       say = low.f.icon + '<b>' + low.f.name + 'がまだ Lv.' + low.lv + '</b>です。' +
             esc(low.f.desc) + '。ここが足を引っぱっています。';
     } else {
-      say = 'チームは回っています。資金 💰' + money(g.funds) + '万、次の1戦で +' +
-            money(fin.net) + '万。次に効くのは' +
+      say = 'チームは回っています。資金は 💰' + money(g.funds) + '万、次の1戦も +' +
+            money(fin.net) + '万のプラス。次に効くのは' +
             (low ? low.f.icon + low.f.name + 'の拡張' : '人の補強') + 'あたりです。';
     }
     return {

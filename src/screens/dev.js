@@ -189,7 +189,7 @@ GP.screens.dev = function (A) {
     let h = '<div class="sub">ひらめき</div>' +
       '<p class="desc">掴んだ当てを、パーツとして形にします。' +
       '出来は運任せになりません。<b style="color:' + topq.color + '">必ず' + topq.name + '</b>で生まれ、' +
-      '性能も上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態からです。<br>' +
+      '性能も、はじめから上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> まで育った状態で生まれます。<br>' +
       '<b>抱えたままだと古びます</b>。よそが先に同じものを持ち込めば、もう目新しくありません。' +
       U.helpLink('car') + '</p><div class="pick">';
     list.forEach(it => {
@@ -230,7 +230,7 @@ GP.screens.dev = function (A) {
     const wip = Math.min(0.99, Math.max(0, g.spareWip || 0));
     return '<div class="sub">製造方針</div>' +
       '<p class="desc">工房のラインを、<b>作るものだけ</b>に使うか、' +
-      '<b>予備も組んでおく</b>か。週を使わずに切り替えられて、決めたぶんはずっと効きます。' +
+      '<b>予備も組んでおく</b>か。週を使わずに切り替えられて、一度決めれば変えるまでその方針が続きます。' +
       U.helpLink('car') + '</p><div class="pick">' +
       D.MFG_PLANS.map(x => {
         const on = x.key === pl.key;
@@ -521,7 +521,7 @@ GP.screens.dev = function (A) {
         '</small></div>';
     });
     body += '</div>' +
-      '<p class="desc">器は <b>世代 × その個体の品質 × 引き出せる幅</b>で決まります。' +
+      '<p class="desc">器の大きさは、<b>世代</b>と<b>その個体の品質</b>と<b>引き出せる幅</b>の掛け合わせで決まります。' +
       '幅は<b>ファクトリー</b>と<b>設計グループ</b>で広がり、' +
       '<b>風洞</b>はエアロとサスにだけ効きます。' +
       '施設を伸ばした日に、天井がそのぶん上がります。' + U.helpLink('car') + '</p>';
@@ -718,8 +718,8 @@ GP.screens.dev = function (A) {
     const intRead =
       '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
       'パーツをいくら良くしても、まとめ上げていなければ出てきません。<br>' +
-      'ここはプレイヤーが押す場所ではなく、<b>技術部門が毎週進めている</b>ところです。' +
-      '速くしたければ、押す回数ではなく<b>👥人事で技術部門を厚くします</b>。' +
+      'ここはあなたが押して進める場所ではなく、<b>技術部門が毎週少しずつ進めている</b>ところです。' +
+      '速くしたいなら、<b>👥人事で技術部門の人を増やしてください</b>。' +
       U.helpLink('car') + '</p>' +
       '<div class="intsum">' +
         '<b>いまのインテグレート <u>' + Math.round(itNow.rate * 100) + '%</u></b>' +
@@ -816,7 +816,7 @@ GP.screens.dev = function (A) {
         'いま載っている個体の性能と、その個体の当たり（品質）は持ち越せません。<br>' +
         'ただし<b>「来季に回した開発」</b>だけは、そのまま新型の出発点になります。' +
         '今季を捨てて来季に振るなら、開発リソースの配分を「来季優先」寄りに。<br>' +
-        '<b>新しい規則を読めるかどうかは、来季の頭に引き直されます。</b></small></div>';
+        '<b>新しい規則をうまく読めるかどうかは、来季の初めにあらためて決まります。</b></small></div>';
     }
 
     // ---- 今季の予算 ----
@@ -920,7 +920,7 @@ GP.screens.dev = function (A) {
           '<small>規則が変わった年は、どのチームも手探りです。読めていれば開発の伸びが速く、' +
           '外していれば遅い。年を追うごとに、この差は縮んでいきます' +
           (since >= 2 ? '。もうほとんど差はありません。' : '。') +
-          '読みは<b>規則が変わった年の頭に引き直され</b>、その規則のあいだは変わりません。</small></div>';
+          'この読みは<b>規則が変わった年の初めに決まり</b>、その規則が続くあいだは変わりません。</small></div>';
       }
       // 今季と次のマシンへの振り分け、仕込み、世代の進み
       body += devHeadHTML();
@@ -930,8 +930,8 @@ GP.screens.dev = function (A) {
     if (desTab === 'base') {
     body += '<div class="sub">技術の開発</div>' +
       '<p class="desc">ここで積み上げるのは<b>チームの技術</b>です。' +
-      '一度ものにした技術は、パーツを作り替えても、載せ替えても失われません。' +
-      'レベルが上がるほど効きが強くなります。</p><div class="pick">';
+      '一度ものにすれば、パーツを作り替えても載せ替えても消えず、' +
+      'レベルが上がるほど効きも強くなります。</p><div class="pick">';
     S.techList(g).forEach(t => {
       const c = S.techCost(g, t.key);
       const maxed = t.lv >= t.max;
@@ -1078,8 +1078,8 @@ GP.screens.dev = function (A) {
     return '<div class="ticketbar' + (useTicket ? ' on' : '') + '" id="tkToggle">' +
       '<span class="tk-ic">🎫</span>' +
       '<span class="tk-body"><b>開発チケット ×' + tk + ' / ' + D.TICKET.max + '</b>' +
-      '<small>1枚使うと、次の1回で<b>週が進みません</b>。' +
-      '資金と研究Pはいつもどおり。' +
+      '<small>1枚使えば、次の1回は<b>週を進めずに済みます</b>。' +
+      '資金と研究Pはふだんどおりかかり、' +
       '<b>年をまたぐと失効</b>します</small></span>' +
       '<span class="tk-sw">' + (useTicket ? '使う' : '使わない') + '</span></div>';
   }
@@ -1129,8 +1129,8 @@ GP.screens.dev = function (A) {
     if (crunchOn()) {
       return U.modal('🌙 徹夜',
         '<p class="lead">今週はすでに徹夜態勢だ。</p>' +
-        '<p class="desc">このまま開発・研究・整備・練習のどれかを実行すると、' +
-        '2回ぶんの効きになります。</p>',
+        '<p class="desc">このまま開発・研究・整備・練習のどれかをやれば、' +
+        '2回ぶん効きます。</p>',
         [{ label: '戻る', fn: U.closeModal }]);
     }
     const row = (g.crunchRow || 0);
@@ -1143,7 +1143,7 @@ GP.screens.dev = function (A) {
       '<p class="desc">代償として、ドライバーの調子 <b>-' + formHit + '</b>、' +
       'マシンのコンディション <b>-' + condHit + '</b>、費用 <b>💰' + money(cost) + '万</b>。<br>' +
       (row > 0 ? '<b class="bad">連続 ' + row + ' 週目なので反動が大きくなっています。</b>'
-               : '休養を挟むと反動は戻ります。') + '</p>',
+               : '休養を挟めば、反動は元の大きさに戻ります。') + '</p>',
       [
         { label: '🌙 徹夜する', cls: 'primary', disabled: g.funds < cost,
           fn: () => {
@@ -1462,7 +1462,7 @@ GP.screens.dev = function (A) {
       '</div>' +
       '<p class="desc">内から外へ、<b>部品 → インテグレート → コンセプト</b>。' +
       '節が<b>いちばん外の線</b>に貼りついていたら、その項目はもう限界です。' +
-      '扇どうしの橋が<b>継ぎ目のインテグレート</b>で、細い橋は車をまとめさせません。' +
+      '扇どうしの橋が<b>継ぎ目のインテグレート</b>で、橋が細いと、車がまとまりません。' +
       U.helpLink('car') + '</p>' +
       '</div>';
   }
@@ -1509,7 +1509,7 @@ GP.screens.dev = function (A) {
       '<p class="desc">部品は、単体ではなく<b>組で効きます</b>。' +
       '上の輪が全体、下がその組ひとつずつの中身です。' +
       '<b>丸が小さいほうが、噛み合いを止めている側</b>。' +
-      'そこを厚くすると、継手が詰まって効きはじめます。</p>';
+      'そこを厚くすれば、組がしっかり噛み合って効きはじめます。</p>';
 
     h += '<div class="pick">';
     syn.forEach(x => {
@@ -1635,7 +1635,7 @@ GP.screens.dev = function (A) {
       }
       if (roomList.length && room[roomList[0]] > 0.004) {
         const R1 = nameOf(roomList[0]);
-        line += R1.icon + R1.name + ' を伸ばすと、噛み合いの伸びしろがいちばん大きく残っています。';
+        line += R1.icon + R1.name + ' に、噛み合いの伸びしろがいちばん大きく残っています。ここを伸ばすのが近道です。';
       } else {
         line += NM[myLow] + 'が薄いので、そこを担う部位を叩くと素直に返ってきます。';
       }
@@ -1800,7 +1800,7 @@ GP.screens.dev = function (A) {
   function doDesign(key) {
     const c = D.PART_CATS.find(x => x.key === key);
     const dc = designCost(key);
-    if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。「マシン」で合成・破棄しましょう。', 'warn'); return; }
+    if (g.inventory.length >= 24) { U.toast('保管庫がいっぱいです。🔧ガレージで合成するか、捨ててください。', 'warn'); return; }
     /* 金と研究Pは、券を使ってもいつもどおり払う */
     if (g.funds < dc.money || g.rp < dc.rp) return;
     const noWeek = spendTicket();
@@ -1845,7 +1845,7 @@ GP.screens.dev = function (A) {
     // 装着中より強ければすすめる
     const cur = g.equipped[key];
     if (!cur || S.partScore(part, g) > S.partScore(cur, g)) {
-      U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強力です！「マシン」で装着しましょう。', 'good');
+      U.toast('装着中の ' + (cur ? cur.name : '—') + ' より強いものができました。🔧ガレージで載せ替えられます。', 'good');
     }
     endDev(noWeek);
   }
@@ -1857,10 +1857,10 @@ GP.screens.dev = function (A) {
   function lineBoxHTML() {
     let h = '<div class="sub">🛠️ 製造ライン</div>' +
       '<p class="desc">パーツの種類ごとに、それを削り出すラインがあります。' +
-      '<b>そこで作った本数だけ</b>段が上がり、出来上がりの底と精度が上がって、' +
-      '扱える素材も上がり、作る費用も下がります。<br>' +
+      '<b>そこで作った本数だけ</b>段が上がります。段が上がるほど、出来の底と精度、' +
+      '扱える素材が良くなり、費用は下がります。<br>' +
       'あれこれ手を出すより一つを作り続けたほうが、同じ金でいいものが出ます。' +
-      '上がりきると<b>品質の底 +0.45</b>と<b>精度 +49%</b>。</p>' +
+      '上がりきれば、品質の底は <b>+0.45</b>、精度は <b>+49%</b> まで伸びます。</p>' +
       '<div class="linelist">';
     D.PART_CATS.forEach(c => {
       const ln = S.lineOf(g, c.key);
@@ -2100,7 +2100,7 @@ GP.screens.dev = function (A) {
         '起こすには、<b>その部位の💡ひらめき</b>と、' +
         '<b>いまの個体が器の ' + Math.round(D.INNOV_UP.need * 100) + '% まで育っていること</b>、' +
         '<b>技術部門（開発＋設計）が ' + D.INNOV_UP.dept + ' 以上</b>。' +
-        'ひらめきを撒くだけでは起きません。' +
+        'ひらめきを持っているだけでは起こせません。三つそろって、はじめて起こせます。' +
         '費用 💰' + money(cost.money) + '万／🔬' + cost.rp + '（1週消費）' +
         U.helpLink('car') + '</p>';
       if (any.length || near.length) {
@@ -2176,10 +2176,10 @@ GP.screens.dev = function (A) {
          時間を買える。1週ぶんの3倍近くを一度に置いていく      */
       const rich = (g.rp || 0) >= D.RESEARCH.pushRp;
       body += '<div class="sub small">🔬 まとめて調べる</div>' +
-        '<p class="desc">研究ポイントをまとめて置いて、調べを一気に進めます。' +
-        '<b>週は使いません。</b>1週ぶんが <b>' + S.researchPower(g).toFixed(1) +
-        '</b> なのに対して、ここでは <b>+' + D.RESEARCH.pushGain + '</b> 進みます。' +
-        '溜まった研究ポイントで、足りない<b>週</b>を買う場所です。</p>' +
+        '<p class="desc">研究ポイントを注ぎ込んで、調べを一気に進めます。' +
+        '<b>週は使いません。</b>1週かけても <b>' + S.researchPower(g).toFixed(1) +
+        '</b> のところが、ここなら <b>+' + D.RESEARCH.pushGain + '</b> です。' +
+        '手が足りない<b>週</b>を、溜めたポイントで買うと思ってください。</p>' +
         '<div class="pick">';
       S.researchList(g).forEach(r => {
         const stack = r.found >= D.RESEARCH.keep;
@@ -2232,7 +2232,7 @@ GP.screens.dev = function (A) {
         '<b>' + cur.name + ' → ' + nx.name + '</b>' +
         '<span class="skbar big"><i style="width:' + Math.min(100, prog) + '%"></i></span>' +
         '<em>' + Math.min(100, prog) + '%</em>' +
-        '<small>装着中のパーツを上限まで煮詰めると、マシンはひとりでに次の世代へ更新されます。' +
+        '<small>装着中のパーツを上限まで煮詰めると、マシンは自然と次の世代に上がります。' +
         '買い物ではないので、資金も研究Pも要りません。' +
         (lag.length
           ? '<br><b>残っているのは ' + lag.slice(0, 3).map(x => x.name + '（' +
@@ -2240,7 +2240,7 @@ GP.screens.dev = function (A) {
             '上限に届いたパーツをさらに叩いても、ここは進みません。'
           : '<br><b>パーツはすべて上限に届いています。次の週で世代が上がります。</b>') +
         (g.engine ? '<br>供給を受けているパワーユニットは、この計算に入りません' +
-                    '（自分で開発できないため）。世代が上がると供給元の最新型に載せ替わります。' : '') +
+                    '（自分では開発できないからです）。世代が上がれば、供給元の最新型に積み替わります。' : '') +
         '<br>' +
         'パーツ上限 ' + cur.cap + ' → ' + nx.cap +
         '／車体上限 ' + S.bodyCap(g) + ' → ' + Math.round(nx.cap * D.BODY_CAP_RATIO) +
@@ -2370,7 +2370,7 @@ GP.screens.dev = function (A) {
       'どの部位の当てにするか選んでください。</p>' +
       '<p class="desc">ここで選んだ部位のひらめきは、🖊️設計室で形にすると' +
       '<b style="color:' + top.color + '">' + top.name + '</b>で生まれます。' +
-      '出来上がりの性能も、上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> ぶん進んだ状態です。<br>' +
+      '出来上がりの性能も、はじめから上限の <b>' + Math.round(D.IDEA.power * 100) + '%</b> まで育った状態です。<br>' +
       '<b>' + D.IDEA.life + '週</b>で古びるので、持ち帰ったら早めに形にしてください。</p>' +
       '<div class="pick">';
     /* 名前はここで決めてしまう。
@@ -2599,7 +2599,7 @@ GP.screens.dev = function (A) {
     U.closeModal();
     U.log(g, '🔌 ' + team + ' にパワーユニットを供給することにした（一時金 +' +
       money(o.upfront) + '万／毎戦 ' + money(o.fee) + '万）。' +
-      '先方の直線は、これから毎週こちらへ近づいてくる。', 'warn');
+      '先方の直線での速さは、これから毎週こちらに迫ってくる。', 'warn');
     U.toast('🔌 ' + team + ' へ供給開始', 'good');
     GP.sound.play('buy');
     S.save(g); render();
@@ -3057,7 +3057,7 @@ GP.screens.dev = function (A) {
             'あと' + (cur.need || 1) + '週ほどで、形が読めるようになります。</b>'
           : '装着している全パーツの性能が <b>+' + ((t.mul - 1) * ratio * 100).toFixed(1) +
             '%</b>（本家の ' + Math.round(ratio * 100) + '%）。' +
-            'デザイナーが厚いほど写しの精度が上がり、遅れるほど届かなくなります。' +
+            'デザイナーが厚いほど写しの精度は上がりますが、持ち込むのが遅れるほど本家の効きには届かなくなります。' +
             '<br><b class="warn">よそのものを持ち込むと、裁定の対象になりやすくなります。</b>') +
         (poor ? '<br><b class="warn">資金か研究Pが足りません</b>' : '') +
         '</small></div>';
@@ -3081,7 +3081,7 @@ GP.screens.dev = function (A) {
       return h;
     }
     h += 'マシンの出来では <b>' + c.gap.toFixed(1) + '点</b> 離されています。' +
-      '写真を撮り、風洞で起こして、うちの車に載せることができます。' +
+      '写真を撮って風洞で起こせば、うちの車にも載せられます。' +
       '差の <b>' + Math.round(c.ratio * 100) + '%</b>（デザイナーが厚いほど上がる）を、' +
       '1回で最大 <b>+' + (D.TREND.lead.cap * 100).toFixed(0) + '%</b> まで埋めます。</small>';
     const poor = g.funds < c.cost || g.rp < c.rp;
@@ -3112,8 +3112,8 @@ GP.screens.dev = function (A) {
       '開発でときどき<b>ブレイクスルー</b>を掘り当て、パーツの格が1段上がります' +
       '（上限そのものが伸びます）。ライバルも同じで、' +
       '規則の変わり目には突然1周 0.2〜0.5秒 速くなるチームが出ます。<br>' +
-      '<b>ただし裏返しもあります。</b>灰色の領域が広いということは、' +
-      'あとから「これは想定外だ」と<b>裁定</b>が出て、取り上げられる確率も高いということです。</small></div>';
+      '<b>ただし裏返しもあります。</b>灰色の領域が広いぶん、' +
+      'あとから「これは想定外だ」と<b>裁定</b>が出て、取り上げられることも多くなります。</small></div>';
   }
 
   /* ---- ADUO（空力開発格差是正指令）----
@@ -3126,8 +3126,8 @@ GP.screens.dev = function (A) {
     const side = mul < 1 ? '削られる側' : mul > 1 ? '上乗せを受ける側' : '据え置き';
     return '<div class="atrbox' + (slim ? ' slim' : '') + '" style="--ac:' + ad.color + '">' +
       '<b>' + ad.icon + ' ADUO レベル' + ad.level + '「' + ad.name + '」発令中</b>' +
-      '<small>首位 <b>' + esc(ad.top) + '</b> が取りうる得点の <b>' +
-      Math.round(ad.share * 100) + '%</b> を取り、2位に <b>1戦あたり ' +
+      '<small>首位 <b>' + esc(ad.top) + '</b> は、取れる点の <b>' +
+      Math.round(ad.share * 100) + '%</b> を持っていき、2位に <b>1戦あたり ' +
       ad.lead.toFixed(1) + '点</b> の差をつけています。' + ad.note + '。<br>' +
       '首位 ×' + ad.cut.toFixed(2) + '／大きく離されたチーム ×' + ad.lift.toFixed(2) +
       '。<b>自チーム（' + rank + '位）は ×' + mul.toFixed(2) + ' の' + side + '</b>です。</small></div>';

@@ -71,7 +71,7 @@ GP.screens.biz = function (A) {
       body += perkBoxHTML() + supplyBoxHTML() +
         '<p class="desc"><b>🏭 サプライヤー型</b>は現金こそ少ないものの、' +
         '自分たちが売っているものを安く入れてくれます。' +
-        '設備の導入費や新品PUの代金は、まとまると効きます。</p>';
+        '設備の導入費や新品のPU代は金額が大きいので、割引がよく効きます。</p>';
     }
 
     if (spTab === 'deal' && g.sponsorOffer) {
@@ -101,7 +101,7 @@ GP.screens.biz = function (A) {
     } else {
       const open = S.titleOpen(g);
       body += '<p class="desc">チーム名に冠がつく、いちばん大きな契約です。' +
-        'ファンと注目度が届いた相手からしか話は来ません。</p><div class="pick">';
+        'ファンと注目度が十分に集まったチームにしか、話は来ません。</p><div class="pick">';
       D.TITLE_SPONSORS.forEach(t => {
         const ok = open.indexOf(t) >= 0;
         body += '<button class="pickbtn' + (ok ? '' : ' done') + '" data-k="ttl:' + t.key + '"' +
@@ -268,8 +268,7 @@ GP.screens.biz = function (A) {
                  : '最高ランクに到達しています。') +
       '</p>' +
       '<div class="sub small">名声が貯まること</div>' +
-      '<p class="desc">下の一覧が、そのまま計算に使っている数字です。' +
-        '1段上がるごとにスキルポイントが <b>' + D.FAME.spPerRank + '</b> つ手に入ります。</p>' +
+      '<p class="desc">下の数字が、そのまま名声の計算に使われています。</p>' +
       '<div class="famelist">' +
       D.FAME.SRC.map(x =>
         '<div class="fame-row"><i>' + x.icon + '</i><span>' + esc(x.name) +
@@ -418,10 +417,10 @@ GP.screens.biz = function (A) {
     // 上から順に、いちばん差し迫っているものを1つ選ぶ
     if (regSoon && prog < 0.35) {
       V.push({ tone: 'bad', head: 'このままでは来季、戦えません',
-        text: '今季かぎりでレギュレーションが変わります。いま積んでいるパーツと車体は白紙に戻る。' +
+        text: '今季かぎりでレギュレーションが変わり、いま積んでいるパーツと車体は白紙に戻ります。' +
               '来季ぶんの仕込みが <b>' + Math.round(prog * 100) + '%</b> では、開幕から周回遅れです。',
         ask: '開発リソースの配分を「来季優先」寄りに振ってください。' +
-             '設計したパーツも売らずに保管を。次の規則の土台になります。' });
+             '設計したパーツも売らずに取っておくと、新しい規則を解析する元手になります。' });
     }
     if (regSoon && prog >= 0.35) {
       V.push({ tone: 'good', head: '来季の下地はできています',
@@ -433,7 +432,7 @@ GP.screens.biz = function (A) {
       V.push({ tone: 'bad', head: '予算がもう限界です',
         text: '今季の上限に対して <b>' + Math.round(capR * 100) + '%</b> を使いました。' +
               'これ以上は超過分の罰金と、来季の風洞時間の削減がついてきます。',
-        ask: '残りは金のかからない手で凌ぎましょう。整備と練習で持たせます。' });
+        ask: '残りは整備や練習など、金のかからない手で凌ぎましょう。' });
     }
     if (bodyAvg + 0.22 < partAvg) {
       V.push({ tone: 'warn', head: '車体が置いていかれています',
@@ -531,7 +530,7 @@ GP.screens.biz = function (A) {
       { k: 'engineer',   label: 'エンジニア',     why: '開発の伸びが上がりません' },
       { k: 'mechanic',   label: 'メカニック',     why: '信頼性が低く、ピット作業も遅いままです' },
       { k: 'strategist', label: 'ストラテジスト', why: 'ピットのタイミングが読めず、作業も遅れます' },
-      { k: 'designer',   label: 'デザイナー',     why: '良いレアリティのパーツが設計できません' },
+      { k: 'designer',   label: 'デザイナー',     why: '品質の良いパーツが作れません' },
       { k: 'analyst',    label: 'アナリスト',     why: '研究ポイントが伸びません' },
       { k: 'trainer',    label: 'トレーナー',     why: 'ドライバーの育ちが遅くなります' }
     ];
@@ -547,7 +546,7 @@ GP.screens.biz = function (A) {
           : '<b>' + first.label + '</b> が実質いません。') + first.why,
         '人事から採るか、他チームから引き抜きましょう。' +
         (first.k === 'strategist'
-          ? '一流のストラテジストがいるかどうかで、接戦での優勝率はおよそ倍変わります。' : ''));
+          ? '一流のストラテジストがいれば、接戦での優勝率はおよそ倍になります。' : ''));
     } else {
       const top = need.slice().sort((a, b) => bonus[b.k] - bonus[a.k]);
       if (bonus[top[0].k] > bonus[top[top.length - 1].k] * 3.2 && bonus[top[0].k] > 2.4) {
@@ -564,8 +563,8 @@ GP.screens.biz = function (A) {
     if (vacant.length && (promotable || g.funds > 12000)) {
       push(2, vacant[0].key, vacant[0].name + 'の席が空いています',
         '<b>' + vacant.map(x => x.name).join('・') + '</b> が不在です。' + esc(vacant[0].desc),
-        promotable ? '技能の足りたスタッフを昇進させられます。人事から。'
-                   : '候補者を雇いましょう。人事から。');
+        promotable ? '腕の足りているスタッフがいるので、人事から昇進させられます。'
+                   : '人事で候補者を雇いましょう。');
     }
 
     // ---- ドライバーとマシンの釣り合い ----
@@ -595,7 +594,7 @@ GP.screens.biz = function (A) {
     if (g.rp > 400 && !capped) {
       push(1, 'technical', '研究ポイントが余っています',
         '<b>' + g.rp + 'pt</b> 貯まっています。使わなければ、ただの数字です。',
-        '設計に回して、より良いレアリティのパーツを引きにいきましょう。');
+        'パーツ作りに回して、いまより大きな器を引きにいきましょう。');
     }
 
     // ---- 現場の消耗 ----
@@ -876,7 +875,7 @@ GP.screens.biz = function (A) {
        情報を開いた最初の一画面に「最初から」が見えていた            */
     if (infoTab === 'set') {
       body += '<div class="sub">💾 セーブ</div>' +
-        '<p class="desc">進みは自動で保存されています。手で残したいときだけ押してください。</p>' +
+        '<p class="desc">ここまでの進み具合は自動で保存されます。自分で残しておきたいときだけ押してください。</p>' +
         '<div class="pick"><button class="pickbtn" data-info="save">' +
         '<span class="pb-ic" style="background:#3a7ad9">💾</span>' +
         '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>';

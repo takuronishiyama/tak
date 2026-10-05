@@ -167,7 +167,7 @@ GP.screens.hr = function (A) {
     if (!opts.known) {
       h += '<span class="sc-note">' + (err <= 2
         ? '🔎 見立ては確かです。'
-        : err <= 6 ? '🔎 だいたいの見当はつきます（幅は見立ての誤差）。'
+        : err <= 6 ? '🔎 だいたいの見当はつきます（数字の幅は、見立ての誤差です）。'
                    : '🔎 まだ目が粗い見立てです。ユースアカデミー・育成スタッフ・' +
                      'アナリストを伸ばすと、この幅が縮みます。') + '</span>';
     }
@@ -349,7 +349,7 @@ GP.screens.hr = function (A) {
     let h = '<div class="sub">🏛️ エグゼクティブ講習</div>' +
       '<p class="desc">現場を離れないと身につかないものがあります。' +
       '出しているあいだ、その人の力は <b>' + Math.round(D.SCHOOL.awayMul * 100) +
-      '%</b> しか出ません。戻ってきたときに何を持ち帰るかで、出した意味が決まります。<br>' +
+      '%</b> しか出ません。そのかわり、現場では身につかないものを持ち帰ってきます。<br>' +
       '同時に出せるのは <b>' + D.SCHOOL.slots + '人</b>までです。</p>';
 
     if (going.length) {
@@ -478,7 +478,7 @@ GP.screens.hr = function (A) {
         '<em style="color:' + w.c + '">' + w.t + '</em>' +
         '<small>' + esc(x.why || '') + '（S' + x.since + '〜）</small></div>';
     }).join('') + '</div>';
-    h += '<p class="desc">恩も恨みも、そのままでは続きません。毎シーズン、気持ちは中立へ戻っていきます。<br>' +
+    h += '<p class="desc">恩も恨みも、シーズンが変わるたびに少しずつ薄れていきます。<br>' +
       '「国際モータースポーツ課程」に人を出すと、同じ教室で顔を合わせるぶん関係が温まります。</p>' +
       '<div class="pick"><button class="pickbtn" data-fia="1"' +
       (g.funds >= D.FIA.visitCost ? '' : ' disabled') + '>' +
@@ -497,7 +497,7 @@ GP.screens.hr = function (A) {
   function careLegendHTML() {
     return '<div class="sub small">🎚️ 安定感の見かた</div>' +
       '<p class="desc">同じ速さでも、限界の手前で止められる人と、' +
-      '踏み越えてしまう人がいます。速さと引き換えの性質なので、' +
+      '踏み越えてしまう人がいます。危なっかしさは速さの裏返しで、' +
       '<b>危うい人ほど素の速さは高い</b>ことが多いです。' +
       'レアリティの高いドライバーだけが、速さと安定感を両方持ちます。</p>' +
       '<div class="carelegend">' +
@@ -508,8 +508,8 @@ GP.screens.hr = function (A) {
           '<em>' + lo + (t.max >= 999 ? '〜' : '〜' + t.max) + '</em>' +
           '<span>' + esc(t.note) + '</span></div>';
       }).join('') + '</div>' +
-      '<p class="desc">高いほど<b>クラッシュとミスが減ります</b>。' +
-      '性格と、車体の<b>ドライバビリティ</b>でも上下します。' +
+      '<p class="desc">安定感が高いほど<b>クラッシュもミスも減ります</b>。' +
+      '性格や、車体の<b>ドライバビリティ</b>でも変わります。' +
       U.helpLink('people') + '</p>';
   }
 
@@ -601,7 +601,7 @@ GP.screens.hr = function (A) {
     }
     const room = st.list.length < st.cap;
     h += '<p class="note">' + (room
-      ? '押すと、その人の詳しい話と、出す・上げる・入れ替えるが出ます。'
+      ? '押すと、その人の詳しい話が見られます。放出や昇格、入れ替えもそこからできます。'
       : '<b class="warn">満員です。</b>誰かを出さないと迎えられません。') + '</p>';
     const btns = [];
     if (room) btns.push({ label: '＋ 迎える', cls: 'primary',
@@ -627,7 +627,7 @@ GP.screens.hr = function (A) {
     if (seat === 'full') {
       const fee = d.salary * 6;
       h += '<p class="note">解雇すると違約金 <b>💰' + money(fee) +
-        '万</b>（週給の6週ぶん）。走る人が1人になると、その席は空いたままです。</p>';
+        '万</b>（週給の6週ぶん）。代わりを入れるまでは、1台だけで走ることになります。</p>';
       btns.push({ label: '👋 解雇する　💰' + money(fee) + '万', cls: 'danger', fn: () => {
         g.funds -= fee;
         g.drivers = g.drivers.filter(x => x.id !== d.id);
@@ -873,13 +873,13 @@ GP.screens.hr = function (A) {
 
   function hrCo() {
     const N = GP.rallydata.NOTES;
-    let h = '<p class="desc">ラリーで速いのは、うまい人ではなく' +
-      '<b>次に何が来るか分かっている人</b>です。それを教えるのは右席ひとりなので、' +
+    let h = '<p class="desc">ラリーの速さは、腕よりも' +
+      '<b>次に何が来るか分かっているか</b>で決まります。それを教えるのは右席ひとりなので、' +
       'この席は腕だけでは決まりません。<br>' +
-      '読み上げの精度は <b>下地' + Math.round(N.base * 100) + '</b>＋' +
-      '<b>右席の腕</b>（最大+' + Math.round(N.coNote * 100) + '）＋' +
-      '<b>レッキ</b>（最大+' + Math.round(N.recce * 100) + '）＋' +
-      '<b>息</b>（最大+' + Math.round(N.bond * 100) + '）で決まり、' +
+      '読み上げの精度は、<b>下地' + Math.round(N.base * 100) + '</b>に' +
+      '<b>右席の腕</b>（最大+' + Math.round(N.coNote * 100) + '）、' +
+      '<b>レッキ</b>（最大+' + Math.round(N.recce * 100) + '）、' +
+      '<b>息</b>（最大+' + Math.round(N.bond * 100) + '）が足されていき、' +
       '精度1あたりタイムが <b>' + (N.paceAt * 100).toFixed(1) + '%</b> 変わります。' +
       '読みが甘いと、遅いだけでなく<b>外しやすく</b>もなります。</p>';
 
@@ -900,7 +900,7 @@ GP.screens.hr = function (A) {
     h += '</div>';
 
     if (paired >= 2) {
-      h += '<p class="desc">組み替えると、積み上げた<b>息</b>はいちから積み直しになります。' +
+      h += '<p class="desc">組み替えると、育ててきた<b>息</b>はいちからやり直しです。' +
         '「もっとうまい人がいる」というだけでは、乗り換える理由になりません。</p>' +
         '<div class="pick"><button class="pickbtn" id="coSwap">' +
         '<span class="pb-ic" style="background:#6b4724">🔁</span>' +
@@ -964,8 +964,8 @@ GP.screens.hr = function (A) {
     /* タブに出すのは席だけ。中身は押したときの小窓へ。
        前はここに所属・リザーブ・育成・市場を全部積んでいて、
        市場まで下りるのに画面1.7枚ぶん送っていた            */
-    let body = '<p class="desc">席を押すと、いま誰がいるか・誰を迎えるか・' +
-      'いまの人と比べてどうかが、その場で出ます。' + U.helpLink('people') + '</p>' +
+    let body = '<p class="desc">席を押すと、いまの顔ぶれと候補を、その場で見比べられます。' +
+      U.helpLink('people') + '</p>' +
       '<div class="pick">';
     seatList().forEach(st => {
       const full = st.list.length >= st.cap;
@@ -1000,7 +1000,7 @@ GP.screens.hr = function (A) {
       '<div class="trustrow">' + g.drivers.map(d =>
         '<span class="tr-one">' + esc(d.name) + ' ' + trustChip(d) + '</span>').join('') +
       '</div>' +
-      '<p class="desc">言ったことが結果として返ってきたかどうかで動きます。' +
+      '<p class="desc">ピットの読みが当たったかどうかで、信頼は上がりも下がりもします。' +
       '高いほど、無線の指示をそのとおりに走ってくれます。</p>' +
       careLegendHTML();
     return body;
@@ -1022,8 +1022,8 @@ GP.screens.hr = function (A) {
       '<div class="whybox alt"><b>💼 逆に、金がないときは</b>' +
       '<span>ドライバー市場には、<b>持参金つき</b>のドライバーが混じります。腕は' +
       Math.round((1 - D.PAID.skill) * 100) + '%ほど落ちますが、契約した日にまとまった金が入り、' +
-      '毎戦も持ち込みがあります。給料も安い。<br>' +
-      'そのかわり、実力で選んでいないぶん<b>話題としては割り引かれ</b>、速さでは戦えません。' +
+      'レースごとの持ち込み金もあり、給料も安く済みます。<br>' +
+      'そのかわり、金で選んだぶん<b>注目はされにくく</b>、速さでも勝負になりません。' +
       '席をひとつ金に換えて、その金でマシンを速くする、という選び方です。</span></div>' +
       '<div class="pick">';
     if (!(g.youth || []).length) body += '<p class="desc">育成中の若手はいません。</p>';
@@ -1092,11 +1092,11 @@ GP.screens.hr = function (A) {
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
 
     let h = '<p class="desc">左から右へ読んでください。' +
-      '<b>雇った人</b>が<b>部門の力</b>になり、それが<b>右のこと</b>を良くします。' +
-      '途中の<b>👔 上司</b>は、その部門ぜんぶに掛け算で効きます' +
-      '（部下がいない部門では、掛けるものがないので空回りします）。<br>' +
-      'いま<b>いちばん短いのは ' + thin.r.ic + ' ' + thin.r.nm + '</b>です。' +
-      '同じ人件費なら、ここに足すのがいちばん伸びます。</p>' +
+      '<b>雇った人</b>が<b>部門の力</b>になり、その力が右の欄に並んだものを押し上げます。' +
+      '間にいる<b>👔 上司</b>は、部門全体の力を底上げします' +
+      '（部下がいない部門では、上げるものがありません）。<br>' +
+      'いま<b>いちばん手薄なのは ' + thin.r.ic + ' ' + thin.r.nm + '</b>です。' +
+      '同じ人件費をかけるなら、ここに足すのがいちばん効きます。</p>' +
       '<div class="chain">';
     rows.forEach(x => {
       const n = x.who.length;
@@ -1257,7 +1257,7 @@ GP.screens.hr = function (A) {
       g.staff = back;
       h += '<div class="popcost"><span>' + esc(x.def.name) + 'の力</span><span><b>' +
         before.toFixed(1) + ' → ' + after.toFixed(1) + '</b>' +
-        '<br><small>中の噛み合いと、ほかの部門からの効きを通した値</small></span></div>';
+        '<br><small>部門の中の相性と、ほかの部門からの後押しを含めた数字</small></span></div>';
     }
     if (room <= 0) h += '<p class="note"><b class="warn">席が埋まっています（' +
       (g.staff || []).length + ' / ' + S.staffSlots(g) + '人）。</b>施設を伸ばすと増えます。</p>';
@@ -1286,7 +1286,7 @@ GP.screens.hr = function (A) {
             ? '<p class="note">👔 昇進できる腕はありますが、空いている役職がありません。</p>'
             : '<p class="note">👔 昇進できるのは、チーフまで来た人だけです。</p>')) +
       '<p class="note">解雇すると、違約金として <b>💰' + money(fee) + '万</b>（週給の4週ぶん）がかかります。' +
-      '抜けた穴は、その場で部門の力に出ます。</p>';
+      '抜けた穴は、すぐに部門の力の落ち込みとして出ます。</p>';
     const btns = roles.map(r => {
       const m = D.MANAGERS.find(y => y.key === r) || {};
       return { label: '👔 ' + (m.name || r) + 'へ昇進', cls: 'primary',
@@ -1418,8 +1418,8 @@ GP.screens.hr = function (A) {
 
     // 相補作用
     h += '<div class="sub">🤝 スタッフグループ同士の相補作用</div>' +
-      '<p class="desc">両方のスタッフグループが育っているときだけ効きます。' +
-      '片方が空だと、いくらもう片方を厚くしても何も起きません。</p><div class="synlist">';
+      '<p class="desc">この相乗りは、両方のスタッフグループが育っていて初めて効きます。' +
+      '片方が空なら、もう片方をいくら厚くしても無駄です。</p><div class="synlist">';
     /* 車の部位と同じ形の話なので、同じ絵で見せる。
        画面が変わっても読みかたを覚え直さなくて済む            */
     gt.syn.slice().sort((a, b) => (b.on - a.on) || (b.gain - a.gain)).forEach(x => {
@@ -1524,7 +1524,7 @@ GP.screens.hr = function (A) {
 
     // ---- よそのチームから引き抜く ----
     body += '<div class="sub">🕵️ 他チームのスタッフを引き抜く</div>' +
-      '<p class="desc">市場の応募者より腕が立つかわりに、要る金は高くつきます。' +
+      '<p class="desc">市場の応募者より腕は立ちますが、そのぶん高くつきます。' +
       U.helpLink('people') +
       (room > 0 ? '' : '<br><b class="warn">こちらも、席が空いていないと連れて来られません。</b>') +
       '</p><div class="pick">';
@@ -1612,10 +1612,10 @@ GP.screens.hr = function (A) {
       const o = S.org(g);
       const have = keys.reduce((a, k) => a + o.raw[k], 0);
       h += '<small>' + (have < 1.0
-        ? '<b class="warn">掛ける相手がいません（部下の厚み ' + have.toFixed(1) +
-          '）。ここに人を入れないと、誰を据えても空回りします。</b>'
+        ? '<b class="warn">率いる部下がいません（部下の厚み ' + have.toFixed(1) +
+          '）。下に人を入れないと、誰を据えても力を出せません。</b>'
         : '部下の厚み <b>' + have.toFixed(1) + '</b> に掛かります。' +
-          '部下が厚いほど、同じ技能でも上乗せが大きくなります。') + '</small>';
+          '部下が多く育っているほど、同じ腕でも効き目が大きくなります。') + '</small>';
     }
     h += cur
       ? '<small>いま：' + esc(cur.name) + '（技能 ' + cur.skill + '）→ ' +
@@ -1648,7 +1648,7 @@ GP.screens.hr = function (A) {
     // いちばん細いところ。そこを厚くすると、全体がいちばん伸びる
     const thin = rows.slice().sort((a, b) => a.out - b.out)[0];
     let h = '<div class="orgbox"><b>🏢 部門のかみ合い</b>' +
-      '<small>部門はそれぞれ独立していません。同じ人件費でも、' +
+      '<small>部門どうしは支え合っています。同じ人件費でも、' +
       '噛み合わせ次第で出る力が変わります。' + U.helpLink('people') + '</small>' +
       '<div class="orglist">';
     rows.forEach(r => {
@@ -1676,15 +1676,15 @@ GP.screens.hr = function (A) {
           '（作戦をどれだけ実際に打てるか）</span>' +
       '</div>' +
       '<small>いま細いのは <b>' + thin.ic + ' ' + thin.nm + '</b>。' +
-      'ここを厚くすると、掛かっている先までまとめて伸びます。</small>' +
+      'ここを手厚くすると、つながっている部門までまとめて伸びます。</small>' +
       '</div>';
     return h;
   }
 
   function hrManagement() {
-    let body = '<p class="lead">役職は1人ずつ。据えると<b>その席が効くところに掛かります</b>。<br>' +
-      '効き先は役職ごとに一度だけ書いてあります。候補の行で見るのは' +
-      '<b>技能</b>と<b>現任との差</b>だけで足ります。</p>' +
+    let body = '<p class="lead">どの役職にも座れるのは一人だけ。誰を据えるかで、<b>その役職が受け持つところの強さ</b>が変わります。<br>' +
+      '何に効くかは役職ごとの見出しにあります。候補を比べるときは' +
+      '<b>技能</b>と<b>現任との差</b>だけ見れば十分です。</p>' +
       orgBoxHTML();
 
     D.MANAGERS.forEach(m => {
@@ -2171,7 +2171,7 @@ GP.screens.hr = function (A) {
     };
     if (g.drivers.length < 2) return doSign(null);
     // 枠が埋まっているので、放出する側を選ぶ
-    let body = '<p class="lead">' + esc(d.name) + ' を迎えるには、いまの2人のうち一人と契約を解除する必要があります。</p>' +
+    let body = '<p class="lead">' + esc(d.name) + ' を迎えるなら、いまの2人のどちらかと契約を切らなければなりません。</p>' +
       '<div class="pick">';
     g.drivers.forEach(x => {
       body += '<button class="pickbtn" data-k="out:' + x.id + '">' +
@@ -2219,7 +2219,7 @@ GP.screens.hr = function (A) {
       '<p class="lead">' + esc(cmp) + '</p>' +
       '<div class="bigbox">研究ポイント <b>+' + gain + '</b></div>' +
       '<p class="desc">相手のマシンがこのコースでどれだけ速いかで、学べる量が変わります。' +
-      '分析担当を雇うと読み取れる量が増えます。</p>',
+      '分析担当がいれば、さらに多く読み取れます。</p>',
       [{ label: 'なるほど', cls: 'primary', fn: () => { U.closeModal(); render(); } }]);
     // 覗いたマシンを描く
     const cv = $('scoutCv');
