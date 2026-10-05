@@ -384,8 +384,8 @@ GP.screens.weekend = function (A) {
     // ---- スタートタイヤ ----
     const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
     body += '<div class="sub">スタートタイヤ</div>' +
-      '<p class="desc">最初のスティントで履くタイヤです。以降は残り周回に合わせて自動で選ばれます。<br>' +
-      '雨の場合は自動的に雨用タイヤになります。</p>';
+      '<p class="desc">最初のスティントで履くタイヤ。2本目からは残り周回に合わせて勝手に選ばれ、<br>' +
+      '雨なら雨用になります。</p>';
     lineup.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div><div class="sr-btns tyres" data-tdrv="' + d.id + '">';
       D.DRY_TYRES.forEach((k, i) => {
@@ -766,8 +766,8 @@ GP.screens.weekend = function (A) {
       t.country + ' ' + esc(t.name) + '</span></div>' +
       fpTyreHTML() +
       '<div class="sub small">🔧 走行時間を何に使うか</div>' +
-      '<p class="desc">決まった時間を、何に使うか。ひとつだけ選んでください。' +
-      'ここで決めたことは、この週末のあいだ効きます。</p>' +
+      '<p class="desc">決まった時間を何に使うか、ひとつだけ。' +
+      'ここで決めたことは、この週末のあいだずっと効きます。</p>' +
       '<div class="pick">';
     PRACTICE.forEach((x, i) => {
       const ok = !x.avail || x.avail();
@@ -1384,7 +1384,7 @@ GP.screens.weekend = function (A) {
     if (!mine.length) {
       body += '<p class="note warn">自チームはすでに敗退しています。残りの争いを見届けましょう。</p>';
     }
-    body += '<p class="desc">走り出す前に、次の一本をどう戦うかを決めます。' +
+    body += '<p class="desc">走り出す前に、次の一本をどう戦うか。' +
       'ここで触ったことは<b>この一本から</b>効きます。</p>';
     if (st.msg) body += '<p class="note' + (st.msgOk ? ' good' : ' warn') + '">' + st.msg + '</p>';
 

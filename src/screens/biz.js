@@ -52,7 +52,7 @@ GP.screens.biz = function (A) {
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
-      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。' +
+      '<p class="desc">契約も解約も<b>週を使わない</b>ので、何社でも見比べてから決めてください。' +
       U.helpLink('money') + '</p>';
 
     /* ---- タブ ----
@@ -817,7 +817,7 @@ GP.screens.biz = function (A) {
     return '<div class="sub">⚙️ 難易度</div>' +
       '<p class="desc">いまは <b>' + cur.icon + cur.name + '</b>。' +
       '切り替えると、この先の<b>ライバルの強さ・開発の伸び・賞金・維持費・修理費</b>が変わります。' +
-      'ここまでの資金や成績はそのままです。<em>（調整用の機能です）</em></p>' +
+      'ここまでの資金や成績はそのまま。<em>（調整用の機能です）</em></p>' +
       '<div class="pick diffpick">' +
       D.DIFFICULTIES.map(d =>
         '<button class="pickbtn' + (d.key === cur.key ? ' on' : '') + '" data-diff="' + d.key + '"' +

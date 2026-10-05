@@ -395,7 +395,7 @@ GP.screens.meet = function (A) {
     const bad = list.filter(r => r.mood === 'bad').length;
     let body =
       '<p class="lead">それぞれの持ち場を見ている人に、いま何が起きているかを聞きます。<br>' +
-      '<b>週は進みません。</b>何度でも聞けます。</p>' +
+      '週は使わないので、<b>何度でもどうぞ</b>。</p>' +
       (bad ? '<p class="note"><b class="warn">' + bad +
              '人が「まずい」と言っています。</b>赤い札から見てください。</p>' : '') +
       '<div class="pick">';

@@ -13501,7 +13501,7 @@ GP.state = (function () {
         note: 'コンセプトは一度決めると外せません', tap: true,
         done: !!conceptOf(g2) },
       { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
-        note: '決めた向きのパーツが手に入ります', tap: true,
+        note: 'コンセプトに沿ったパーツが手に入ります', tap: true,
         done: !!gd.make || (g2.inventory || []).length > 0 },
       { key: 'fit', icon: '🔧', name: 'ガレージで、車に載せる',
         note: '作っただけでは速くなりません', tap: true,
@@ -27774,8 +27774,8 @@ GP.screens.hr = function (A) {
     const slots = S.youthSlots(g);
     let body = careLegendHTML() +
       '<div class="sub">🎓 下部組織（' + (g.youth || []).length + '/' + slots + '）</div>' +
-      '<p class="desc">若手は毎週すこしずつ成長します。ユースアカデミーを拡張すると' +
-      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると伸びしろがなくなります。</p>' +
+      '<p class="desc">若手は毎週すこしずつ育ちます。ユースアカデミーを広げると' +
+      '伸びが速くなり、抱えられる人数も増えます。24歳を過ぎると、もう伸びしろはありません。</p>' +
       '<div class="whybox"><b>🎓 自分で育てると、何が得なのか</b>' +
       '<span>📈 <b>伸びる</b>　市場で買うドライバーはもう伸びません。若手だけが、毎週上がっていきます</span>' +
       '<span>💴 <b>安い</b>　昇格しても給料は市場価格より低いままです。浮いたぶんは開発に回せます</span>' +
@@ -29243,7 +29243,7 @@ GP.screens.dev = function (A) {
     const wip = Math.min(0.99, Math.max(0, g.spareWip || 0));
     return '<div class="sub">製造方針</div>' +
       '<p class="desc">工房のラインを、<b>作るものだけ</b>に使うか、' +
-      '<b>予備も組んでおく</b>か。どちらも週は使いません。決めたら効き続けます。' +
+      '<b>予備も組んでおく</b>か。週を使わずに切り替えられて、決めたぶんはずっと効きます。' +
       U.helpLink('car') + '</p><div class="pick">' +
       D.MFG_PLANS.map(x => {
         const on = x.key === pl.key;
@@ -29723,10 +29723,10 @@ GP.screens.dev = function (A) {
     /* 上に残すのは要点の一行だけ。
        「何のための一覧か」の説明と内訳は、押したあとに読むもの     */
     body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
-      '<p class="desc"><b>いまのまとめ上げ ' + Math.round(itNow.rate * 100) + '%</b>　' +
-      '持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
-      Math.round(rawHave * itNow.rate) + '</b>。<b>' + Math.round(asleep) +
-      '</b> が眠ったままです。</p>';
+      '<p class="desc">いまのまとめ上げは <b>' + Math.round(itNow.rate * 100) + '%</b>。' +
+      'パーツの力は合わせて <b>' + Math.round(rawHave) + '</b> あって、車に出ているのは <b>' +
+      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
+      '</b> は、まだ眠っています。</p>';
     // ↓ 一覧の下に回すぶん
     const intRead =
       '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
@@ -29771,8 +29771,8 @@ GP.screens.dev = function (A) {
         '</small></div>';
       // ---- 寄せかた（プレイヤーが決めるのはここだけ）----
       body += '<div class="sub small">どちらへ寄せるか</div>' +
-        '<p class="desc">同じ手数でも、配り方で車の性格が変わります。' +
-        '週は進みません。いつでも変えられます。</p><div class="pick">';
+        '<p class="desc">手数は同じでも、どこに配るかで車の性格が変わります。' +
+        '週は使わないので、気が変わったらいつでも切り替えてください。</p><div class="pick">';
       D.INTPLANS.forEach(pl => {
         const on = pl.key === plan.key;
         body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-intplan="' + pl.key + '">' +
@@ -31218,7 +31218,7 @@ GP.screens.dev = function (A) {
       const use = S.researchList(g).filter(r => r.found > 0 && !r.full && r.held.length);
       if (use.length) {
         body += '<div class="sub small">押し広げる</div>' +
-          '<p class="desc">溜めた知見を使います。週は進みません。</p><div class="pick">';
+          '<p class="desc">溜めた知見を使って、線そのものを押し広げます。週は使いません。</p><div class="pick">';
         use.forEach(r => {
           body += '<button class="pickbtn" data-lift="' + r.key + '">' +
             '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
@@ -31329,8 +31329,8 @@ GP.screens.dev = function (A) {
     const h = '<div class="popsum"><span class="pb-ic" style="background:' +
       c.color + '">⚡</span><span class="popsum-b"><b>' + esc(r.idea.name) +
       '</b><small>いま載っている ' + esc(p.name) + ' を格上げします</small></span></div>' +
-      '<p class="desc">載せ替えません。いまの個体のまま、器が一段大きくなります。' +
-      '性能も消耗もそのまま残るので、<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
+      '<p class="desc">載せ替えはしません。いまの個体のまま器が一段大きくなり、性能も消耗もそのまま。' +
+      '<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
       '<div class="popcost"><span>品質</span><span>' +
         S.qualTier(r.qual).name + ' ' + r.qual.toFixed(2) +
         ' → <b class="up">' + S.qualTier(r.qualAfter).name + ' ' +
@@ -32544,8 +32544,8 @@ GP.screens.weekend = function (A) {
     // ---- スタートタイヤ ----
     const wet = false;   // 天候は決勝直前まで分からないので、雨なら自動で雨用に替わる
     body += '<div class="sub">スタートタイヤ</div>' +
-      '<p class="desc">最初のスティントで履くタイヤです。以降は残り周回に合わせて自動で選ばれます。<br>' +
-      '雨の場合は自動的に雨用タイヤになります。</p>';
+      '<p class="desc">最初のスティントで履くタイヤ。2本目からは残り周回に合わせて勝手に選ばれ、<br>' +
+      '雨なら雨用になります。</p>';
     lineup.forEach(d => {
       body += '<div class="stratrow"><div class="sr-nm">' + esc(d.name) + '</div><div class="sr-btns tyres" data-tdrv="' + d.id + '">';
       D.DRY_TYRES.forEach((k, i) => {
@@ -32926,8 +32926,8 @@ GP.screens.weekend = function (A) {
       t.country + ' ' + esc(t.name) + '</span></div>' +
       fpTyreHTML() +
       '<div class="sub small">🔧 走行時間を何に使うか</div>' +
-      '<p class="desc">決まった時間を、何に使うか。ひとつだけ選んでください。' +
-      'ここで決めたことは、この週末のあいだ効きます。</p>' +
+      '<p class="desc">決まった時間を何に使うか、ひとつだけ。' +
+      'ここで決めたことは、この週末のあいだずっと効きます。</p>' +
       '<div class="pick">';
     PRACTICE.forEach((x, i) => {
       const ok = !x.avail || x.avail();
@@ -33544,7 +33544,7 @@ GP.screens.weekend = function (A) {
     if (!mine.length) {
       body += '<p class="note warn">自チームはすでに敗退しています。残りの争いを見届けましょう。</p>';
     }
-    body += '<p class="desc">走り出す前に、次の一本をどう戦うかを決めます。' +
+    body += '<p class="desc">走り出す前に、次の一本をどう戦うか。' +
       'ここで触ったことは<b>この一本から</b>効きます。</p>';
     if (st.msg) body += '<p class="note' + (st.msgOk ? ' good' : ' warn') + '">' + st.msg + '</p>';
 
@@ -35287,7 +35287,7 @@ GP.screens.biz = function (A) {
       '<p class="lead">スポンサー枠 ' + g.sponsors.length + ' / ' + slots + '（マーケティング室の拡張で増えます）</p>' +
       '<div class="hypebox"><span>' + ht.icon + ' メディアでの扱い <b style="color:' + ht.color + '">' + ht.name + '</b></span>' +
       '<span>スポンサー収入 <b>×' + S.hypeBonus(g).toFixed(2) + '</b></span></div>' +
-      '<p class="desc">契約・解約は<b>週を使いません</b>。何社でも見比べてから決めてください。' +
+      '<p class="desc">契約も解約も<b>週を使わない</b>ので、何社でも見比べてから決めてください。' +
       U.helpLink('money') + '</p>';
 
     /* ---- タブ ----
@@ -36052,7 +36052,7 @@ GP.screens.biz = function (A) {
     return '<div class="sub">⚙️ 難易度</div>' +
       '<p class="desc">いまは <b>' + cur.icon + cur.name + '</b>。' +
       '切り替えると、この先の<b>ライバルの強さ・開発の伸び・賞金・維持費・修理費</b>が変わります。' +
-      'ここまでの資金や成績はそのままです。<em>（調整用の機能です）</em></p>' +
+      'ここまでの資金や成績はそのまま。<em>（調整用の機能です）</em></p>' +
       '<div class="pick diffpick">' +
       D.DIFFICULTIES.map(d =>
         '<button class="pickbtn' + (d.key === cur.key ? ' on' : '') + '" data-diff="' + d.key + '"' +
@@ -36557,7 +36557,7 @@ GP.screens.meet = function (A) {
     const bad = list.filter(r => r.mood === 'bad').length;
     let body =
       '<p class="lead">それぞれの持ち場を見ている人に、いま何が起きているかを聞きます。<br>' +
-      '<b>週は進みません。</b>何度でも聞けます。</p>' +
+      '週は使わないので、<b>何度でもどうぞ</b>。</p>' +
       (bad ? '<p class="note"><b class="warn">' + bad +
              '人が「まずい」と言っています。</b>赤い札から見てください。</p>' : '') +
       '<div class="pick">';
@@ -37120,7 +37120,7 @@ GP.screens.home = function (A) {
       '<small>' + esc(tier.desc) + '　—　スタッフの伸び <b>+' +
       Math.round(sc * D.ENVW.growth * 100) + '%</b>／引き抜かれにくさ <b>+' +
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
-      '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>です。' +
+      '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>。' +
       '上の施設を押すと、そこに据えられる備品が出ます。一度買えば残ります。</p>' +
       '<p class="desc">🚚 <b>遠征チーム</b>には、据える備品のほかに' +
       '<b>現地へ持ち込む装備</b>（天気の読み・チーム無線・ピットウォール・モーターホーム）も' +
@@ -37491,7 +37491,7 @@ GP.screens.home = function (A) {
       h += '<div class="sub small">🧰 現地に持ち込む装備</div>' +
         foreBoxHTML() +
         '<p class="desc">倉庫に据えるのではなく、週末ごとに運んでいくもの。' +
-        'こちらは一度きりの買い物ではなく、<b>段を上げていきます</b>。一度買えば残ります。</p>' +
+        '一度きりの買い物ではなく、<b>段を上げていく</b>形です。買ったぶんは残ります。</p>' +
         '<div class="pick gearpick">' + kitRowsHTML() + '</div>';
     }
     h += '<p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
@@ -38067,12 +38067,12 @@ GP.screens.home = function (A) {
     const tech = (g.managers || {}).technical;
 
     let body = '<p class="lead">この車は、<b>何で戦うのか</b>を決めます。</p>' +
-      '<p class="desc">決めた向きの開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
-      '逆らう向きは遅くなるうえに、<b>上限そのものが ' +
+      '<p class="desc">コンセプトに沿った開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
+      '逆らう開発は遅いうえに、<b>上限そのものが ' +
       Math.round(D.CONCEPT.offCap * 100) + '% で止まります</b>。' +
-      'いくら時間をかけても、決めたコンセプトの外までは行けません。<br>' +
-      '<b>変えられるのは、オフのあいだと、車を作り直した直後だけ</b>です。' +
-      '途中でどうしても方向を変えたくなったら、世代を上げて作り直すことになります。</p>';
+      'どれだけ時間をかけても、コンセプトの外へは出られません。<br>' +
+      '変えられるのは<b>オフのあいだと、車を作り直した直後だけ</b>。' +
+      '途中でどうしても向きを変えたくなったら、世代を上げて作り直すことになります。</p>';
 
     // ---- 図面を引く人との相性 ----
     body += '<div class="cnpt-boss' + (tech ? '' : ' empty') + '">' +
@@ -39615,7 +39615,7 @@ GP.screens.help = function (A) {
         ] },
         { h: '迷ったら、首脳陣に聞く', p: [
           'レース間に使える週は<b>3週</b>しかないのに、週を使える行動は10本以上あります。自分で探すと、何が効いたのか分からないまま週が溶けます。',
-          'ハブの <b>🗣️ 相談</b> から、4人の首脳にいま何が起きているかを聞けます。<b>週は進みません。</b>何度でも聞けます。',
+          'ハブの <b>🗣️ 相談</b> から、4人の首脳にいま何が起きているかを聞けます。週は使わないので、何度でも聞けます。',
           '🔬開発責任者は「<b>今週どこに使うか</b>」を名指しで言います。上限に詰まった部品があるか、💡ひらめきを持っているか、技術部門が厚いかで、勧める手が変わります。迷ったらここを見てください。',
           '台詞はその場の数字から作っています。「上位5チームの平均と比べて直線が56%低い」「クルーの疲労が72、ピットで0.4秒余計にかかる」。読めばそのまま次の一手になります。赤い札から見てください。'
         ] },
@@ -39643,7 +39643,7 @@ GP.screens.help = function (A) {
           '1年目はまだ方針を決めていないので、押し広げるものがありません。溜めた知見は消えないので、オフシーズンに方針を決めてから使えます。'
         ] },
         { h: '製造方針 ― 一点ものか、予備も回すか', p: [
-          '🏭工房のラインを、<b>作るものだけ</b>に使うか、<b>予備も組んでおく</b>かを決めます。週は使いません。決めたら効き続けます。',
+          '🏭工房のラインを、<b>作るものだけ</b>に使うか、<b>予備も組んでおく</b>かを決めます。週を使わずに切り替えられて、決めたぶんはずっと効き続けます。',
           '<b>🎯 一点ものを作り込む</b>＝作るパーツの<b>品質が +0.08</b>。作ったパーツの上限が 29 → 31 になります。そのかわり予備は組まれません。',
           '<b>🧰 予備も回す</b>＝毎週すこしずつ予備が組み上がります（ファクトリー Lv.1 で5週に1台、Lv.6 で2週に1台／最大2台）。予備があると、壊した週末は<b>載せ替えで済み</b>（クルーの疲労 +9。徹夜なら +22）。組んである部品を回せるぶん、<b>修理費も1台につき -20%</b>。',
           '週末のアクシデントは年12戦でおよそ1〜2回。それだけなら保険として割に合いませんが、<b>修理費の割引はぶつけるたびに効きます</b>。荒っぽいドライバーを乗せているなら、こちらが効きます。'
@@ -39736,7 +39736,7 @@ GP.screens.help = function (A) {
     },
     {
       key: 'money', icon: '💰', name: 'お金',
-      lead: '契約と解約は週を使いません。何社でも見比べてから決めてください。',
+      lead: '契約も解約も週を使わないので、何社でも見比べてから決めてください。',
       secs: [
         { h: 'スポンサーの型', p: [
           '現金型はまとまった資金、技術提携は研究ポイント、露出型はファンと注目度が伸びます。複合型はその中間です。',
@@ -42851,7 +42851,7 @@ GP.ui = (function () {
       '<span>距離 <b>' + laps + '周</b></span>' +
       '<span>エントリー費 <b>💰' + money(sp.entry) + '万</b></span></div>' +
       '<p class="note">' + esc(sp.note) + '</p>' +
-      '<p class="desc">選手権のポイントは動きません。参加すると1週を消費します。</p>' +
+      '<p class="desc">選手権のポイントは動きません。参加には1週かかります。</p>' +
       '<div class="sp-btns">' +
       '<button class="btn primary" id="specialGo"' + (g.funds < sp.entry ? ' disabled' : '') + '>' + sp.icon + ' 参加する</button>' +
       '<button class="btn" id="specialSkip">見送る</button></div>' +
@@ -43587,9 +43587,9 @@ window.GP = window.GP || {};
     });
     let body = '<div class="racehead"><b>🏖️ サマーブレイク</b>' +
       '<span>第' + S.SUMMER_AT + '戦まで終了</span></div>' +
-      '<p class="lead">シーズンの折り返しです。規則により、これから' +
+      '<p class="lead">シーズンの折り返し。規則で、これから' +
       '<b>' + S.SUMMER_WEEKS + '週間</b>はファクトリーを閉めなければなりません。' +
-      '走ることも、作ることもできません。<br>この2週間をどう使いますか。</p>' +
+      '走れず、作れず。<br>この2週間をどう使いますか。</p>' +
       '<div class="pick">';
     rows.forEach((r, i) => {
       body += '<button class="pickbtn" data-k="sb:' + i + '"' + (r.disabled ? ' disabled' : '') + '>' +
@@ -44942,8 +44942,8 @@ window.GP = window.GP || {};
     const row = (a, b, c2) => '<div class="popcost"><span>' + a + '</span><span>' + b +
       (c2 ? '<br><small>' + c2 + '</small>' : '') + '</span></div>';
 
-    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の3つ。' +
-      '<b>どれも人のほう</b>です。マシンのコンディションは休んでも戻りません' +
+    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の3つで、' +
+      '<b>どれも人のほう</b>。マシンのコンディションは休んでも戻りません' +
       '（直すのは「🛠️ 整備」）。</p>' +
       (g.crunch
         ? '<p class="note"><b class="warn">いまは徹夜態勢です。</b>' +

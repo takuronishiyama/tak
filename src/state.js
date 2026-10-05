@@ -4315,7 +4315,7 @@ GP.state = (function () {
         note: 'コンセプトは一度決めると外せません', tap: true,
         done: !!conceptOf(g2) },
       { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
-        note: '決めた向きのパーツが手に入ります', tap: true,
+        note: 'コンセプトに沿ったパーツが手に入ります', tap: true,
         done: !!gd.make || (g2.inventory || []).length > 0 },
       { key: 'fit', icon: '🔧', name: 'ガレージで、車に載せる',
         note: '作っただけでは速くなりません', tap: true,

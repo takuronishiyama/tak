@@ -907,7 +907,7 @@ GP.ui = (function () {
       '<span>距離 <b>' + laps + '周</b></span>' +
       '<span>エントリー費 <b>💰' + money(sp.entry) + '万</b></span></div>' +
       '<p class="note">' + esc(sp.note) + '</p>' +
-      '<p class="desc">選手権のポイントは動きません。参加すると1週を消費します。</p>' +
+      '<p class="desc">選手権のポイントは動きません。参加には1週かかります。</p>' +
       '<div class="sp-btns">' +
       '<button class="btn primary" id="specialGo"' + (g.funds < sp.entry ? ' disabled' : '') + '>' + sp.icon + ' 参加する</button>' +
       '<button class="btn" id="specialSkip">見送る</button></div>' +

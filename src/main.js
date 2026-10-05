@@ -296,9 +296,9 @@ window.GP = window.GP || {};
     });
     let body = '<div class="racehead"><b>🏖️ サマーブレイク</b>' +
       '<span>第' + S.SUMMER_AT + '戦まで終了</span></div>' +
-      '<p class="lead">シーズンの折り返しです。規則により、これから' +
+      '<p class="lead">シーズンの折り返し。規則で、これから' +
       '<b>' + S.SUMMER_WEEKS + '週間</b>はファクトリーを閉めなければなりません。' +
-      '走ることも、作ることもできません。<br>この2週間をどう使いますか。</p>' +
+      '走れず、作れず。<br>この2週間をどう使いますか。</p>' +
       '<div class="pick">';
     rows.forEach((r, i) => {
       body += '<button class="pickbtn" data-k="sb:' + i + '"' + (r.disabled ? ' disabled' : '') + '>' +
@@ -1651,8 +1651,8 @@ window.GP = window.GP || {};
     const row = (a, b, c2) => '<div class="popcost"><span>' + a + '</span><span>' + b +
       (c2 ? '<br><small>' + c2 + '</small>' : '') + '</span></div>';
 
-    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の3つ。' +
-      '<b>どれも人のほう</b>です。マシンのコンディションは休んでも戻りません' +
+    let h = '<p class="desc">1週を使って、チーム全体を休ませます。効くのは次の3つで、' +
+      '<b>どれも人のほう</b>。マシンのコンディションは休んでも戻りません' +
       '（直すのは「🛠️ 整備」）。</p>' +
       (g.crunch
         ? '<p class="note"><b class="warn">いまは徹夜態勢です。</b>' +

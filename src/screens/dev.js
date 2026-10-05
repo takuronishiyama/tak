@@ -230,7 +230,7 @@ GP.screens.dev = function (A) {
     const wip = Math.min(0.99, Math.max(0, g.spareWip || 0));
     return '<div class="sub">製造方針</div>' +
       '<p class="desc">工房のラインを、<b>作るものだけ</b>に使うか、' +
-      '<b>予備も組んでおく</b>か。どちらも週は使いません。決めたら効き続けます。' +
+      '<b>予備も組んでおく</b>か。週を使わずに切り替えられて、決めたぶんはずっと効きます。' +
       U.helpLink('car') + '</p><div class="pick">' +
       D.MFG_PLANS.map(x => {
         const on = x.key === pl.key;
@@ -710,10 +710,10 @@ GP.screens.dev = function (A) {
     /* 上に残すのは要点の一行だけ。
        「何のための一覧か」の説明と内訳は、押したあとに読むもの     */
     body += '</div><div class="sub">インテグレート（まとめ上げ）</div>' +
-      '<p class="desc"><b>いまのまとめ上げ ' + Math.round(itNow.rate * 100) + '%</b>　' +
-      '持っている <b>' + Math.round(rawHave) + '</b> のうち、出ているのは <b>' +
-      Math.round(rawHave * itNow.rate) + '</b>。<b>' + Math.round(asleep) +
-      '</b> が眠ったままです。</p>';
+      '<p class="desc">いまのまとめ上げは <b>' + Math.round(itNow.rate * 100) + '%</b>。' +
+      'パーツの力は合わせて <b>' + Math.round(rawHave) + '</b> あって、車に出ているのは <b>' +
+      Math.round(rawHave * itNow.rate) + '</b>。残りの <b>' + Math.round(asleep) +
+      '</b> は、まだ眠っています。</p>';
     // ↓ 一覧の下に回すぶん
     const intRead =
       '<p class="desc">ここが、「速さの成り立ち」の <b>×</b> のところです。' +
@@ -758,8 +758,8 @@ GP.screens.dev = function (A) {
         '</small></div>';
       // ---- 寄せかた（プレイヤーが決めるのはここだけ）----
       body += '<div class="sub small">どちらへ寄せるか</div>' +
-        '<p class="desc">同じ手数でも、配り方で車の性格が変わります。' +
-        '週は進みません。いつでも変えられます。</p><div class="pick">';
+        '<p class="desc">手数は同じでも、どこに配るかで車の性格が変わります。' +
+        '週は使わないので、気が変わったらいつでも切り替えてください。</p><div class="pick">';
       D.INTPLANS.forEach(pl => {
         const on = pl.key === plan.key;
         body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-intplan="' + pl.key + '">' +
@@ -2205,7 +2205,7 @@ GP.screens.dev = function (A) {
       const use = S.researchList(g).filter(r => r.found > 0 && !r.full && r.held.length);
       if (use.length) {
         body += '<div class="sub small">押し広げる</div>' +
-          '<p class="desc">溜めた知見を使います。週は進みません。</p><div class="pick">';
+          '<p class="desc">溜めた知見を使って、線そのものを押し広げます。週は使いません。</p><div class="pick">';
         use.forEach(r => {
           body += '<button class="pickbtn" data-lift="' + r.key + '">' +
             '<span class="pb-ic" style="background:' + r.color + '">' + r.icon + '</span>' +
@@ -2316,8 +2316,8 @@ GP.screens.dev = function (A) {
     const h = '<div class="popsum"><span class="pb-ic" style="background:' +
       c.color + '">⚡</span><span class="popsum-b"><b>' + esc(r.idea.name) +
       '</b><small>いま載っている ' + esc(p.name) + ' を格上げします</small></span></div>' +
-      '<p class="desc">載せ替えません。いまの個体のまま、器が一段大きくなります。' +
-      '性能も消耗もそのまま残るので、<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
+      '<p class="desc">載せ替えはしません。いまの個体のまま器が一段大きくなり、性能も消耗もそのまま。' +
+      '<b>煮詰めたぶんを捨てずに済みます</b>。</p>' +
       '<div class="popcost"><span>品質</span><span>' +
         S.qualTier(r.qual).name + ' ' + r.qual.toFixed(2) +
         ' → <b class="up">' + S.qualTier(r.qualAfter).name + ' ' +

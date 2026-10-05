@@ -494,7 +494,7 @@ GP.screens.home = function (A) {
       '<small>' + esc(tier.desc) + '　—　スタッフの伸び <b>+' +
       Math.round(sc * D.ENVW.growth * 100) + '%</b>／引き抜かれにくさ <b>+' +
       Math.round(Math.min(65, sc * D.ENVW.keep * 100)) + '%</b></small></div>' +
-      '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>です。' +
+      '<p class="desc">建物を大きくするのが「広げる」なら、こちらは<b>中身</b>。' +
       '上の施設を押すと、そこに据えられる備品が出ます。一度買えば残ります。</p>' +
       '<p class="desc">🚚 <b>遠征チーム</b>には、据える備品のほかに' +
       '<b>現地へ持ち込む装備</b>（天気の読み・チーム無線・ピットウォール・モーターホーム）も' +
@@ -865,7 +865,7 @@ GP.screens.home = function (A) {
       h += '<div class="sub small">🧰 現地に持ち込む装備</div>' +
         foreBoxHTML() +
         '<p class="desc">倉庫に据えるのではなく、週末ごとに運んでいくもの。' +
-        'こちらは一度きりの買い物ではなく、<b>段を上げていきます</b>。一度買えば残ります。</p>' +
+        '一度きりの買い物ではなく、<b>段を上げていく</b>形です。買ったぶんは残ります。</p>' +
         '<div class="pick gearpick">' + kitRowsHTML() + '</div>';
     }
     h += '<p class="note">🔧 いま持っている装備ぜんぶの維持費は <b>💰' +
@@ -1441,12 +1441,12 @@ GP.screens.home = function (A) {
     const tech = (g.managers || {}).technical;
 
     let body = '<p class="lead">この車は、<b>何で戦うのか</b>を決めます。</p>' +
-      '<p class="desc">決めた向きの開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
-      '逆らう向きは遅くなるうえに、<b>上限そのものが ' +
+      '<p class="desc">コンセプトに沿った開発は速く進み（<b>×' + D.CONCEPT.onMul.toFixed(2) + '</b>）、' +
+      '逆らう開発は遅いうえに、<b>上限そのものが ' +
       Math.round(D.CONCEPT.offCap * 100) + '% で止まります</b>。' +
-      'いくら時間をかけても、決めたコンセプトの外までは行けません。<br>' +
-      '<b>変えられるのは、オフのあいだと、車を作り直した直後だけ</b>です。' +
-      '途中でどうしても方向を変えたくなったら、世代を上げて作り直すことになります。</p>';
+      'どれだけ時間をかけても、コンセプトの外へは出られません。<br>' +
+      '変えられるのは<b>オフのあいだと、車を作り直した直後だけ</b>。' +
+      '途中でどうしても向きを変えたくなったら、世代を上げて作り直すことになります。</p>';
 
     // ---- 図面を引く人との相性 ----
     body += '<div class="cnpt-boss' + (tech ? '' : ' empty') + '">' +
