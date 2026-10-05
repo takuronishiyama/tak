@@ -22310,6 +22310,7 @@ GP.raceview = (function () {
     const span = cumT[lo + 1] - cumT[lo] || 1;
     const r = interp(lo, (frac - cumT[lo]) / span);
     r.v = prof.v[lo] / prof.vmax;      // 0..1 の現在速度（描画に使う）
+    r.acc = (prof.v[Math.min(prof.n - 1, lo + 2)] - prof.v[lo]) / prof.vmax;   // 少し先との速さの差（減速なら負）
     // 少し先の向きとの差＝ハンドルの切れ角。前輪を曲げて描くのに使う
     const ah = interp((lo + 3) % prof.n, 0).ang;
     let d = ah - r.ang;
@@ -23168,6 +23169,52 @@ GP.raceview = (function () {
     cam.y = Math.max(halfH, Math.min(VH - halfH, cam.y));
   }
 
+  /* ---------- ドット絵の紙 ----------
+     ラリーと同じ工程。世界は小さな紙（336×240）に描き、色を絞ってから
+     粗いまま拡大する。文字と札は、あとから等倍で上に載せる            */
+  const LW = 336, LH = 240, LK = LW / VW;
+  let lo = null, lg = null;
+  function loCtx() {
+    if (!lo) { lo = document.createElement('canvas'); lo.width = LW; lo.height = LH; lg = lo.getContext('2d'); }
+    lg.setTransform(LK, 0, 0, LK, 0, 0);
+    lg.imageSmoothingEnabled = false;
+    return lg;
+  }
+  const LEVELS = 8, STEP = 255 / (LEVELS - 1), BAYER = [0, 2, 3, 1];
+  function posterize() {
+    const img = lg.getImageData(0, 0, LW, LH);
+    const d = img.data;
+    for (let y = 0; y < LH; y++) {
+      for (let x = 0; x < LW; x++) {
+        const i = (y * LW + x) * 4;
+        const dz = (BAYER[((y & 1) << 1) | (x & 1)] - 1.5) * STEP * 0.16;
+        for (let c = 0; c < 3; c++) {
+          const v = Math.round((d[i + c] + dz) / STEP) * STEP;
+          d[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+        }
+      }
+    }
+    lg.putImageData(img, 0, 0);
+  }
+  /* 札。世界の中に文字を書くと粒に溶けて読めないので、場所だけ控えて等倍で載せる */
+  let labels = [];
+  function putLabel(x, y, text, col, bg, font) { labels.push({ x: x, y: y, text: text, col: col, bg: bg, font: font }); }
+  function drawLabels(g) {
+    if (!labels.length) return;
+    g.setTransform(PX, 0, 0, PX, 0, 0);
+    g.textAlign = 'center';
+    labels.forEach(l => {
+      g.font = l.font || 'bold 9px sans-serif';
+      const tw = g.measureText(l.text).width + 8;
+      g.fillStyle = l.bg || 'rgba(18,16,26,.72)';
+      g.fillRect(Math.round(l.x - tw / 2), Math.round(l.y - 10), Math.round(tw), 13);
+      g.fillStyle = l.col || '#fff0b0';
+      g.fillText(l.text, Math.round(l.x), Math.round(l.y));
+    });
+    g.textAlign = 'left';
+  }
+  function scr(wx, wy) { return [VW / 2 + (wx - cam.x) * cam.z, VH / 2 + (wy - cam.y) * cam.z]; }
+
   /* ---------- 毎フレームの描画 ---------- */
   function draw(t) {
     /* タイミングモニターを開け閉てすると、表に出る大きさが変わる。
@@ -23183,31 +23230,43 @@ GP.raceview = (function () {
     const night = !!(GP.data.THEMES[GP.data.TRACK_THEME[res.track.name] || 'grass'] || {}).night;
 
     updateCam(t);
+    labels = [];
+    const out = ctx;
 
     /* オンボード。コース図を見下ろすのではなく、自車の後ろから前を見る。
        裏画面の光の処理は通さない——奥行きのある絵に被写界深度を
        重ねると、遠くの車がただのにじみになる                       */
     if (cam.mode === 'onboard') {
-      ctx.setTransform(PX, 0, 0, PX, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      drawOnboard(t, night, wet);
+      const g = loCtx();
+      g.clearRect(0, 0, w, h);
+      drawOnboard(g, t, night, wet);
+      posterize();
+      out.setTransform(PX, 0, 0, PX, 0, 0);
+      out.imageSmoothingEnabled = false;
+      out.clearRect(0, 0, w, h);
+      out.drawImage(lo, 0, 0, w, h);
+      drawLabels(out);
+      if (obInfo) obHud(out, obInfo);
       drawOverlay(t);
       return;
     }
 
-    // 世界はいったん裏画面に描き、あとから光と色を乗せて画面に出す
-    const out = ctx;
+    // 世界は小さな紙に描き、色を絞って拡大してから、光と色を乗せて画面に出す
     const buf = GP.fx.begin();
-    if (buf) ctx = buf;
-
-    ctx.setTransform(PX, 0, 0, PX, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    const g = loCtx();
+    g.clearRect(0, 0, w, h);
+    ctx = g;
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.scale(cam.z, cam.z);
     ctx.translate(-cam.x, -cam.y);
 
-    if (trackArt) ctx.drawImage(trackArt, 0, 0, VW, VH); else { ctx.fillStyle = '#78c96a'; ctx.fillRect(0, 0, w, h); }
+    if (trackArt) {
+      // コース図だけはならして縮める。細い線がちらつかない。粒にするのは色を絞るとき
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(trackArt, 0, 0, VW, VH);
+      ctx.imageSmoothingEnabled = false;
+    } else { ctx.fillStyle = '#78c96a'; ctx.fillRect(0, 0, w, h); }
 
     // 雨演出
     if (wet) {
@@ -23237,13 +23296,7 @@ GP.raceview = (function () {
         // 作業の進み具合 0..1。これで手順のどこにいるかを決める
         const prog = Math.max(0, Math.min(1, 1 - left / Math.max(0.1, pl.pt)));
         drawPitCrew(px, py, ang, e, prog, t, tyreNow(e, t));
-        ctx.save();
-        ctx.translate(px, py - 13);
-        ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#4a3018'; ctx.lineWidth = 2;
-        ctx.fillRect(-13, -7, 26, 12); ctx.strokeRect(-13, -7, 26, 12);
-        ctx.fillStyle = '#4a3018'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('PIT ' + left.toFixed(1), 0, 2);
-        ctx.restore();
+        { const sp = scr(px, py - 13); putLabel(sp[0], sp[1] + 3, 'PIT ' + left.toFixed(1), '#4a3018', '#fff0b0', 'bold 8px sans-serif'); }
         continue;
       }
       const pt2 = placeInLap(e, o.p);
@@ -23267,6 +23320,12 @@ GP.raceview = (function () {
     }
     GP.fx.drawParticles(ctx);
     ctx.restore();
+    posterize();
+    const tgt = buf || out;
+    tgt.setTransform(PX, 0, 0, PX, 0, 0);
+    tgt.imageSmoothingEnabled = false;
+    tgt.clearRect(0, 0, w, h);
+    tgt.drawImage(lo, 0, 0, w, h);
 
     // 光・被写界深度・色調をまとめて乗せる
     ctx = out;
@@ -23297,6 +23356,7 @@ GP.raceview = (function () {
         night: night
       });
     }
+    drawLabels(out);
     drawOverlay(t);
   }
 
@@ -23329,7 +23389,11 @@ GP.raceview = (function () {
      たどって台形をつないでいく。遠いものから描くので、
      ヘアピンで折り返してきた路面も正しく重なる。
      ========================================================= */
-  const OB = { horizon: VH * 0.36, focal: 330, back: 86, high: 31, far: 96, propK: 0.62 };
+  const OB = { horizon: VH * 0.36, focal: 330, back: 46, high: 20, far: 96, propK: 0.62 };
+  const obShk = { x: 0, y: 0 };   // 目の揺れ（縁石でがたつき、速いほど小さく震える）
+  let obParts = [];               // 火花・ロックアップの白煙・雨のしぶき（世界の座標）
+  let obInfo = null;              // 等倍で載せる札のための、いまの自車の状況
+  const TYRE_COL = { soft: '#e2423a', medium: '#f0c33a', hard: '#f4eecb', inter: '#4caf50', wet: '#3a7bd5' };
   let obHead = null;          // 追いかけている向き。急に振ると酔うので、ならす
   let obProps = null;         // コース脇のもの。コースが変わったら作り直す
   let obCurv = null;          // 各点の曲がりの強さ。縁石を置く場所に使う
@@ -23342,7 +23406,7 @@ GP.raceview = (function () {
     if (fz < 6) return null;
     const fx = -dx * cm.fs + dy * cm.fc;
     const sc = OB.focal / fz;
-    return [VW / 2 + fx * sc, OB.horizon + OB.high * sc, sc, fz];
+    return [VW / 2 + obShk.x + fx * sc, OB.horizon + obShk.y + OB.high * sc, sc, fz];
   }
   /* k 番目の点の、左右の縁を画面の座標で */
   function obEdge(cm, k, half) {
@@ -23564,82 +23628,252 @@ GP.raceview = (function () {
   /* 後ろから見たフォーミュラカー。
      真上から見た形（drawCar）とは別に組む。
      大きな後輪と、その上に翼。この2つが背中の全部になる         */
-  function drawF1Back(g, x, y, sc, color, yaw, isPlayer, e) {
-    const dark = shade(color, -0.22), lite = shade(color, 0.18);
-    const W = 13 * sc, H = 7.5 * sc;
-    const sh = Math.sin(yaw || 0) * 3 * sc;
-    g.fillStyle = 'rgba(0,0,0,.30)';
-    g.beginPath(); g.ellipse(x, y, W * 0.62, H * 0.16, 0, 0, Math.PI * 2); g.fill();
-    // 後輪
-    g.fillStyle = '#12101a';
-    g.fillRect(x - W / 2, y - H * 0.78, W * 0.24, H * 0.78);
-    g.fillRect(x + W / 2 - W * 0.24, y - H * 0.78, W * 0.24, H * 0.78);
-    g.fillStyle = '#33313e';
-    g.fillRect(x - W / 2 + 1.5 * sc, y - H * 0.70, W * 0.24 - 3 * sc, H * 0.62);
-    g.fillRect(x + W / 2 - W * 0.24 + 1.5 * sc, y - H * 0.70, W * 0.24 - 3 * sc, H * 0.62);
-    // ディフューザーと胴
-    g.fillStyle = '#23222c';
-    g.fillRect(x - W * 0.30 + sh, y - H * 0.34, W * 0.60, H * 0.34);
-    g.fillStyle = dark;
-    g.fillRect(x - W * 0.22 + sh, y - H * 0.72, W * 0.44, H * 0.42);
-    // エンジンカバー
-    g.fillStyle = color;
-    g.fillRect(x - W * 0.16 + sh, y - H * 1.05, W * 0.32, H * 0.75);
-    g.fillStyle = lite;
-    g.fillRect(x - W * 0.16 + sh, y - H * 1.05, W * 0.10, H * 0.75);
-    // エアボックスとヘルメット
-    g.fillStyle = dark;
-    g.fillRect(x - W * 0.08 + sh, y - H * 1.30, W * 0.16, H * 0.28);
-    g.fillStyle = '#fff8e6';
-    g.beginPath(); g.arc(x + sh, y - H * 1.12, W * 0.07, 0, Math.PI * 2); g.fill();
-    // リアウイング
-    g.fillStyle = '#23222c';
-    g.fillRect(x - W * 0.52 + sh * 0.5, y - H * 1.22, W * 1.04, H * 0.16);
-    g.fillStyle = color;
-    g.fillRect(x - W * 0.52 + sh * 0.5, y - H * 1.22, W * 1.04, H * 0.05);
-    g.fillRect(x - W * 0.52 + sh * 0.5, y - H * 1.32, W * 0.05, H * 0.36);
-    g.fillRect(x + W * 0.47 + sh * 0.5, y - H * 1.32, W * 0.05, H * 0.36);
-    // 尾灯
-    g.fillStyle = '#e2664a';
-    g.fillRect(x - W * 0.04 + sh, y - H * 0.50, W * 0.08, H * 0.14);
-    // 近い車には、誰なのかを添える
-    if (!isPlayer && e && e.driver) {
-      g.font = 'bold ' + Math.max(8, Math.min(11, 6 + sc * 1.4)).toFixed(0) + 'px sans-serif';
-      g.textAlign = 'center';
-      const tag = GP.data.abbr3(e.driver.name, true);
-      const tw = g.measureText(tag).width + 8;
-      g.fillStyle = 'rgba(18,16,26,.72)';
-      g.fillRect(x - tw / 2, y - H * 1.32 - 16, tw, 13);
-      g.fillStyle = '#fff0b0';
-      g.fillText(tag, x, y - H * 1.32 - 6);
-      g.textAlign = 'left';
+  /* ---------- 後ろから見たF1 ----------
+     四隅を世界に置いて投影する箱。前翼・車輪・鼻・サイドポッド・胴・
+     ハロ・後翼を、遠いものから順に重ねる。
+     減速で鼻が沈み、縁石でがたつき、DRSが開くと後翼のフラップが持ち上がる。
+     部品の世代で、翼が広く、ポッドが長くなる                          */
+  function inLongest(i) {
+    const L = res.geo && res.geo.longest;
+    if (!L || !(L.len > 0)) return false;
+    const n = poly.n, span = (L.to - L.from + n) % n, d = (((i % n) + n) % n - L.from + n) % n;
+    return d <= span;
+  }
+  function hopOf(q) {
+    if (!obCurv) return 0;
+    const k = obCurv[(q.i + poly.n * 2) % poly.n], v = q.v == null ? 1 : q.v;
+    if (k < 0.013 || v < 0.45) return 0;
+    return Math.abs(Math.sin(performance.now() * 0.03 + q.i)) * 0.45;
+  }
+  function drawF1Back(g, cm, q, e, isPlayer, tagged, night, wet, drs) {
+    const color = e.color || '#c23a2e';
+    const dark = shade(color, -0.28), lite = shade(color, 0.20);
+    const CARBON = '#23222c', CARBON2 = '#3a3348', TYRE = '#12101a';
+    const gen = Math.max(0, Math.min(5, e.gen | 0));
+    const acc = q.acc || 0;
+    const base = obProject(cm, q.x, q.y);
+    if (!base) return;
+    const sc = base[2];
+    /* 荷重移動。減速で鼻が沈み、加速で尻が沈む。車ごとにならして追う */
+    const want = Math.max(-1, Math.min(1, -acc * 14));
+    e._pitch = (e._pitch || 0) + (want - (e._pitch || 0)) * 0.18;
+    const pitch = e._pitch, hop = q.hop || 0;
+    const head = q.ang + (q.steer || 0) * 0.30;
+    const hc = Math.cos(head), hs = Math.sin(head);
+    let yaw = head - Math.atan2(cm.fs, cm.fc);
+    while (yaw > Math.PI) yaw -= Math.PI * 2;
+    while (yaw < -Math.PI) yaw += Math.PI * 2;
+    const sgn = yaw > 0 ? -1 : 1;              // 目に近い側（-1 なら車の左）
+    const P = (dx, dy, h) => {
+      const pr = obProject(cm, q.x + hc * dx - hs * dy, q.y + hs * dx + hc * dy);
+      if (!pr) return null;
+      return [pr[0], pr[1] - (h + hop - pitch * dx * 0.055) * pr[2]];
+    };
+    const poly4 = (a, b, c, d, col) => {
+      if (!a || !b || !c || !d) return;
+      g.fillStyle = col; g.beginPath();
+      g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]);
+      g.closePath(); g.fill();
+    };
+    /* 箱。上面・目に近い側面・後面の順に重ねる（y0 < y1） */
+    const box = (x0, x1, y0, y1, h0, h1, cTop, cSide, cRear) => {
+      const yn = sgn < 0 ? y0 : y1;
+      poly4(P(x0, y0, h1), P(x1, y0, h1), P(x1, y1, h1), P(x0, y1, h1), cTop);
+      poly4(P(x0, yn, h0), P(x1, yn, h0), P(x1, yn, h1), P(x0, yn, h1), cSide);
+      poly4(P(x0, y0, h0), P(x0, y1, h0), P(x0, y1, h1), P(x0, y0, h1), cRear);
+    };
+    const tyre = (dx, dy, front) => {
+      const pr = obProject(cm, q.x + hc * dx - hs * dy, q.y + hs * dx + hc * dy);
+      if (!pr) return;
+      const ya = yaw + (front ? (q.steer || 0) * 0.9 : 0);
+      const w = (1.9 * Math.abs(Math.cos(ya)) + 3.4 * Math.abs(Math.sin(ya))) * pr[2], hgt = 3.4 * pr[2];
+      const x = pr[0], y = pr[1] - hop * pr[2] * 0.4;
+      g.fillStyle = TYRE; g.fillRect(x - w / 2, y - hgt, w, hgt);
+      if (Math.abs(Math.sin(ya)) > 0.5) { g.fillStyle = '#3a3846'; g.beginPath(); g.arc(x, y - hgt / 2, hgt * 0.22, 0, Math.PI * 2); g.fill(); }
+      const tc = TYRE_COL[q.tyre || ''];
+      if (tc) { g.fillStyle = tc; g.fillRect(x - w / 2, y - hgt * 0.62, w, Math.max(0.6, hgt * 0.07)); }
+      // ブレーキの赤熱。減速中の後輪の内側
+      if (!front && acc < -0.03) {
+        g.fillStyle = night ? '#ffb24a' : '#ff7a3c';
+        g.fillRect(dy < 0 ? x + w / 2 - 1.1 * pr[2] : x - w / 2, y - hgt * 0.72, 1.1 * pr[2], hgt * 0.42);
+      }
+    };
+    // 影
+    g.fillStyle = 'rgba(0,0,0,.32)';
+    g.beginPath();
+    g.ellipse(base[0], base[1], (10 * Math.abs(Math.cos(yaw)) + 5.6 * Math.abs(Math.sin(yaw))) * sc, 1.7 * sc, 0, 0, Math.PI * 2);
+    g.fill();
+    // 床
+    poly4(P(-8, -4.4, 0.25), P(8.5, -4.4, 0.25), P(8.5, 4.4, 0.25), P(-8, 4.4, 0.25), '#1a181f');
+    // フロントウイング。幅いっぱいの板と、端の板
+    const FW = 5.4 + gen * 0.15;
+    poly4(P(8.6, -FW, 0.8), P(10.6, -FW, 0.8), P(10.6, FW, 0.8), P(8.6, FW, 0.8), color);
+    if (gen >= 2) poly4(P(8.0, -FW * 0.9, 1.3), P(8.7, -FW * 0.9, 1.3), P(8.7, FW * 0.9, 1.3), P(8.0, FW * 0.9, 1.3), dark);
+    [-1, 1].forEach(s2 => poly4(P(8.3, s2 * FW, 0.1), P(10.9, s2 * FW, 0.1), P(10.9, s2 * FW, 1.9), P(8.3, s2 * FW, 1.9), s2 === sgn ? color : dark));
+    // 車輪。遠い車輪 → 車体 → 近い車輪
+    const wheels = [[6.4, -4.6, true], [6.4, 4.6, true], [-5.4, -4.6, false], [-5.4, 4.6, false]];
+    const far = wheels.filter(w2 => w2[2] || (w2[1] < 0) !== (sgn < 0));
+    const near = wheels.filter(w2 => far.indexOf(w2) < 0);
+    far.sort((a, b) => b[0] - a[0]).forEach(w2 => tyre(w2[0], w2[1], w2[2]));
+    // 鼻。細く、先へ向かって低くなる
+    poly4(P(3, -1.4, 2.0), P(9.9, -0.5, 1.1), P(9.9, 0.5, 1.1), P(3, 1.4, 2.0), lite);
+    poly4(P(3, sgn * 1.4, 0.5), P(9.9, sgn * 0.5, 0.5), P(9.9, sgn * 0.5, 1.1), P(3, sgn * 1.4, 2.0), color);
+    /* サイドポッドは低く、胴は細く高い。後ろから見ると、
+       低く広い床の上に細い背中が立ち、その上に翼が浮いて見える */
+    const PX0 = -6.5 - (gen >= 3 ? 0.6 : 0), PH = 1.6 + gen * 0.04;
+    const farPod = sgn < 0 ? [1.5, 4.2] : [-4.2, -1.5], nearPod = sgn < 0 ? [-4.2, -1.5] : [1.5, 4.2];
+    box(PX0, 3.0, farPod[0], farPod[1], 0.3, PH, lite, color, dark);
+    box(-7.6, 3.0, -1.5, 1.5, 0.3, 2.6, lite, color, dark);
+    box(PX0, 3.0, nearPod[0], nearPod[1], 0.3, PH, lite, color, dark);
+    // エンジンカバーの背と、ひれ、エアボックス、ヘルメット、ハロ
+    box(-7.0, -1.0, -0.8, 0.8, 2.6, 3.2, lite, color, dark);
+    poly4(P(-7.0, 0, 3.2), P(-3.0, 0, 3.2), P(-3.0, 0, 3.9), P(-6.0, 0, 3.5), dark);
+    box(-3.6, -0.6, -0.9, 0.9, 2.6, 4.2, CARBON2, CARBON, CARBON);
+    { const hp = P(0.6, 0, 3.0); if (hp) { g.fillStyle = '#fff8e6'; g.beginPath(); g.arc(hp[0], hp[1], 0.9 * sc, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#12101a'; g.fillRect(hp[0] - 0.65 * sc, hp[1] - 0.3 * sc, 1.3 * sc, 0.35 * sc); } }
+    { const a1 = P(0.2, -1.5, 2.6), a2 = P(1.3, -0.9, 3.7), a3 = P(1.3, 0.9, 3.7), a4 = P(0.2, 1.5, 2.6), a5 = P(2.8, 0, 2.2), a6 = P(1.3, 0, 3.7);
+      if (a1 && a2 && a3 && a4 && a5 && a6) {
+        g.strokeStyle = CARBON; g.lineWidth = Math.max(0.8, 0.42 * sc);
+        g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(a2[0], a2[1]); g.lineTo(a3[0], a3[1]); g.lineTo(a4[0], a4[1]);
+        g.moveTo(a5[0], a5[1]); g.lineTo(a6[0], a6[1]); g.stroke();
+      } }
+    // 後ろ。ディフューザー、排気、雨灯
+    box(-8.2, -7.4, -3.4, 3.4, 0.3, 1.3, CARBON, CARBON, '#15141b');
+    { const ex = P(-8.2, 0, 1.9); if (ex) { g.fillStyle = '#0d0c10'; g.beginPath(); g.arc(ex[0], ex[1], 0.4 * sc, 0, Math.PI * 2); g.fill(); } }
+    { const rl = P(-8.3, 0, 1.5);
+      if (rl) {
+        const on = !wet || (Math.floor(performance.now() / 110) % 2 === 0);
+        g.fillStyle = on ? '#ff5a3c' : '#7a2a20';
+        g.fillRect(rl[0] - 0.5 * sc, rl[1] - 0.4 * sc, 1.0 * sc, 0.8 * sc);
+        if ((night || wet) && on) { g.fillStyle = 'rgba(255,90,60,.22)'; g.fillRect(rl[0] - 1.6 * sc, rl[1] - 1.3 * sc, 3.2 * sc, 2.6 * sc); }
+      } }
+    near.sort((a, b) => b[0] - a[0]).forEach(w2 => tyre(w2[0], w2[1], w2[2]));
+    /* リアウイング。車輪より上に、幅いっぱいに浮く。
+       翼端板は真後ろからは一本の線。ビーム、主翼、フラップの順 */
+    const RW = 4.6 + gen * 0.1, RX0 = -10.2, RX1 = -8.2;
+    poly4(P(RX0, -RW * 0.85, 2.4), P(RX0, RW * 0.85, 2.4), P(RX0, RW * 0.85, 2.75), P(RX0, -RW * 0.85, 2.75), CARBON);
+    [-1, 1].forEach(s2 => {
+      const col = s2 === sgn ? color : dark;
+      poly4(P(RX0, s2 * RW, 2.3), P(RX1 + 0.4, s2 * RW, 2.3), P(RX1 + 0.4, s2 * RW, 5.2), P(RX0, s2 * RW, 5.2), col);
+      const e0 = P(RX0, s2 * RW, 2.3), e1 = P(RX0, s2 * RW, 5.2);
+      if (e0 && e1) { g.fillStyle = col; g.fillRect(e0[0] - 0.3 * sc, e1[1], 0.6 * sc, e0[1] - e1[1]); }
+    });
+    poly4(P(RX0, -RW, 4.45), P(RX1, -RW, 4.45), P(RX1, RW, 4.45), P(RX0, RW, 4.45), dark);
+    poly4(P(RX0, -RW, 3.7), P(RX0, RW, 3.7), P(RX0, RW, 4.45), P(RX0, -RW, 4.45), CARBON);
+    poly4(P(RX0, -RW, 4.45), P(RX0, RW, 4.45), P(RX0, RW, 4.75), P(RX0, -RW, 4.75), color);
+    const fh = drs ? 5.6 : 5.1;
+    poly4(P(RX0 - 0.3, -RW, fh), P(RX0 + 0.9, -RW, 4.8), P(RX0 + 0.9, RW, 4.8), P(RX0 - 0.3, RW, fh), drs ? lite : CARBON2);
+    if (tagged && e.driver) putLabel(base[0], base[1] - 6.5 * sc - 6, GP.data.abbr3(e.driver.name, true));
+  }
+
+  /* ---------- 走りにともなう粒 ----------
+     火花は縁石に乗ったとき、白煙はロックアップ、しぶきは雨の後輪から。
+     世界の座標で持ち、投影して描く                                  */
+  function obEmit(q, wet, dtr) {
+    const v = q.v == null ? 1 : q.v, acc = q.acc || 0;
+    const cx = Math.cos(q.ang), sx = Math.sin(q.ang), nx = -sx, ny = cx;
+    const rate = Math.min(3, dtr * 60);
+    const at = (dx, dy) => [q.x + cx * dx - sx * dy, q.y + sx * dx + cx * dy];
+    if (wet && v > 0.3) {
+      for (let k = 0; k < 2 * rate; k++) {
+        const p = at(-6, (k % 2 ? 4.4 : -4.4) + (Math.random() - 0.5) * 2);
+        obParts.push({ x: p[0], y: p[1], h: 0.6, kind: 'spray', r: 1.0 + Math.random() * 1.2, life: 1,
+          vx: -cx * (1.2 + Math.random() * 2.0) * v + nx * (Math.random() - 0.5) * 1.5,
+          vy: -sx * (1.2 + Math.random() * 2.0) * v + ny * (Math.random() - 0.5) * 1.5,
+          vh: 0.5 + Math.random() * 0.6 });
+      }
+    }
+    const kk = obCurv ? obCurv[(q.i + poly.n * 2) % poly.n] : 0;
+    if (kk > 0.013 && v > 0.5 && Math.random() < 0.5 * rate) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const p = at(-3 + Math.random() * 6, side * 4.8);
+      obParts.push({ x: p[0], y: p[1], h: 0.3, kind: 'spark', r: 0.5, life: 0.6,
+        vx: -cx * (2 + Math.random() * 3) + nx * side * Math.random() * 1.5,
+        vy: -sx * (2 + Math.random() * 3) + ny * side * Math.random() * 1.5,
+        vh: 0.6 + Math.random() * 1.2 });
+    }
+    if (acc < -0.06 && v > 0.55 && Math.random() < 0.06 * rate) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const p = at(6.4, side * 4.6);
+      for (let k = 0; k < 3; k++) obParts.push({ x: p[0] + (Math.random() - 0.5) * 2, y: p[1] + (Math.random() - 0.5) * 2, h: 0.4, kind: 'smoke',
+        r: 1.2 + Math.random(), life: 1, vx: -cx * (0.4 + Math.random()) * v, vy: -sx * (0.4 + Math.random()) * v, vh: 0.5 + Math.random() * 0.4 });
+    }
+    if (obParts.length > 260) obParts.splice(0, obParts.length - 260);
+  }
+  function obStep(dtr) {
+    const k = Math.min(3, dtr * 60);
+    for (let i = 0; i < obParts.length; i++) {
+      const p = obParts[i];
+      p.x += p.vx * k; p.y += p.vy * k; p.h += p.vh * k;
+      if (p.kind === 'spark') { p.vh -= 0.25 * k; if (p.h < 0) { p.h = 0; p.life = 0; } p.life -= 0.07 * k; }
+      else { p.r += (p.kind === 'smoke' ? 0.22 : 0.09) * k; p.vx *= 0.94; p.vy *= 0.94; p.vh *= 0.92; p.life -= (p.kind === 'smoke' ? 0.045 : 0.075) * k; }
+    }
+    obParts = obParts.filter(p => p.life > 0);
+  }
+  function obDrawParts(g, cm, farOnly) {
+    for (let i = 0; i < obParts.length; i++) {
+      const p = obParts[i];
+      const q = obProject(cm, p.x, p.y);
+      if (!q || q[3] < OB.back - 2) continue;
+      if ((q[3] > OB.back + 5) !== !!farOnly) continue;
+      const sc = q[2];
+      if (p.kind === 'spark') {
+        g.fillStyle = Math.random() < 0.5 ? '#ffe28a' : '#ff9a3c';
+        const s2 = Math.max(1 / LK, 0.5 * sc);
+        g.fillRect(q[0] - s2 / 2, q[1] - p.h * sc - s2 / 2, s2, s2);
+      } else {
+        const r = p.r * sc;
+        if (r < 0.5 || r > 48) continue;
+        g.fillStyle = p.kind === 'smoke' ? 'rgba(236,236,240,' + (p.life * 0.45).toFixed(2) + ')' : 'rgba(205,222,245,' + (p.life * 0.22).toFixed(2) + ')';
+        g.beginPath(); g.arc(q[0], q[1] - p.h * sc, r, 0, Math.PI * 2); g.fill();
+      }
+    }
+  }
+  /* スリップストリーム。前の車の背中に入ると、風の筋が画面の縁から寄ってくる */
+  function obTowLines(g) {
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1;
+    const cx = VW / 2, cy = OB.horizon + 10;
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2 + Math.random() * 0.4;
+      const r0 = 120 + Math.random() * 60, r1 = r0 + 40 + Math.random() * 60;
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a) * r0 * 1.4, cy + Math.sin(a) * r0);
+      g.lineTo(cx + Math.cos(a) * r1 * 1.4, cy + Math.sin(a) * r1);
+      g.stroke();
     }
   }
 
   /* 順位・前との差・速さ。上から見る絵には要らなかったものが、
      ここでは無いと「いまどうなのか」が分からない                */
-  function obHud(g, e, fo, ord, pt) {
-    const alive = ord.filter(o => !o.out);
-    let pos = 0, ahead = null;
-    for (let i = 0; i < alive.length; i++) {
-      if (alive[i].e === e) { pos = i + 1; ahead = i > 0 ? alive[i - 1] : null; break; }
-    }
-    const gap = ahead ? (ahead.p - fo.p) * res.track.base : 0;
+  function obHud(g, inf) {
+    const pt = inf.pt;
     const x0 = VW - 158, y0 = 8;
+    g.setTransform(PX, 0, 0, PX, 0, 0);
     g.textAlign = 'left';
     g.fillStyle = 'rgba(18,16,26,.72)';
     g.fillRect(x0, y0, 150, 38);
     g.fillStyle = '#fff8e6'; g.font = 'bold 20px sans-serif';
-    g.fillText('P' + pos, x0 + 8, y0 + 27);
+    g.fillText('P' + inf.pos, x0 + 8, y0 + 27);
     g.font = 'bold 11px sans-serif';
     g.fillStyle = '#b5aabb';
-    g.fillText(ahead ? '前 ' + GP.data.abbr3(ahead.e.driver.name, true) + ' +' + gap.toFixed(1) + 's' : '先頭', x0 + 54, y0 + 15);
+    g.fillText(inf.ahead ? '前 ' + GP.data.abbr3(inf.ahead.e.driver.name, true) + ' +' + inf.gap.toFixed(1) + 's' : '先頭', x0 + 54, y0 + 15);
     g.fillStyle = '#ffd98a';
     g.fillText(Math.round((pt.v == null ? 1 : pt.v) * 318) + ' km/h', x0 + 54, y0 + 30);
+    // DRS とスリップストリームの札
+    let bx = x0;
+    const chip = (txt, bg, fg) => {
+      g.font = 'bold 10px sans-serif';
+      const tw = g.measureText(txt).width + 10;
+      g.fillStyle = bg; g.fillRect(bx, y0 + 42, tw, 16);
+      g.fillStyle = fg; g.fillText(txt, bx + 5, y0 + 54);
+      bx += tw + 4;
+    };
+    if (inf.drs) chip('DRS', '#5cc4d6', '#12101a');
+    else if (inf.drsZone && inf.ahead) chip('DRS区間', 'rgba(92,196,214,.35)', '#cfeef4');
+    if (inf.tow) chip('スリップストリーム', 'rgba(255,255,255,.25)', '#fff8e6');
   }
 
-  function drawOnboard(t, night, wet) {
-    const g = ctx;
+  function drawOnboard(g, t, night, wet) {
     const f = pickFocus(t);
     if (!f || !f.list.length) return;
     const fo = f.list[0], e = fo.e;
@@ -23668,6 +23902,12 @@ GP.raceview = (function () {
     obLast = { pt: pt, a: a, cm: cm, head: obHead, prof: !!e._prof, profN: e._prof ? e._prof.n : -1, polyN: poly.n };
     const th = GP.data.THEMES[themeKey()] || GP.data.THEMES.grass;
     if (!obProps || obProps.track !== res.track.name) obProps = buildObProps(th);
+    if (!obCurv) obCurv = GP.geom.curvature(poly);
+    /* 目の揺れ。縁石に乗るとがたつき、速いほど小さく震える。粒に丸まるのでドットが震える */
+    { const kk = obCurv[(pt.i + poly.n * 2) % poly.n], vv = pt.v == null ? 1 : pt.v;
+      const rumble = kk > 0.013 && vv > 0.45;
+      obShk.x = (Math.random() - 0.5) * (rumble ? 3.0 : 0.9 * vv);
+      obShk.y = (Math.random() - 0.5) * (rumble ? 2.2 : 0.6 * vv); }
     obSky(g, th, night, fo.p);
     obDrawProps(g, cm, pt.i, true, night);
     obRoad(g, cm, th, pt.i, wet, night);
@@ -23688,12 +23928,28 @@ GP.raceview = (function () {
     cars.sort((p1, p2) => p2.pr[3] - p1.pr[3]);
     /* 名札は近い4台まで。団子のときに札だけの壁になる */
     const tagged = cars.slice(-4).filter(c => c.pr[2] > 1.6);
-    cars.forEach(c => drawF1Back(g, c.pr[0], c.pr[1], c.pr[2], c.o.e.color, c.q.steer,
-                                 false, tagged.indexOf(c) >= 0 ? c.o.e : null));
+    /* 挙動。前との間合いから、スリップストリームと DRS を決める */
+    const alive = ord.filter(o => !o.out);
+    let pos = 0, ahead = null;
+    for (let i = 0; i < alive.length; i++) { if (alive[i].e === e) { pos = i + 1; ahead = i > 0 ? alive[i - 1] : null; break; } }
+    const gap = ahead ? (ahead.p - fo.p) * res.track.base : 99;
+    const vel = pt.v == null ? 1 : pt.v;
+    const tight = obCurv[(pt.i + poly.n * 2) % poly.n] > 0.013;
+    const drsZone = inLongest(pt.i);
+    const drs = drsZone && gap < 1.0 && lapInfo(e, t).lap > 2 && !wet;
+    const tow = !drs && gap < 0.8 && !tight && vel > 0.75;
+    cars.forEach(c => { c.q.hop = hopOf(c.q); c.q.tyre = (tyreNow(c.o.e, t) || {}).key; obEmit(c.q, wet, dtr); });
+    pt.hop = hopOf(pt); pt.tyre = (tyreNow(e, t) || {}).key;
+    obEmit(pt, wet, dtr);
+    obStep(dtr);
+    cars.forEach(c => drawF1Back(g, cm, c.q, c.o.e, false, tagged.indexOf(c) >= 0, night, wet, false));
     obDrawProps(g, cm, pt.i, false, night);
     const me = obProject(cm, pt.x, pt.y);
     if (obLast) { obLast.me = me; obLast.near = cars.slice(-3).map(c => [c.o.e.driver.name, +c.pr[3].toFixed(0), +c.pr[0].toFixed(0), +c.pr[1].toFixed(0)]); }
-    if (me) drawF1Back(g, me[0], me[1], me[2], e.color, pt.steer, true, e);
+    obDrawParts(g, cm, true);
+    if (me) drawF1Back(g, cm, pt, e, true, false, night, wet, drs);
+    obDrawParts(g, cm, false);
+    if (tow) obTowLines(g);
     if (wet) {
       g.strokeStyle = 'rgba(180,210,255,.35)'; g.lineWidth = 1;
       for (let i = 0; i < 40; i++) {
@@ -23701,7 +23957,7 @@ GP.raceview = (function () {
         g.beginPath(); g.moveTo(x, y); g.lineTo(x - 2, y + 9); g.stroke();
       }
     }
-    obHud(g, e, fo, ord, pt);
+    obInfo = { e: e, fo: fo, pos: pos, ahead: ahead, gap: gap, pt: pt, drs: drs, tow: tow, drsZone: drsZone };
   }
 
   /* ---------- 画面に重ねる情報 ---------- */
@@ -24772,7 +25028,7 @@ GP.raceview = (function () {
     res = result; onEnd = endCb;
     poly = buildPoly(res.track.path, VW, VH, 34);
     pitFracCache = null;
-    obProps = null; obCurv = null; obHead = null; obTs = 0; tv = null;
+    obProps = null; obCurv = null; obHead = null; obTs = 0; tv = null; obParts = []; obInfo = null; labels = [];
     res.entries.forEach(e => { e._prof = e.prof; });
     buildSectorTimeline();
     trackArt = buildTrackArt();
