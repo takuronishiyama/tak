@@ -44822,15 +44822,34 @@ window.GP = window.GP || {};
     g = g2; syncG(); U.closeModal(); U.closePopup();
     document.body.classList.remove('preboot'); render();
   }
+  /* 公開ページ（claude.ai の中）では、ページが勝手に保存できない。
+     用意されている保存の窓口があればそちらへ渡し、無ければふつうのダウンロード */
   function exportSave() {
     const txt = S.exportText(g);
-    const blob = new Blob([txt], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'grandprix_' + String(g.team || 'team').replace(/[\\/:*?"<>|]/g, '_') + '_S' + g.season + 'W' + g.week + '.json';
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-    U.toast('📤 書き出しました', 'good');
+    const name = 'grandprix_' + String(g.team || 'team').replace(/[\\/:*?"<>|]/g, '_') + '_S' + g.season + 'W' + g.week + '.json';
+    const plain = () => {
+      const blob = new Blob([txt], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      U.toast('📤 書き出しました', 'good');
+    };
+    const C = window.claude;
+    if (!C || typeof C.use !== 'function') { plain(); return; }
+    U.toast('📤 保存の確認を出します…', 'good');
+    C.use('downloads').then(dl => {
+      if (!dl) { plain(); return; }
+      return dl.save({ filename: name, data: txt })
+        .then(() => U.toast('📤 書き出しました', 'good'))
+        .catch(e => {
+          const code = e && e.code;
+          if (code === 'declined') U.toast('書き出しをやめました', 'warn');
+          else if (code === 'rate_limited') U.toast('少し待ってから、もう一度押してください', 'warn');
+          else U.toast('ここでは書き出せませんでした（' + (code || 'unavailable') + '）', 'bad');
+        });
+    }).catch(plain);
   }
   function openSettings() {
     if (inRunningRace()) { U.toast('走り終えてから開けます', 'warn'); return; }
