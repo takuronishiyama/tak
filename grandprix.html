@@ -239,6 +239,15 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .gp-t .flp{font-style:normal;margin-left:3px}
 .rewardbox small{display:block;font-size:9px;opacity:.65}
 
+/* ---------- 設定の保存枠 ---------- */
+.slotrow{display:flex;align-items:center;gap:6px;background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
+         padding:6px 8px;margin:6px 0;box-shadow:0 3px 0 rgba(74,47,26,.5);font-size:13px}
+.slot-body{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.slot-body small{font-size:10px;opacity:.91}
+.slot-body em{font-style:normal;opacity:.65}
+.slotrow .btn.small{flex:0 0 auto;font-size:11px;padding:4px 8px;min-height:0;white-space:nowrap}
+[data-skin="hd"] .slotrow{background:#241c30;color:#efe4cf}
+
 /* ---------- 収支ダッシュボード ---------- */
 .fin{display:flex;gap:8px;flex-wrap:wrap}
 .fin-col{flex:1;min-width:200px;background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}
@@ -4406,6 +4415,7 @@ body:not([data-skin="hd"]) .p-rar{filter:brightness(.72) saturate(1.15)}
       <div class="stat"><span class="ic">🔬</span><b id="tRp">0</b></div>
       <button class="stat ticket" id="tTicketBox" title="開発チケット。押すと説明が出ます"><span class="ic">🎫</span><b id="tTicket">0</b><small>券</small></button>
       <div class="stat"><span class="ic">📅</span>S<b id="tSeason">1</b> W<b id="tWeek">1</b></div>
+      <button class="stat sound" id="tSet" title="設定（保存・読み込み・競技の切り替え）">⚙️</button>
       <button class="stat sound" id="tHelp" title="遊びかた（仕組みの説明はここにまとめてあります）">❓</button>
       <button class="stat sound" id="tSkin" title="見た目の切り替え（HD-2D／カイロ風）">🎨</button>
       <button class="stat sound" id="tSound" title="効果音の切り替え">🔊</button>
@@ -14438,13 +14448,50 @@ GP.state = (function () {
     return fixed;
   }
 
+  /* ---------- 保存 ----------
+     いつも書いているのは「いまの続き」。競技ごとにも同じものを残しておくので、
+     サーキットとラリーを行き来しても、それぞれの続きが消えない。
+     手で取っておく枠は別にある                                     */
+  const AUTO_KEY = 'gp_monogatari_auto_';     // + 競技（f1／wrc）
+  const SLOT_KEY = 'gp_monogatari_slot_';     // + 1..SLOTS
+  const SLOTS = 3;
+  function seriesKey(g2) { return isRally(g2) ? 'wrc' : 'f1'; }
+  function metaOf(g2) {
+    return { team: g2.team, color: g2.color, series: seriesKey(g2), season: g2.season, week: g2.week,
+             funds: Math.round(g2.funds || 0), mode: g2.mode || '', at: Date.now() };
+  }
   function save(g) {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); return true; }
+    try {
+      const raw = JSON.stringify(g);
+      localStorage.setItem(SAVE_KEY, raw);
+      localStorage.setItem(AUTO_KEY + seriesKey(g), raw);
+      return true;
+    } catch (e) { return false; }
+  }
+  function load() { return parseSave(localStorage.getItem(SAVE_KEY)); }
+  function loadAuto(series) { try { return parseSave(localStorage.getItem(AUTO_KEY + series)); } catch (e) { return null; } }
+  function autoMeta(series) { const g2 = loadAuto(series); return g2 ? metaOf(g2) : null; }
+  function saveSlot(n, g2) {
+    try { localStorage.setItem(SLOT_KEY + n, JSON.stringify({ meta: metaOf(g2), data: g2 })); return true; }
     catch (e) { return false; }
   }
-  function load() {
+  function slotMeta(n) {
+    try { const raw = localStorage.getItem(SLOT_KEY + n); if (!raw) return null; const o = JSON.parse(raw); return o && o.meta ? o.meta : null; }
+    catch (e) { return null; }
+  }
+  function loadSlot(n) {
+    try { const raw = localStorage.getItem(SLOT_KEY + n); if (!raw) return null; const o = JSON.parse(raw); return o && o.data ? parseSave(JSON.stringify(o.data)) : null; }
+    catch (e) { return null; }
+  }
+  function deleteSlot(n) { try { localStorage.removeItem(SLOT_KEY + n); } catch (e) {} }
+  /* ファイルにして持ち出す。読むときは枠の形でも素の形でも受ける */
+  function exportText(g2) { return JSON.stringify({ app: 'gp-monogatari', version: 6, meta: metaOf(g2), data: g2 }); }
+  function importText(txt) {
+    try { const o = JSON.parse(txt); const d = o && o.data && o.data.version ? o.data : o; return parseSave(JSON.stringify(d)); }
+    catch (e) { return null; }
+  }
+  function parseSave(raw) {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
@@ -14562,7 +14609,9 @@ GP.state = (function () {
       return g;
     } catch (e) { return null; }
   }
-  function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+  function wipe(series) {
+    try { localStorage.removeItem(SAVE_KEY); if (series) localStorage.removeItem(AUTO_KEY + series); } catch (e) {}
+  }
 
   return {
     rnd, rint, pick, clamp,
@@ -14631,7 +14680,7 @@ GP.state = (function () {
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef, seasonOutlook,
     SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
-    save, load, wipe
+    save, load, wipe, loadAuto, autoMeta, saveSlot, slotMeta, loadSlot, deleteSlot, exportText, importText, seriesKey, SLOTS
   };
 })();
 
@@ -36113,7 +36162,8 @@ GP.screens.biz = function (A) {
         '<p class="desc">ここまでの進み具合は自動で保存されます。自分で残しておきたいときだけ押してください。</p>' +
         '<div class="pick"><button class="pickbtn" data-info="save">' +
         '<span class="pb-ic" style="background:#3a7ad9">💾</span>' +
-        '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>';
+        '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>' +
+        '<p class="note">競技の切り替え、保存の枠、ファイルへの書き出しは、上の <b>⚙️ 設定</b> にあります。</p>';
       body += diffSwitchHTML();
       body += '<div class="sub">🗑️ 最初から</div>' +
         '<p class="desc">いまのチームを消して、新しく始めます。元には戻せません。</p>' +
@@ -36127,7 +36177,7 @@ GP.screens.biz = function (A) {
         GP.sound.play('tap');
         if (b.dataset.info === 'save') { S.save(g); U.toast('💾 セーブしました', 'good'); return; }
         U.modal('本当に最初から？', '<p class="lead">現在のデータは消えます。よろしいですか？</p>', [
-          { label: 'はい', cls: 'danger', fn: () => { S.wipe(); location.reload(); } },
+          { label: 'はい', cls: 'danger', fn: () => { S.wipe(S.seriesKey(g)); location.reload(); } },
           { label: 'いいえ', fn: () => cmdInfo('set') }]);
       };
     });
@@ -44752,6 +44802,136 @@ window.GP = window.GP || {};
     btn.onclick = () => { applySkin(currentSkin() === 'hd' ? 'kairo' : 'hd'); paint(); };
   }
 
+  /* =======================================================
+     設定（⚙️）
+     競技の切り替え・保存の枠・ファイルへの持ち出し・最初から。
+     続きは競技ごとに自動で残るので、サーキットとラリーを行き来できる
+     ======================================================= */
+  function inRunningRace() {
+    const vis = el => el && getComputedStyle(el).display !== 'none' && el.offsetHeight > 50;
+    return vis($('raceScreen')) || vis($('rallyScreen'));
+  }
+  function fmtWhen(t) {
+    const d = new Date(t);
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function metaLine(m) {
+    return (m.series === 'wrc' ? '🏁 ' : '🏎️ ') + esc(m.team) + '　S' + m.season + ' W' + m.week + '　💰' + money(m.funds) + '万';
+  }
+  function switchTo(g2) {
+    g = g2; syncG(); U.closeModal(); U.closePopup();
+    document.body.classList.remove('preboot'); render();
+  }
+  function exportSave() {
+    const txt = S.exportText(g);
+    const blob = new Blob([txt], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'grandprix_' + String(g.team || 'team').replace(/[\\/:*?"<>|]/g, '_') + '_S' + g.season + 'W' + g.week + '.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    U.toast('📤 書き出しました', 'good');
+  }
+  function openSettings() {
+    if (inRunningRace()) { U.toast('走り終えてから開けます', 'warn'); return; }
+    const cur = S.seriesKey(g);
+    const SER = [{ key: 'f1', icon: '🏎️', name: 'グランプリ' }, { key: 'wrc', icon: '🏁', name: 'ラリー' }];
+    let body = '<div class="sub">🔀 競技を切り替える</div>' +
+      '<p class="desc">グランプリとラリーは、別々に続きが残ります。切り替える前に、いまのチームは自動で保存されます。</p><div class="pick">';
+    SER.forEach(x => {
+      const on = x.key === cur;
+      const m = on ? null : S.autoMeta(x.key);
+      body += '<button class="pickbtn' + (on ? ' on' : '') + '" data-set="series" data-s="' + x.key + '">' +
+        '<span class="pb-ic">' + x.icon + '</span><span class="pb-body"><b>' + x.name + (on ? '　いまここ' : '') + '</b>' +
+        '<small>' + (on ? esc(g.team) + '　S' + g.season + ' W' + g.week
+                        : m ? 'つづきから：' + metaLine(m) : '新しいチームを立ち上げる') + '</small></span></button>';
+    });
+    body += '</div>';
+    body += '<div class="sub">💾 保存の枠</div>' +
+      '<p class="desc">進み具合はいつも自動で残っています。ここは、あとで戻れるように取っておく枠です。</p>';
+    for (let n = 1; n <= S.SLOTS; n++) {
+      const m = S.slotMeta(n);
+      body += '<div class="slotrow"><div class="slot-body"><b>枠 ' + n + '</b><small>' +
+        (m ? metaLine(m) + '　<em>' + fmtWhen(m.at) + '</em>' : '空き') + '</small></div>' +
+        '<button class="btn small" data-set="save" data-n="' + n + '">保存</button>' +
+        (m ? '<button class="btn small" data-set="load" data-n="' + n + '">読み込む</button>' +
+             '<button class="btn small danger" data-set="del" data-n="' + n + '">消す</button>' : '') + '</div>';
+    }
+    body += '<div class="sub">📦 ファイルにする</div>' +
+      '<p class="desc">別の端末やブラウザへ持っていくとき、ブラウザのデータを消す前に。</p>' +
+      '<div class="pick"><button class="pickbtn" data-set="export"><span class="pb-ic">📤</span>' +
+      '<span class="pb-body"><b>ファイルに書き出す</b><small>いまのチームを .json で保存します</small></span></button>' +
+      '<button class="pickbtn" data-set="import"><span class="pb-ic">📥</span>' +
+      '<span class="pb-body"><b>ファイルから読み込む</b><small>書き出した .json を選びます。いまのチームは置き換わります</small></span></button></div>' +
+      '<input type="file" id="setFile" accept=".json,application/json" style="display:none">';
+    body += '<div class="sub">🗑️ 最初から</div><div class="pick"><button class="pickbtn cant" data-set="wipe">' +
+      '<span class="pb-ic" style="background:#8a2a2a">🗑️</span><span class="pb-body"><b>この競技を最初から</b>' +
+      '<small>いまのチームを消して、新しく立ち上げます。保存の枠は残ります</small></span></button></div>';
+    U.modal('⚙️ 設定', body, [{ label: '閉じる', fn: U.closeModal }]);
+    const serName = s => (s === 'wrc' ? '🏁 ラリー' : '🏎️ グランプリ');
+    Array.prototype.forEach.call($('modalBody').querySelectorAll('[data-set]'), b => {
+      b.onclick = () => {
+        GP.sound.play('tap');
+        const k = b.dataset.set, n = +b.dataset.n;
+        if (k === 'series') {
+          const s = b.dataset.s;
+          if (s === cur) return;
+          S.save(g);
+          const g2 = S.loadAuto(s);
+          if (g2) { switchTo(g2); S.save(g); U.toast(serName(s) + 'のチームに切り替えました', 'good'); }
+          else { U.closeModal(); showTitle({ series: s, fresh: true }); }
+          return;
+        }
+        if (k === 'save') {
+          const doSave = () => { S.saveSlot(n, g); U.closePopup(); U.toast('💾 枠 ' + n + ' に保存しました', 'good'); openSettings(); };
+          if (S.slotMeta(n)) {
+            U.popup('枠 ' + n + ' に上書き？', '<p class="lead">いま入っている保存は消えます。</p>',
+              [{ label: '上書きする', cls: 'primary', fn: doSave }, { label: 'やめる', fn: U.closePopup }]);
+          } else doSave();
+          return;
+        }
+        if (k === 'load') {
+          U.popup('枠 ' + n + ' を読み込む？', '<p class="lead">いまのチームの進みは自動保存に残っていますが、画面はこの枠の内容に置き換わります。</p>',
+            [{ label: '読み込む', cls: 'primary', fn: () => {
+                const g2 = S.loadSlot(n);
+                if (!g2) { U.toast('読み込めませんでした', 'bad'); return; }
+                switchTo(g2); S.save(g); U.toast('📂 枠 ' + n + ' を読み込みました', 'good');
+              } }, { label: 'やめる', fn: U.closePopup }]);
+          return;
+        }
+        if (k === 'del') {
+          U.popup('枠 ' + n + ' を消す？', '<p class="lead">元には戻せません。</p>',
+            [{ label: '消す', cls: 'danger', fn: () => { S.deleteSlot(n); U.closePopup(); openSettings(); } },
+             { label: 'やめる', fn: U.closePopup }]);
+          return;
+        }
+        if (k === 'export') { exportSave(); return; }
+        if (k === 'import') { const fi = $('setFile'); if (fi) fi.click(); return; }
+        if (k === 'wipe') {
+          U.popup('本当に最初から？', '<p class="lead">' + serName(cur) + 'のチームを消します。元には戻せません。</p>',
+            [{ label: 'はい', cls: 'danger', fn: () => { S.wipe(cur); location.reload(); } },
+             { label: 'いいえ', fn: U.closePopup }]);
+        }
+      };
+    });
+    const fi = $('setFile');
+    if (fi) fi.onchange = () => {
+      const f = fi.files && fi.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        const g2 = S.importText(String(r.result || ''));
+        if (!g2) { U.toast('このファイルは読めませんでした', 'bad'); return; }
+        switchTo(g2); S.save(g); U.toast('📥 ' + g2.team + ' を読み込みました', 'good');
+      };
+      r.readAsText(f);
+    };
+  }
+  function bindSettings() {
+    const btn = $('tSet');
+    if (btn) btn.onclick = () => { GP.sound.play('tap'); openSettings(); };
+  }
+
   function bindSound() {
     const btn = $('tSound');
     const paint = () => { btn.textContent = GP.sound.isOn() ? '🔊' : '🔇'; btn.classList.toggle('off', !GP.sound.isOn()); };
@@ -45002,14 +45182,20 @@ window.GP = window.GP || {};
   }
 
   /* ---------- タイトル画面 ---------- */
-  function showTitle() {
+  function showTitle(opts) {
+    opts = opts || {};
     const saved = S.load();
+    /* 続きは競技ごとに残っている。古い保存だけがある端末では、それを出す */
+    let autos = ['f1', 'wrc'].map(s => ({ s: s, g: S.loadAuto(s) })).filter(x => x.g);
+    if (!autos.length && saved) autos.push({ s: S.seriesKey(saved), g: saved });
+    if (opts.fresh) autos = [];
+    const pre = opts.series || 'f1';
     const colors = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0', '#12b5b0'];
     /* どちらの競技で立ち上げるか。運営の部分はまったく同じで、
        回る場所と週末の中身だけが変わる                        */
     const SERIES = [
-      { key: 'f1',  icon: '🏎️', name: 'サーキット',
-        short: 'グランプリ', desc: '予選でグリッドを取り、決勝で抜く。ピットとタイヤの読み合い。' },
+      { key: 'f1',  icon: '🏎️', name: 'グランプリ',
+        short: 'ピットとタイヤの読み合い', desc: '予選で前に並び、決勝で抜く。ピットとタイヤの読み合い。' },
       { key: 'wrc', icon: '🏁', name: 'ラリー',
         short: 'ワールドラリー', desc: '1台ずつ出てタイムを競う。コ・ドライバー、路面、走行順。' }
     ];
@@ -45017,7 +45203,7 @@ window.GP = window.GP || {};
       '<p class="lead">あなたは弱小チームの新オーナー。<br>マシンを開発し、ドライバーを育て、世界の頂点を目指そう！</p>' +
       '<label class="fld">チーム名<input id="inTeam" maxlength="12" value="ニューカマーGP"></label>' +
       '<div class="fld">どの競技で戦うか<div class="diffs series">' +
-      SERIES.map((x, i) => '<button class="diffbtn' + (i === 0 ? ' on' : '') + '" data-s="' + x.key + '"' +
+      SERIES.map((x, i) => '<button class="diffbtn' + (x.key === pre ? ' on' : '') + '" data-s="' + x.key + '"' +
         ' style="--dc:' + (i === 0 ? '#e2664a' : '#96683a') + '"><b>' + x.icon + ' ' + x.name +
         '</b><small>' + esc(x.short) + '</small></button>').join('') +
       '</div><p class="desc" id="serDesc"></p></div>' +
@@ -45039,9 +45225,11 @@ window.GP = window.GP || {};
       U.closeModal(); document.body.classList.remove('preboot'); S.save(g); render();
       U.toast('チーム「' + name + '」発足！', 'good');
     } }];
-    if (saved) btns.unshift({ label: '▶ つづきから（S' + saved.season + ' W' + saved.week + '）', cls: 'primary',
-      fn: () => { g = saved; syncG(); U.closeModal();
-                  document.body.classList.remove('preboot'); render(); } });
+    autos.slice().reverse().forEach(x => btns.unshift({
+      label: '▶ つづきから ' + (x.s === 'wrc' ? '🏁 ' : '🏎️ ') + esc(x.g.team) + '（S' + x.g.season + ' W' + x.g.week + '）', cls: 'primary',
+      fn: () => { g = x.g; syncG(); U.closeModal();
+                  document.body.classList.remove('preboot'); S.save(g); render(); } }));
+    if (opts.fresh) btns.push({ label: '← 戻る', fn: U.closeModal });
 
     U.modal('🏎️ グランプリ物語', body, btns, { noClose: true });
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.colorbtn'), b => {
@@ -45112,6 +45300,7 @@ window.GP = window.GP || {};
     installScreens();
     bindSkin();
     bindSound();
+    bindSettings();
     bindCommands();
     document.body.classList.add('preboot');
     g = S.newGame('ニューカマーGP', '#e04a3f');   // 仮state（チーム作成までは非表示）

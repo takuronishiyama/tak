@@ -5252,13 +5252,50 @@ GP.state = (function () {
     return fixed;
   }
 
+  /* ---------- 保存 ----------
+     いつも書いているのは「いまの続き」。競技ごとにも同じものを残しておくので、
+     サーキットとラリーを行き来しても、それぞれの続きが消えない。
+     手で取っておく枠は別にある                                     */
+  const AUTO_KEY = 'gp_monogatari_auto_';     // + 競技（f1／wrc）
+  const SLOT_KEY = 'gp_monogatari_slot_';     // + 1..SLOTS
+  const SLOTS = 3;
+  function seriesKey(g2) { return isRally(g2) ? 'wrc' : 'f1'; }
+  function metaOf(g2) {
+    return { team: g2.team, color: g2.color, series: seriesKey(g2), season: g2.season, week: g2.week,
+             funds: Math.round(g2.funds || 0), mode: g2.mode || '', at: Date.now() };
+  }
   function save(g) {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); return true; }
+    try {
+      const raw = JSON.stringify(g);
+      localStorage.setItem(SAVE_KEY, raw);
+      localStorage.setItem(AUTO_KEY + seriesKey(g), raw);
+      return true;
+    } catch (e) { return false; }
+  }
+  function load() { return parseSave(localStorage.getItem(SAVE_KEY)); }
+  function loadAuto(series) { try { return parseSave(localStorage.getItem(AUTO_KEY + series)); } catch (e) { return null; } }
+  function autoMeta(series) { const g2 = loadAuto(series); return g2 ? metaOf(g2) : null; }
+  function saveSlot(n, g2) {
+    try { localStorage.setItem(SLOT_KEY + n, JSON.stringify({ meta: metaOf(g2), data: g2 })); return true; }
     catch (e) { return false; }
   }
-  function load() {
+  function slotMeta(n) {
+    try { const raw = localStorage.getItem(SLOT_KEY + n); if (!raw) return null; const o = JSON.parse(raw); return o && o.meta ? o.meta : null; }
+    catch (e) { return null; }
+  }
+  function loadSlot(n) {
+    try { const raw = localStorage.getItem(SLOT_KEY + n); if (!raw) return null; const o = JSON.parse(raw); return o && o.data ? parseSave(JSON.stringify(o.data)) : null; }
+    catch (e) { return null; }
+  }
+  function deleteSlot(n) { try { localStorage.removeItem(SLOT_KEY + n); } catch (e) {} }
+  /* ファイルにして持ち出す。読むときは枠の形でも素の形でも受ける */
+  function exportText(g2) { return JSON.stringify({ app: 'gp-monogatari', version: 6, meta: metaOf(g2), data: g2 }); }
+  function importText(txt) {
+    try { const o = JSON.parse(txt); const d = o && o.data && o.data.version ? o.data : o; return parseSave(JSON.stringify(d)); }
+    catch (e) { return null; }
+  }
+  function parseSave(raw) {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const g = JSON.parse(raw);
       if (!g || g.version !== 6) return null;
@@ -5376,7 +5413,9 @@ GP.state = (function () {
       return g;
     } catch (e) { return null; }
   }
-  function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+  function wipe(series) {
+    try { localStorage.removeItem(SAVE_KEY); if (series) localStorage.removeItem(AUTO_KEY + series); } catch (e) {}
+  }
 
   return {
     rnd, rint, pick, clamp,
@@ -5445,6 +5484,6 @@ GP.state = (function () {
     newGame, allTeams, constructorTable, driverTable,
     raceWeek, seasonWeeks, prepWeeks, prepPlan, hopOf, hopDef, seasonOutlook,
     SEASON_WEEKS, PREP_WEEKS, SUMMER_AT, SUMMER_WEEKS, summerFrom, summerTo, inSummer,
-    save, load, wipe
+    save, load, wipe, loadAuto, autoMeta, saveSlot, slotMeta, loadSlot, deleteSlot, exportText, importText, seriesKey, SLOTS
   };
 })();

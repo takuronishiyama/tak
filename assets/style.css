@@ -224,6 +224,15 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 .gp-t .flp{font-style:normal;margin-left:3px}
 .rewardbox small{display:block;font-size:9px;opacity:.65}
 
+/* ---------- 設定の保存枠 ---------- */
+.slotrow{display:flex;align-items:center;gap:6px;background:var(--paper3);border:3px solid var(--ink);border-radius:8px;
+         padding:6px 8px;margin:6px 0;box-shadow:0 3px 0 rgba(74,47,26,.5);font-size:13px}
+.slot-body{flex:1;display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.slot-body small{font-size:10px;opacity:.91}
+.slot-body em{font-style:normal;opacity:.65}
+.slotrow .btn.small{flex:0 0 auto;font-size:11px;padding:4px 8px;min-height:0;white-space:nowrap}
+[data-skin="hd"] .slotrow{background:#241c30;color:#efe4cf}
+
 /* ---------- 収支ダッシュボード ---------- */
 .fin{display:flex;gap:8px;flex-wrap:wrap}
 .fin-col{flex:1;min-width:200px;background:var(--paper3);border:2px solid var(--ink);border-radius:8px;padding:6px 8px}

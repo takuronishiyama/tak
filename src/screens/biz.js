@@ -878,7 +878,8 @@ GP.screens.biz = function (A) {
         '<p class="desc">ここまでの進み具合は自動で保存されます。自分で残しておきたいときだけ押してください。</p>' +
         '<div class="pick"><button class="pickbtn" data-info="save">' +
         '<span class="pb-ic" style="background:#3a7ad9">💾</span>' +
-        '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>';
+        '<span class="pb-body"><b>いま保存する</b><small>この端末のブラウザに残ります</small></span></button></div>' +
+        '<p class="note">競技の切り替え、保存の枠、ファイルへの書き出しは、上の <b>⚙️ 設定</b> にあります。</p>';
       body += diffSwitchHTML();
       body += '<div class="sub">🗑️ 最初から</div>' +
         '<p class="desc">いまのチームを消して、新しく始めます。元には戻せません。</p>' +
@@ -892,7 +893,7 @@ GP.screens.biz = function (A) {
         GP.sound.play('tap');
         if (b.dataset.info === 'save') { S.save(g); U.toast('💾 セーブしました', 'good'); return; }
         U.modal('本当に最初から？', '<p class="lead">現在のデータは消えます。よろしいですか？</p>', [
-          { label: 'はい', cls: 'danger', fn: () => { S.wipe(); location.reload(); } },
+          { label: 'はい', cls: 'danger', fn: () => { S.wipe(S.seriesKey(g)); location.reload(); } },
           { label: 'いいえ', fn: () => cmdInfo('set') }]);
       };
     });
