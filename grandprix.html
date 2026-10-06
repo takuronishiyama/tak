@@ -45186,8 +45186,10 @@ window.GP = window.GP || {};
     opts = opts || {};
     const saved = S.load();
     /* 続きは競技ごとに残っている。古い保存だけがある端末では、それを出す */
-    let autos = ['f1', 'wrc'].map(s => ({ s: s, g: S.loadAuto(s) })).filter(x => x.g);
-    if (!autos.length && saved) autos.push({ s: S.seriesKey(saved), g: saved });
+    /* いま遊んでいた側は「いまの続き」のほうが新しい。競技ごとの控えは、もう片方のぶん */
+    let autos = ['f1', 'wrc'].map(s => ({ s: s, g: (saved && S.seriesKey(saved) === s) ? saved : S.loadAuto(s) })).filter(x => x.g);
+    // 最後に遊んでいたほうを先頭に。押す場所がいつも同じになる
+    if (saved) autos.sort((a, b2) => (a.s === S.seriesKey(saved) ? -1 : 0) - (b2.s === S.seriesKey(saved) ? -1 : 0));
     if (opts.fresh) autos = [];
     const pre = opts.series || 'f1';
     const colors = ['#e04a3f', '#3a7ad9', '#4ea63f', '#f0a020', '#b06fd0', '#12b5b0'];
