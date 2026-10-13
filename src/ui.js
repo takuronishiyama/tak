@@ -195,8 +195,7 @@ GP.ui = (function () {
         ? '<b>★ 今週が決勝です</b><span>「レースへ向かう！」を押してください</span>'
         : '<b>準備できるのは あと ' + left + ' 回</b>' +
           '<span class="pips">' + pips + '</span>' +
-          '<span>この戦は ' + hop.icon + ' <b>' + hop.name + '</b> なので、' +
-          'ぜんぶで <b>' + prep + '回</b>です</span>') +
+          '<span>' + hop.icon + ' ' + esc(hop.note) + '。準備は ぜんぶで <b>' + prep + '回</b></span>') +
       '</div>' +
       (nx ? '<div class="nextup">つぎは ' + nx.t.country + ' ' + esc(nx.t.name) +
             '　' + nx.h.icon + nx.h.name + '<b>準備 ' + nx.p + '回</b></div>' : '') +

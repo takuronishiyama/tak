@@ -1430,11 +1430,15 @@ GP.screens.home = function (A) {
     return '<i class="cchip" style="background:' + c.color + '">' + c.icon + c.name + '</i>';
   }
 
-  function doOffPlan() {
+  function doOffPlan(opts) {
     /* ---- マシンコンセプト ----
        決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
        いくら時間をかけてもコンセプトの外までは行けないので、
-       ここは1年ぶんの覚悟を決める場面になる                     */
+       ここは1年ぶんの覚悟を決める場面になる。
+       オフの用事として開くほか、設計室からも開ける（opts.back に戻り先）。
+       設計室から決めたときは、来季ぶんの仕込みは崩さず次の車に残す  */
+    opts = opts || {};
+    const off = !opts.back;
     const cur = g.plan || null;
     const stock = g.nextCar || 0;
     const db = S.designBase(g);
@@ -1460,7 +1464,7 @@ GP.screens.home = function (A) {
         : '<br><em class="warn">開発責任者が空席なので、図面の出来はスタッフの腕だけで決まります。</em>') +
       '</small></div>';
 
-    if (stock > 0) {
+    if (stock > 0 && off) {
       body += '<div class="stockbox"><b>🌱 積んである来季ぶんの開発：' +
         Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
         '<small>方針を決めた時点で、この仕込みが<b>マシンに注ぎ込まれ</b>、' +
@@ -1486,18 +1490,20 @@ GP.screens.home = function (A) {
         (cur === d.key ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
     });
     body += '</div>';
-    U.modal('📋 来季のマシン方針', body, [{ label: '閉じる', fn: U.closeModal }]);
+    U.modal(off ? '📋 来季のマシン方針' : '📋 この車の方針', body,
+      [{ label: '閉じる', fn: () => { U.closeModal(); if (opts.back) opts.back(); } }]);
     bindPick(k => {
       if (k.indexOf('plan:') !== 0) return;
       S.setConcept(g, k.slice(5));
-      offMark('plan');
+      if (off) offMark('plan');
       const d = D.CONCEPTS.find(x => x.key === g.plan);
-      // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む
-      const got = S.applyStock(g, g.plan);
+      // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む（オフのときだけ）
+      const got = off ? S.applyStock(g, g.plan) : null;
       S.save(g);
       U.closeModal();
-      U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');
-      U.log(g, '📋 来季のマシン方針を「' + d.name + '」に決めた。');
+      U.toast(d.icon + (off ? ' 来季は「' : ' この車は「') + d.name + '」', 'good');
+      U.log(g, off ? '📋 来季のマシン方針を「' + d.name + '」に決めた。'
+                   : '📋 この車の方針を「' + d.name + '」に決めた。');
       if (got) {
         const top = got.parts.concat(got.body).sort((a, b) => b.gain - a.gain).slice(0, 3)
           .map(x => x.name + ' +' + x.gain).join('、');
@@ -1508,6 +1514,7 @@ GP.screens.home = function (A) {
         GP.sound.play('good');
       }
       render();
+      if (opts.back) opts.back();
     });
   }
 
@@ -2901,6 +2908,6 @@ GP.screens.home = function (A) {
            openGearBuy: openGearBuy, openGearList: openGearList,
            openKitBuy: openKitBuy, openEstateBuy: openEstateBuy, openPu: openPu,
            estateBoxHTML: estateBoxHTML, bindEstate: bindEstate,
-           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
+           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, planPicker: doOffPlan, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };

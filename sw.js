@@ -2,19 +2,33 @@
    Service Worker — オフラインでも遊べるようにする
    ホーム画面に追加したあとは、通信なしで起動できる
    ========================================================= */
-const CACHE = 'gp-monogatari-v237-wrc';
+/* CACHE と SHELL は build.js が index.html から書き直す。手で足さなくていい */
+const CACHE = 'gp-monogatari-184b3210';
 const SHELL = [
   './',
   './index.html',
   './assets/style.css',
   './src/sound.js',
   './src/fx.js',
+  './src/gfx.js',
   './src/data.js',
   './src/geom.js',
   './src/state.js',
   './src/race.js',
+  './src/rallydata.js',
+  './src/rally.js',
+  './src/rallyview.js',
   './src/raceview.js',
   './src/base.js',
+  './src/kart.js',
+  './src/screens/hr.js',
+  './src/screens/dev.js',
+  './src/screens/weekend.js',
+  './src/screens/rallyweek.js',
+  './src/screens/biz.js',
+  './src/screens/meet.js',
+  './src/screens/home.js',
+  './src/screens/help.js',
   './src/paddock.js',
   './src/grid.js',
   './src/interior.js',

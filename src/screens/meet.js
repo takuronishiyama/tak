@@ -344,8 +344,8 @@ GP.screens.meet = function (A) {
             'せっかく施設を広げたのだから、人を入れないともったいない。';
     } else if (room <= 0) {
       say = '席が埋まりました（' + have + '/' + slots + '）。' +
-            'これ以上入れるには、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
-            '広げる必要があります。';
+            'これ以上入れるなら、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
+            '広げてからです。';
     } else if (low && low.lv <= 1) {
       say = low.f.icon + '<b>' + low.f.name + 'がまだ Lv.' + low.lv + '</b>です。' +
             esc(low.f.desc) + '。ここが足を引っぱっています。';

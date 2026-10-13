@@ -49,3 +49,22 @@ out = out.replace('<head>',
 fs.writeFileSync(path.join(ROOT, 'grandprix.html'), out);
 const kb = (Buffer.byteLength(out) / 1024).toFixed(0);
 console.log('grandprix.html を生成しました（' + kb + ' KB / スクリプト ' + scripts.length + ' 本を同梱）');
+
+// 5) sw.js の事前キャッシュ一覧を、index.html の読み込み順に揃える
+//    手で写していたころは、画面を切り出しても一覧が古いままで、
+//    インストール直後にオフラインで開くと白い画面になっていた。
+//    キャッシュ名は中身のハッシュ。何かを直せば古いキャッシュが捨てられる
+const crypto = require('crypto');
+const shell = ['./', './index.html', './assets/style.css']
+  .concat(scripts.map(s => './' + s))
+  .concat(['./manifest.webmanifest',
+           './assets/icons/icon-192.png', './assets/icons/icon-512.png', './assets/icons/icon-180.png']);
+const h = crypto.createHash('md5');
+['index.html', 'assets/style.css'].concat(scripts).forEach(f => h.update(fs.readFileSync(path.join(ROOT, f))));
+const ver = h.digest('hex').slice(0, 8);
+let sw = read('sw.js');
+sw = sw.replace(/const CACHE = '[^']*';/, "const CACHE = 'gp-monogatari-" + ver + "';");
+sw = sw.replace(/const SHELL = \[[\s\S]*?\];/,
+  'const SHELL = [\n' + shell.map(f => "  '" + f + "'").join(',\n') + '\n];');
+fs.writeFileSync(path.join(ROOT, 'sw.js'), sw);
+console.log('sw.js を更新しました（' + shell.length + ' 件 / ' + ver + '）');

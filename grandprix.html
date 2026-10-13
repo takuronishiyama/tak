@@ -663,6 +663,9 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .erabox.big>b em{font-style:normal;font-size:12px;margin-left:auto;
   border:2px solid var(--ink);border-radius:6px;padding:0 7px;background:var(--paper2)}
 .erabox>b em{font-style:normal;font-size:11.5px;margin-left:8px;opacity:.9}
+/* 設計室の「この車の方針」。決めるボタンを札の中に置く */
+.erabox .btn{display:inline-block;flex:none;width:auto;min-width:0;margin-top:7px;
+  font-size:12px;padding:5px 14px}
 .erabox.up{border-left-color:var(--green,#4ea63f)}
 .erabox.down{border-left-color:var(--blueInk,#2a5aa8)}
 [data-skin="hd"] .erabox{background:rgba(75,61,104,.4);border-color:var(--gold)}
@@ -5425,6 +5428,61 @@ GP.data = (function () {
   /* ---------- オーナー（プレイヤー自身） ----------
      元ドライバーがチームを率いて世界一を目指す、という立ち位置。
      実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
+  /* =========================================================
+     技術規則（グランプリ版）
+
+     4年にいちど、規則がまるごと書き換わる。書き換わると
+     「何に金をかけると速いか」が変わる。それが規則のいちばん大事な
+     働きで、条文を読めるチームだけが先に手を打てる。
+
+     mul は、その部位が車にどれだけ効くかの倍率。
+     上下は釣り合わせてあるので、規則が変わっても車全体は遅くならない。
+     変わるのは「どこに金をかけると速いか」だけ。
+     ラリー版の条文は rallydata.js にある。引きかたは state.js の ruleSet
+     ========================================================= */
+  const RULES = [
+    { key: 'floor', icon: '🧲', name: 'グラウンドエフェクトの解禁',
+      line: '床下で空気を吸いつける形を認める',
+      mul: { aero: 1.18, susp: 1.08, chas: 0.88, pu: 0.94 },
+      note: '床で曲がる年。車高の管理が足まわりの仕事になり、重い車体は損をする' },
+    { key: 'fuelflow', icon: '⛽', name: '燃料流量の上限',
+      line: '1時間に燃やせる燃料に天井を置く',
+      mul: { pu: 0.82, elec: 1.14, gear: 1.06 },
+      note: '踏みっぱなしでは速くならない。回生と変速で稼ぐ' },
+    { key: 'drsban', icon: '📏', name: '可動ウイングの禁止',
+      line: '走行中にウイングの角度を変えてはならない',
+      mul: { aero: 0.84, pu: 1.12, gear: 1.06 },
+      note: '直線で翼を寝かせられない。素のパワーがそのまま最高速になる' },
+    { key: 'minweight', icon: '⚖️', name: '最低重量の引き上げ',
+      line: '車検場の秤に乗る重さの下限が上がる',
+      mul: { chas: 0.86, pu: 1.10, brake: 1.06 },
+      note: '軽さで稼げないぶん、押し出す力と止める力がものを言う' },
+    { key: 'pufreeze', icon: '🧊', name: 'パワーユニットの開発凍結',
+      line: 'シーズン中はパワーユニットの仕様を変えてはならない',
+      mul: { pu: 0.80, aero: 1.12, chas: 1.08 },
+      note: 'エンジンで差をつけられない。空力と車体の年になる' },
+    { key: 'brakespec', icon: '🛑', name: 'ブレーキ素材の統一',
+      line: '全車が同じ素材のディスクとパッドを使う',
+      mul: { brake: 0.84, susp: 1.10, elec: 1.06 },
+      note: '止めかたで差がつかない。踏んだ先の足の動きと制御で稼ぐ' },
+    { key: 'noblanket', icon: '🛞', name: 'タイヤウォーマーの禁止',
+      line: '冷えたタイヤのままコースに出る',
+      mul: { susp: 1.16, brake: 1.04, aero: 0.90, gear: 0.94 },
+      note: '温まるまでの数周で順位が動く。足の合わせ込みがそのまま差になる' },
+    { key: 'ersboost', icon: '🔋', name: '電動出力の引き上げ',
+      line: '回生した電気で出せる力の上限を倍にする',
+      mul: { elec: 1.22, pu: 0.92, chas: 0.92 },
+      note: '電気が主役になる。重くなったぶん車体は不利' },
+    { key: 'gearseal', icon: '🔀', name: 'ギアボックスの使用数制限',
+      line: '年間で使える基数を減らし、封印する',
+      mul: { gear: 0.82, pu: 1.10, brake: 1.06 },
+      note: 'ギアを酷使できない。壊さず、ほかで稼ぐ' },
+    { key: 'wingcut', icon: '🪽', name: '前後ウイングの幅の縮小',
+      line: '翼の幅と枚数を減らす',
+      mul: { aero: 0.80, susp: 1.12, chas: 1.08 },
+      note: '翼で押しつけられない。機械的なグリップの年' }
+  ];
+
   const OWNER_RANKS = [
     { need: 0,     name: '無名のオーナー',   icon: '🥚' },
     { need: 250,   name: '駆け出しのオーナー', icon: '🐣' },
@@ -8891,7 +8949,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, RULES, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, REG_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
            RACES, REGIONS, CALENDAR, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();
@@ -10673,12 +10731,13 @@ GP.state = (function () {
   }
 
   /* =======================================================
-     技術規則（ラリー版）
+     技術規則
 
      4年にいちど、条文が書き換わる。書き換わると
-     「何に金をかけると速いか」が変わる——それが規則の働きで、
+     「何に金をかけると速いか」が変わる。それが規則の働きで、
      条文を読めるチームだけが先に手を打てる。
 
+     条文のデータは競技ごとに持つ（グランプリは data.js、ラリーは rallydata.js）。
      どの条文が来るかは規則期の番号から決まる。保存に持たないので、
      途中でデータを足しても、昔のセーブが壊れない。
      ======================================================= */
@@ -10692,11 +10751,12 @@ GP.state = (function () {
      そのたびに引き直していると、ただの無駄になる            */
   const _ruleCache = {};
   function ruleSet(g2) {
-    if (!isRally(g2)) return EMPTY;
-    const L = (GP.rallydata && GP.rallydata.RULES) || [];
+    const rally = isRally(g2);
+    const L = rally ? ((GP.rallydata && GP.rallydata.RULES) || []) : (D.RULES || []);
     if (!L.length) return EMPTY;
     const era = ruleEra(g2);
-    if (_ruleCache[era]) return _ruleCache[era];
+    const ck = (rally ? 'wrc' : 'f1') + ':' + era;
+    if (_ruleCache[ck]) return _ruleCache[ck];
     let h = ((era + 1) * 2654435761) >>> 0;
     const r = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
     const pool = L.slice();
@@ -10709,7 +10769,7 @@ GP.state = (function () {
     out.forEach(x => Object.keys(x.mul || {}).forEach(k2 => {
       out.mul[k2] = (out.mul[k2] || 1) * x.mul[k2];
     }));
-    _ruleCache[era] = out;
+    _ruleCache[ck] = out;
     return out;
   }
   /* その部位が、いまの規則でどれだけ効くか。
@@ -10749,6 +10809,9 @@ GP.state = (function () {
 
     // 自チーム：パーツと車体を新規則のものに置き換える
     g2.carGen = 0;
+    // 車が白紙になるので、方針も決め直せるようにしておく。
+    // 以前は世代番号が偶然そろって「決め直せ」と案内しながら決め直せなかった
+    g2.planGen = -1;
     const RG = D.REG_CARRY;
     D.PART_CATS.forEach(c => {
       const old2 = g2.equipped[c.key];
@@ -13508,7 +13571,7 @@ GP.state = (function () {
     const gd = g2.guide || {};
     return [
       { key: 'design', icon: '🖊️', name: '設計室で、何を作るか決める',
-        note: 'コンセプトは一度決めると外せません', tap: true,
+        note: '方針は一度決めると、オフまで変えられません', tap: true,
         done: !!conceptOf(g2) },
       { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
         note: 'コンセプトに沿ったパーツが手に入ります', tap: true,
@@ -13625,7 +13688,7 @@ GP.state = (function () {
       capPenalty: false,    // 前季に予算上限を超えたか
       managers: {},         // 役職（空席から始まる）
       fans: 500,
-      rp: 20,                       // 研究ポイント
+      rp: 32,                       // 研究ポイント。最初の1点（26）を作れる量にしてある
       nextRace: 0,                  // 次のレースのindex（第何戦か）
       calendar: null,               // 今年やる大会の並び（あとで組む）
       points: 0,                    // 今季コンストラクターズポイント
@@ -29206,7 +29269,7 @@ GP.screens.dev = function (A) {
       /* 説明は1行に詰める。2行あると、スマホでは4枚目が画面の外に出た。
          役に立っているのは下の「いまの状態」の行のほうなので、そちらは残す */
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
-        'ひらめきを図面に落とし、チームの技術を積む', 'des', cst.des) +
+        '車の方針を決め、ひらめきを図面に落とし、技術を積む', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
         '新しいパーツを作る（煮詰めるのは工房が毎週やっています）', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
@@ -29969,6 +30032,26 @@ GP.screens.dev = function (A) {
       // 掘り当てたものを図面に落とす
       body += ideaBoxHTML();
     } else if (desTab === 'plan') {
+      /* ---- この車の方針（コンセプト）----
+         手引きの「何を作るか決める」はここ。以前はオフの用事にしか
+         無く、1年目は手引きの1行目がいつまでも光ったままだった。
+         決められるのは、まだ決めていないとき・オフ・車を作り直した直後 */
+      {
+        const c = S.conceptOf(g);
+        const open = S.conceptOpen(g);
+        body += '<div class="erabox cnptbox' + (c ? '' : ' down') + '">' +
+          '<b>📋 この車の方針　' +
+          (c ? c.icon + ' ' + esc(c.name) : '<em class="warn">まだ決めていません</em>') + '</b>' +
+          '<small>' + (c
+            ? '沿った開発は速く進み、逆らう開発は上限が下がります。' +
+              (open ? '<b>いまなら決め直せます。</b>'
+                    : '次に決め直せるのは、オフか、車を作り直した直後です。')
+            : '何で戦う車にするかを先に決めると、沿った開発が速く進みます。' +
+              '決めるまでは、どの向きもふつうの速さです。') + '</small>' +
+          (open ? '<button class="btn small" data-plan="1">' +
+                    (c ? '決め直す' : '📋 方針を決める') + '</button>' : '') +
+          '</div>';
+      }
       /* ---- いまの規則を、どれだけ読めているか ----
          今季と来季の振り分けを決める材料なので、この札の上に置く。
          規則が変わった年は、プレイヤーも手探りをする（ライバルだけではない） */
@@ -30043,6 +30126,8 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); cmdDesign(b.dataset.dtab); };
     });
     bindTicket(() => cmdDesign());
+    // 車の方針を決める小窓は本拠地（オフの用事）と同じもの。戻り先だけ設計室にする
+    bindAct('data-plan', () => { if (A.planPicker) A.planPicker({ back: () => cmdDesign('plan') }); });
     // 開発リソースの配分も、パーツを叩く話なのでここで決める
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
       b.onclick = () => {
@@ -31591,7 +31676,7 @@ GP.screens.dev = function (A) {
     let h = '<div class="sub">よそへ供給する</div>';
     if (g.engine) {
       return h + '<p class="desc">いまは供給を<b>受けている</b>側です。' +
-        '人に配るには、まず自前のパワーユニットに戻す必要があります。</p>';
+        '人に配るには、まず自前のパワーユニットに戻してからです。</p>';
     }
     const rank = S.puRank01(g);
     h += '<div class="purank"><span>🔌 自前のパワーユニット <b>' +
@@ -31793,26 +31878,30 @@ GP.screens.dev = function (A) {
      以前は2枚目に「積んでいるもの」を置いていたが、
      🔧ガレージへ移した。直す場所と載せる場所が同じ画面にあると、
      ガレージとの違いが読めなくなっていた                        */
+  /* 整備したら信頼性がどこまで戻るか。
+     整備の画面と、本拠地のコマンドの札の両方がこれを使う。
+     以前は札が別の式（人の腕だけ）で計算していて、設備と備品のぶんが抜けていた */
+  function maintainPreview() {
+    const now = S.reliability(g);
+    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
+               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
+    const keep = {};
+    D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) keep[c.key] = p.cond; });
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + 21 * mech, 10, 100);
+      else if (p) p.cond = S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100);
+    });
+    const after = S.reliability(g);
+    D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+    return { now: now, after: after, mech: mech };
+  }
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
-    const now = S.reliability(g);
-    // 整備するとどこまで戻るかを、実際の式で先に出しておく
-    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
-               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
-    const after = (() => {
-      const keep = {};
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) keep[c.key] = p.cond; });
-      D.PART_CATS.forEach(c => {
-        const p = g.equipped[c.key];
-        if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + 21 * mech, 10, 100);
-        else if (p) p.cond = S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100);
-      });
-      const v = S.reliability(g);
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
-      return v;
-    })();
+    const mp = maintainPreview();
+    const now = mp.now, after = mp.after, mech = mp.mech;
 
     let body =
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
@@ -31988,15 +32077,26 @@ GP.screens.dev = function (A) {
     U.pop('🎓 ' + best.name, 'crit');
     endWeek();
   }
+  /* 練習の効きの倍率。設備・トレーナー・備品・性格で変わる */
+  function trainBonus(d) {
+    return (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+              + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+              + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
+           * S.persOf(d).train * S.rigMul(g, 'sim');
+  }
+  /* 練習1回で、その能力が平均どれだけ伸びるか。doTrain と同じ式の期待値。
+     本拠地の札はこれを出す。以前は伸び盛りと衰えの曲線を見ていなかったので、
+     ベテランほど実際より大きい数字が出ていた                          */
+  function trainExpect(d, stat) {
+    const gain = 3.3 * trainBonus(d) * (1 - d[stat] / 320) * D.GROWTH.base * S.growCurve(d);
+    return Math.max(0.5, Math.round(gain * 10) / 10);
+  }
   function doTrain(k, cost) {
     if (g.funds < cost) return U.toast('資金が足りません', 'bad');
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
-                     + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
-                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
-                * S.persOf(d).train * S.rigMul(g, 'sim');
+    const bonus = trainBonus(d);
     /* 伸びかたを乗せる。
        これまでは「いまの能力値」しか見ていなかったので、
        ルーキーもベテランも同じだけ伸びていた       */
@@ -32200,7 +32300,8 @@ GP.screens.dev = function (A) {
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML, bindMfg: bindMfg,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
-      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, trainHTML: trainHTML, bindTrain: bindTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain,
+      maintainPreview: maintainPreview, trainExpect: trainExpect, trainHTML: trainHTML, bindTrain: bindTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };
 
@@ -36555,8 +36656,8 @@ GP.screens.meet = function (A) {
             'せっかく施設を広げたのだから、人を入れないともったいない。';
     } else if (room <= 0) {
       say = '席が埋まりました（' + have + '/' + slots + '）。' +
-            'これ以上入れるには、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
-            '広げる必要があります。';
+            'これ以上入れるなら、' + (low ? low.f.icon + low.f.name + 'あたりから' : '施設を') +
+            '広げてからです。';
     } else if (low && low.lv <= 1) {
       say = low.f.icon + '<b>' + low.f.name + 'がまだ Lv.' + low.lv + '</b>です。' +
             esc(low.f.desc) + '。ここが足を引っぱっています。';
@@ -38104,11 +38205,15 @@ GP.screens.home = function (A) {
     return '<i class="cchip" style="background:' + c.color + '">' + c.icon + c.name + '</i>';
   }
 
-  function doOffPlan() {
+  function doOffPlan(opts) {
     /* ---- マシンコンセプト ----
        決めた向きはよく伸び、逆らう向きは上限そのものが下がる。
        いくら時間をかけてもコンセプトの外までは行けないので、
-       ここは1年ぶんの覚悟を決める場面になる                     */
+       ここは1年ぶんの覚悟を決める場面になる。
+       オフの用事として開くほか、設計室からも開ける（opts.back に戻り先）。
+       設計室から決めたときは、来季ぶんの仕込みは崩さず次の車に残す  */
+    opts = opts || {};
+    const off = !opts.back;
     const cur = g.plan || null;
     const stock = g.nextCar || 0;
     const db = S.designBase(g);
@@ -38134,7 +38239,7 @@ GP.screens.home = function (A) {
         : '<br><em class="warn">開発責任者が空席なので、図面の出来はスタッフの腕だけで決まります。</em>') +
       '</small></div>';
 
-    if (stock > 0) {
+    if (stock > 0 && off) {
       body += '<div class="stockbox"><b>🌱 積んである来季ぶんの開発：' +
         Math.round(S.nextCarProgress(g) * 100) + '%</b>' +
         '<small>方針を決めた時点で、この仕込みが<b>マシンに注ぎ込まれ</b>、' +
@@ -38160,18 +38265,20 @@ GP.screens.home = function (A) {
         (cur === d.key ? '<span class="pb-cost">選択中</span>' : '') + '</button>';
     });
     body += '</div>';
-    U.modal('📋 来季のマシン方針', body, [{ label: '閉じる', fn: U.closeModal }]);
+    U.modal(off ? '📋 来季のマシン方針' : '📋 この車の方針', body,
+      [{ label: '閉じる', fn: () => { U.closeModal(); if (opts.back) opts.back(); } }]);
     bindPick(k => {
       if (k.indexOf('plan:') !== 0) return;
       S.setConcept(g, k.slice(5));
-      offMark('plan');
+      if (off) offMark('plan');
       const d = D.CONCEPTS.find(x => x.key === g.plan);
-      // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む
-      const got = S.applyStock(g, g.plan);
+      // 積んであった仕込みを、その方向に厚くしてマシンへ落とし込む（オフのときだけ）
+      const got = off ? S.applyStock(g, g.plan) : null;
       S.save(g);
       U.closeModal();
-      U.toast(d.icon + ' 来季は「' + d.name + '」', 'good');
-      U.log(g, '📋 来季のマシン方針を「' + d.name + '」に決めた。');
+      U.toast(d.icon + (off ? ' 来季は「' : ' この車は「') + d.name + '」', 'good');
+      U.log(g, off ? '📋 来季のマシン方針を「' + d.name + '」に決めた。'
+                   : '📋 この車の方針を「' + d.name + '」に決めた。');
       if (got) {
         const top = got.parts.concat(got.body).sort((a, b) => b.gain - a.gain).slice(0, 3)
           .map(x => x.name + ' +' + x.gain).join('、');
@@ -38182,6 +38289,7 @@ GP.screens.home = function (A) {
         GP.sound.play('good');
       }
       render();
+      if (opts.back) opts.back();
     });
   }
 
@@ -39575,7 +39683,7 @@ GP.screens.home = function (A) {
            openGearBuy: openGearBuy, openGearList: openGearList,
            openKitBuy: openKitBuy, openEstateBuy: openEstateBuy, openPu: openPu,
            estateBoxHTML: estateBoxHTML, bindEstate: bindEstate,
-           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
+           bindAct: bindAct, puBoxHTML: puBoxHTML, bindPuBox: bindPuBox, cmdFacility: cmdFacility, askKart: askKart, gridPeople: gridPeople, cmdGrid: cmdGrid, refreshGrid: refreshGrid, planPicker: doOffPlan, leaveGrid: leaveGrid, doOffNext: doOffNext, enterOffseason: enterOffseason, weekFlags: weekFlags, yardPeople: yardPeople, yardMark: yardMark, bindHub: bindHub, cmdLogi: cmdLogi }
   };
 };
 
@@ -42186,8 +42294,7 @@ GP.ui = (function () {
         ? '<b>★ 今週が決勝です</b><span>「レースへ向かう！」を押してください</span>'
         : '<b>準備できるのは あと ' + left + ' 回</b>' +
           '<span class="pips">' + pips + '</span>' +
-          '<span>この戦は ' + hop.icon + ' <b>' + hop.name + '</b> なので、' +
-          'ぜんぶで <b>' + prep + '回</b>です</span>') +
+          '<span>' + hop.icon + ' ' + esc(hop.note) + '。準備は ぜんぶで <b>' + prep + '回</b></span>') +
       '</div>' +
       (nx ? '<div class="nextup">つぎは ' + nx.t.country + ' ' + esc(nx.t.name) +
             '　' + nx.h.icon + nx.h.name + '<b>準備 ' + nx.p + '回</b></div>' : '') +
@@ -44374,6 +44481,18 @@ window.GP = window.GP || {};
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
       S.pushNews(g, 'drvOut', d.name);
     });
+    /* 2人とも引退することがある。席が空いたまま開幕すると出走できないので、
+       リザーブ → 育成でいちばん育った子、の順でひとまず座らせる。
+       市場から誰を取るかは、人事でプレイヤーが決める                */
+    const seated = [];
+    while (g.drivers.length < 2) {
+      const r = S.promoteReserve(g);
+      if (r) { seated.push('🪑 ' + r.name + '（リザーブから）'); continue; }
+      const y = (g.youth || []).slice().sort((a, b) => S.driverRating(b) - S.driverRating(a))[0];
+      if (y && S.promoteYouth(g, y.id)) { seated.push('🎓 ' + y.name + '（育成から）'); continue; }
+      break;
+    }
+    if (seated.length) U.log(g, '🧑‍✈️ 空いた席に ' + seated.join('、') + ' を座らせた。', 'good');
     // スポンサーの達成ボーナス回数をリセット
     g.sponsors.forEach(sp2 => { sp2.hits = 0; });
     // 来季ぶんの仕込みは持ち越すが、使わないまま年を跨ぐと少し目減りする
@@ -44443,7 +44562,7 @@ window.GP = window.GP || {};
          一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
       const rd = S.myEraRead(g), fit = S.myEraFit(g);
       const fitPct = Math.round((fit - 1) * 100);
-      /* ラリー版では、条文そのものが変わる。
+      /* 条文そのものが変わる。
          何が禁止されて、何が義務になったのかを先に読ませる */
       const rset = S.ruleSet(g);
       const ruleHtml = rset.length
@@ -44508,7 +44627,11 @@ window.GP = window.GP || {};
       S.pushNews(g, 'reg', '新しい規則');
       GP.sound.play('light');
     }
-    if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
+    if (retired.length) {
+      U.toast(g.drivers.length < 2
+        ? '引退で席が空いています。開幕までに「人事」で契約しましょう'
+        : '引退したドライバーがいます。席はひとまず埋めました', 'warn');
+    }
   }
 
   /* ---- 審議の席で出る声 ----
@@ -44672,21 +44795,11 @@ window.GP = window.GP || {};
   function cmdHints() {
     const t = S.trackAt(g, g.nextRace);
     const h = {};
-    // 整備：信頼性がどこまで戻るか（cmdMaintain と同じ式）
+    // 整備：信頼性がどこまで戻るか（整備の画面と同じ関数 maintainPreview で出す）
     {
-      const now = S.reliability(g);
-      const mech = 1 + S.pitPower(g) * 0.13;
-      const keep = {};
-      D.PART_CATS.forEach(c => {
-        const p = g.equipped[c.key];
-        if (!p) return;
-        keep[c.key] = p.cond;
-        p.cond = c.key === 'pu'
-          ? S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100)
-          : S.clamp(p.cond + 21 * mech, 10, 100);
-      });
-      const after = S.reliability(g);
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+      const mp = A.maintainPreview ? A.maintainPreview() : null;
+      const now = mp ? mp.now : S.reliability(g);
+      const after = mp ? mp.after : now;
       h.cMaintain = Math.round(now) >= 99 ? '信頼性 99% 万全'
         : '信頼性 ' + Math.round(now) + '→' + Math.round(after);
     }
@@ -44695,16 +44808,10 @@ window.GP = window.GP || {};
       /* 押さなくても毎週進むぶん。押すのは、その上に足す一手 */
       h.cCar = '自動で 今週 +' + S.autoImpStep(g, 'pu').toFixed(1);
     }
-    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ倍率）
+    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ式 trainExpect で出す）
     {
       const d = (g.drivers || [])[0];
-      if (d) {
-        const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
-                         + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
-                         + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
-                    * S.persOf(d).train * S.rigMul(g, 'sim');
-        h.cDriver = '練習 能力 +' + (3.3 * bonus * (1 - d.speed / 320)).toFixed(1);
-      }
+      if (d && A.trainExpect) h.cDriver = '練習 能力 +' + A.trainExpect(d, 'speed').toFixed(1);
     }
     // 営業：プロモーションの見込み（doPromo と同じ式のならし）
     {
@@ -44722,7 +44829,12 @@ window.GP = window.GP || {};
                         : (up > 0 ? '調子 +' + up : 'みんな万全');
     }
     h.cMeet = '週は進まない';
-    h.cCrunch = (g.tired || 0) > 0 ? '反動が残っています' : '次の1回が2回ぶん';
+    {
+      const row = g.crunchRow || 0;
+      h.cCrunch = g.crunch ? '徹夜中。次の1回が2回ぶん'
+        : row > 0 ? '反動あり。' + (row + 1) + '回目は高くつく'
+        : '次の1回が2回ぶん';
+    }
     return h;
   }
 

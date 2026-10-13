@@ -1477,12 +1477,13 @@ GP.state = (function () {
   }
 
   /* =======================================================
-     技術規則（ラリー版）
+     技術規則
 
      4年にいちど、条文が書き換わる。書き換わると
-     「何に金をかけると速いか」が変わる——それが規則の働きで、
+     「何に金をかけると速いか」が変わる。それが規則の働きで、
      条文を読めるチームだけが先に手を打てる。
 
+     条文のデータは競技ごとに持つ（グランプリは data.js、ラリーは rallydata.js）。
      どの条文が来るかは規則期の番号から決まる。保存に持たないので、
      途中でデータを足しても、昔のセーブが壊れない。
      ======================================================= */
@@ -1496,11 +1497,12 @@ GP.state = (function () {
      そのたびに引き直していると、ただの無駄になる            */
   const _ruleCache = {};
   function ruleSet(g2) {
-    if (!isRally(g2)) return EMPTY;
-    const L = (GP.rallydata && GP.rallydata.RULES) || [];
+    const rally = isRally(g2);
+    const L = rally ? ((GP.rallydata && GP.rallydata.RULES) || []) : (D.RULES || []);
     if (!L.length) return EMPTY;
     const era = ruleEra(g2);
-    if (_ruleCache[era]) return _ruleCache[era];
+    const ck = (rally ? 'wrc' : 'f1') + ':' + era;
+    if (_ruleCache[ck]) return _ruleCache[ck];
     let h = ((era + 1) * 2654435761) >>> 0;
     const r = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
     const pool = L.slice();
@@ -1513,7 +1515,7 @@ GP.state = (function () {
     out.forEach(x => Object.keys(x.mul || {}).forEach(k2 => {
       out.mul[k2] = (out.mul[k2] || 1) * x.mul[k2];
     }));
-    _ruleCache[era] = out;
+    _ruleCache[ck] = out;
     return out;
   }
   /* その部位が、いまの規則でどれだけ効くか。
@@ -1553,6 +1555,9 @@ GP.state = (function () {
 
     // 自チーム：パーツと車体を新規則のものに置き換える
     g2.carGen = 0;
+    // 車が白紙になるので、方針も決め直せるようにしておく。
+    // 以前は世代番号が偶然そろって「決め直せ」と案内しながら決め直せなかった
+    g2.planGen = -1;
     const RG = D.REG_CARRY;
     D.PART_CATS.forEach(c => {
       const old2 = g2.equipped[c.key];
@@ -4312,7 +4317,7 @@ GP.state = (function () {
     const gd = g2.guide || {};
     return [
       { key: 'design', icon: '🖊️', name: '設計室で、何を作るか決める',
-        note: 'コンセプトは一度決めると外せません', tap: true,
+        note: '方針は一度決めると、オフまで変えられません', tap: true,
         done: !!conceptOf(g2) },
       { key: 'make', icon: '🏭', name: '工房で、パーツを作る',
         note: 'コンセプトに沿ったパーツが手に入ります', tap: true,
@@ -4429,7 +4434,7 @@ GP.state = (function () {
       capPenalty: false,    // 前季に予算上限を超えたか
       managers: {},         // 役職（空席から始まる）
       fans: 500,
-      rp: 20,                       // 研究ポイント
+      rp: 32,                       // 研究ポイント。最初の1点（26）を作れる量にしてある
       nextRace: 0,                  // 次のレースのindex（第何戦か）
       calendar: null,               // 今年やる大会の並び（あとで組む）
       points: 0,                    // 今季コンストラクターズポイント

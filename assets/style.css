@@ -648,6 +648,9 @@ table.rank tr.me td{background:#fff2c4;font-weight:bold}
 .erabox.big>b em{font-style:normal;font-size:12px;margin-left:auto;
   border:2px solid var(--ink);border-radius:6px;padding:0 7px;background:var(--paper2)}
 .erabox>b em{font-style:normal;font-size:11.5px;margin-left:8px;opacity:.9}
+/* 設計室の「この車の方針」。決めるボタンを札の中に置く */
+.erabox .btn{display:inline-block;flex:none;width:auto;min-width:0;margin-top:7px;
+  font-size:12px;padding:5px 14px}
 .erabox.up{border-left-color:var(--green,#4ea63f)}
 .erabox.down{border-left-color:var(--blueInk,#2a5aa8)}
 [data-skin="hd"] .erabox{background:rgba(75,61,104,.4);border-color:var(--gold)}

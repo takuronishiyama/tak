@@ -259,6 +259,61 @@ GP.data = (function () {
   /* ---------- オーナー（プレイヤー自身） ----------
      元ドライバーがチームを率いて世界一を目指す、という立ち位置。
      実績でランクが上がり、上がるたびにスキルポイントが手に入る。      */
+  /* =========================================================
+     技術規則（グランプリ版）
+
+     4年にいちど、規則がまるごと書き換わる。書き換わると
+     「何に金をかけると速いか」が変わる。それが規則のいちばん大事な
+     働きで、条文を読めるチームだけが先に手を打てる。
+
+     mul は、その部位が車にどれだけ効くかの倍率。
+     上下は釣り合わせてあるので、規則が変わっても車全体は遅くならない。
+     変わるのは「どこに金をかけると速いか」だけ。
+     ラリー版の条文は rallydata.js にある。引きかたは state.js の ruleSet
+     ========================================================= */
+  const RULES = [
+    { key: 'floor', icon: '🧲', name: 'グラウンドエフェクトの解禁',
+      line: '床下で空気を吸いつける形を認める',
+      mul: { aero: 1.18, susp: 1.08, chas: 0.88, pu: 0.94 },
+      note: '床で曲がる年。車高の管理が足まわりの仕事になり、重い車体は損をする' },
+    { key: 'fuelflow', icon: '⛽', name: '燃料流量の上限',
+      line: '1時間に燃やせる燃料に天井を置く',
+      mul: { pu: 0.82, elec: 1.14, gear: 1.06 },
+      note: '踏みっぱなしでは速くならない。回生と変速で稼ぐ' },
+    { key: 'drsban', icon: '📏', name: '可動ウイングの禁止',
+      line: '走行中にウイングの角度を変えてはならない',
+      mul: { aero: 0.84, pu: 1.12, gear: 1.06 },
+      note: '直線で翼を寝かせられない。素のパワーがそのまま最高速になる' },
+    { key: 'minweight', icon: '⚖️', name: '最低重量の引き上げ',
+      line: '車検場の秤に乗る重さの下限が上がる',
+      mul: { chas: 0.86, pu: 1.10, brake: 1.06 },
+      note: '軽さで稼げないぶん、押し出す力と止める力がものを言う' },
+    { key: 'pufreeze', icon: '🧊', name: 'パワーユニットの開発凍結',
+      line: 'シーズン中はパワーユニットの仕様を変えてはならない',
+      mul: { pu: 0.80, aero: 1.12, chas: 1.08 },
+      note: 'エンジンで差をつけられない。空力と車体の年になる' },
+    { key: 'brakespec', icon: '🛑', name: 'ブレーキ素材の統一',
+      line: '全車が同じ素材のディスクとパッドを使う',
+      mul: { brake: 0.84, susp: 1.10, elec: 1.06 },
+      note: '止めかたで差がつかない。踏んだ先の足の動きと制御で稼ぐ' },
+    { key: 'noblanket', icon: '🛞', name: 'タイヤウォーマーの禁止',
+      line: '冷えたタイヤのままコースに出る',
+      mul: { susp: 1.16, brake: 1.04, aero: 0.90, gear: 0.94 },
+      note: '温まるまでの数周で順位が動く。足の合わせ込みがそのまま差になる' },
+    { key: 'ersboost', icon: '🔋', name: '電動出力の引き上げ',
+      line: '回生した電気で出せる力の上限を倍にする',
+      mul: { elec: 1.22, pu: 0.92, chas: 0.92 },
+      note: '電気が主役になる。重くなったぶん車体は不利' },
+    { key: 'gearseal', icon: '🔀', name: 'ギアボックスの使用数制限',
+      line: '年間で使える基数を減らし、封印する',
+      mul: { gear: 0.82, pu: 1.10, brake: 1.06 },
+      note: 'ギアを酷使できない。壊さず、ほかで稼ぐ' },
+    { key: 'wingcut', icon: '🪽', name: '前後ウイングの幅の縮小',
+      line: '翼の幅と枚数を減らす',
+      mul: { aero: 0.80, susp: 1.12, chas: 1.08 },
+      note: '翼で押しつけられない。機械的なグリップの年' }
+  ];
+
   const OWNER_RANKS = [
     { need: 0,     name: '無名のオーナー',   icon: '🥚' },
     { need: 250,   name: '駆け出しのオーナー', icon: '🐣' },
@@ -3725,7 +3780,7 @@ GP.data = (function () {
     { key: 'storm', name: '大雨',   icon: '⛈️', grip: 0.87, chaos: 2.20, wetTo: 0.92 }
   ];
 
-  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS,
+  return { ORDERS, LOGI_BASE, LOGI_PLANS, LOGI_LOADS, LOGI_CREWS, RIVAL_LOGI, RIVAL_LATE, MISSION, LOGI_SPARE_FIX, LOGI_DELAY_COND, LOGI_DELAY_FATIGUE, CREW_FULL, PIT_STAND_BASE, PIT_STAND_MIN, PIT_STAND_CURVE, PIT_STAND_RIVAL, PIT_STAND_SPREAD, SC_PACE, SC_LAP, SC_CALL, SC_QUEUE, SECTOR_YELLOW, PIT_LANE, PASS, UC, DEG, TICKET, PIT_FUMBLE_BASE, PIT_FUMBLE_MIN, FAN_TIERS, FAN_INCOME, SPONSOR_BONUS_CAP, RULES, OWNER_RANKS, FAME, fameOf, OWNER_SKILLS, OWNER_SKILL_MAX, OWNER_PASTS, STRAT_STYLES, STRAT_STYLE_KEYS, DRIVER_OUT, GROWTH, TRACKS, THEMES, TRACK_THEME, DIFFICULTIES, OIL_SPONSOR, POTENTIAL, RESEARCH, PART_CATS, QUALITY, QUAL, LINE, MATERIALS,
            BODY_ATTRS, DRIVER_ATTRS, PART_GROUPS, PACKAGING, PACK, CHASSIS, CHASSIS_TRAITS, CHASSIS_EDGE, CAR_DIRS, AMP, INTEG, SPARE, SPARE_REPAIR_CUT, PARTCAP, MFG_PLANS, AUTOIMP, AUTOINT, INTPLANS, WEEKEND_HIT, CREW_BOOST, CONCEPTS, CONCEPT, MECH_SYNERGY, MECH_FLOOR, BODY_CAP_RATIO, RIGS, RIVAL_LEVEL, BODY_CARRY, REG_CARRY, ERA_STEP, FOCUS_LEVELS, CARRY_TO_NEXT, PART_TRAITS, TECH, CAR_GENS, SKILLS, FACILITIES, STAFF_SLOTS, STAFF_SCOUT,
            RACES, REGIONS, CALENDAR, SPONSOR_KINDS, UPKEEP, SUPPLIERS, SUPPLY, GEAR, ENVW, ESTATES, KART, PERKS, PERK_CAP, TITLE_SPONSORS, NATIONS, CARE_TIERS, CARE_CRASH, CARE_MISS, PERSONALITIES, QUOTES, SPECIALS, PACE, TEMP, TYRE_TEMP, TYRE_GONE, TYRES, DRY_TYRES, TYRE_ALLOC, FP_TYRE, FP_SAVE_SETS, TYRE_READ, Q_PLANS, RIVAL_RUN, WET_MISMATCH, WET_MISMATCH2, WET_ON_DRY_PACE, ENV, REPAIR, ENGINE, RUBBER, PU_SUPPLY, RACEKIT, WET_LEVELS, MANAGERS, COURSES, SCHOOL, FIA, PAID, COMPLAINTS, PRAISES, BRIEF_REPLIES, TRUST, BRIEF, ERS, HYPE_TIERS, HYPE_BY_POS, FASTEST_LAP_POINT, FIRST, LAST, LAST_ABBR, abbr3, RIVALS, SPONSORS, STAFF_TYPES, GROUP_PLACES, GROUPS, SYNERGY, FRICTION, ORG, STAFF_RANKS, STAFF_CHIEF_MENTOR, STAFF_TRAITS, STAFF_TRAIT_CROSS, POINTS, PRIZE, ATR, ATR_LABEL, INNOV, RIVAL_DEV, RIVAL_OWNER, IDEA, IDEA_NAMES, INNOV_UP, TREND, WORKSHOP, DEPOT, TD, PRESS, PRESS_FRESH, ADUO_FROM, ADUO_CATCH, ADUO_HALF, ADUO_LEVELS, PENALTIES, TRACK_LIMITS, QUALI, Q_EVENTS, Q_TALK, R_TALK, BLUE, SPLIT, TROUBLES, TROUBLE_RATE, DF_REF, WEAR_DF, PU_LIMIT, PU_PENALTY, PU_PENALTY_NEXT, PU_PENALTY_BACK, PU_BASE_WEAR, PU_FRESH_COST, PU_SWAP_COST, PU_TIRED_FROM, PU_TIRED, PU_PERF_DROP, PU_KEEP_MIN, PU_NURSE, PU_MODES, COST_CAP, COST_CAP_GROW, COST_CAP_FINE, COST_CAP_ATR, WEATHER };
 })();

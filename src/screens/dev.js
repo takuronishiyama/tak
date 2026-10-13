@@ -144,7 +144,7 @@ GP.screens.dev = function (A) {
       /* 説明は1行に詰める。2行あると、スマホでは4枚目が画面の外に出た。
          役に立っているのは下の「いまの状態」の行のほうなので、そちらは残す */
       carPickHTML('🖊️', '設計室', '① 何を作るか決める',
-        'ひらめきを図面に落とし、チームの技術を積む', 'des', cst.des) +
+        '車の方針を決め、ひらめきを図面に落とし、技術を積む', 'des', cst.des) +
       carPickHTML('🏭', '工房', '② 図面を形にする',
         '新しいパーツを作る（煮詰めるのは工房が毎週やっています）', 'shop', cst.shop) +
       carPickHTML('🔧', 'ガレージ', '③ 載せて作り込む',
@@ -907,6 +907,26 @@ GP.screens.dev = function (A) {
       // 掘り当てたものを図面に落とす
       body += ideaBoxHTML();
     } else if (desTab === 'plan') {
+      /* ---- この車の方針（コンセプト）----
+         手引きの「何を作るか決める」はここ。以前はオフの用事にしか
+         無く、1年目は手引きの1行目がいつまでも光ったままだった。
+         決められるのは、まだ決めていないとき・オフ・車を作り直した直後 */
+      {
+        const c = S.conceptOf(g);
+        const open = S.conceptOpen(g);
+        body += '<div class="erabox cnptbox' + (c ? '' : ' down') + '">' +
+          '<b>📋 この車の方針　' +
+          (c ? c.icon + ' ' + esc(c.name) : '<em class="warn">まだ決めていません</em>') + '</b>' +
+          '<small>' + (c
+            ? '沿った開発は速く進み、逆らう開発は上限が下がります。' +
+              (open ? '<b>いまなら決め直せます。</b>'
+                    : '次に決め直せるのは、オフか、車を作り直した直後です。')
+            : '何で戦う車にするかを先に決めると、沿った開発が速く進みます。' +
+              '決めるまでは、どの向きもふつうの速さです。') + '</small>' +
+          (open ? '<button class="btn small" data-plan="1">' +
+                    (c ? '決め直す' : '📋 方針を決める') + '</button>' : '') +
+          '</div>';
+      }
       /* ---- いまの規則を、どれだけ読めているか ----
          今季と来季の振り分けを決める材料なので、この札の上に置く。
          規則が変わった年は、プレイヤーも手探りをする（ライバルだけではない） */
@@ -981,6 +1001,8 @@ GP.screens.dev = function (A) {
       b.onclick = () => { GP.sound.play('tap'); cmdDesign(b.dataset.dtab); };
     });
     bindTicket(() => cmdDesign());
+    // 車の方針を決める小窓は本拠地（オフの用事）と同じもの。戻り先だけ設計室にする
+    bindAct('data-plan', () => { if (A.planPicker) A.planPicker({ back: () => cmdDesign('plan') }); });
     // 開発リソースの配分も、パーツを叩く話なのでここで決める
     Array.prototype.forEach.call($('modalBody').querySelectorAll('.focusbtn'), b => {
       b.onclick = () => {
@@ -2529,7 +2551,7 @@ GP.screens.dev = function (A) {
     let h = '<div class="sub">よそへ供給する</div>';
     if (g.engine) {
       return h + '<p class="desc">いまは供給を<b>受けている</b>側です。' +
-        '人に配るには、まず自前のパワーユニットに戻す必要があります。</p>';
+        '人に配るには、まず自前のパワーユニットに戻してからです。</p>';
     }
     const rank = S.puRank01(g);
     h += '<div class="purank"><span>🔌 自前のパワーユニット <b>' +
@@ -2731,26 +2753,30 @@ GP.screens.dev = function (A) {
      以前は2枚目に「積んでいるもの」を置いていたが、
      🔧ガレージへ移した。直す場所と載せる場所が同じ画面にあると、
      ガレージとの違いが読めなくなっていた                        */
+  /* 整備したら信頼性がどこまで戻るか。
+     整備の画面と、本拠地のコマンドの札の両方がこれを使う。
+     以前は札が別の式（人の腕だけ）で計算していて、設備と備品のぶんが抜けていた */
+  function maintainPreview() {
+    const now = S.reliability(g);
+    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
+               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
+    const keep = {};
+    D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) keep[c.key] = p.cond; });
+    D.PART_CATS.forEach(c => {
+      const p = g.equipped[c.key];
+      if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + 21 * mech, 10, 100);
+      else if (p) p.cond = S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100);
+    });
+    const after = S.reliability(g);
+    D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+    return { now: now, after: after, mech: mech };
+  }
   function cmdMaintain() {
     const sum = D.PART_CATS.reduce((a, c) => a + (g.equipped[c.key] ? g.equipped[c.key].power : 0), 0);
     const cost = Math.round(400 + sum * 6);
     const t = S.trackAt(g, g.nextRace);
-    const now = S.reliability(g);
-    // 整備するとどこまで戻るかを、実際の式で先に出しておく
-    const mech = (1 + S.pitPower(g) * 0.2 + g.facilities.pit * 0.08)
-               * (S.hasGear(g, 'pit', 'rig2') ? 1.25 : 1);
-    const after = (() => {
-      const keep = {};
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) keep[c.key] = p.cond; });
-      D.PART_CATS.forEach(c => {
-        const p = g.equipped[c.key];
-        if (p && c.key !== 'pu') p.cond = S.clamp(p.cond + 21 * mech, 10, 100);
-        else if (p) p.cond = S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100);
-      });
-      const v = S.reliability(g);
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
-      return v;
-    })();
+    const mp = maintainPreview();
+    const now = mp.now, after = mp.after, mech = mp.mech;
 
     let body =
       '<p class="lead">マシンを分解整備して信頼性を回復します。</p>' +
@@ -2926,15 +2952,26 @@ GP.screens.dev = function (A) {
     U.pop('🎓 ' + best.name, 'crit');
     endWeek();
   }
+  /* 練習の効きの倍率。設備・トレーナー・備品・性格で変わる */
+  function trainBonus(d) {
+    return (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
+              + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
+              + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
+           * S.persOf(d).train * S.rigMul(g, 'sim');
+  }
+  /* 練習1回で、その能力が平均どれだけ伸びるか。doTrain と同じ式の期待値。
+     本拠地の札はこれを出す。以前は伸び盛りと衰えの曲線を見ていなかったので、
+     ベテランほど実際より大きい数字が出ていた                          */
+  function trainExpect(d, stat) {
+    const gain = 3.3 * trainBonus(d) * (1 - d[stat] / 320) * D.GROWTH.base * S.growCurve(d);
+    return Math.max(0.5, Math.round(gain * 10) / 10);
+  }
   function doTrain(k, cost) {
     if (g.funds < cost) return U.toast('資金が足りません', 'bad');
     const [i, stat] = k.split(':');
     const d = g.drivers[+i];
     g.funds -= cost;
-    const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
-                     + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
-                     + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
-                * S.persOf(d).train * S.rigMul(g, 'sim');
+    const bonus = trainBonus(d);
     /* 伸びかたを乗せる。
        これまでは「いまの能力値」しか見ていなかったので、
        ルーキーもベテランも同じだけ伸びていた       */
@@ -3138,6 +3175,7 @@ GP.screens.dev = function (A) {
     setG: function (v) { g = v; },
     api: { spareBoxHTML: spareBoxHTML, bindMfg: bindMfg,
       cmdEngine: cmdEngine, cmdCar: cmdCar, cmdDriverMenu: cmdDriverMenu, cmdImprove: cmdImprove,
-      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain, trainHTML: trainHTML, bindTrain: bindTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
+      cmdDesign: cmdDesign, cmdShop: cmdShop, cmdCrunch: cmdCrunch, crunchConsume: crunchConsume, cmdResearch: cmdResearch, cmdMaintain: cmdMaintain, cmdTrain: cmdTrain,
+      maintainPreview: maintainPreview, trainExpect: trainExpect, trainHTML: trainHTML, bindTrain: bindTrain, rigBoxHTML: rigBoxHTML, aduoBoxHTML: aduoBoxHTML }
   };
 };

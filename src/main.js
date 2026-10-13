@@ -1036,6 +1036,18 @@ window.GP = window.GP || {};
       U.log(g, '👋 ' + d.name + ' が引退を表明した。長い間おつかれさま。', 'warn');
       S.pushNews(g, 'drvOut', d.name);
     });
+    /* 2人とも引退することがある。席が空いたまま開幕すると出走できないので、
+       リザーブ → 育成でいちばん育った子、の順でひとまず座らせる。
+       市場から誰を取るかは、人事でプレイヤーが決める                */
+    const seated = [];
+    while (g.drivers.length < 2) {
+      const r = S.promoteReserve(g);
+      if (r) { seated.push('🪑 ' + r.name + '（リザーブから）'); continue; }
+      const y = (g.youth || []).slice().sort((a, b) => S.driverRating(b) - S.driverRating(a))[0];
+      if (y && S.promoteYouth(g, y.id)) { seated.push('🎓 ' + y.name + '（育成から）'); continue; }
+      break;
+    }
+    if (seated.length) U.log(g, '🧑‍✈️ 空いた席に ' + seated.join('、') + ' を座らせた。', 'good');
     // スポンサーの達成ボーナス回数をリセット
     g.sponsors.forEach(sp2 => { sp2.hits = 0; });
     // 来季ぶんの仕込みは持ち越すが、使わないまま年を跨ぐと少し目減りする
@@ -1105,7 +1117,7 @@ window.GP = window.GP || {};
          一枚で見せる。読みは年の頭に引き直され、その規則のあいだ変わらない  */
       const rd = S.myEraRead(g), fit = S.myEraFit(g);
       const fitPct = Math.round((fit - 1) * 100);
-      /* ラリー版では、条文そのものが変わる。
+      /* 条文そのものが変わる。
          何が禁止されて、何が義務になったのかを先に読ませる */
       const rset = S.ruleSet(g);
       const ruleHtml = rset.length
@@ -1170,7 +1182,11 @@ window.GP = window.GP || {};
       S.pushNews(g, 'reg', '新しい規則');
       GP.sound.play('light');
     }
-    if (retired.length) U.toast('引退したドライバーがいます。「人事」で補充しましょう。', 'warn');
+    if (retired.length) {
+      U.toast(g.drivers.length < 2
+        ? '引退で席が空いています。開幕までに「人事」で契約しましょう'
+        : '引退したドライバーがいます。席はひとまず埋めました', 'warn');
+    }
   }
 
   /* ---- 審議の席で出る声 ----
@@ -1334,21 +1350,11 @@ window.GP = window.GP || {};
   function cmdHints() {
     const t = S.trackAt(g, g.nextRace);
     const h = {};
-    // 整備：信頼性がどこまで戻るか（cmdMaintain と同じ式）
+    // 整備：信頼性がどこまで戻るか（整備の画面と同じ関数 maintainPreview で出す）
     {
-      const now = S.reliability(g);
-      const mech = 1 + S.pitPower(g) * 0.13;
-      const keep = {};
-      D.PART_CATS.forEach(c => {
-        const p = g.equipped[c.key];
-        if (!p) return;
-        keep[c.key] = p.cond;
-        p.cond = c.key === 'pu'
-          ? S.clamp(p.cond + 12 * (1 + S.pitPower(g) * 0.18), 0, 100)
-          : S.clamp(p.cond + 21 * mech, 10, 100);
-      });
-      const after = S.reliability(g);
-      D.PART_CATS.forEach(c => { const p = g.equipped[c.key]; if (p) p.cond = keep[c.key]; });
+      const mp = A.maintainPreview ? A.maintainPreview() : null;
+      const now = mp ? mp.now : S.reliability(g);
+      const after = mp ? mp.after : now;
       h.cMaintain = Math.round(now) >= 99 ? '信頼性 99% 万全'
         : '信頼性 ' + Math.round(now) + '→' + Math.round(after);
     }
@@ -1357,16 +1363,10 @@ window.GP = window.GP || {};
       /* 押さなくても毎週進むぶん。押すのは、その上に足す一手 */
       h.cCar = '自動で 今週 +' + S.autoImpStep(g, 'pu').toFixed(1);
     }
-    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ倍率）
+    // ドライバー：練習で能力がどれだけ伸びるか（doTrain と同じ式 trainExpect で出す）
     {
       const d = (g.drivers || [])[0];
-      if (d) {
-        const bonus = (1 + g.facilities.sim * 0.14 + S.trainPower(g) * 0.16
-                         + (S.hasGear(g, 'sim', 'rig') ? 0.12 : 0)
-                         + (S.hasGear(g, 'sim', 'eye') ? 0.08 : 0))
-                    * S.persOf(d).train * S.rigMul(g, 'sim');
-        h.cDriver = '練習 能力 +' + (3.3 * bonus * (1 - d.speed / 320)).toFixed(1);
-      }
+      if (d && A.trainExpect) h.cDriver = '練習 能力 +' + A.trainExpect(d, 'speed').toFixed(1);
     }
     // 営業：プロモーションの見込み（doPromo と同じ式のならし）
     {
@@ -1384,7 +1384,12 @@ window.GP = window.GP || {};
                         : (up > 0 ? '調子 +' + up : 'みんな万全');
     }
     h.cMeet = '週は進まない';
-    h.cCrunch = (g.tired || 0) > 0 ? '反動が残っています' : '次の1回が2回ぶん';
+    {
+      const row = g.crunchRow || 0;
+      h.cCrunch = g.crunch ? '徹夜中。次の1回が2回ぶん'
+        : row > 0 ? '反動あり。' + (row + 1) + '回目は高くつく'
+        : '次の1回が2回ぶん';
+    }
     return h;
   }
 
