@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+numpy
+fastembed
+anthropic
+sounddevice
+mlx-whisper; sys_platform == "darwin" and platform_machine == "arm64"
+faster-whisper; sys_platform != "darwin" or platform_machine != "arm64"
