@@ -26,6 +26,11 @@
   #phase { display: inline-block; margin-left: 8px; padding: 0 9px; border-radius: 10px; font-size: 11px; letter-spacing: 0;
     background: var(--accent); color: #14161b; font-weight: 700; vertical-align: 1px; }
   #phase:empty { display: none; }
+  #recent { grid-column: 1 / -1; margin-top: 4px; }
+  #words { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+  #words span { padding: 1px 10px; border-radius: 12px; border: 1px solid; font-size: 13px; white-space: nowrap; }
+  #words span.new { font-weight: 700; color: #14161b !important; }
+  .kw { text-anchor: middle; fill: #c3c9d6; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
 
   /* 下：話題の移り変わり */
   #flow { left: 14px; right: 14px; bottom: 14px; padding: 10px 14px 8px; }
@@ -71,7 +76,7 @@
     border-radius: 6px; padding: 6px 8px; font: inherit; }
 
   .tlabel { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; paint-order: stroke;
-    stroke: var(--bg); stroke-width: 5px; pointer-events: none; }
+    stroke: var(--bg); stroke-width: 5px; }
   .tlabel.draft { fill: var(--muted); font-weight: 400; font-size: 13px; }
   .ring { fill: none; stroke: var(--accent); stroke-width: 3; opacity: 0; }
   .topic.cur .ring { opacity: 1; }
@@ -95,6 +100,7 @@
   <div id="head" class="card">
     <div><h2>いま話していること</h2><div id="now"></div></div>
     <div><h2>議論の向き<span id="phase"></span></h2><div id="dir"></div></div>
+    <div id="recent"><h2>いま出てきたワード</h2><div id="words"></div></div>
   </div>
   <div id="flow" class="card">
     <h2>話題の移り変わり <span class="muted" style="letter-spacing:0;font-weight:400">（左から右へ時間が進みます）</span>
@@ -145,10 +151,10 @@ const centerY = () => {   // 上下のカードを避けた中央
 };
 
 const sim = d3.forceSimulation()
-  .force("charge", d3.forceManyBody().strength(d => d.kind === "t" ? -900 : -25))
+  .force("charge", d3.forceManyBody().strength(d => d.kind === "t" ? -1200 : -25))
   .force("x", d3.forceX(() => $("#map").clientWidth / 2).strength(0.03))
   .force("y", d3.forceY(centerY).strength(0.09))
-  .force("collide", d3.forceCollide(d => d.kind === "t" ? tr(d.data) + 34 : 6))
+  .force("collide", d3.forceCollide(d => d.kind === "t" ? tr(d.data) + 50 : 6))
   .on("tick", tick);
 
 function syncGraph() {
@@ -222,6 +228,7 @@ function syncGraph() {
       g.append("circle").attr("class", "hit").attr("fill", "#14161b");
       g.append("g").attr("class", "pie");
       g.append("text").attr("class", "tlabel");
+      g.append("text").attr("class", "kw");
       return g;
     })
     .classed("cur", d => d.data.id === state.current_topic)
@@ -235,6 +242,17 @@ function syncGraph() {
         .attr("fill", a => color(a.data[0])).attr("stroke", "#14161b").attr("stroke-width", 1.5);
       g.select(".tlabel").attr("y", r + 40).classed("draft", !d.data.labeled)
         .text(d.data.label + (d.data.labeled ? "" : "…"));
+      // その話題で出てきたワード：多く出た語ほど大きく、1行12文字を目安に折り返す
+      const lines = [[]];
+      for (const [w, n] of d.data.words.filter(([w]) => w !== d.data.label)) {
+        const cur = lines[lines.length - 1];
+        if (cur.length && cur.reduce((a, x) => a + x[0].length + 1, 0) + w.length > 12) lines.push([[w, n]]);
+        else cur.push([w, n]);
+      }
+      g.select(".kw").attr("y", r + 44).selectAll("tspan.l").data(lines.filter(l => l.length)).join("tspan")
+        .attr("class", "l").attr("x", 0).attr("dy", "1.5em")
+        .selectAll("tspan").data(l => l).join("tspan")
+        .attr("font-size", ([, n]) => Math.min(12 + (n - 1) * 1.5, 17)).text(([w], i) => (i ? "・" : "") + w);
     });
 }
 
@@ -311,6 +329,12 @@ function render() {
   $("#dir").textContent = state.direction || wait;
   $("#dir").style.cssText = state.direction ? "" : "font-size:13px;font-weight:400;color:var(--muted)";
   $("#phase").textContent = state.phase;
+  // 直近の発言から、新しく出た順にワードを並べる（色＝その語を言った人、塗りつぶし＝最新の発言）
+  const seen = new Map(), lastId = state.utts.length - 1;
+  for (const u of state.utts.slice(-8)) for (const w of u.words) { seen.delete(w); seen.set(w, u); }
+  $("#words").innerHTML = [...seen].slice(-16).reverse().map(([w, u]) =>
+    `<span class="${u.id === lastId ? "new" : ""}" style="color:${color(u.speaker)};border-color:${color(u.speaker)};` +
+    `${u.id === lastId ? `background:${color(u.speaker)}` : ""}">${esc(w)}</span>`).join("") || '<span class="muted" style="border:0;padding:0">—</span>';
 
   const list = (title, items) => `<h2>${title}</h2>` +
     (items.length ? `<ul>${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : `<ul class="muted" style="list-style:none;padding:0">${state.direction ? "まだありません" : wait}</ul>`);

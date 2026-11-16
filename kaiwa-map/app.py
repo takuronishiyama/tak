@@ -66,6 +66,18 @@ class Embedder:
         return v
 
 
+# ---------- 出てきたワードの抜き出し ----------
+
+WORD_RE = re.compile(r"[一-龥々ヶ]{2,8}|[ァ-ヴー]{3,}|[A-Za-z][A-Za-z0-9]+")
+STOP = set("今日 明日 昨日 今年 去年 来年 今回 次回 前回 最初 最後 必要 場合 感じ 自分 本当 大丈夫 以上 以下 一つ 二つ "
+           "意味 一番 全部 一緒 最近 結構 多分 普通 問題 部分 以外 時間 可能 現実的 効率的 今年度".split())
+
+
+def extract_words(text: str) -> list[str]:
+    """漢字・カタカナ・英字のまとまりを語として拾う（形態素解析なしの簡易版）。"""
+    return list(dict.fromkeys(w for w in WORD_RE.findall(text) if w not in STOP))
+
+
 # ---------- 会話の状態 ----------
 
 class Board:
@@ -101,7 +113,8 @@ class Board:
             topic["sum"] = topic["sum"] + vec
             n = float(np.linalg.norm(topic["sum"]))
             topic["centroid"] = topic["sum"] / n if n else vec
-        utt = {"id": len(self.utts), "t": time.time(), "speaker": speaker, "text": text, "topic": topic["id"]}
+        utt = {"id": len(self.utts), "t": time.time(), "speaker": speaker, "text": text, "topic": topic["id"],
+               "words": extract_words(text)}
         topic["utts"].append(utt["id"])
         self.utts.append(utt)
         self.vecs.append(vec)
@@ -135,14 +148,24 @@ class Board:
         names = list(dict.fromkeys([u["speaker"] for u in self.utts] + self.extra_speakers + [self.current_speaker]))
         counts = {n: 0 for n in names}
         topics = []
+        tf: list[dict[str, int]] = []  # 話題ごとの語の出現数
+        for t in self.topics:
+            c: dict[str, int] = {}
+            for uid in t["utts"]:
+                for w in self.utts[uid]["words"]:
+                    c[w] = c.get(w, 0) + 1
+            tf.append(c)
         for t in self.topics:
             shares: dict[str, int] = {}
             for uid in t["utts"]:
                 sp = self.utts[uid]["speaker"]
                 shares[sp] = shares.get(sp, 0) + 1
                 counts[sp] += 1
+            # その話題でよく出て、ほかの話題にはあまり出ない語を上位に
+            score = lambda w, n: n * (1 + np.log(len(tf) / sum(1 for c in tf if w in c)))
+            words = sorted(tf[t["id"]].items(), key=lambda kv: -score(*kv))[:5]
             topics.append({"id": t["id"], "label": t["label"] or t["fallback"], "labeled": bool(t["label"]),
-                           "summary": t["summary"], "count": len(t["utts"]), "shares": shares})
+                           "summary": t["summary"], "count": len(t["utts"]), "shares": shares, "words": words})
         links = []
         for i, a in enumerate(self.topics):
             for b in self.topics[i + 1 :]:
