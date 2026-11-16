@@ -80,10 +80,13 @@ class Board:
         self.utts: list[dict] = []
         self.topics: list[dict] = []
         self.vecs: list[np.ndarray] = []
-        self.flow: dict[tuple[int, int], int] = {}
         self.stances: dict[str, str] = {}
         self.extra_speakers: list[str] = []
         self.now = ""
+        self.direction = ""
+        self.phase = ""
+        self.decided: list[str] = []
+        self.open: list[str] = []
         self.current_topic: int | None = None
 
     def add(self, speaker: str, text: str) -> dict:
@@ -102,9 +105,6 @@ class Board:
         topic["utts"].append(utt["id"])
         self.utts.append(utt)
         self.vecs.append(vec)
-        prev = self.current_topic
-        if prev is not None and prev != topic["id"]:
-            self.flow[(prev, topic["id"])] = self.flow.get((prev, topic["id"]), 0) + 1
         self.current_topic = topic["id"]
         return utt
 
@@ -119,6 +119,17 @@ class Board:
             sims[cur["id"]] += 0.05  # 話の流れは続きやすいので少しひいきする
         best = int(sims.argmax())
         return self.topics[best] if sims[best] >= self.join_th else None
+
+    def motion(self) -> str:
+        """直近10発言の動き方（Claude なしでも出せる、議論の向きの目安）。"""
+        recent = self.utts[-10:]
+        if len(self.utts) < 4:
+            return ""
+        new = sum(1 for t in self.topics if t["utts"][0] >= recent[0]["id"])
+        switches = sum(1 for a, b in zip(recent, recent[1:]) if a["topic"] != b["topic"])
+        if new >= 2:
+            return "広がっている"
+        return "行き来している" if switches >= 4 else "深まっている"
 
     def snapshot(self) -> dict:
         names = list(dict.fromkeys([u["speaker"] for u in self.utts] + self.extra_speakers + [self.current_speaker]))
@@ -144,9 +155,12 @@ class Board:
             "topics": topics,
             "utts": self.utts,
             "links": links,
-            "flow": [{"a": a, "b": b, "n": n} for (a, b), n in self.flow.items()],
             "current_topic": self.current_topic,
             "now": self.now,
+            "direction": self.direction,
+            "phase": self.phase or self.motion(),
+            "decided": self.decided,
+            "open": self.open,
             "status": self.status,
         }
 
@@ -160,6 +174,10 @@ INSIGHT_SYSTEM = """あなたは進行中の会議をリアルタイムで整理
 - label: その話題を表す短い名前（12文字以内、体言止め）。発言が少なく判断できない場合も、最もありそうな名前を付ける。
 - summary: その話題で何が話されたかを1文で。決まったこと・割れている点があれば含める。
 - now: いま会議全体で焦点になっている論点を1〜2文で。
+- direction: 議論全体がどこへ向かっているかを1文で（例：「会場を先に確定させ、それに合わせて予算を組み直す方向」）。
+- phase: 議論のいまの状態を選択肢から1つ。
+- decided: ここまでに合意・決定したこと（短い箇条書き、なければ空）。はっきり合意した発言があるものだけ。
+- open: まだ決まっていない論点（短い箇条書き、なければ空）。
 - speakers: 各話者がどんな立場・関心で発言しているかを1文ずつ。発言から読み取れることだけを書き、推測で人物像を作らない。
 
 渡された話題IDと話者名はそのまま使い、新しいものを作らないでください。"""
@@ -177,6 +195,10 @@ INSIGHT_SCHEMA = {
             },
         },
         "now": {"type": "string"},
+        "direction": {"type": "string"},
+        "phase": {"type": "string", "enum": ["広げている", "深めている", "まとめに向かっている", "意見が割れている", "停滞している"]},
+        "decided": {"type": "array", "items": {"type": "string"}},
+        "open": {"type": "array", "items": {"type": "string"}},
         "speakers": {
             "type": "array",
             "items": {
@@ -187,7 +209,7 @@ INSIGHT_SCHEMA = {
             },
         },
     },
-    "required": ["topics", "now", "speakers"],
+    "required": ["topics", "now", "direction", "phase", "decided", "open", "speakers"],
     "additionalProperties": False,
 }
 
@@ -232,7 +254,8 @@ async def insight_loop(board: Board, dirty: asyncio.Event, publish):
                     if 0 <= t["id"] < len(board.topics):
                         board.topics[t["id"]]["label"] = t["label"]
                         board.topics[t["id"]]["summary"] = t["summary"]
-                board.now = data["now"]
+                board.now, board.direction, board.phase = data["now"], data["direction"], data["phase"]
+                board.decided, board.open = data["decided"], data["open"]
                 board.stances = {s["name"]: s["stance"] for s in data["speakers"]}
                 board.status["claude"] = CLAUDE_MODEL
                 await publish()

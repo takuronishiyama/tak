@@ -6,27 +6,47 @@
 <title>会話マップ</title>
 <style>
   :root {
-    --bg: #14161b; --panel: #1b1e25; --line: #2c313b; --text: #e3e6ec; --muted: #8b93a3;
-    --accent: #ffd866; --link: #4a5263;
+    --bg: #14161b; --panel: #1b1e25; --card: #1b1e25ee; --line: #2c313b; --text: #e3e6ec; --muted: #8b93a3;
+    --accent: #ffd866;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body { background: var(--bg); color: var(--text); display: flex; overflow: hidden;
     font: 14px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
   #map { flex: 1; min-width: 0; position: relative; }
-  svg { width: 100%; height: 100%; display: block; cursor: grab; }
-  #empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
-    pointer-events: none; text-align: center; }
-  #tip { position: absolute; max-width: 320px; padding: 8px 10px; background: #000c; border: 1px solid var(--line);
-    border-radius: 6px; pointer-events: none; display: none; font-size: 13px; }
-  aside { width: 360px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+  #graph { width: 100%; height: 100%; display: block; cursor: grab; }
+  .card { position: absolute; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  h2 { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--muted); }
+  .muted { color: var(--muted); }
+
+  /* 上：議論のいま */
+  #head { top: 14px; left: 14px; right: 14px; padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px; }
+  #now { font-size: 17px; font-weight: 600; line-height: 1.5; }
+  #dir { font-size: 17px; font-weight: 600; line-height: 1.5; color: var(--accent); }
+  #phase { display: inline-block; margin-left: 8px; padding: 0 9px; border-radius: 10px; font-size: 11px; letter-spacing: 0;
+    background: var(--accent); color: #14161b; font-weight: 700; vertical-align: 1px; }
+  #phase:empty { display: none; }
+
+  /* 下：話題の移り変わり */
+  #flow { left: 14px; right: 14px; bottom: 14px; padding: 10px 14px 8px; }
+  #lanes { width: 100%; display: block; }
+  #lanes text { font-size: 12px; fill: var(--muted); }
+  #lanes .on text { fill: var(--text); font-weight: 600; }
+  #lanes .row { cursor: pointer; }
+  #legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); float: right; letter-spacing: 0; font-weight: 400; }
+  #legend i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+
+  #empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
+  #tip { position: absolute; max-width: 320px; padding: 8px 10px; background: #000d; border: 1px solid var(--line);
+    border-radius: 6px; pointer-events: none; display: none; font-size: 13px; z-index: 5; }
+
+  aside { width: 340px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
     display: flex; flex-direction: column; min-height: 0; }
   section { padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  h2 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--muted); }
-  #status { font-size: 11px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #status { font-size: 11px; color: var(--muted); display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: center; }
   #status b { color: var(--text); font-weight: 500; }
-  #now { min-height: 1.6em; }
-  .muted { color: var(--muted); }
+  ul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
+  ul:last-child { margin-bottom: 0; }
   .sp { display: grid; grid-template-columns: 12px auto 1fr 28px; gap: 8px; align-items: center;
     padding: 3px 6px; margin: 0 -6px; border-radius: 6px; cursor: pointer; }
   .sp:hover { background: #ffffff0d; }
@@ -42,48 +62,68 @@
   #logwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--line); }
   #loghead { padding: 12px 16px 4px; }
   #sel { font-size: 13px; margin: 2px 0 8px; }
-  #log { flex: 1; overflow-y: auto; padding: 4px 16px 12px; }
+  #sel:empty { display: none; }
+  #log { flex: 1; overflow-y: auto; padding: 0 16px 12px; }
   .u { padding: 3px 0 3px 10px; border-left: 3px solid; margin: 4px 0; font-size: 13px; }
   .u .who { font-size: 11px; color: var(--muted); }
   form { display: flex; gap: 6px; padding: 10px 16px; }
   input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); color: var(--text);
     border-radius: 6px; padding: 6px 8px; font: inherit; }
-  .tlabel { fill: var(--text); font-size: 13px; font-weight: 600; text-anchor: middle; paint-order: stroke;
-    stroke: var(--bg); stroke-width: 4px; pointer-events: none; }
-  .tlabel.draft { fill: var(--muted); font-weight: 400; font-style: italic; }
-  .ring { fill: none; stroke: var(--accent); stroke-width: 2.5; opacity: 0; }
+
+  .tlabel { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; paint-order: stroke;
+    stroke: var(--bg); stroke-width: 5px; pointer-events: none; }
+  .tlabel.draft { fill: var(--muted); font-weight: 400; font-size: 13px; }
+  .ring { fill: none; stroke: var(--accent); stroke-width: 3; opacity: 0; }
   .topic.cur .ring { opacity: 1; }
   .topic { cursor: pointer; }
   .dim { opacity: .18; }
   .latest { animation: pulse 1.2s ease-in-out infinite; }
-  @keyframes pulse { 50% { stroke-width: 7; stroke-opacity: .25; } }
-  @media (max-width: 760px) { body { flex-direction: column; } aside { width: auto; height: 50%; border-left: 0; border-top: 1px solid var(--line); } }
+  @keyframes pulse { 50% { stroke-width: 8; stroke-opacity: .25; } }
+  @media (max-width: 820px) {
+    body { flex-direction: column; } aside { width: auto; height: 45%; border-left: 0; border-top: 1px solid var(--line); }
+    #head { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 <div id="map">
-  <svg><defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,1 L9,5 L0,9 z" fill="#8b93a3"></path></marker>
-  </defs><g id="view"><g id="sims"></g><g id="flows"></g><g id="stems"></g><g id="utts"></g><g id="topics"></g></g></svg>
+  <svg id="graph"><defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ffd866"></path></marker>
+  </defs><g id="view"><g id="sims"></g><g id="stems"></g><g id="trail"></g><g id="utts"></g><g id="topics"></g></g></svg>
   <div id="empty">話し始めると、ここに話題の地図が育っていきます</div>
+  <div id="head" class="card">
+    <div><h2>いま話していること</h2><div id="now"></div></div>
+    <div><h2>議論の向き<span id="phase"></span></h2><div id="dir"></div></div>
+  </div>
+  <div id="flow" class="card">
+    <h2>話題の移り変わり <span class="muted" style="letter-spacing:0;font-weight:400">（左から右へ時間が進みます）</span>
+      <span id="legend">
+        <span><i style="width:16px;height:16px;border-radius:50%;border:5px solid #8b93a3"></i>話題（色＝誰が話したか）</span>
+        <span><i style="width:8px;height:8px;border-radius:50%;background:#8b93a3"></i>発言</span>
+        <span><i style="width:20px;height:3px;background:#ffd866"></i>議論がたどった道すじ</span>
+        <span><i style="width:20px;border-top:2px dashed #5b6475"></i>内容が近い話題</span>
+      </span></h2>
+    <svg id="lanes"></svg>
+  </div>
   <div id="tip"></div>
 </div>
 <aside>
   <section id="status"></section>
-  <section><h2>いまの論点</h2><div id="now" class="muted">—</div></section>
-  <section><h2>話者 <span class="muted" style="letter-spacing:0">（クリックで「いま話している人」を切替）</span></h2>
+  <section id="outcome"></section>
+  <section><h2>話者 <span class="muted" style="letter-spacing:0;font-weight:400">（クリックで「いま話している人」を切替）</span></h2>
     <div id="speakers"></div>
     <button id="addsp" style="margin-top:6px">＋ 話者を追加</button></section>
   <div id="logwrap">
     <div id="loghead"><h2 id="logtitle">発言ログ</h2><div id="sel"></div></div>
     <div id="log"></div>
   </div>
-  <form id="f"><input id="t" placeholder="テキストで発言を入力（マイクなしでも試せます）" autocomplete="off"><button>送信</button></form>
+  <form id="f"><input id="t" placeholder="テキストで発言を入力" autocomplete="off"><button>送信</button></form>
 </aside>
 <script src="/static/d3.min.js"></script>
 <script>
 const COLORS = ["#6cb6ff", "#f69d50", "#8ddb8c", "#dcbdfb", "#f47067", "#39c5cf", "#e0c35a", "#f692ce"];
+const TRAIL = 7;   // 地図に描く「道すじ」の長さ（直近の話題の移動回数）
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 let state = null, selected = null, ws;
@@ -91,30 +131,35 @@ const color = name => {
   const i = state.speakers.findIndex(s => s.name === name);
   return COLORS[(i < 0 ? 0 : i) % COLORS.length];
 };
+const select = id => { selected = selected === id ? null : id; render(); };
 
 // ---------- 地図 ----------
-const svg = d3.select("svg"), view = d3.select("#view");
+const svg = d3.select("#graph"), view = d3.select("#view");
 const nodes = new Map();   // key → ノード（位置を保持）
-const tr = t => 16 + 5 * Math.sqrt(t.count);
+const tr = t => 18 + 5 * Math.sqrt(t.count);
 svg.call(d3.zoom().scaleExtent([0.3, 4]).on("zoom", e => view.attr("transform", e.transform)))
    .on("click", () => { selected = null; render(); });
+const centerY = () => {   // 上下のカードを避けた中央
+  const top = $("#head").offsetHeight + 14, bottom = $("#flow").offsetHeight + 14;
+  return top + ($("#map").clientHeight - top - bottom) / 2;
+};
 
 const sim = d3.forceSimulation()
-  .force("charge", d3.forceManyBody().strength(d => d.kind === "t" ? -1100 : -25))
-  .force("x", d3.forceX(() => $("#map").clientWidth / 2).strength(0.035))
-  .force("y", d3.forceY(() => $("#map").clientHeight / 2).strength(0.045))
+  .force("charge", d3.forceManyBody().strength(d => d.kind === "t" ? -900 : -25))
+  .force("x", d3.forceX(() => $("#map").clientWidth / 2).strength(0.03))
+  .force("y", d3.forceY(centerY).strength(0.09))
   .force("collide", d3.forceCollide(d => d.kind === "t" ? tr(d.data) + 34 : 6))
   .on("tick", tick);
 
 function syncGraph() {
-  const w = $("#map").clientWidth, h = $("#map").clientHeight, live = new Set();
+  const w = $("#map").clientWidth, live = new Set();
   for (const t of state.topics) {
     const k = "t" + t.id; live.add(k);
     let n = nodes.get(k);
     if (!n) {
       const from = nodes.get("t" + (t.id - 1));
-      n = {key: k, kind: "t", x: (from ? from.x : w / 2) + (Math.random() - .5) * 120,
-           y: (from ? from.y : h / 2) + (Math.random() - .5) * 120};
+      n = {key: k, kind: "t", x: (from ? from.x : w / 2) + (Math.random() - .5) * 160,
+           y: (from ? from.y : centerY()) + (Math.random() - .5) * 120};
       nodes.set(k, n);
     }
     n.data = t;
@@ -134,26 +179,32 @@ function syncGraph() {
   const N = k => nodes.get(k);
   const stems = state.utts.map(u => ({source: N("u" + u.id), target: N("t" + u.topic), kind: "stem"}));
   const sims = state.links.map(l => ({source: N("t" + l.a), target: N("t" + l.b), kind: "sim", sim: l.sim}));
-  const flows = state.flow.map(l => ({source: N("t" + l.a), target: N("t" + l.b), kind: "flow", n: l.n}));
   sim.nodes([...nodes.values()]);
-  sim.force("link", d3.forceLink([...stems, ...sims, ...flows])
-    .distance(l => l.kind === "stem" ? tr(l.target.data) + 12 : l.kind === "sim" ? 250 : 320)
-    .strength(l => l.kind === "stem" ? 0.9 : l.kind === "sim" ? 0.25 : 0.06));
+  sim.force("link", d3.forceLink([...stems, ...sims])
+    .distance(l => l.kind === "stem" ? tr(l.target.data) + 12 : 230)
+    .strength(l => l.kind === "stem" ? 0.9 : 0.2));
   sim.alpha(0.6).restart();
 
   d3.select("#stems").selectAll("line").data(stems, d => d.source.key).join("line")
     .attr("stroke", "#4a5263").attr("stroke-width", 1);
   d3.select("#sims").selectAll("line").data(sims, d => d.source.key + d.target.key).join("line")
-    .attr("stroke", "#4a5263").attr("stroke-dasharray", "3 5").attr("stroke-width", d => 1 + d.sim * 2);
-  d3.select("#flows").selectAll("path").data(flows, d => d.source.key + ">" + d.target.key).join("path")
-    .attr("fill", "none").attr("stroke", "#8b93a3").attr("stroke-opacity", .7)
-    .attr("stroke-width", d => Math.min(1 + d.n * .6, 4)).attr("marker-end", "url(#arrow)");
+    .attr("stroke", "#5b6475").attr("stroke-dasharray", "3 6").attr("stroke-width", 1.5);
+
+  // 議論の道すじ：話題から話題への移動を、新しいものほど濃く太く描く。最後の1本に矢印。
+  const visits = [];
+  for (const u of state.utts) if (visits[visits.length - 1] !== u.topic) visits.push(u.topic);
+  const steps = visits.slice(1).map((to, i) => ({from: N("t" + visits[i]), to: N("t" + to), i}));
+  const shown = steps.slice(-TRAIL);
+  d3.select("#trail").selectAll("path").data(shown, d => d.i).join("path")
+    .attr("fill", "none").attr("stroke", "#ffd866").attr("stroke-linecap", "round")
+    .attr("stroke-opacity", (d, j) => 0.18 + 0.82 * Math.pow((j + 1) / shown.length, 2))
+    .attr("stroke-width", (d, j) => 1.5 + 4.5 * Math.pow((j + 1) / shown.length, 2))
+    .attr("marker-end", (d, j) => j === shown.length - 1 ? "url(#arrow)" : null);
 
   const last = state.utts.length ? state.utts[state.utts.length - 1].id : -1;
   d3.select("#utts").selectAll("circle").data([...nodes.values()].filter(n => n.kind === "u"), d => d.key)
     .join(e => e.append("circle").attr("r", 5)
-      .on("mousemove", (ev, d) => tip(ev, `<span style="color:${color(d.data.speaker)}">${esc(d.data.speaker)}</span><br>${esc(d.data.text)}`))
-      .on("mouseleave", () => $("#tip").style.display = "none"))
+      .on("mousemove", (ev, d) => tip(ev, d.data)).on("mouseleave", hideTip))
     .attr("fill", d => color(d.data.speaker)).attr("stroke", d => color(d.data.speaker))
     .attr("stroke-width", 0).classed("latest", d => d.data.id === last)
     .classed("dim", d => selected !== null && d.data.topic !== selected);
@@ -162,7 +213,7 @@ function syncGraph() {
   d3.select("#topics").selectAll("g.topic").data([...nodes.values()].filter(n => n.kind === "t"), d => d.key)
     .join(e => {
       const g = e.append("g").attr("class", "topic")
-        .on("click", (ev, d) => { ev.stopPropagation(); selected = selected === d.data.id ? null : d.data.id; render(); })
+        .on("click", (ev, d) => { ev.stopPropagation(); select(d.data.id); })
         .call(d3.drag()
           .on("start", (ev, d) => { sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
           .on("drag", (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
@@ -177,50 +228,93 @@ function syncGraph() {
     .classed("dim", d => selected !== null && d.data.id !== selected)
     .each(function (d) {
       const r = tr(d.data), g = d3.select(this);
-      g.select(".ring").attr("r", r + 6);
+      g.select(".ring").attr("r", r + 7);
       g.select(".hit").attr("r", r);
       g.select(".pie").selectAll("path").data(pie(Object.entries(d.data.shares))).join("path")
         .attr("d", d3.arc().innerRadius(r * 0.45).outerRadius(r))
         .attr("fill", a => color(a.data[0])).attr("stroke", "#14161b").attr("stroke-width", 1.5);
-      g.select(".tlabel").attr("y", r + 38).classed("draft", !d.data.labeled)
+      g.select(".tlabel").attr("y", r + 40).classed("draft", !d.data.labeled)
         .text(d.data.label + (d.data.labeled ? "" : "…"));
     });
 }
 
 function tick() {
-  d3.select("#stems").selectAll("line").attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-  d3.select("#sims").selectAll("line").attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-  d3.select("#flows").selectAll("path").attr("d", d => {       // 話題の移り変わり：弧を描く矢印
-    const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y, len = Math.hypot(dx, dy) || 1;
-    const a = tr(d.source.data) + 8, b = tr(d.target.data) + 12;
-    const x1 = d.source.x + dx / len * a, y1 = d.source.y + dy / len * a;
-    const x2 = d.target.x - dx / len * b, y2 = d.target.y - dy / len * b;
-    return `M${x1},${y1} Q${(x1 + x2) / 2 - dy * .18},${(y1 + y2) / 2 + dx * .18} ${x2},${y2}`;
+  for (const id of ["#stems", "#sims"])
+    d3.select(id).selectAll("line").attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  d3.select("#trail").selectAll("path").attr("d", d => {
+    const dx = d.to.x - d.from.x, dy = d.to.y - d.from.y, len = Math.hypot(dx, dy) || 1;
+    const a = tr(d.from.data) + 9, b = tr(d.to.data) + 16;
+    const x1 = d.from.x + dx / len * a, y1 = d.from.y + dy / len * a;
+    const x2 = d.to.x - dx / len * b, y2 = d.to.y - dy / len * b;
+    return `M${x1},${y1} Q${(x1 + x2) / 2 - dy * .15},${(y1 + y2) / 2 + dx * .15} ${x2},${y2}`;
   });
   d3.select("#utts").selectAll("circle").attr("cx", d => d.x).attr("cy", d => d.y);
   d3.select("#topics").selectAll("g.topic").attr("transform", d => `translate(${d.x},${d.y})`);
 }
 
-function tip(ev, html) {
+function tip(ev, u) {
   const el = $("#tip"), box = $("#map").getBoundingClientRect();
-  el.innerHTML = html; el.style.display = "block";
-  el.style.left = Math.min(ev.clientX - box.left + 14, box.width - 330) + "px";
-  el.style.top = ev.clientY - box.top + 14 + "px";
+  el.innerHTML = `<span style="color:${color(u.speaker)}">${esc(u.speaker)}</span><br>${esc(u.text)}`;
+  el.style.display = "block";
+  el.style.left = Math.max(4, Math.min(ev.clientX - box.left + 14, box.width - 330)) + "px";
+  const y = ev.clientY - box.top;
+  el.style.top = (y > box.height - 120 ? y - el.offsetHeight - 10 : y + 14) + "px";
+}
+const hideTip = () => $("#tip").style.display = "none";
+
+// ---------- 下の帯：話題の移り変わり（行＝話題、左→右＝時間、色＝話者） ----------
+function renderLanes() {
+  const el = d3.select("#lanes"), W = $("#lanes").clientWidth, ROW = 22, LEFT = 150;
+  const topics = state.topics, n = state.utts.length;
+  el.attr("height", Math.max(1, topics.length) * ROW + 4);
+  const x = i => LEFT + 10 + (n > 1 ? i / (n - 1) : 0) * (W - LEFT - 24), y = t => t * ROW + ROW / 2 + 2;
+  const short = s => s.length > 10 ? s.slice(0, 10) + "…" : s;
+
+  el.selectAll("g.row").data(topics, d => d.id).join(e => {
+    const g = e.append("g").attr("class", "row").on("click", (ev, d) => select(d.id));
+    g.append("rect").attr("x", 0).attr("height", ROW).attr("rx", 4);
+    g.append("line").attr("stroke", "#2c313b");
+    g.append("text").attr("x", 8).attr("dominant-baseline", "central");
+    return g;
+  }).classed("on", d => d.id === state.current_topic)
+    .attr("opacity", d => selected !== null && d.id !== selected ? .3 : 1)
+    .each(function (d) {
+      const g = d3.select(this);
+      g.select("rect").attr("y", d.id * ROW + 2).attr("width", W)
+        .attr("fill", d.id === state.current_topic ? "#ffd86618" : "transparent");
+      g.select("line").attr("x1", LEFT).attr("x2", W - 8).attr("y1", y(d.id)).attr("y2", y(d.id));
+      g.select("text").attr("y", y(d.id)).text(short(d.label));
+    });
+  el.selectAll("path.route").data(n > 1 ? [state.utts] : []).join("path").attr("class", "route")
+    .attr("fill", "none").attr("stroke", "#ffd866").attr("stroke-width", 1.5).attr("stroke-opacity", .55)
+    .attr("d", d3.line().x(u => x(u.id)).y(u => y(u.topic)).curve(d3.curveMonotoneX));
+  el.selectAll("circle.tick").data(state.utts, d => d.id).join(e => e.append("circle").attr("class", "tick")
+      .on("mousemove", (ev, d) => tip(ev, d)).on("mouseleave", hideTip))
+    .attr("r", d => d.id === n - 1 ? 6 : 4).attr("cx", d => x(d.id)).attr("cy", d => y(d.topic))
+    .attr("fill", d => color(d.speaker)).attr("stroke", "#14161b").attr("stroke-width", 1);
 }
 
-// ---------- 右パネル ----------
+// ---------- 文字の部分 ----------
 function render() {
   if (!state) return;
   if (selected !== null && !state.topics[selected]) selected = null;
   $("#empty").style.display = state.utts.length ? "none" : "grid";
-  const s = state.status;
+  const s = state.status, ai = s.claude.startsWith("claude");
+  const wait = ai ? "（整理中…）" : "Claude に接続すると表示されます";
   $("#status").innerHTML = `<span>入力 <b>${esc(s.source)}</b></span><span>意味づけ <b>${esc(s.claude)}</b></span>` +
     `<span>ベクトル <b>${esc(s.embedder)}</b></span><button id="reset" style="margin-left:auto">リセット</button>`;
   $("#reset").onclick = () => confirm("地図と発言ログを消して最初からにしますか？") && send({type: "reset"});
-  $("#now").textContent = state.now || (s.claude.startsWith("claude") ? "（整理中…）" : "Claude に接続すると、ここに論点の要約が出ます");
-  $("#now").className = state.now ? "" : "muted";
+
+  const cur = state.topics[state.current_topic];
+  $("#now").textContent = state.now || (cur ? `「${cur.label}」の話題` : "—");
+  $("#dir").textContent = state.direction || wait;
+  $("#dir").style.cssText = state.direction ? "" : "font-size:13px;font-weight:400;color:var(--muted)";
+  $("#phase").textContent = state.phase;
+
+  const list = (title, items) => `<h2>${title}</h2>` +
+    (items.length ? `<ul>${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : `<ul class="muted" style="list-style:none;padding:0">${state.direction ? "まだありません" : wait}</ul>`);
+  $("#outcome").innerHTML = list("決まったこと", state.decided) + list("まだ決まっていないこと", state.open);
 
   const total = Math.max(1, state.utts.length);
   $("#speakers").innerHTML = state.speakers.map(p =>
@@ -238,6 +332,7 @@ function render() {
     `<div class="u" style="border-color:${color(u.speaker)}"><div class="who">${esc(u.speaker)}` +
     (topic ? "" : ` ・ ${esc(state.topics[u.topic].label)}`) + `</div>${esc(u.text)}</div>`).join("");
   if (stick) log.scrollTop = log.scrollHeight;
+  renderLanes();
   syncGraph();
 }
 
@@ -258,7 +353,7 @@ $("#addsp").onclick = () => {
   const name = prompt("話者の名前", "話者" + (state.speakers.length + 1));
   if (name) send({type: "speaker", name});
 };
-window.addEventListener("resize", () => sim.alpha(0.3).restart());
+window.addEventListener("resize", () => { if (state) { renderLanes(); sim.alpha(0.3).restart(); } });
 connect();
 </script>
 </body>
