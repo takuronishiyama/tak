@@ -246,7 +246,10 @@ def insight_payload(board: Board) -> str:
     return json.dumps({"話題": topics, "直近の流れ": recent}, ensure_ascii=False, indent=1)
 
 
-async def insight_loop(board: Board, dirty: asyncio.Event, publish):
+async def insight_loop(board: Board, dirty: asyncio.Event, publish, enabled: bool = True):
+    if not enabled:
+        board.status["claude"] = "オフ（ローカルのみ）"
+        return
     try:
         import anthropic
 
@@ -301,7 +304,8 @@ def build_app(args) -> FastAPI:
     clients: set[WebSocket] = set()
     dirty = asyncio.Event()
     log_dir = ROOT / "logs"
-    log_dir.mkdir(exist_ok=True)
+    if not args.no_log:
+        log_dir.mkdir(exist_ok=True)
     log_path = log_dir / time.strftime("%Y%m%d-%H%M%S.jsonl")
 
     async def publish():
@@ -317,8 +321,9 @@ def build_app(args) -> FastAPI:
         if not text:
             return
         utt = board.add(speaker or board.current_speaker, text)
-        with log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(utt, ensure_ascii=False) + "\n")
+        if not args.no_log:
+            with log_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(utt, ensure_ascii=False) + "\n")
         dirty.set()
         await publish()
 
@@ -333,7 +338,7 @@ def build_app(args) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         loop = asyncio.get_running_loop()
-        tasks = [asyncio.create_task(insight_loop(board, dirty, publish))]
+        tasks = [asyncio.create_task(insight_loop(board, dirty, publish, not args.local))]
         if args.demo:
             board.status["source"] = "サンプル再生"
             tasks.append(asyncio.create_task(demo()))
@@ -361,6 +366,11 @@ def build_app(args) -> FastAPI:
 
     @app.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
+        # ほかのWebサイトのページからこのサーバーへ接続して発言を読まれないよう、接続元を確かめる
+        origin = ws.headers.get("origin")
+        if origin and origin not in (f"http://localhost:{args.port}", f"http://127.0.0.1:{args.port}"):
+            await ws.close(code=1008)
+            return
         await ws.accept()
         clients.add(ws)
         await ws.send_text(json.dumps(board.snapshot(), ensure_ascii=False))
@@ -393,6 +403,8 @@ if __name__ == "__main__":
     p.add_argument("--threshold", type=float, default=None, help="同じ話題とみなす類似度（大きいほど話題が細かく分かれる）")
     p.add_argument("--whisper", default="mlx-community/whisper-large-v3-turbo", help="文字起こしモデル")
     p.add_argument("--device", default=None, help="入力デバイス名または番号（既定はシステムの既定マイク）")
+    p.add_argument("--local", action="store_true", help="Claude に何も送らず、Mac の中だけで動かす")
+    p.add_argument("--no-log", action="store_true", help="発言ログをファイルに保存しない")
     p.add_argument("--port", type=int, default=8765)
     args = p.parse_args()
     print(f"\n  ブラウザで開く → http://localhost:{args.port}\n")
