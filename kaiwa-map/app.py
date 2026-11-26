@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -341,9 +342,43 @@ def build_app(args) -> FastAPI:
                 await ingest(name.strip(), text)
                 await asyncio.sleep(args.demo_speed)
 
+    procs: list = []
+
+    async def mic():
+        """文字起こしを別プロセスで動かす。落ちてもこのサーバーは動き続け、別の方式を試す。"""
+        engines = ["mlx", "faster"] if args.stt == "auto" else [args.stt]
+        for engine in engines:
+            cmd = [sys.executable, "-u", str(ROOT / "stt.py"), "--engine", engine, "--model", args.whisper]
+            if args.device:
+                cmd += ["--device", args.device]
+            board.status["source"] = f"マイク準備中（{engine}）…"
+            await publish()
+            proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
+            procs.append(proc)
+            ready = False
+            async for raw in proc.stdout:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("{"):
+                    continue
+                try:
+                    m = json.loads(line)
+                except ValueError:
+                    continue
+                if m.get("status") == "ready":
+                    ready = True
+                    board.status["source"] = f"マイク（{engine}）"
+                    await publish()
+                elif m.get("text"):
+                    await ingest("", m["text"])
+            code = await proc.wait()
+            print(f"[mic] 文字起こし（{engine}）が終了しました（終了コード {code}）")
+            if ready:
+                break  # いったん動いてから止まった場合は、同じことを繰り返さない
+        board.status["source"] = "文字起こし停止（テキスト入力は使えます）"
+        await publish()
+
     @asynccontextmanager
     async def lifespan(app):
-        loop = asyncio.get_running_loop()
         tasks = [asyncio.create_task(insight_loop(board, dirty, publish, not args.local))]
         if args.demo:
             board.status["source"] = "サンプル再生"
@@ -351,18 +386,12 @@ def build_app(args) -> FastAPI:
         elif args.no_mic:
             board.status["source"] = "テキスト入力"
         else:
-            try:
-                import stt
-
-                stt.start(lambda text: asyncio.run_coroutine_threadsafe(ingest("", text), loop),
-                          model=args.whisper, device=args.device)
-                board.status["source"] = "マイク"
-            except Exception as e:
-                board.status["source"] = "マイク起動失敗（テキスト入力のみ）"
-                print(f"[mic] 起動できません: {e}")
+            tasks.append(asyncio.create_task(mic()))
         yield
         for t in tasks:
             t.cancel()
+        if procs:
+            procs[-1].terminate() if procs[-1].returncode is None else None
 
     app = FastAPI(lifespan=lifespan)
 
@@ -408,6 +437,8 @@ if __name__ == "__main__":
     p.add_argument("--embed", choices=["model", "hash"], default="model", help="hash は簡易版（モデル不要）")
     p.add_argument("--threshold", type=float, default=None, help="同じ話題とみなす類似度（大きいほど話題が細かく分かれる）")
     p.add_argument("--whisper", default="mlx-community/whisper-large-v3-turbo", help="文字起こしモデル")
+    p.add_argument("--stt", choices=["auto", "mlx", "faster"], default="auto",
+                   help="文字起こしの方式。auto は mlx を試し、だめなら faster（CPU）に切り替える")
     p.add_argument("--device", default=None, help="入力デバイス名または番号（既定はシステムの既定マイク）")
     p.add_argument("--local", action="store_true", help="Claude に何も送らず、Mac の中だけで動かす")
     p.add_argument("--no-log", action="store_true", help="発言ログをファイルに保存しない")

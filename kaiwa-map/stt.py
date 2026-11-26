@@ -1,8 +1,18 @@
-"""マイク → 発話の切り出し → Whisper で文字起こし（すべてローカル）。"""
+"""マイク → 発話の切り出し → Whisper で文字起こし（すべてローカル）。
+
+app.py から別プロセスとして起動され、結果を1行ずつ JSON で標準出力に書く。
+単体でも動く:  python stt.py   （話した内容がそのまま表示される）
+"""
 from __future__ import annotations
 
+import faulthandler
+
+faulthandler.enable()
+
+import argparse
+import json
 import queue
-import threading
+import sys
 
 import numpy as np
 
@@ -16,8 +26,16 @@ MIN_LEN = 0.4
 HALLUCINATIONS = ("ご視聴ありがとうございました", "チャンネル登録", "最後までご覧いただき", "字幕")
 
 
-def load_transcriber(model: str):
-    try:
+def log(msg: str):
+    print(f"[stt] {msg}", file=sys.stderr, flush=True)
+
+
+def emit(**data):
+    print(json.dumps(data, ensure_ascii=False), flush=True)
+
+
+def load_transcriber(engine: str, model: str):
+    if engine == "mlx":
         import mlx_whisper
 
         def run(audio: np.ndarray) -> str:
@@ -26,16 +44,16 @@ def load_transcriber(model: str):
             return r["text"]
 
         return run
-    except ImportError:
-        from faster_whisper import WhisperModel  # Intel Mac など mlx が使えない環境向け
 
-        m = WhisperModel("small", compute_type="int8")
+    from faster_whisper import WhisperModel  # CPU で動く方式（mlx が使えない環境向け）
 
-        def run(audio: np.ndarray) -> str:
-            segs, _ = m.transcribe(audio, language="ja", condition_on_previous_text=False)
-            return "".join(s.text for s in segs)
+    m = WhisperModel("small", compute_type="int8")
 
-        return run
+    def run(audio: np.ndarray) -> str:
+        segs, _ = m.transcribe(audio, language="ja", condition_on_previous_text=False)
+        return "".join(s.text for s in segs)
+
+    return run
 
 
 class Segmenter:
@@ -68,32 +86,36 @@ class Segmenter:
         return None
 
 
-def start(on_text, model: str, device=None):
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--engine", choices=["mlx", "faster"], default="mlx")
+    p.add_argument("--model", default="mlx-community/whisper-large-v3-turbo")
+    p.add_argument("--device", default=None)
+    args = p.parse_args()
+
+    log(f"文字起こしモデルを準備中（方式: {args.engine}）。初回はダウンロードで数分かかります…")
+    transcribe = load_transcriber(args.engine, args.model)
+    transcribe(np.zeros(RATE, dtype=np.float32))  # ここでモデルを読み込んでおく
+
     import sounddevice as sd
 
-    transcribe = load_transcriber(model)
     blocks: queue.Queue = queue.Queue()
-    segments: queue.Queue = queue.Queue()
-
-    if isinstance(device, str) and device.isdigit():
-        device = int(device)
+    device = int(args.device) if args.device and args.device.isdigit() else args.device
     stream = sd.InputStream(samplerate=RATE, channels=1, dtype="float32", blocksize=BLOCK, device=device,
                             callback=lambda data, *_: blocks.put(data[:, 0].copy()))
     stream.start()
+    log("マイクの音を聞いています。")
+    emit(status="ready", engine=args.engine)
 
-    def cut():
-        seg = Segmenter()
-        while True:
-            audio = seg.feed(blocks.get())
-            if audio is not None:
-                segments.put(audio)
+    seg = Segmenter()
+    while True:  # 切り出しも文字起こしもこのメインスレッドで行う
+        audio = seg.feed(blocks.get())
+        if audio is None:
+            continue
+        text = transcribe(audio).strip()
+        if text and not any(h in text for h in HALLUCINATIONS):
+            emit(text=text)
 
-    def recognize():
-        while True:
-            text = transcribe(segments.get()).strip()
-            if text and not any(h in text for h in HALLUCINATIONS):
-                on_text(text)
 
-    threading.Thread(target=cut, daemon=True).start()
-    threading.Thread(target=recognize, daemon=True).start()
-    return stream
+if __name__ == "__main__":
+    main()
