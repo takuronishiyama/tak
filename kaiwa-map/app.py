@@ -6,6 +6,10 @@
 """
 from __future__ import annotations
 
+import faulthandler
+
+faulthandler.enable()  # 異常終了したとき、どこで落ちたかを表示する
+
 import argparse
 import asyncio
 import json
