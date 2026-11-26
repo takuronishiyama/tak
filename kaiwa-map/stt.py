@@ -1,4 +1,6 @@
 """マイク → 発話の切り出し → Whisper で文字起こし（すべてローカル）。"""
+from __future__ import annotations
+
 import queue
 import threading
 

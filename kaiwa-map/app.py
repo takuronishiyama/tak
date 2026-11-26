@@ -4,6 +4,8 @@
   python app.py --demo     サンプル会話を再生（マイク不要）
   python app.py --no-mic   画面のテキスト入力だけで使う
 """
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
